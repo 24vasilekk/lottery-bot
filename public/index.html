@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Kosmetichka - Рулетка красоты и призов</title>
+    <title>Kosmetichka - Диагностика</title>
     
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -11,18 +11,8 @@
     <!-- Font Awesome for icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
-    <!-- CSS Files -->
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/animations.css">
-    <link rel="stylesheet" href="css/loading.css">
-    <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/tasks.css">
-    <link rel="stylesheet" href="css/profile.css">
-    <link rel="stylesheet" href="css/mega-roulette.css">
-    
-    <!-- Fallback styles -->
+    <!-- Базовые стили -->
     <style>
-        /* Базовые стили на случай если CSS файлы не загрузятся */
         * { 
             margin: 0; 
             padding: 0; 
@@ -31,7 +21,7 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #EF55A5 0%, #809EFF 50%, #CCD537 100%);
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d1b3d 100%);
             color: white;
             min-height: 100vh;
             width: 100%;
@@ -41,18 +31,18 @@
         #app {
             max-width: 414px;
             margin: 0 auto;
-            height: 100vh;
+            min-height: 100vh;
             position: relative;
-            background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
         }
         
+        /* ЗАГРУЗОЧНЫЙ ЭКРАН */
         .loading-screen {
             position: fixed;
             top: 0;
             left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, #EF55A5 0%, #809EFF 50%, #CCD537 100%);
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d1b3d 100%);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -61,200 +51,334 @@
         }
         
         .loading-spinner {
-            font-size: 60px;
-            animation: spin 2s linear infinite;
+            font-size: 48px;
+            animation: loadingPulse 1.5s ease-in-out infinite;
             margin-bottom: 20px;
         }
         
         .loading-text {
-            font-size: 18px;
-            font-weight: 500;
+            font-size: 16px;
+            opacity: 0.8;
+            text-align: center;
+            margin-bottom: 10px;
         }
         
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+        .loading-debug {
+            font-size: 12px;
+            opacity: 0.6;
+            text-align: center;
+            max-width: 300px;
+            margin-top: 20px;
         }
         
-        .error-screen {
+        @keyframes loadingPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+        }
+        
+        /* НАВИГАЦИЯ */
+        .bottom-nav {
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            width: 100% !important;
+            max-width: 414px !important;
+            background: rgba(42, 42, 42, 0.95) !important;
+            backdrop-filter: blur(20px) !important;
+            z-index: 1000 !important;
+            display: flex !important;
+            justify-content: space-around !important;
+            padding: 12px 8px !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .nav-btn {
+            background: none !important;
+            border: none !important;
+            color: #cccccc;
+            cursor: pointer;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            height: 100vh;
-            padding: 20px;
-            text-align: center;
-            background: linear-gradient(135deg, #EF55A5 0%, #809EFF 50%, #CCD537 100%);
+            gap: 4px;
+            padding: 8px 12px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            min-width: 60px;
+            min-height: 60px;
+        }
+        
+        .nav-btn.active {
+            color: #EF55A5 !important;
+            background: rgba(239, 85, 165, 0.1) !important;
+        }
+        
+        .nav-btn i {
+            font-size: 20px;
+        }
+        
+        .nav-btn span {
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        /* УВЕДОМЛЕНИЯ */
+        .status-messages-container {
+            position: fixed !important;
+            top: 20px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            width: 90% !important;
+            max-width: 380px !important;
+            z-index: 2000 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 8px !important;
+            pointer-events: none !important;
+        }
+        
+        .status-message {
+            background: rgba(42, 42, 42, 0.95) !important;
             color: white;
+            padding: 14px 18px;
+            border-radius: 16px;
+            font-size: 14px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.4s ease;
+            pointer-events: auto;
+            text-align: center;
         }
         
-        .error-icon {
-            font-size: 60px;
-            margin-bottom: 20px;
+        .status-message.show {
+            opacity: 1 !important;
+            transform: translateY(0) !important;
         }
         
-        .btn-primary {
-            background: rgba(255,255,255,0.2);
+        /* ЭКРАНЫ */
+        .screen {
+            display: none;
+            padding: 20px 20px 120px 20px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            width: 100%;
+            min-height: calc(100vh - 90px);
+        }
+        
+        .screen.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* ДИАГНОСТИЧЕСКАЯ ИНФОРМАЦИЯ */
+        .debug-info {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .debug-title {
+            color: #EF55A5;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .error-details {
+            background: rgba(220, 38, 38, 0.1);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #EF55A5, #ff6b9d);
             border: none;
             color: white;
-            padding: 15px 30px;
+            padding: 12px 20px;
             border-radius: 25px;
             cursor: pointer;
-            margin-top: 20px;
-            font-size: 16px;
-            font-weight: 500;
+            margin: 5px;
             transition: all 0.3s ease;
         }
         
-        .btn-primary:hover {
-            background: rgba(255,255,255,0.3);
+        .btn:hover {
             transform: translateY(-2px);
         }
         
-        /* Анимированный фон */
-        .animated-background {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #EF55A5 0%, #809EFF 50%, #CCD537 100%);
-            z-index: -2;
-        }
-        
-        .background-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, rgba(26,26,26,0.8) 0%, rgba(15,15,15,0.9) 100%);
-            z-index: -1;
+        .btn-secondary {
+            background: linear-gradient(135deg, #666, #444);
         }
     </style>
 </head>
 <body>
-    <!-- Animated Background -->
-    <div class="animated-background"></div>
-    <div class="background-overlay"></div>
-
     <!-- Main App Container -->
     <div id="app">
         <!-- Loading Screen -->
         <div id="loading-screen" class="loading-screen">
             <div class="loading-spinner">🎰</div>
-            <div class="loading-text">Загрузка Kosmetichka...</div>
+            <div class="loading-text">Диагностика Kosmetichka...</div>
+            <div class="loading-debug" id="loading-debug">
+                Проверяем систему...
+            </div>
         </div>
     </div>
 
-    <!-- JavaScript Modules -->
-    <script type="module">
-        // Проверяем поддержку модулей
-        console.log('🚀 Инициализация приложения...');
+    <!-- Диагностический скрипт -->
+    <script>
+        console.log('🔍 ЗАПУСК ДИАГНОСТИКИ KOSMETICHKA');
         
-        try {
-            // Динамический импорт для лучшей совместимости
-            const { default: App } = await import('./js/app.js');
-            
-            // Ждем полной загрузки DOM
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', initApp);
-            } else {
-                initApp();
+        // Обновляем статус на экране
+        function updateLoadingStatus(message) {
+            const debugEl = document.getElementById('loading-debug');
+            if (debugEl) {
+                debugEl.textContent = message;
             }
+            console.log('📊', message);
+        }
+        
+        // Проверяем базовые возможности
+        updateLoadingStatus('Проверка базовых API...');
+        
+        const diagnostics = {
+            telegram: !!window.Telegram?.WebApp,
+            localStorage: !!window.localStorage,
+            fetch: !!window.fetch,
+            modules: 'import' in document.createElement('script'),
+            userAgent: navigator.userAgent,
+            url: window.location.href
+        };
+        
+        console.log('🔍 Диагностическая информация:', diagnostics);
+        
+        // Проверяем доступность файлов
+        async function checkFiles() {
+            updateLoadingStatus('Проверка файлов приложения...');
             
-            function initApp() {
+            const files = [
+                './js/config.js',
+                './js/app.js',
+                './js/screens/main.js',
+                './js/screens/tasks.js',
+                './js/screens/profile.js',
+                './css/styles.css'
+            ];
+            
+            const results = {};
+            
+            for (const file of files) {
                 try {
-                    console.log('🎮 Создание экземпляра приложения...');
-                    window.app = new App();
-                    window.app.init();
-                    console.log('✅ Приложение инициализировано');
+                    const response = await fetch(file);
+                    results[file] = {
+                        status: response.status,
+                        ok: response.ok,
+                        size: response.headers.get('content-length')
+                    };
                 } catch (error) {
-                    console.error('❌ Ошибка инициализации приложения:', error);
-                    showErrorScreen(error);
+                    results[file] = { error: error.message };
                 }
             }
             
-        } catch (error) {
-            console.error('❌ Ошибка загрузки модулей:', error);
-            showErrorScreen(error);
+            console.log('📁 Результаты проверки файлов:', results);
+            return results;
         }
         
-        function showErrorScreen(error) {
+        // Основная диагностическая функция
+        async function runDiagnostics() {
+            try {
+                // Проверяем файлы
+                const fileResults = await checkFiles();
+                
+                // Пытаемся загрузить основное приложение
+                updateLoadingStatus('Загрузка основного приложения...');
+                
+                // Импортируем диагностическую версию app.js
+                const appModule = await import('./js/app.js');
+                
+                updateLoadingStatus('Приложение загружено успешно!');
+                
+                // Если дошли сюда, значит основные файлы загружаются
+                console.log('✅ Диагностика пройдена, приложение должно работать');
+                
+            } catch (error) {
+                console.error('❌ Ошибка диагностики:', error);
+                showDiagnosticResults(error, diagnostics);
+            }
+        }
+        
+        // Показываем результаты диагностики
+        function showDiagnosticResults(error, info) {
             const app = document.getElementById('app');
             if (app) {
                 app.innerHTML = `
-                    <div class="error-screen">
-                        <div class="error-icon">⚠️</div>
-                        <h2>Произошла ошибка</h2>
-                        <p>Не удалось загрузить приложение</p>
-                        <p style="font-size: 14px; margin-top: 10px; opacity: 0.8;">
-                            ${error.message || 'Неизвестная ошибка'}
-                        </p>
-                        <button class="btn-primary" onclick="window.location.reload()">
-                            Перезагрузить
-                        </button>
-                        <button class="btn-primary" onclick="showDebugInfo()" style="margin-left: 10px;">
-                            Отладка
-                        </button>
+                    <div style="padding: 20px; max-width: 414px; margin: 0 auto;">
+                        <div style="text-align: center; margin-bottom: 30px;">
+                            <div style="font-size: 48px; margin-bottom: 15px;">🔍</div>
+                            <h2>Диагностика Kosmetichka</h2>
+                            <p style="opacity: 0.8;">Найдена проблема с загрузкой</p>
+                        </div>
+                        
+                        <div class="error-details">
+                            <div class="debug-title">❌ Ошибка:</div>
+                            <div>${error.message}</div>
+                        </div>
+                        
+                        <div class="debug-info">
+                            <div class="debug-title">🔍 Диагностическая информация:</div>
+                            <div>• Telegram WebApp: ${info.telegram ? '✅ Доступен' : '❌ Недоступен'}</div>
+                            <div>• localStorage: ${info.localStorage ? '✅ Работает' : '❌ Заблокирован'}</div>
+                            <div>• Fetch API: ${info.fetch ? '✅ Работает' : '❌ Недоступен'}</div>
+                            <div>• ES6 Modules: ${info.modules ? '✅ Поддерживаются' : '❌ Не поддерживаются'}</div>
+                            <div>• URL: ${info.url}</div>
+                            <div>• User Agent: ${info.userAgent.substring(0, 50)}...</div>
+                        </div>
+                        
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button class="btn" onclick="window.location.reload()">
+                                🔄 Перезагрузить
+                            </button>
+                            <button class="btn btn-secondary" onclick="localStorage.clear(); window.location.reload();">
+                                🧹 Очистить данные
+                            </button>
+                        </div>
+                        
+                        <div style="margin-top: 20px; padding: 15px; background: rgba(0,100,0,0.1); border-radius: 10px; font-size: 14px;">
+                            <strong>💡 Рекомендации:</strong><br>
+                            1. Убедитесь, что все файлы загружены на сервер<br>
+                            2. Проверьте консоль браузера (F12)<br>
+                            3. Попробуйте открыть в другом браузере<br>
+                            4. Если проблема в Telegram - откройте через браузер
+                        </div>
                     </div>
                 `;
             }
         }
         
-        // Функция отладки
-        window.showDebugInfo = function() {
-            console.log('🔍 Информация для отладки:');
-            console.log('User Agent:', navigator.userAgent);
-            console.log('URL:', window.location.href);
-            console.log('Telegram WebApp:', !!window.Telegram?.WebApp);
-            console.log('Module support:', 'import' in document.createElement('script'));
-            
-            // Попытка загрузить файлы по отдельности
-            checkFiles();
-        };
-        
-        async function checkFiles() {
-            const files = [
-                './js/config.js',
-                './js/app.js',
-                './js/screens/main.js',
-                './css/styles.css'
-            ];
-            
-            for (const file of files) {
-                try {
-                    const response = await fetch(file);
-                    console.log(`${file}: ${response.status} ${response.statusText}`);
-                } catch (error) {
-                    console.error(`${file}: Ошибка - ${error.message}`);
-                }
-            }
-        }
+        // Запускаем диагностику
+        setTimeout(runDiagnostics, 1000);
         
         // Глобальная обработка ошибок
         window.addEventListener('error', (event) => {
             console.error('🚨 Глобальная ошибка:', event.error);
+            updateLoadingStatus(`Ошибка: ${event.error.message}`);
         });
         
         window.addEventListener('unhandledrejection', (event) => {
             console.error('🚨 Необработанное отклонение промиса:', event.reason);
+            updateLoadingStatus(`Promise ошибка: ${event.reason.message || event.reason}`);
         });
-        
-    </script>
-    
-    <!-- Fallback для браузеров без поддержки модулей -->
-    <script nomodule>
-        document.getElementById('app').innerHTML = `
-            <div class="error-screen">
-                <div class="error-icon">📱</div>
-                <h2>Браузер не поддерживается</h2>
-                <p>Используйте более современный браузер</p>
-                <button class="btn-primary" onclick="window.location.href='https://telegram.org'">
-                    Открыть в Telegram
-                </button>
-            </div>
-        `;
     </script>
 </body>
 </html>
