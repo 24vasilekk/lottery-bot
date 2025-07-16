@@ -1,4 +1,4 @@
-// public/js/config.js - Configuration file with ES6 modules
+// public/js/config.js - ОБНОВЛЕННАЯ конфигурация с исправлениями
 
 // Основные настройки приложения
 export const APP_CONFIG = {
@@ -10,20 +10,25 @@ export const APP_CONFIG = {
         cardBg: '#2a2a2a'
     },
     animations: {
-        wheelSpinDuration: 4000,
+        wheelSpinDuration: 4000, // Длительность прокрутки рулетки
         confettiDuration: 3000,
         notificationDuration: 5000
     },
     wheel: {
         segments: 12,
-        minSpins: 5,
-        maxSpins: 8,
+        minSpins: 5, // Минимальное количество оборотов
+        maxSpins: 8, // Максимальное количество оборотов
         starCost: 20, // Стоимость прокрутки за звезды
         friendSpin: true // Можно крутить за друга
+    },
+    game: {
+        startingStars: 100, // Начальное количество звезд
+        startingFriendSpins: 1, // Начальное количество прокруток за друга
+        maxRecentWins: 10 // Максимальное количество последних выигрышей
     }
 };
 
-// Конфигурация призов рулетки (ОБНОВЛЕННАЯ)
+// Конфигурация призов рулетки (ОБНОВЛЕННАЯ С ПРАВИЛЬНЫМИ ВЕРОЯТНОСТЯМИ)
 export const WHEEL_PRIZES = [
     {
         id: 1,
@@ -33,7 +38,7 @@ export const WHEEL_PRIZES = [
         color: '#FFD700',
         icon: '💎',
         rarity: 'legendary',
-        probability: 0.5,
+        probability: 0.5, // 0.5%
         value: 3000
     },
     {
@@ -44,7 +49,7 @@ export const WHEEL_PRIZES = [
         color: '#9C27B0',
         icon: '⭐',
         rarity: 'epic',
-        probability: 2,
+        probability: 2, // 2%
         value: 200
     },
     {
@@ -55,7 +60,7 @@ export const WHEEL_PRIZES = [
         color: '#FF9800',
         icon: '🎁',
         rarity: 'epic',
-        probability: 1,
+        probability: 1, // 1%
         value: 2000
     },
     {
@@ -66,7 +71,7 @@ export const WHEEL_PRIZES = [
         color: '#E91E63',
         icon: '🍰',
         rarity: 'epic',
-        probability: 1.5,
+        probability: 1.5, // 1.5%
         value: 1500
     },
     {
@@ -77,7 +82,7 @@ export const WHEEL_PRIZES = [
         color: '#3F51B5',
         icon: '💫',
         rarity: 'rare',
-        probability: 5,
+        probability: 5, // 5%
         value: 100
     },
     {
@@ -88,7 +93,7 @@ export const WHEEL_PRIZES = [
         color: '#FF5722',
         icon: '🎈',
         rarity: 'rare',
-        probability: 3,
+        probability: 3, // 3%
         value: 1500
     },
     {
@@ -99,7 +104,7 @@ export const WHEEL_PRIZES = [
         color: '#009688',
         icon: '✨',
         rarity: 'common',
-        probability: 8,
+        probability: 8, // 8%
         value: 75
     },
     {
@@ -110,7 +115,7 @@ export const WHEEL_PRIZES = [
         color: '#4CAF50',
         icon: '🎀',
         rarity: 'common',
-        probability: 5,
+        probability: 5, // 5%
         value: 1000
     },
     {
@@ -121,7 +126,7 @@ export const WHEEL_PRIZES = [
         color: '#FFC107',
         icon: '🌟',
         rarity: 'common',
-        probability: 12,
+        probability: 12, // 12%
         value: 50
     },
     {
@@ -132,7 +137,7 @@ export const WHEEL_PRIZES = [
         color: '#795548',
         icon: '🎊',
         rarity: 'common',
-        probability: 8,
+        probability: 8, // 8%
         value: 500
     },
     {
@@ -143,7 +148,7 @@ export const WHEEL_PRIZES = [
         color: '#607D8B',
         icon: '💖',
         rarity: 'common',
-        probability: 15,
+        probability: 15, // 15%
         value: 25
     },
     {
@@ -154,30 +159,36 @@ export const WHEEL_PRIZES = [
         color: '#9E9E9E',
         icon: '🌙',
         rarity: 'empty',
-        probability: 38,
+        probability: 38, // 38%
         value: 0
     }
 ];
 
-// Пользователь по умолчанию
+// Пользователь по умолчанию (ОБНОВЛЕННЫЙ)
 export const DEFAULT_USER_DATA = {
-    stars: 100,
+    stars: APP_CONFIG.game.startingStars, // 100 звезд
     referrals: 0,
     totalSpins: 0,
-    totalStarsEarned: 0,
+    totalStarsEarned: APP_CONFIG.game.startingStars,
     prizesWon: 0,
-    availableFriendSpins: 1,
+    availableFriendSpins: APP_CONFIG.game.startingFriendSpins, // 1 прокрутка за друга
     completedTasks: [],
     prizes: [],
+    recentWins: [],
     lastDailyReset: 0,
     profile: {
         name: 'Пользователь',
         avatar: '👤',
         joinDate: Date.now()
+    },
+    settings: {
+        notifications: true,
+        sounds: true,
+        animations: true
     }
 };
 
-// Конфигурация заданий (ИСПРАВЛЕННАЯ)
+// Конфигурация заданий (ПОЛНАЯ)
 export const TASKS_CONFIG = {
     daily: [
         {
@@ -265,84 +276,105 @@ export const TASKS_CONFIG = {
         {
             id: 'subscribe_channel2',
             name: 'Подпишись на Instagram',
-            description: 'Подпишись на наш Instagram',
+            description: 'Подпишись на наш Instagram канал',
             reward: { type: 'stars', amount: 50 },
             icon: '📸',
             completed: false,
             url: 'https://instagram.com/kosmetichka'
         },
         {
+            id: 'subscribe_dolcedeals',
+            name: 'Подпишись на Dolce Deals',
+            description: 'Подпишись на канал Dolce Deals для скидок',
+            reward: { type: 'stars', amount: 75 },
+            icon: '🍰',
+            completed: false,
+            url: 'https://t.me/dolcedeals'
+        },
+        {
             id: 'rate_app',
             name: 'Оцени приложение',
-            description: 'Поставь оценку приложению в App Store',
-            reward: { type: 'stars', amount: 30 },
+            description: 'Поставь оценку приложению в магазине',
+            reward: { type: 'stars', amount: 100 },
             icon: '⭐',
-            completed: false
+            completed: false,
+            url: '#'
         }
-    ]
+    ],
+    completed: []
 };
 
-// Конфигурация мега рулетки
-export const MEGA_ROULETTE_CONFIG = {
-    cost: 5000, // Стоимость прокрутки в звездах
-    cooldownDays: 30, // Кулдаун в днях
-    prizes: [
-        { id: 'airpods4', name: 'AirPods 4', icon: '🎧', rarity: 'legendary', value: 25000, probability: 0.1 },
-        { id: 'cert5000', name: 'Сертификат 5000₽', icon: '💎', rarity: 'epic', value: 5000, probability: 1.9 },
-        { id: 'cert3000', name: 'Сертификат 3000₽', icon: '💰', rarity: 'rare', value: 3000, probability: 5 },
-        { id: 'powerbank', name: 'Повербанк', icon: '🔋', rarity: 'rare', value: 2000, probability: 8 },
-        { id: 'cert2000', name: 'Сертификат 2000₽', icon: '💳', rarity: 'common', value: 2000, probability: 15 },
-        { id: 'charger', name: 'Беспроводная зарядка', icon: '⚡', rarity: 'common', value: 1500, probability: 20 },
-        { id: 'cert1000', name: 'Сертификат 1000₽', icon: '🎁', rarity: 'common', value: 1000, probability: 25 },
-        { id: 'empty', name: 'Повезет в следующий раз', icon: '🌟', rarity: 'empty', value: 0, probability: 25.1 }
-    ]
-};
+// Уровни игрока
+export const PLAYER_LEVELS = [
+    { level: 1, requiredStars: 0, title: 'Новичок', icon: '🌱', reward: 0 },
+    { level: 2, requiredStars: 500, title: 'Любитель красоты', icon: '💄', reward: 50 },
+    { level: 3, requiredStars: 1500, title: 'Косметический гуру', icon: '✨', reward: 100 },
+    { level: 4, requiredStars: 3000, title: 'Мастер стиля', icon: '👑', reward: 200 },
+    { level: 5, requiredStars: 5000, title: 'Икона красоты', icon: '💎', reward: 500 },
+    { level: 6, requiredStars: 10000, title: 'Легенда Kosmetichka', icon: '🌟', reward: 1000 }
+];
 
-// Лидерборд (примерные данные)
-export const SAMPLE_LEADERBOARD = [
+// Достижения
+export const ACHIEVEMENTS = [
     {
-        position: 1,
-        name: 'Анна К.',
-        avatar: '👸',
-        spins: 156,
-        prizes: 45,
-        stars: 2500,
-        referrals: 23
+        id: 'first_spin',
+        name: 'Первая прокрутка',
+        description: 'Сделай первую прокрутку рулетки',
+        icon: '🎰',
+        reward: { type: 'stars', amount: 25 },
+        condition: (gameData) => gameData.totalSpins >= 1
     },
     {
-        position: 2,
-        name: 'Мария С.',
-        avatar: '🌸',
-        spins: 142,
-        prizes: 38,
-        stars: 2200,
-        referrals: 18
+        id: 'first_win',
+        name: 'Первый выигрыш',
+        description: 'Выиграй первый приз',
+        icon: '🎁',
+        reward: { type: 'stars', amount: 50 },
+        condition: (gameData) => gameData.prizesWon >= 1
     },
     {
-        position: 3,
-        name: 'Елена В.',
-        avatar: '💎',
-        spins: 128,
-        prizes: 35,
-        stars: 1980,
-        referrals: 15
+        id: 'collector',
+        name: 'Коллекционер',
+        description: 'Выиграй 10 призов',
+        icon: '💎',
+        reward: { type: 'stars', amount: 200 },
+        condition: (gameData) => gameData.prizesWon >= 10
     },
     {
-        position: 4,
-        name: 'Дарья М.',
-        avatar: '🌺',
-        spins: 115,
-        prizes: 32,
-        stars: 1750,
-        referrals: 12
+        id: 'social_butterfly',
+        name: 'Социальная бабочка',
+        description: 'Пригласи 5 друзей',
+        icon: '🦋',
+        reward: { type: 'stars', amount: 300 },
+        condition: (gameData) => gameData.referrals >= 5
     },
     {
-        position: 5,
-        name: 'Ольга Р.',
-        avatar: '💄',
-        spins: 98,
-        prizes: 28,
-        stars: 1650,
-        referrals: 10
+        id: 'star_collector',
+        name: 'Звездный коллекционер',
+        description: 'Собери 5000 звезд',
+        icon: '⭐',
+        reward: { type: 'friend_spins', amount: 3 },
+        condition: (gameData) => gameData.totalStarsEarned >= 5000
     }
 ];
+
+// Настройки уведомлений
+export const NOTIFICATION_CONFIG = {
+    types: {
+        success: { icon: '✅', color: '#4CAF50', duration: 4000 },
+        error: { icon: '❌', color: '#f44336', duration: 5000 },
+        info: { icon: 'ℹ️', color: '#2196F3', duration: 3000 },
+        achievement: { icon: '🏆', color: '#FFD700', duration: 6000 }
+    }
+};
+
+// Экспорт всех конфигураций
+export default {
+    APP_CONFIG,
+    WHEEL_PRIZES,
+    DEFAULT_USER_DATA,
+    TASKS_CONFIG,
+    PLAYER_LEVELS,
+    ACHIEVEMENTS,
+    NOTIFICATION_CONFIG
+};

@@ -1,4 +1,4 @@
-// screens/main.js - Исправленная версия главного экрана
+// screens/main.js - ИСПРАВЛЕННАЯ ВЕРСИЯ с рабочими кнопками
 
 import { WHEEL_PRIZES, APP_CONFIG } from '../config.js';
 
@@ -159,29 +159,32 @@ export class MainScreen {
     }
 
     removeEventListeners() {
+        console.log('🧹 Удаление старых обработчиков событий...');
+        
         const spinStarsBtn = document.getElementById('spin-button-stars');
         const spinFriendBtn = document.getElementById('spin-button-friend');
         const megaBtn = document.getElementById('mega-roulette-btn');
         const profilePic = document.getElementById('profile-pic');
-
+        
         if (spinStarsBtn && this.starsBtnHandler) {
             spinStarsBtn.removeEventListener('click', this.starsBtnHandler);
             spinStarsBtn.removeEventListener('touchend', this.starsBtnHandler);
         }
-
+        
         if (spinFriendBtn && this.friendBtnHandler) {
             spinFriendBtn.removeEventListener('click', this.friendBtnHandler);
             spinFriendBtn.removeEventListener('touchend', this.friendBtnHandler);
         }
-
+        
         if (megaBtn && this.megaBtnHandler) {
             megaBtn.removeEventListener('click', this.megaBtnHandler);
             megaBtn.removeEventListener('touchend', this.megaBtnHandler);
         }
-
+        
         if (profilePic && this.profileHandler) {
             profilePic.removeEventListener('click', this.profileHandler);
             profilePic.removeEventListener('touchend', this.profileHandler);
+            profilePic.removeEventListener('keydown', this.profileHandler);
         }
     }
 
@@ -192,24 +195,23 @@ export class MainScreen {
             return;
         }
 
+        const radius = 180;
         const centerX = 200;
         const centerY = 200;
-        const radius = 180;
-        const segments = WHEEL_PRIZES.length;
-        const anglePerSegment = 360 / segments;
+        const anglePerSegment = (2 * Math.PI) / WHEEL_PRIZES.length;
 
         let svgContent = '';
 
         WHEEL_PRIZES.forEach((prize, index) => {
-            const startAngle = (index * anglePerSegment - 90) * Math.PI / 180;
-            const endAngle = ((index + 1) * anglePerSegment - 90) * Math.PI / 180;
+            const startAngle = index * anglePerSegment - Math.PI / 2;
+            const endAngle = (index + 1) * anglePerSegment - Math.PI / 2;
 
             const x1 = centerX + radius * Math.cos(startAngle);
             const y1 = centerY + radius * Math.sin(startAngle);
             const x2 = centerX + radius * Math.cos(endAngle);
             const y2 = centerY + radius * Math.sin(endAngle);
 
-            const largeArc = anglePerSegment > 180 ? 1 : 0;
+            const largeArc = anglePerSegment > Math.PI ? 1 : 0;
 
             const path = `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
 
@@ -246,16 +248,23 @@ export class MainScreen {
     }
 
     async spinWheel(type) {
-        if (this.isSpinning) return;
+        if (this.isSpinning) {
+            console.log('⏳ Рулетка уже крутится');
+            return;
+        }
+
+        console.log(`🎰 Начинаем прокрутку рулетки: ${type}`);
 
         // Проверка возможности прокрутки
         if (type === 'stars' && this.app.gameData.stars < APP_CONFIG.wheel.starCost) {
             this.app.showStatusMessage('Недостаточно звезд для прокрутки!', 'error');
+            console.log('❌ Недостаточно звезд');
             return;
         }
 
         if (type === 'friend' && this.app.gameData.availableFriendSpins <= 0) {
             this.app.showStatusMessage('Нет доступных прокруток за друга!', 'error');
+            console.log('❌ Нет прокруток за друга');
             return;
         }
 
@@ -265,8 +274,10 @@ export class MainScreen {
         // Списание ресурсов
         if (type === 'stars') {
             this.app.gameData.stars -= APP_CONFIG.wheel.starCost;
+            console.log(`💰 Списано ${APP_CONFIG.wheel.starCost} звезд. Осталось: ${this.app.gameData.stars}`);
         } else if (type === 'friend') {
             this.app.gameData.availableFriendSpins -= 1;
+            console.log(`❤️ Использована прокрутка за друга. Осталось: ${this.app.gameData.availableFriendSpins}`);
         }
 
         // Обновление UI
@@ -277,11 +288,15 @@ export class MainScreen {
             const winningPrize = this.selectRandomPrize();
             const prizeIndex = WHEEL_PRIZES.findIndex(p => p.id === winningPrize.id);
             
+            console.log(`🎁 Выпал приз: ${winningPrize.name} (индекс: ${prizeIndex})`);
+            
             // Расчет угла поворота
             const segmentAngle = 360 / WHEEL_PRIZES.length;
             const targetAngle = prizeIndex * segmentAngle + (segmentAngle / 2);
             const spins = Math.floor(Math.random() * 3) + APP_CONFIG.wheel.minSpins;
             const finalRotation = spins * 360 + (360 - targetAngle);
+
+            console.log(`🌀 Поворот на ${finalRotation} градусов (${spins} оборотов + ${360 - targetAngle})`);
 
             // Анимация
             const wheel = document.getElementById('wheel-svg');
@@ -303,65 +318,83 @@ export class MainScreen {
         } finally {
             this.isSpinning = false;
             this.updateSpinButtons();
+            console.log('✅ Прокрутка завершена');
         }
     }
 
     selectRandomPrize() {
-        const totalWeight = WHEEL_PRIZES.reduce((sum, prize) => sum + (100 - prize.probability), 0);
-        let random = Math.random() * totalWeight;
-
-        for (const prize of WHEEL_PRIZES) {
-            random -= (100 - prize.probability);
-            if (random <= 0) {
-                return prize;
+        // Создаем массив с учетом вероятностей
+        const prizePool = [];
+        
+        WHEEL_PRIZES.forEach(prize => {
+            const weight = Math.round(prize.probability * 100);
+            for (let i = 0; i < weight; i++) {
+                prizePool.push(prize);
             }
-        }
+        });
 
-        return WHEEL_PRIZES[0]; // Fallback
+        // Выбираем случайный приз
+        const randomIndex = Math.floor(Math.random() * prizePool.length);
+        const selectedPrize = prizePool[randomIndex];
+        
+        console.log(`🎲 Выбран приз: ${selectedPrize.name} (вероятность: ${selectedPrize.probability}%)`);
+        
+        return selectedPrize;
     }
 
     async handlePrizeWin(prize) {
-        console.log('🎁 Выигран приз:', prize);
+        console.log(`🏆 Обработка выигрыша: ${prize.name}`);
 
-        // Добавление приза в игровые данные
-        if (prize.type.startsWith('stars-')) {
-            const starsAmount = parseInt(prize.type.split('-')[1]);
-            this.app.gameData.stars += starsAmount;
-        }
-
-        // Обновление статистики
+        // Обновляем статистику
         this.app.gameData.totalSpins = (this.app.gameData.totalSpins || 0) + 1;
-        this.app.gameData.prizesWon = (this.app.gameData.prizesWon || 0) + 1;
 
-        // Добавление в историю выигрышей
-        if (!this.app.gameData.recentWins) {
-            this.app.gameData.recentWins = [];
+        if (prize.type !== 'empty') {
+            // Это выигрыш
+            this.app.gameData.prizesWon = (this.app.gameData.prizesWon || 0) + 1;
+            
+            // Добавляем приз в коллекцию
+            if (!this.app.gameData.prizes) this.app.gameData.prizes = [];
+            this.app.gameData.prizes.push({
+                ...prize,
+                wonAt: Date.now()
+            });
+
+            // Добавляем в последние выигрыши
+            if (!this.app.gameData.recentWins) this.app.gameData.recentWins = [];
+            this.app.gameData.recentWins.unshift({
+                prize: prize,
+                timestamp: Date.now()
+            });
+
+            // Ограничиваем количество последних выигрышей
+            if (this.app.gameData.recentWins.length > 10) {
+                this.app.gameData.recentWins = this.app.gameData.recentWins.slice(0, 10);
+            }
+
+            // Если приз - звезды, добавляем их
+            if (prize.type.startsWith('stars-')) {
+                const starsAmount = prize.value;
+                this.app.gameData.stars += starsAmount;
+                this.app.gameData.totalStarsEarned = (this.app.gameData.totalStarsEarned || 0) + starsAmount;
+                console.log(`⭐ Добавлено ${starsAmount} звезд`);
+            }
+
+            // Показываем уведомление о выигрыше
+            this.app.showStatusMessage(`🎉 Выиграно: ${prize.name}!`, 'success', 4000);
+            
+        } else {
+            // Пустой приз
+            this.app.showStatusMessage('😔 В этот раз не повезло', 'info', 3000);
         }
+
+        // Обновляем UI
+        this.updateRecentWins();
+        this.app.updateUI();
         
-        this.app.gameData.recentWins.unshift({
-            prize: prize,
-            timestamp: Date.now()
-        });
-
-        // Ограничение истории
-        if (this.app.gameData.recentWins.length > 10) {
-            this.app.gameData.recentWins = this.app.gameData.recentWins.slice(0, 10);
-        }
-
-        // Сохранение данных
+        // Сохраняем данные
         this.app.saveGameData();
 
-        // Обновление UI
-        this.app.updateUI();
-        this.updateRecentWins();
-
-        // Показ уведомления о выигрыше
-        this.app.showStatusMessage(`🎉 Вы выиграли: ${prize.name}!`, 'success');
-
-        // Запуск конфетти
-        if (typeof this.app.showConfetti === 'function') {
-            this.app.showConfetti();
-        }
+        console.log('✅ Выигрыш обработан');
     }
 
     updateSpinButtons() {
@@ -372,6 +405,12 @@ export class MainScreen {
             const canSpinStars = !this.isSpinning && this.app.gameData.stars >= APP_CONFIG.wheel.starCost;
             spinStarsBtn.disabled = !canSpinStars;
             spinStarsBtn.classList.toggle('disabled', !canSpinStars);
+            
+            if (this.isSpinning) {
+                spinStarsBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i><span>Крутится...</span>`;
+            } else {
+                spinStarsBtn.innerHTML = `<i class="fas fa-star"></i><span>За 20 ⭐</span>`;
+            }
         }
 
         if (spinFriendBtn) {
@@ -380,9 +419,10 @@ export class MainScreen {
             spinFriendBtn.classList.toggle('disabled', !canSpinFriend);
             
             // Обновление текста кнопки
-            const span = spinFriendBtn.querySelector('span');
-            if (span) {
-                span.textContent = `За друга (${this.app.gameData.availableFriendSpins})`;
+            if (this.isSpinning) {
+                spinFriendBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i><span>Крутится...</span>`;
+            } else {
+                spinFriendBtn.innerHTML = `<i class="fas fa-heart"></i><span>За друга (${this.app.gameData.availableFriendSpins})</span>`;
             }
         }
     }
@@ -402,14 +442,33 @@ export class MainScreen {
             <div class="recent-win-item">
                 <span>${win.prize.icon}</span>
                 <div class="win-description">${win.prize.name}</div>
+                <div class="win-time">${this.formatTime(win.timestamp)}</div>
             </div>
         `).join('');
+    }
+
+    formatTime(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diff = now - date;
+        
+        if (diff < 60000) return 'только что';
+        if (diff < 3600000) return `${Math.floor(diff / 60000)} мин назад`;
+        if (diff < 86400000) return `${Math.floor(diff / 3600000)} ч назад`;
+        return `${Math.floor(diff / 86400000)} дн назад`;
     }
 
     openMegaRoulette() {
         if (this.app.navigation) {
             this.app.navigation.navigateTo('mega-roulette');
+        } else {
+            this.app.showStatusMessage('Мега рулетка временно недоступна', 'info');
         }
+    }
+
+    refreshEventListeners() {
+        console.log('🔄 Обновление обработчиков главного экрана...');
+        this.setupEventListeners();
     }
 
     destroy() {
