@@ -1,18 +1,55 @@
-/* public/css/main.css - ИСПРАВЛЕННАЯ ВЕРСИЯ */
+/* ========================================
+   MAIN.CSS - ПОЛНОСТЬЮ ОБНОВЛЕННЫЙ ФАЙЛ
+   Главный экран с рулеткой для Kosmetichka Bot
+   ======================================== */
 
 /* ========================================
-   ОСНОВНЫЕ СТИЛИ
+   1. CSS ПЕРЕМЕННЫЕ
    ======================================== */
 
 :root {
+    /* Основные цвета проекта */
     --primary-color: #EF55A5;
     --lime-color: #CCD537;
     --purple-color: #809EFF;
+    
+    /* Фоны */
     --dark-bg: #1a1a1a;
     --card-bg: #2a2a2a;
+    --glass-bg: rgba(42, 42, 42, 0.85);
+    
+    /* Тексты */
     --text-primary: #ffffff;
     --text-secondary: #cccccc;
+    --text-muted: #999999;
+    
+    /* Градиенты */
+    --gradient-pink: linear-gradient(135deg, #EF55A5, #ff6b9d);
+    --gradient-lime: linear-gradient(135deg, #CCD537, #a4b93a);
+    --gradient-purple: linear-gradient(135deg, #809EFF, #9c27b0);
+    --gradient-dark: linear-gradient(135deg, #1a1a1a 0%, #2d1b3d 100%);
+    
+    /* Тени */
+    --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --shadow-button: 0 8px 25px rgba(239, 85, 165, 0.4);
+    --shadow-lime: 0 8px 25px rgba(204, 213, 55, 0.4);
+    --shadow-purple: 0 8px 25px rgba(128, 158, 255, 0.4);
+    
+    /* Радиусы */
+    --radius-small: 10px;
+    --radius-medium: 15px;
+    --radius-large: 25px;
+    --radius-full: 50%;
+    
+    /* Анимации */
+    --transition-fast: 0.2s ease;
+    --transition-medium: 0.3s ease;
+    --transition-slow: 0.6s ease;
 }
+
+/* ========================================
+   2. БАЗОВЫЕ СТИЛИ
+   ======================================== */
 
 * {
     margin: 0;
@@ -21,32 +58,34 @@
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: linear-gradient(135deg, var(--dark-bg) 0%, #2d1b3d 100%);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--gradient-dark);
     color: var(--text-primary);
     overflow-x: hidden;
     min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .app-container {
     min-height: 100vh;
     position: relative;
-    padding-bottom: 90px; /* Увеличено для лучшей прокрутки */
+    padding-bottom: 90px;
 }
 
 /* ========================================
-   ЭКРАНЫ
+   3. ЭКРАНЫ
    ======================================== */
 
 .screen {
     display: none;
-    min-height: calc(100vh - 90px); /* Исправлена высота */
-    padding: 20px 20px 40px 20px; /* Добавлен дополнительный отступ снизу */
+    min-height: calc(100vh - 90px);
+    padding: 20px 20px 120px 20px;
     opacity: 0;
     transform: translateY(20px);
-    transition: all 0.3s ease;
-    overflow-y: auto; /* Добавлена прокрутка */
-    padding-bottom: 120px; /* Добавлен отступ для полной прокрутки */
+    transition: all var(--transition-medium);
+    overflow-y: auto;
+    width: 100%;
 }
 
 .screen.active {
@@ -56,7 +95,7 @@ body {
 }
 
 /* ========================================
-   ЗАГОЛОВКИ
+   4. ЗАГОЛОВОК (HEADER)
    ======================================== */
 
 .header {
@@ -65,15 +104,7 @@ body {
     align-items: center;
     margin-bottom: 30px;
     padding: 0 10px;
-}
-
-.header h2 {
-    font-size: 24px;
-    font-weight: bold;
-    background: linear-gradient(135deg, var(--primary-color), var(--lime-color));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    gap: 15px;
 }
 
 .user-info {
@@ -81,70 +112,78 @@ body {
     align-items: center;
     gap: 15px;
     flex: 1;
-}
-
-.user-details {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.user-name {
-    font-size: 18px;
-    font-weight: 600;
-}
-
-.user-stars {
-    font-size: 16px;
-    color: var(--lime-color);
-    font-weight: 500;
+    min-width: 0;
 }
 
 .profile-pic {
     width: 50px;
     height: 50px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary-color), var(--purple-color));
+    border-radius: var(--radius-full);
+    background: var(--gradient-pink);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+    font-size: 18px;
+    font-weight: bold;
     cursor: pointer;
-    transition: transform 0.2s ease;
+    transition: all var(--transition-medium);
+    box-shadow: var(--shadow-soft);
+    border: 2px solid rgba(255, 255, 255, 0.1);
 }
 
 .profile-pic:hover {
     transform: scale(1.05);
+    box-shadow: 0 10px 35px rgba(239, 85, 165, 0.6);
 }
 
-.profile-pic img {
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    object-fit: cover;
+.user-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
 }
 
-/* КНОПКА МЕГА РУЛЕТКИ В HEADER */
-.mega-btn {
-    background: linear-gradient(135deg, var(--purple-color), #9c27b0);
-    border: none;
-    color: white;
-    padding: 12px 16px;
-    border-radius: 20px;
-    font-size: 14px;
+.user-name {
+    font-size: 18px;
     font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-stars {
+    font-size: 16px;
+    color: var(--lime-color);
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Кнопка мега рулетки */
+.mega-btn {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    border: none;
+    color: #000;
+    padding: 12px 16px;
+    border-radius: var(--radius-large);
+    font-size: 12px;
+    font-weight: bold;
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(128, 158, 255, 0.3);
+    transition: all var(--transition-medium);
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+    white-space: nowrap;
 }
 
 .mega-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 25px rgba(128, 158, 255, 0.4);
+    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.6);
 }
 
 /* ========================================
-   РУЛЕТКА
+   5. РУЛЕТКА
    ======================================== */
 
 .wheel-container {
@@ -152,95 +191,84 @@ body {
     flex-direction: column;
     align-items: center;
     margin-bottom: 30px;
-    position: relative;
+    width: 100%;
 }
 
 .wheel {
-    width: 400px; /* УВЕЛИЧЕНО с 300px */
-    height: 400px; /* УВЕЛИЧЕНО с 300px */
     position: relative;
-    border-radius: 50%;
-    overflow: visible; /* Изменено для корректного отображения свечения */
-    margin-bottom: 30px;
-    /* ИСПРАВЛЕННОЕ СВЕЧЕНИЕ БЕЗ РЕЗКОГО ПРЕРЫВАНИЯ */
-    background: radial-gradient(circle at center, rgba(239, 85, 165, 0.3) 0%, rgba(128, 158, 255, 0.2) 40%, rgba(204, 213, 55, 0.1) 70%, transparent 100%);
-    filter: drop-shadow(0 0 40px rgba(239, 85, 165, 0.4)) drop-shadow(0 0 80px rgba(128, 158, 255, 0.3));
-    transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+    width: 350px;
+    height: 350px;
+    margin: 0 auto 30px;
 }
 
-/* Сегменты рулетки */
-.wheel-segment-path {
-    transition: all 0.2s ease;
-    cursor: pointer;
-    stroke: rgba(255, 255, 255, 0.2);
-    stroke-width: 1;
-}
-
-.wheel-segment-path:hover {
-    filter: brightness(1.2) !important;
-    stroke: rgba(255, 255, 255, 0.5);
-    stroke-width: 2;
-}
-
-/* Указатель рулетки - УВЕЛИЧЕННЫЙ */
+/* Указатель рулетки */
 .wheel-pointer {
     position: absolute;
-    top: -35px; /* УВЕЛИЧЕНО с -30px */
+    top: -35px;
     left: 50%;
     transform: translateX(-50%);
     width: 0;
     height: 0;
-    border-left: 30px solid transparent; /* УВЕЛИЧЕНО с 25px */
-    border-right: 30px solid transparent; /* УВЕЛИЧЕНО с 25px */
-    border-top: 45px solid #ffffff; /* УВЕЛИЧЕНО с 40px */
+    border-left: 30px solid transparent;
+    border-right: 30px solid transparent;
+    border-top: 45px solid #ffffff;
     z-index: 11;
-    filter: drop-shadow(0 8px 16px rgba(0,0,0,0.6)); /* УВЕЛИЧЕНА ТЕНЬ */
+    filter: drop-shadow(0 8px 16px rgba(0,0,0,0.6));
 }
 
 .wheel-pointer::after {
     content: '';
     position: absolute;
-    top: -50px; /* УВЕЛИЧЕНО с -45px */
-    left: -12px; /* УВЕЛИЧЕНО с -10px */
-    width: 24px; /* УВЕЛИЧЕНО с 20px */
-    height: 24px; /* УВЕЛИЧЕНО с 20px */
+    top: -50px;
+    left: -12px;
+    width: 24px;
+    height: 24px;
     background: radial-gradient(circle, #ffffff 40%, transparent 70%);
     border-radius: 50%;
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.8); /* УВЕЛИЧЕНА ТЕНЬ */
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
 }
 
-/* ИСПРАВЛЕННАЯ ЦЕНТРАЛЬНАЯ КНОПКА РУЛЕТКИ С "SPIN" */
+/* SVG рулетки */
+#wheel-svg {
+    width: 100%;
+    height: 100%;
+    transition: transform 3s cubic-bezier(0.23, 1, 0.320, 1);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+/* Центральная кнопка SPIN */
 .wheel-center {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 80px; /* УВЕЛИЧЕНО с 60px */
-    height: 80px; /* УВЕЛИЧЕНО с 60px */
-    background: #000000; /* ЧЕРНЫЙ ФОН */
-    border-radius: 50%;
-    border: 4px solid #333; /* ТЕМНАЯ ГРАНИЦА */
+    width: 80px;
+    height: 80px;
+    background: #000000;
+    border-radius: var(--radius-full);
+    border: 4px solid #333;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px; /* УМЕНЬШЕН ШРИФТ ДЛЯ "SPIN" */
+    font-size: 14px;
     font-weight: bold;
-    color: #888888; /* СЕРЫЙ ТЕКСТ */
+    color: #888888;
     z-index: 10;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6); /* УВЕЛИЧЕНА ТЕНЬ */
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
     cursor: pointer;
-    transition: all 0.2s ease;
-    letter-spacing: 1px; /* ДОБАВЛЕН МЕЖБУКВЕННЫЙ ИНТЕРВАЛ */
+    transition: all var(--transition-fast);
+    letter-spacing: 1px;
 }
 
 .wheel-center:hover {
     transform: translate(-50%, -50%) scale(1.05);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
-    color: #aaa; /* СВЕТЛЕЕ ПРИ НАВЕДЕНИИ */
+    color: #aaa;
 }
 
 /* ========================================
-   КНОПКИ УПРАВЛЕНИЯ - ИСПРАВЛЕННЫЕ
+   6. КНОПКИ УПРАВЛЕНИЯ - ГОРИЗОНТАЛЬНЫЕ
    ======================================== */
 
 .spin-controls {
@@ -249,50 +277,69 @@ body {
     align-items: center;
     gap: 20px;
     width: 100%;
-    margin-top: 30px;
+    margin-top: 20px;
+    padding: 0 10px;
 }
 
-/* ИСПРАВЛЕННЫЕ КНОПКИ СО СЖАТЫМ ТЕКСТОМ */
+/* ОСНОВНОЙ КОНТЕЙНЕР КНОПОК - ГОРИЗОНТАЛЬНО */
 .spin-buttons {
-    display: flex;
-    gap: 10px; /* УМЕНЬШЕН ОТСТУП */
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 12px;
     width: 100%;
-    max-width: 340px; /* УМЕНЬШЕНА МАКСИМАЛЬНАЯ ШИРИНА */
+    max-width: 380px;
     justify-content: center;
+    align-items: stretch;
+    flex-wrap: nowrap !important;
 }
 
+/* СТИЛИ КНОПОК ПРОКРУТКИ */
 .spin-btn {
     flex: 1;
-    max-width: 160px; /* ОГРАНИЧЕНА ШИРИНА КНОПОК */
-    background: linear-gradient(135deg, var(--primary-color), #ff6b9d);
+    min-width: 140px;
+    max-width: 180px;
+    background: var(--gradient-pink);
     border: none;
     color: white;
-    padding: 16px 12px; /* УМЕНЬШЕНЫ ОТСТУПЫ ПО БОКАМ */
-    border-radius: 25px;
-    font-size: 14px; /* УМЕНЬШЕН РАЗМЕР ШРИФТА */
+    padding: 16px 12px;
+    border-radius: var(--radius-large);
+    font-size: 14px;
     font-weight: bold;
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 8px 25px rgba(239, 85, 165, 0.4);
+    transition: all var(--transition-medium);
+    box-shadow: var(--shadow-button);
     position: relative;
     overflow: hidden;
-    display: flex;
+    display: flex !important;
+    flex-direction: row !important;
     align-items: center;
     justify-content: center;
-    gap: 6px; /* УМЕНЬШЕН ОТСТУП МЕЖДУ ИКОНКОЙ И ТЕКСТОМ */
+    gap: 6px;
     min-height: 55px;
     text-align: center;
-    white-space: nowrap; /* ЗАПРЕТ ПЕРЕНОСА СТРОК */
+    white-space: nowrap;
 }
 
+/* Вторичная кнопка (За друга) */
 .spin-btn.secondary {
-    background: linear-gradient(135deg, var(--lime-color), #a4b93a);
+    background: var(--gradient-lime);
     color: var(--dark-bg);
-    box-shadow: 0 8px 25px rgba(204, 213, 55, 0.4);
+    box-shadow: var(--shadow-lime);
 }
 
+/* Первичная кнопка (За звезды) */
+.spin-btn.primary {
+    background: var(--gradient-pink);
+    color: white;
+    box-shadow: var(--shadow-button);
+}
+
+/* Эффекты при наведении */
 .spin-btn:hover:not(:disabled) {
     transform: translateY(-3px);
+}
+
+.spin-btn.primary:hover:not(:disabled) {
     box-shadow: 0 12px 35px rgba(239, 85, 165, 0.6);
 }
 
@@ -300,10 +347,12 @@ body {
     box-shadow: 0 12px 35px rgba(204, 213, 55, 0.6);
 }
 
+/* Активное состояние */
 .spin-btn:active {
     transform: translateY(-1px);
 }
 
+/* Заблокированное состояние */
 .spin-btn:disabled {
     background: linear-gradient(135deg, #666, #444);
     color: #999;
@@ -312,6 +361,15 @@ body {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
+.spin-btn.disabled {
+    background: linear-gradient(135deg, #666, #444);
+    color: #999;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Анимационный эффект блеска */
 .spin-btn::before {
     content: '';
     position: absolute;
@@ -320,137 +378,200 @@ body {
     width: 100%;
     height: 100%;
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-    transition: left 0.6s ease;
+    transition: left var(--transition-slow);
+    z-index: 1;
 }
 
-.spin-btn:hover::before {
+.spin-btn:hover:not(:disabled)::before {
     left: 100%;
 }
 
 /* Иконки в кнопках */
 .spin-btn i {
     font-size: 16px;
-    flex-shrink: 0; /* ЗАПРЕТ СЖАТИЯ ИКОНКИ */
+    flex-shrink: 0;
+    z-index: 2;
+    position: relative;
 }
 
+/* Текст в кнопках */
 .spin-btn span {
     font-size: 14px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-/* Информация о стоимости */
-.spin-info {
-    text-align: center;
-    color: var(--text-secondary);
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 10px 20px;
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.spin-info i {
-    color: var(--lime-color);
+    flex-shrink: 1;
+    z-index: 2;
+    position: relative;
 }
 
 /* ========================================
-   ПОСЛЕДНИЕ ВЫИГРЫШИ
+   7. ПОСЛЕДНИЕ ВЫИГРЫШИ
    ======================================== */
 
 .recent-wins {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(15px);
-    border-radius: 20px;
-    padding: 24px;
     margin-top: 30px;
-    margin-bottom: 30px; /* ДОБАВЛЕН ОТСТУП СНИЗУ */
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    margin-bottom: 40px;
+    width: 100%;
 }
 
 .recent-wins-title {
     font-size: 18px;
-    margin-bottom: 20px;
-    background: linear-gradient(135deg, var(--primary-color), var(--lime-color));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    font-weight: 600;
+    margin-bottom: 15px;
     display: block;
+    color: var(--text-primary);
+}
+
+.recent-wins-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .recent-win-item {
+    background: var(--card-bg);
+    padding: 12px 15px;
+    border-radius: var(--radius-medium);
     display: flex;
     align-items: center;
-    gap: 15px;
-    padding: 12px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.2s ease;
+    gap: 12px;
+    transition: all var(--transition-medium);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .recent-win-item:hover {
-    background: rgba(255, 255, 255, 0.08);
-    transform: translateY(-1px);
-}
-
-.recent-win-item:last-child {
-    border-bottom: none;
-}
-
-.recent-win-item span {
-    font-size: 24px;
-    min-width: 30px;
-    text-align: center;
-}
-
-.win-description {
-    flex: 1;
-    font-size: 14px;
-    color: var(--text-primary);
-    font-weight: 500;
+    background: rgba(42, 42, 42, 0.8);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-soft);
 }
 
 .recent-win-item.empty {
-    opacity: 0.6;
+    color: var(--text-muted);
     font-style: italic;
+    justify-content: center;
+    padding: 20px;
 }
 
-/* ========================================
-   ЗАДАНИЯ
-   ======================================== */
-
-.task-counter {
+.win-description {
     font-size: 14px;
     color: var(--text-secondary);
 }
 
 /* ========================================
-   АНИМАЦИИ
+   8. АНИМАЦИИ
    ======================================== */
 
-@keyframes fadeIn {
+/* Анимация вращения рулетки */
+@keyframes wheelSpin {
     from {
-        opacity: 0;
-        transform: translateY(20px);
+        transform: rotate(0deg);
     }
     to {
-        opacity: 1;
-        transform: translateY(0);
+        transform: rotate(var(--wheel-rotation, 1800deg));
     }
 }
 
+.wheel.spinning #wheel-svg {
+    animation: wheelSpin var(--spin-duration, 3s) cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+/* Пульсация для активных элементов */
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.spin-btn.pulsing {
+    animation: pulse 1s ease-in-out infinite;
+}
+
+/* Появление призов */
+@keyframes prizeReveal {
+    0% {
+        opacity: 0;
+        transform: scale(0.5) translateY(20px);
+    }
+    50% {
+        transform: scale(1.1) translateY(-5px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.recent-win-item.new {
+    animation: prizeReveal 0.6s ease-out;
+}
+
 /* ========================================
-   АДАПТИВНОСТЬ ДЛЯ РУЛЕТКИ
+   9. АДАПТИВНОСТЬ
    ======================================== */
 
-@media (max-width: 500px) {
+/* Большие экраны (iPhone 14 Pro Max и больше) */
+@media (min-width: 430px) {
     .wheel {
         width: 380px;
         height: 380px;
+    }
+    
+    .spin-buttons {
+        max-width: 400px;
+        gap: 15px;
+    }
+    
+    .spin-btn {
+        padding: 18px 16px;
+        font-size: 15px;
+        min-width: 160px;
+        max-width: 190px;
+    }
+    
+    .spin-btn i {
+        font-size: 18px;
+    }
+}
+
+/* Стандартные экраны (iPhone 12-14) */
+@media (max-width: 429px) and (min-width: 375px) {
+    .wheel {
+        width: 350px;
+        height: 350px;
+    }
+    
+    .spin-buttons {
+        gap: 12px;
+        max-width: 360px;
+    }
+    
+    .spin-btn {
+        min-width: 140px;
+        max-width: 175px;
+        font-size: 14px;
+        padding: 16px 12px;
+    }
+}
+
+/* Маленькие экраны (iPhone SE, старые модели) */
+@media (max-width: 374px) {
+    .screen {
+        padding: 15px 15px 120px 15px;
+    }
+    
+    .wheel {
+        width: 300px;
+        height: 300px;
     }
     
     .wheel-pointer {
@@ -473,96 +594,171 @@ body {
         font-size: 12px;
     }
     
-    .spin-btn {
-        font-size: 13px;
-        padding: 14px 10px;
-        max-width: 140px;
-    }
-}
-
-@media (max-width: 400px) {
-    .wheel {
-        width: 320px;
-        height: 320px;
-    }
-    
-    .wheel-pointer {
-        top: -25px;
-        border-left: 20px solid transparent;
-        border-right: 20px solid transparent;
-        border-top: 35px solid #ffffff;
-    }
-    
-    .wheel-pointer::after {
-        top: -40px;
-        left: -8px;
-        width: 16px;
-        height: 16px;
-    }
-    
-    .wheel-center {
-        width: 50px;
-        height: 50px;
-        font-size: 11px;
-    }
-    
-    .spin-btn {
-        padding: 12px 8px;
-        font-size: 12px;
-        max-width: 130px;
-    }
-    
     .spin-buttons {
         gap: 8px;
-        max-width: 280px;
-    }
-}
-
-@media (max-width: 375px) {
-    .wheel {
-        width: 280px;
-        height: 280px;
-    }
-    
-    .screen {
-        padding: 15px 15px 40px 15px;
+        max-width: 320px;
+        padding: 0 5px;
     }
     
     .spin-btn {
-        font-size: 11px;
-        padding: 12px 6px;
-        max-width: 120px;
+        min-width: 120px;
+        max-width: 150px;
+        font-size: 12px;
+        padding: 14px 8px;
+        min-height: 50px;
     }
     
-    .spin-buttons {
-        max-width: 250px;
+    .spin-btn i {
+        font-size: 14px;
+    }
+    
+    .spin-btn span {
+        font-size: 12px;
     }
 }
 
+/* Очень маленькие экраны */
 @media (max-width: 320px) {
+    .screen {
+        padding: 12px 12px 120px 12px;
+    }
+    
     .wheel {
         width: 260px;
         height: 260px;
     }
     
-    .screen {
-        padding: 12px 12px 40px 12px;
-    }
-    
-    .spin-btn {
+    .wheel-center {
+        width: 50px;
+        height: 50px;
         font-size: 10px;
-        padding: 10px 5px;
-        max-width: 110px;
     }
     
     .spin-buttons {
-        max-width: 230px;
         gap: 6px;
+        max-width: 280px;
     }
     
-    .wheel-center {
-        width: 40px;
-        height: 40px;
-        font-size: 9px;
+    .spin-btn {
+        min-width: 105px;
+        max-width: 135px;
+        font-size: 11px;
+        padding: 12px 6px;
+        min-height: 48px;
+    }
+    
+    .spin-btn i {
+        font-size: 12px;
+    }
+    
+    .spin-btn span {
+        font-size: 10px;
+    }
+    
+    .user-name {
+        font-size: 16px;
+    }
+    
+    .user-stars {
+        font-size: 14px;
     }
 }
+
+/* ========================================
+   10. ДОПОЛНИТЕЛЬНЫЕ ФИКСЫ
+   ======================================== */
+
+/* Принудительное горизонтальное расположение */
+.spin-buttons > * {
+    flex-shrink: 0;
+}
+
+/* Исправление возможных конфликтов стилей */
+.spin-buttons .spin-btn {
+    display: flex !important;
+    flex-direction: row !important;
+}
+
+/* Сглаживание шрифтов */
+.spin-btn,
+.user-name,
+.recent-wins-title {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Улучшение производительности анимаций */
+.spin-btn,
+.wheel-center,
+.profile-pic {
+    will-change: transform;
+}
+
+/* Убираем выделение текста на мобильных */
+.spin-btn,
+.wheel-center,
+.profile-pic {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Фикс для Safari */
+.spin-btn {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* ========================================
+   11. ТЕМЫ И СОСТОЯНИЯ
+   ======================================== */
+
+/* Состояние загрузки */
+.wheel.loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.wheel.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top: 3px solid white;
+    border-radius: 50%;
+    animation: loading 1s linear infinite;
+    z-index: 20;
+}
+
+@keyframes loading {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Успешное состояние */
+.recent-win-item.success {
+    border-left: 4px solid var(--lime-color);
+    background: linear-gradient(90deg, rgba(204, 213, 55, 0.1), transparent);
+}
+
+/* Состояние ошибки */
+.spin-btn.error {
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* ========================================
+   КОНЕЦ ФАЙЛА
+   ======================================== */
