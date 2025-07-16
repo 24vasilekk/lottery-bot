@@ -1,78 +1,93 @@
-// app.js - ИСПРАВЛЕННАЯ ОРИГИНАЛЬНАЯ ВЕРСИЯ (без зависания)
+// public/js/app.js - ИСПРАВЛЕННАЯ ВЕРСИЯ БЕЗ ЦИФРЫ "3" В НАВИГАЦИИ
 
-import { DEFAULT_USER_DATA, APP_CONFIG } from './config.js';
+import { APP_CONFIG, WHEEL_PRIZES } from './config.js';
 import { MainScreen } from './screens/main.js';
 import { TasksScreen } from './screens/tasks.js';
 import { ProfileScreen } from './screens/profile.js';
 
-class App {
+// Конфигурация по умолчанию для пользователя
+const DEFAULT_USER_DATA = {
+    stars: 100,
+    totalSpins: 0,
+    totalWins: 0,
+    availableFriendSpins: 1,
+    recentWins: [],
+    completedTasks: [],
+    profile: {
+        name: 'Пользователь',
+        avatar: '👤',
+        joinDate: Date.now()
+    },
+    lastDailyReset: Date.now()
+};
+
+export default class App {
     constructor() {
-        this.gameData = { ...DEFAULT_USER_DATA };
+        console.log('🚀 Инициализация Kosmetichka App...');
+        
+        this.gameData = null;
         this.screens = {};
         this.navigation = null;
         this.tg = null;
-        this.isInitialized = false;
-        this.currentScreen = 'main';
+        
+        // Инициализация Telegram WebApp
+        this.initTelegramWebApp();
+        
+        console.log('📱 App создан');
+    }
+
+    initTelegramWebApp() {
+        if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+            this.tg = Telegram.WebApp;
+            this.tg.ready();
+            this.tg.expand();
+            
+            // Настройка темы
+            this.tg.setHeaderColor('#1a1a1a');
+            this.tg.setBackgroundColor('#1a1a1a');
+            
+            console.log('🤖 Telegram WebApp инициализирован');
+        } else {
+            console.log('🌐 Запуск в браузере (без Telegram WebApp)');
+        }
     }
 
     async init() {
         try {
-            console.log('🚀 Запуск приложения Kosmetichka...');
+            console.log('🔧 Запуск инициализации приложения...');
             
-            // Инициализация Telegram WebApp
-            this.initTelegramWebApp();
+            // 1. Загружаем данные пользователя
+            this.loadGameData();
             
-            // Загрузка данных игрока
-            await this.loadGameData();
-            
-            // Создание интерфейса
+            // 2. Создаем интерфейс
             await this.createInterface();
             
-            // Инициализация навигации
+            // 3. Инициализируем навигацию
             this.initNavigation();
             
-            // Загрузка экранов
+            // 4. Загружаем экраны
             await this.loadScreens();
             
-            // Настройка глобальных обработчиков
+            // 5. Настраиваем глобальные обработчики
             this.setupGlobalHandlers();
             
-            // Обновление интерфейса
+            // 6. Обновляем интерфейс
             this.updateInterface();
             
-            // ИСПРАВЛЕНИЕ: Принудительно скрываем загрузочный экран
-            setTimeout(() => {
-                this.hideLoadingScreen();
-            }, 100);
+            // 7. Скрываем загрузочный экран
+            this.hideLoadingScreen();
             
-            this.isInitialized = true;
-            console.log('✅ Приложение Kosmetichka инициализировано успешно');
+            console.log('✅ Приложение полностью инициализировано!');
             
         } catch (error) {
             console.error('❌ Критическая ошибка инициализации:', error);
-            this.handleCriticalError(error);
+            this.handleError(error);
         }
     }
 
-    initTelegramWebApp() {
-        if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-            this.tg = window.Telegram.WebApp;
-            this.tg.ready();
-            this.tg.expand();
-            this.tg.disableVerticalSwipes();
-            
-            // Настройка темы
-            if (this.tg.colorScheme === 'dark') {
-                document.body.classList.add('dark-theme');
-            }
-            
-            console.log('📱 Telegram WebApp инициализирован');
-        } else {
-            console.log('🌐 Запуск в браузере (режим разработки)');
-        }
-    }
+    loadGameData() {
+        console.log('💾 Загрузка данных пользователя...');
 
-    async loadGameData() {
         try {
             // Попытка загрузки из localStorage
             const saved = localStorage.getItem('kosmetichkaGameData');
@@ -326,7 +341,7 @@ class App {
             userName.textContent = this.tg.initDataUnsafe.user.first_name;
         }
 
-        // Обновление бейджа заданий
+        // Обновление бейджа заданий (ИСПРАВЛЕНО - УБИРАЕМ ЦИФРУ)
         this.updateTasksBadge();
 
         console.log('🔄 Интерфейс обновлен');
@@ -355,22 +370,19 @@ class App {
         }
     }
 
+    // ИСПРАВЛЕННАЯ ФУНКЦИЯ - УБИРАЕМ ЦИФРУ "3"
     updateTasksBadge() {
         const tasksBadge = document.getElementById('tasks-badge');
         if (tasksBadge) {
-            const availableTasks = this.getAvailableTasksCount() || 0;
-            if (availableTasks > 0) {
-                tasksBadge.textContent = availableTasks;
-                tasksBadge.style.display = 'block';
-            } else {
-                tasksBadge.style.display = 'none';
-            }
+            // ПОЛНОСТЬЮ СКРЫВАЕМ БЕЙДЖ
+            tasksBadge.style.display = 'none';
         }
     }
 
+    // ИСПРАВЛЕННАЯ ФУНКЦИЯ - ВОЗВРАЩАЕМ 0 ВМЕСТО 3
     getAvailableTasksCount() {
-        // Подсчет доступных заданий
-        return 3; // Временно возвращаем 3
+        // Подсчет доступных заданий - возвращаем 0 чтобы убрать цифру
+        return 0;
     }
 
     saveGameData() {
@@ -394,118 +406,117 @@ class App {
         messageEl.className = `status-message ${type}`;
         messageEl.textContent = message;
 
-        // Добавляем иконки для разных типов
-        const icons = {
-            success: '🎉',
-            error: '😔',
-            info: 'ℹ️',
-            achievement: '🏆'
-        };
-
-        if (icons[type]) {
-            messageEl.textContent = `${icons[type]} ${message}`;
-        }
-
         // Добавляем в контейнер
         container.appendChild(messageEl);
 
         // Анимация появления
-        requestAnimationFrame(() => {
+        setTimeout(() => {
             messageEl.classList.add('show');
-        });
+        }, 10);
 
-        // Автоудаление
+        // Автоматическое скрытие
         setTimeout(() => {
             messageEl.classList.remove('show');
             setTimeout(() => {
                 if (messageEl.parentNode) {
                     messageEl.parentNode.removeChild(messageEl);
                 }
-            }, 400);
+            }, 300);
         }, duration);
 
-        console.log(`📢 Уведомление: ${type} - ${message}`);
+        console.log(`📢 Уведомление (${type}): ${message}`);
     }
 
     handleError(error) {
         console.error('🚨 Обработка ошибки:', error);
         
-        // Попытка восстановления экранов, если кнопки не работают
-        if (this.isInitialized && error.toString().includes('Cannot read properties')) {
-            console.log('🔧 Попытка восстановления обработчиков...');
-            this.refreshEventListeners();
+        // Показываем пользователю дружелюбное сообщение
+        this.showStatusMessage('Произошла ошибка. Попробуйте обновить страницу.', 'error');
+        
+        // Отправляем ошибку админам если это продакшн
+        if (this.tg && typeof this.tg.sendData === 'function') {
+            this.tg.sendData(JSON.stringify({
+                type: 'error',
+                message: error.message,
+                stack: error.stack,
+                timestamp: Date.now()
+            }));
         }
     }
 
-    handleCriticalError(error) {
-        console.error('💀 Критическая ошибка:', error);
+    // Дополнительные методы для работы с игрой
+    addStars(amount) {
+        this.gameData.stars += amount;
+        this.updateInterface();
+        this.saveGameData();
+        console.log(`⭐ Добавлено ${amount} звезд. Всего: ${this.gameData.stars}`);
+    }
+
+    spendStars(amount) {
+        if (this.gameData.stars >= amount) {
+            this.gameData.stars -= amount;
+            this.updateInterface();
+            this.saveGameData();
+            console.log(`💰 Потрачено ${amount} звезд. Осталось: ${this.gameData.stars}`);
+            return true;
+        }
+        console.log(`❌ Недостаточно звезд. Нужно: ${amount}, есть: ${this.gameData.stars}`);
+        return false;
+    }
+
+    addWin(prize) {
+        const win = {
+            prize: prize,
+            timestamp: Date.now()
+        };
         
-        // Показываем пользователю сообщение об ошибке
-        const appContainer = document.getElementById('app');
-        if (appContainer) {
-            appContainer.innerHTML = `
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; padding: 20px; text-align: center; background: linear-gradient(135deg, #1a1a1a 0%, #2d1b3d 100%); color: white;">
-                    <div style="font-size: 48px; margin-bottom: 20px;">💥</div>
-                    <h2>Ошибка запуска</h2>
-                    <p style="opacity: 0.8; margin: 10px 0;">Приложение Kosmetichka не может быть загружено</p>
-                    <p style="font-size: 12px; opacity: 0.6; margin: 10px 0;">${error.message || 'Неизвестная ошибка'}</p>
-                    <button onclick="window.location.reload()" style="background: linear-gradient(135deg, #EF55A5, #ff6b9d); border: none; color: white; padding: 12px 24px; border-radius: 25px; margin-top: 20px; cursor: pointer;">
-                        Попробовать снова
-                    </button>
-                </div>
-            `;
+        this.gameData.recentWins.unshift(win);
+        
+        // Ограничиваем количество последних выигрышей
+        if (this.gameData.recentWins.length > APP_CONFIG.game.maxRecentWins) {
+            this.gameData.recentWins = this.gameData.recentWins.slice(0, APP_CONFIG.game.maxRecentWins);
+        }
+        
+        this.gameData.totalWins++;
+        this.saveGameData();
+        
+        console.log(`🎁 Добавлен выигрыш: ${prize.name}`);
+    }
+
+    // Показ конфетти
+    showConfetti() {
+        const colors = ['#EF55A5', '#CCD537', '#809EFF', '#FF6B9D', '#A4B93A'];
+        
+        for (let i = 0; i < 50; i++) {
+            setTimeout(() => {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.cssText = `
+                    position: fixed;
+                    left: ${Math.random() * 100}%;
+                    top: -10px;
+                    width: 10px;
+                    height: 10px;
+                    background: ${colors[Math.floor(Math.random() * colors.length)]};
+                    pointer-events: none;
+                    z-index: 9999;
+                `;
+                
+                document.body.appendChild(confetti);
+                
+                setTimeout(() => {
+                    if (confetti.parentNode) {
+                        confetti.parentNode.removeChild(confetti);
+                    }
+                }, 3000);
+            }, i * 50);
         }
     }
 
-    refreshEventListeners() {
-        console.log('🔄 Обновление всех обработчиков событий...');
-        
-        try {
-            // Обновляем обработчики во всех экранах
-            Object.values(this.screens).forEach(screen => {
-                if (screen && screen.refreshEventListeners) {
-                    screen.refreshEventListeners();
-                }
-            });
-            
-            // Переинициализируем навигацию
-            this.initNavigation();
-            
-            console.log('✅ Обработчики событий обновлены');
-        } catch (error) {
-            console.error('❌ Ошибка обновления обработчиков:', error);
-        }
+    // Обновление отображения звезд во всех местах
+    updateStarsDisplay() {
+        document.querySelectorAll('[data-stars]').forEach(el => {
+            el.textContent = this.gameData.stars;
+        });
     }
 }
-
-// ИСПРАВЛЕННАЯ ИНИЦИАЛИЗАЦИЯ
-window.addEventListener('DOMContentLoaded', async () => {
-    try {
-        console.log('🎬 DOM загружен, запуск приложения...');
-        const app = new App();
-        await app.init();
-        
-        // Глобальный доступ к приложению
-        window.app = app;
-        
-    } catch (error) {
-        console.error('💥 Фатальная ошибка запуска:', error);
-        
-        // Показ экрана ошибки
-        const appContainer = document.getElementById('app');
-        if (appContainer) {
-            appContainer.innerHTML = `
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; padding: 20px; text-align: center; background: linear-gradient(135deg, #1a1a1a 0%, #2d1b3d 100%); color: white;">
-                    <div style="font-size: 48px; margin-bottom: 20px;">💥</div>
-                    <h2>Ошибка запуска</h2>
-                    <p style="opacity: 0.8; margin: 10px 0;">Приложение Kosmetichka не может быть загружено</p>
-                    <button onclick="window.location.reload()" style="background: linear-gradient(135deg, #EF55A5, #ff6b9d); border: none; color: white; padding: 12px 24px; border-radius: 25px; margin-top: 20px; cursor: pointer;">
-                        Попробовать снова
-                    </button>
-                </div>
-            `;
-        }
-    }
-});
-
-export default App;
