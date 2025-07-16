@@ -1,0 +1,424 @@
+/* Анимации для рулетки и интерфейса */
+
+/* Анимация вращения рулетки */
+@keyframes wheelSpin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(var(--wheel-rotation, 1800deg));
+    }
+}
+
+.wheel.spinning {
+    animation: wheelSpin var(--spin-duration, 3s) cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+/* Анимация указателя рулетки */
+@keyframes pointerBounce {
+    0%, 100% {
+        transform: translateX(-50%) scale(1);
+    }
+    50% {
+        transform: translateX(-50%) scale(1.2);
+    }
+}
+
+.wheel-pointer.bouncing {
+    animation: pointerBounce 0.3s ease-in-out;
+}
+
+/* Пульсирующая анимация для призов */
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(239, 85, 165, 0.7);
+    }
+    70% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(239, 85, 165, 0);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(239, 85, 165, 0);
+    }
+}
+
+/* Анимация появления призов */
+@keyframes prizeReveal {
+    0% {
+        opacity: 0;
+        transform: scale(0.5) translateY(20px);
+    }
+    50% {
+        transform: scale(1.1) translateY(-5px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.prize-item.new {
+    animation: prizeReveal 0.6s ease-out;
+}
+
+/* Анимация блеска для кнопок */
+@keyframes shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+.spin-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent
+    );
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
+    border-radius: inherit;
+}
+
+/* Анимация загрузки */
+@keyframes loading {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.loading {
+    animation: loading 1s linear infinite;
+}
+
+/* Анимация появления модального окна */
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.modal.active .modal-content {
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+/* Анимация фоновых частиц */
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+    }
+    33% {
+        transform: translateY(-10px) rotate(120deg);
+    }
+    66% {
+        transform: translateY(5px) rotate(240deg);
+    }
+}
+
+.floating-particle {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: var(--primary-pink);
+    border-radius: 50%;
+    animation: float 6s ease-in-out infinite;
+    opacity: 0.3;
+}
+
+.floating-particle:nth-child(2) {
+    animation-delay: -2s;
+    background: var(--primary-lime);
+}
+
+.floating-particle:nth-child(3) {
+    animation-delay: -4s;
+    background: var(--primary-purple);
+}
+
+/* Анимация счетчика кристаллов */
+@keyframes crystalGain {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.2);
+        color: var(--primary-lime);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.crystals.gaining {
+    animation: crystalGain 0.5s ease-out;
+}
+
+/* Анимация прогресса заданий */
+@keyframes progressFill {
+    from {
+        width: 0%;
+    }
+    to {
+        width: var(--progress-width, 0%);
+    }
+}
+
+.progress-bar {
+    background: var(--gradient-lime);
+    height: 4px;
+    border-radius: 2px;
+    animation: progressFill 1s ease-out;
+}
+
+/* Анимация уведомлений */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+.notification {
+    animation: slideInRight 0.3s ease-out;
+}
+
+.notification.hiding {
+    animation: slideOutRight 0.3s ease-out forwards;
+}
+
+/* Анимация лидерборда */
+@keyframes leaderboardEntry {
+    from {
+        transform: translateX(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.leaderboard-item {
+    animation: leaderboardEntry 0.4s ease-out;
+}
+
+.leaderboard-item:nth-child(1) { animation-delay: 0.1s; }
+.leaderboard-item:nth-child(2) { animation-delay: 0.2s; }
+.leaderboard-item:nth-child(3) { animation-delay: 0.3s; }
+.leaderboard-item:nth-child(4) { animation-delay: 0.4s; }
+.leaderboard-item:nth-child(5) { animation-delay: 0.5s; }
+
+/* Анимация переключения вкладок */
+@keyframes tabSlide {
+    from {
+        transform: translateX(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.task-section.active,
+.profile-section.active {
+    animation: tabSlide 0.3s ease-out;
+}
+
+/* Анимация достижений */
+@keyframes achievementUnlock {
+    0% {
+        transform: scale(0) rotate(180deg);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.2) rotate(0deg);
+    }
+    100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+.achievement-item.unlocked {
+    animation: achievementUnlock 0.6s ease-out;
+}
+
+/* Анимация конфетти */
+@keyframes confetti {
+    0% {
+        transform: translateY(-100px) rotateZ(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) rotateZ(720deg);
+        opacity: 0;
+    }
+}
+
+.confetti-piece {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    background: var(--primary-pink);
+    animation: confetti 3s linear infinite;
+    z-index: 1001;
+}
+
+.confetti-piece:nth-child(odd) {
+    background: var(--primary-lime);
+    animation-delay: -0.5s;
+}
+
+.confetti-piece:nth-child(3n) {
+    background: var(--primary-purple);
+    animation-delay: -1s;
+}
+
+/* Анимация кнопок при нажатии */
+@keyframes buttonPress {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(0.95);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.button-pressed {
+    animation: buttonPress 0.1s ease-out;
+}
+
+/* Анимация появления элементов */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in-up {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+/* Анимация звездочек для премиум эффектов */
+@keyframes twinkle {
+    0%, 100% {
+        opacity: 0;
+        transform: scale(0);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.star-effect {
+    position: absolute;
+    color: var(--primary-lime);
+    font-size: 16px;
+    animation: twinkle 1.5s ease-in-out infinite;
+    pointer-events: none;
+}
+
+.star-effect:nth-child(2) { animation-delay: 0.3s; }
+.star-effect:nth-child(3) { animation-delay: 0.6s; }
+.star-effect:nth-child(4) { animation-delay: 0.9s; }
+.star-effect:nth-child(5) { animation-delay: 1.2s; }
+
+/* Анимация градиентного фона */
+@keyframes gradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.gradient-animated {
+    background: linear-gradient(-45deg, #EF55A5, #809EFF, #CCD537, #FF6B9D);
+    background-size: 400% 400%;
+    animation: gradientShift 15s ease infinite;
+}
+
+/* Эффект свечения для активных элементов */
+.glow-effect {
+    box-shadow: 0 0 20px rgba(239, 85, 165, 0.6);
+    transition: box-shadow 0.3s ease;
+}
+
+.glow-effect:hover {
+    box-shadow: 0 0 30px rgba(239, 85, 165, 0.8);
+}
+
+/* Анимация типизации текста */
+@keyframes typewriter {
+    from {
+        width: 0;
+    }
+    to {
+        width: 100%;
+    }
+}
+
+.typewriter {
+    overflow: hidden;
+    border-right: 2px solid var(--primary-pink);
+    white-space: nowrap;
+    animation: typewriter 2s steps(40, end), 
+               blink-caret 0.75s step-end infinite;
+}
+
+@keyframes blink-caret {
+    from, to {
+        border-color: transparent;
+    }
+    50% {
+        border-color: var(--primary-pink);
+    }
+}

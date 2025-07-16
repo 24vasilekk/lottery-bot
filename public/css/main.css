@@ -1,0 +1,568 @@
+/* public/css/main.css - ИСПРАВЛЕННАЯ ВЕРСИЯ */
+
+/* ========================================
+   ОСНОВНЫЕ СТИЛИ
+   ======================================== */
+
+:root {
+    --primary-color: #EF55A5;
+    --lime-color: #CCD537;
+    --purple-color: #809EFF;
+    --dark-bg: #1a1a1a;
+    --card-bg: #2a2a2a;
+    --text-primary: #ffffff;
+    --text-secondary: #cccccc;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(135deg, var(--dark-bg) 0%, #2d1b3d 100%);
+    color: var(--text-primary);
+    overflow-x: hidden;
+    min-height: 100vh;
+}
+
+.app-container {
+    min-height: 100vh;
+    position: relative;
+    padding-bottom: 90px; /* Увеличено для лучшей прокрутки */
+}
+
+/* ========================================
+   ЭКРАНЫ
+   ======================================== */
+
+.screen {
+    display: none;
+    min-height: calc(100vh - 90px); /* Исправлена высота */
+    padding: 20px 20px 40px 20px; /* Добавлен дополнительный отступ снизу */
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+    overflow-y: auto; /* Добавлена прокрутка */
+    padding-bottom: 120px; /* Добавлен отступ для полной прокрутки */
+}
+
+.screen.active {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ========================================
+   ЗАГОЛОВКИ
+   ======================================== */
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 0 10px;
+}
+
+.header h2 {
+    font-size: 24px;
+    font-weight: bold;
+    background: linear-gradient(135deg, var(--primary-color), var(--lime-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex: 1;
+}
+
+.user-details {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.user-name {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.user-stars {
+    font-size: 16px;
+    color: var(--lime-color);
+    font-weight: 500;
+}
+
+.profile-pic {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--purple-color));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.profile-pic:hover {
+    transform: scale(1.05);
+}
+
+.profile-pic img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+/* КНОПКА МЕГА РУЛЕТКИ В HEADER */
+.mega-btn {
+    background: linear-gradient(135deg, var(--purple-color), #9c27b0);
+    border: none;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(128, 158, 255, 0.3);
+}
+
+.mega-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(128, 158, 255, 0.4);
+}
+
+/* ========================================
+   РУЛЕТКА
+   ======================================== */
+
+.wheel-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 30px;
+    position: relative;
+}
+
+.wheel {
+    width: 400px; /* УВЕЛИЧЕНО с 300px */
+    height: 400px; /* УВЕЛИЧЕНО с 300px */
+    position: relative;
+    border-radius: 50%;
+    overflow: visible; /* Изменено для корректного отображения свечения */
+    margin-bottom: 30px;
+    /* ИСПРАВЛЕННОЕ СВЕЧЕНИЕ БЕЗ РЕЗКОГО ПРЕРЫВАНИЯ */
+    background: radial-gradient(circle at center, rgba(239, 85, 165, 0.3) 0%, rgba(128, 158, 255, 0.2) 40%, rgba(204, 213, 55, 0.1) 70%, transparent 100%);
+    filter: drop-shadow(0 0 40px rgba(239, 85, 165, 0.4)) drop-shadow(0 0 80px rgba(128, 158, 255, 0.3));
+    transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+}
+
+/* Сегменты рулетки */
+.wheel-segment-path {
+    transition: all 0.2s ease;
+    cursor: pointer;
+    stroke: rgba(255, 255, 255, 0.2);
+    stroke-width: 1;
+}
+
+.wheel-segment-path:hover {
+    filter: brightness(1.2) !important;
+    stroke: rgba(255, 255, 255, 0.5);
+    stroke-width: 2;
+}
+
+/* Указатель рулетки - УВЕЛИЧЕННЫЙ */
+.wheel-pointer {
+    position: absolute;
+    top: -35px; /* УВЕЛИЧЕНО с -30px */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 30px solid transparent; /* УВЕЛИЧЕНО с 25px */
+    border-right: 30px solid transparent; /* УВЕЛИЧЕНО с 25px */
+    border-top: 45px solid #ffffff; /* УВЕЛИЧЕНО с 40px */
+    z-index: 11;
+    filter: drop-shadow(0 8px 16px rgba(0,0,0,0.6)); /* УВЕЛИЧЕНА ТЕНЬ */
+}
+
+.wheel-pointer::after {
+    content: '';
+    position: absolute;
+    top: -50px; /* УВЕЛИЧЕНО с -45px */
+    left: -12px; /* УВЕЛИЧЕНО с -10px */
+    width: 24px; /* УВЕЛИЧЕНО с 20px */
+    height: 24px; /* УВЕЛИЧЕНО с 20px */
+    background: radial-gradient(circle, #ffffff 40%, transparent 70%);
+    border-radius: 50%;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.8); /* УВЕЛИЧЕНА ТЕНЬ */
+}
+
+/* ИСПРАВЛЕННАЯ ЦЕНТРАЛЬНАЯ КНОПКА РУЛЕТКИ С "SPIN" */
+.wheel-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px; /* УВЕЛИЧЕНО с 60px */
+    height: 80px; /* УВЕЛИЧЕНО с 60px */
+    background: #000000; /* ЧЕРНЫЙ ФОН */
+    border-radius: 50%;
+    border: 4px solid #333; /* ТЕМНАЯ ГРАНИЦА */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px; /* УМЕНЬШЕН ШРИФТ ДЛЯ "SPIN" */
+    font-weight: bold;
+    color: #888888; /* СЕРЫЙ ТЕКСТ */
+    z-index: 10;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6); /* УВЕЛИЧЕНА ТЕНЬ */
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 1px; /* ДОБАВЛЕН МЕЖБУКВЕННЫЙ ИНТЕРВАЛ */
+}
+
+.wheel-center:hover {
+    transform: translate(-50%, -50%) scale(1.05);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
+    color: #aaa; /* СВЕТЛЕЕ ПРИ НАВЕДЕНИИ */
+}
+
+/* ========================================
+   КНОПКИ УПРАВЛЕНИЯ - ИСПРАВЛЕННЫЕ
+   ======================================== */
+
+.spin-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+    margin-top: 30px;
+}
+
+/* ИСПРАВЛЕННЫЕ КНОПКИ СО СЖАТЫМ ТЕКСТОМ */
+.spin-buttons {
+    display: flex;
+    gap: 10px; /* УМЕНЬШЕН ОТСТУП */
+    width: 100%;
+    max-width: 340px; /* УМЕНЬШЕНА МАКСИМАЛЬНАЯ ШИРИНА */
+    justify-content: center;
+}
+
+.spin-btn {
+    flex: 1;
+    max-width: 160px; /* ОГРАНИЧЕНА ШИРИНА КНОПОК */
+    background: linear-gradient(135deg, var(--primary-color), #ff6b9d);
+    border: none;
+    color: white;
+    padding: 16px 12px; /* УМЕНЬШЕНЫ ОТСТУПЫ ПО БОКАМ */
+    border-radius: 25px;
+    font-size: 14px; /* УМЕНЬШЕН РАЗМЕР ШРИФТА */
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 25px rgba(239, 85, 165, 0.4);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px; /* УМЕНЬШЕН ОТСТУП МЕЖДУ ИКОНКОЙ И ТЕКСТОМ */
+    min-height: 55px;
+    text-align: center;
+    white-space: nowrap; /* ЗАПРЕТ ПЕРЕНОСА СТРОК */
+}
+
+.spin-btn.secondary {
+    background: linear-gradient(135deg, var(--lime-color), #a4b93a);
+    color: var(--dark-bg);
+    box-shadow: 0 8px 25px rgba(204, 213, 55, 0.4);
+}
+
+.spin-btn:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 35px rgba(239, 85, 165, 0.6);
+}
+
+.spin-btn.secondary:hover:not(:disabled) {
+    box-shadow: 0 12px 35px rgba(204, 213, 55, 0.6);
+}
+
+.spin-btn:active {
+    transform: translateY(-1px);
+}
+
+.spin-btn:disabled {
+    background: linear-gradient(135deg, #666, #444);
+    color: #999;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.spin-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.6s ease;
+}
+
+.spin-btn:hover::before {
+    left: 100%;
+}
+
+/* Иконки в кнопках */
+.spin-btn i {
+    font-size: 16px;
+    flex-shrink: 0; /* ЗАПРЕТ СЖАТИЯ ИКОНКИ */
+}
+
+.spin-btn span {
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Информация о стоимости */
+.spin-info {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 10px 20px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.spin-info i {
+    color: var(--lime-color);
+}
+
+/* ========================================
+   ПОСЛЕДНИЕ ВЫИГРЫШИ
+   ======================================== */
+
+.recent-wins {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    padding: 24px;
+    margin-top: 30px;
+    margin-bottom: 30px; /* ДОБАВЛЕН ОТСТУП СНИЗУ */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.recent-wins-title {
+    font-size: 18px;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, var(--primary-color), var(--lime-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    display: block;
+}
+
+.recent-win-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
+}
+
+.recent-win-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-1px);
+}
+
+.recent-win-item:last-child {
+    border-bottom: none;
+}
+
+.recent-win-item span {
+    font-size: 24px;
+    min-width: 30px;
+    text-align: center;
+}
+
+.win-description {
+    flex: 1;
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.recent-win-item.empty {
+    opacity: 0.6;
+    font-style: italic;
+}
+
+/* ========================================
+   ЗАДАНИЯ
+   ======================================== */
+
+.task-counter {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+/* ========================================
+   АНИМАЦИИ
+   ======================================== */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ========================================
+   АДАПТИВНОСТЬ ДЛЯ РУЛЕТКИ
+   ======================================== */
+
+@media (max-width: 500px) {
+    .wheel {
+        width: 380px;
+        height: 380px;
+    }
+    
+    .wheel-pointer {
+        top: -30px;
+        border-left: 25px solid transparent;
+        border-right: 25px solid transparent;
+        border-top: 40px solid #ffffff;
+    }
+    
+    .wheel-pointer::after {
+        top: -45px;
+        left: -10px;
+        width: 20px;
+        height: 20px;
+    }
+    
+    .wheel-center {
+        width: 60px;
+        height: 60px;
+        font-size: 12px;
+    }
+    
+    .spin-btn {
+        font-size: 13px;
+        padding: 14px 10px;
+        max-width: 140px;
+    }
+}
+
+@media (max-width: 400px) {
+    .wheel {
+        width: 320px;
+        height: 320px;
+    }
+    
+    .wheel-pointer {
+        top: -25px;
+        border-left: 20px solid transparent;
+        border-right: 20px solid transparent;
+        border-top: 35px solid #ffffff;
+    }
+    
+    .wheel-pointer::after {
+        top: -40px;
+        left: -8px;
+        width: 16px;
+        height: 16px;
+    }
+    
+    .wheel-center {
+        width: 50px;
+        height: 50px;
+        font-size: 11px;
+    }
+    
+    .spin-btn {
+        padding: 12px 8px;
+        font-size: 12px;
+        max-width: 130px;
+    }
+    
+    .spin-buttons {
+        gap: 8px;
+        max-width: 280px;
+    }
+}
+
+@media (max-width: 375px) {
+    .wheel {
+        width: 280px;
+        height: 280px;
+    }
+    
+    .screen {
+        padding: 15px 15px 40px 15px;
+    }
+    
+    .spin-btn {
+        font-size: 11px;
+        padding: 12px 6px;
+        max-width: 120px;
+    }
+    
+    .spin-buttons {
+        max-width: 250px;
+    }
+}
+
+@media (max-width: 320px) {
+    .wheel {
+        width: 260px;
+        height: 260px;
+    }
+    
+    .screen {
+        padding: 12px 12px 40px 12px;
+    }
+    
+    .spin-btn {
+        font-size: 10px;
+        padding: 10px 5px;
+        max-width: 110px;
+    }
+    
+    .spin-buttons {
+        max-width: 230px;
+        gap: 6px;
+    }
+    
+    .wheel-center {
+        width: 40px;
+        height: 40px;
+        font-size: 9px;
+    }
+}

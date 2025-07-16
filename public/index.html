@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Kosmetichka - Рулетка красоты и призов</title>
+    
+    <!-- Telegram WebApp Script -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Font Awesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link rel="stylesheet" href="css/loading.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/tasks.css">
+    <link rel="stylesheet" href="css/profile.css">
+    <link rel="stylesheet" href="css/mega-roulette.css">
+    
+    <!-- Fallback styles -->
+    <style>
+        /* Базовые стили на случай если CSS файлы не загрузятся */
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #EF55A5 0%, #809EFF 50%, #CCD537 100%);
+            color: white;
+            min-height: 100vh;
+            width: 100%;
+            overflow-x: hidden;
+        }
+        
+        #app {
+            max-width: 414px;
+            margin: 0 auto;
+            height: 100vh;
+            position: relative;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+        }
+        
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #EF55A5 0%, #809EFF 50%, #CCD537 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .loading-spinner {
+            font-size: 60px;
+            animation: spin 2s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        .loading-text {
+            font-size: 18px;
+            font-weight: 500;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .error-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            padding: 20px;
+            text-align: center;
+            background: linear-gradient(135deg, #EF55A5 0%, #809EFF 50%, #CCD537 100%);
+            color: white;
+        }
+        
+        .error-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+        
+        .btn-primary {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+        
+        /* Анимированный фон */
+        .animated-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #EF55A5 0%, #809EFF 50%, #CCD537 100%);
+            z-index: -2;
+        }
+        
+        .background-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(26,26,26,0.8) 0%, rgba(15,15,15,0.9) 100%);
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="animated-background"></div>
+    <div class="background-overlay"></div>
+
+    <!-- Main App Container -->
+    <div id="app">
+        <!-- Loading Screen -->
+        <div id="loading-screen" class="loading-screen">
+            <div class="loading-spinner">🎰</div>
+            <div class="loading-text">Загрузка Kosmetichka...</div>
+        </div>
+    </div>
+
+    <!-- JavaScript Modules -->
+    <script type="module">
+        // Проверяем поддержку модулей
+        console.log('🚀 Инициализация приложения...');
+        
+        try {
+            // Динамический импорт для лучшей совместимости
+            const { default: App } = await import('./js/app.js');
+            
+            // Ждем полной загрузки DOM
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initApp);
+            } else {
+                initApp();
+            }
+            
+            function initApp() {
+                try {
+                    console.log('🎮 Создание экземпляра приложения...');
+                    window.app = new App();
+                    window.app.init();
+                    console.log('✅ Приложение инициализировано');
+                } catch (error) {
+                    console.error('❌ Ошибка инициализации приложения:', error);
+                    showErrorScreen(error);
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки модулей:', error);
+            showErrorScreen(error);
+        }
+        
+        function showErrorScreen(error) {
+            const app = document.getElementById('app');
+            if (app) {
+                app.innerHTML = `
+                    <div class="error-screen">
+                        <div class="error-icon">⚠️</div>
+                        <h2>Произошла ошибка</h2>
+                        <p>Не удалось загрузить приложение</p>
+                        <p style="font-size: 14px; margin-top: 10px; opacity: 0.8;">
+                            ${error.message || 'Неизвестная ошибка'}
+                        </p>
+                        <button class="btn-primary" onclick="window.location.reload()">
+                            Перезагрузить
+                        </button>
+                        <button class="btn-primary" onclick="showDebugInfo()" style="margin-left: 10px;">
+                            Отладка
+                        </button>
+                    </div>
+                `;
+            }
+        }
+        
+        // Функция отладки
+        window.showDebugInfo = function() {
+            console.log('🔍 Информация для отладки:');
+            console.log('User Agent:', navigator.userAgent);
+            console.log('URL:', window.location.href);
+            console.log('Telegram WebApp:', !!window.Telegram?.WebApp);
+            console.log('Module support:', 'import' in document.createElement('script'));
+            
+            // Попытка загрузить файлы по отдельности
+            checkFiles();
+        };
+        
+        async function checkFiles() {
+            const files = [
+                './js/config.js',
+                './js/app.js',
+                './js/screens/main.js',
+                './css/styles.css'
+            ];
+            
+            for (const file of files) {
+                try {
+                    const response = await fetch(file);
+                    console.log(`${file}: ${response.status} ${response.statusText}`);
+                } catch (error) {
+                    console.error(`${file}: Ошибка - ${error.message}`);
+                }
+            }
+        }
+        
+        // Глобальная обработка ошибок
+        window.addEventListener('error', (event) => {
+            console.error('🚨 Глобальная ошибка:', event.error);
+        });
+        
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('🚨 Необработанное отклонение промиса:', event.reason);
+        });
+        
+    </script>
+    
+    <!-- Fallback для браузеров без поддержки модулей -->
+    <script nomodule>
+        document.getElementById('app').innerHTML = `
+            <div class="error-screen">
+                <div class="error-icon">📱</div>
+                <h2>Браузер не поддерживается</h2>
+                <p>Используйте более современный браузер</p>
+                <button class="btn-primary" onclick="window.location.href='https://telegram.org'">
+                    Открыть в Telegram
+                </button>
+            </div>
+        `;
+    </script>
+</body>
+</html>
