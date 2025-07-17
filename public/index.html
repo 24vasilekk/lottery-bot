@@ -11,7 +11,7 @@
     <!-- Font Awesome for icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
-    <!-- CSS Files - ПРАВИЛЬНЫЙ ПОРЯДОК -->
+    <!-- CSS Files -->
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/animations.css">
     <link rel="stylesheet" href="css/loading.css">
@@ -19,14 +19,11 @@
     <link rel="stylesheet" href="css/tasks.css">
     <link rel="stylesheet" href="css/profile.css">
     <link rel="stylesheet" href="css/mega-roulette.css">
-    
-    <!-- Новые стили для навигации и кнопок -->
     <link rel="stylesheet" href="css/navigation.css">
     <link rel="stylesheet" href="css/button-states.css">
     
     <!-- Fallback styles -->
     <style>
-        /* Базовые стили на случай если CSS файлы не загрузятся */
         * { 
             margin: 0; 
             padding: 0; 
@@ -49,200 +46,334 @@
             position: relative;
             background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
         }
-        
-        /* КРИТИЧЕСКИ ВАЖНЫЙ СТИЛЬ ЗАГРУЗОЧНОГО ЭКРАНА */
+
         .loading-screen {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d1b3d 100%) !important;
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: center !important;
-            justify-content: center !important;
-            z-index: 10000 !important;
-            transition: opacity 0.5s ease !important;
-        }
-        
-        .loading-spinner {
-            font-size: 48px;
-            animation: loadingPulse 1.5s ease-in-out infinite;
-            margin-bottom: 20px;
-        }
-        
-        .loading-text {
-            font-size: 16px;
-            opacity: 0.8;
-            text-align: center;
-        }
-        
-        @keyframes loadingPulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.7; }
-        }
-        
-        /* Критически важные стили навигации */
-        .bottom-nav {
-            position: fixed !important;
-            bottom: 0 !important;
-            left: 50% !important;
-            transform: translateX(-50%) !important;
-            width: 100% !important;
-            max-width: 414px !important;
-            background: rgba(42, 42, 42, 0.95) !important;
-            backdrop-filter: blur(20px) !important;
-            z-index: 1000 !important;
-            display: flex !important;
-            justify-content: space-around !important;
-            padding: 12px 8px !important;
-        }
-        
-        .status-messages-container {
-            position: fixed !important;
-            top: 20px !important;
-            left: 50% !important;
-            transform: translateX(-50%) !important;
-            width: 90% !important;
-            max-width: 380px !important;
-            z-index: 2000 !important;
-        }
-        
-        /* Анимированный фон */
-        .animated-background {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             background: linear-gradient(135deg, #EF55A5 0%, #809EFF 50%, #CCD537 100%);
-            z-index: -2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
         }
-        
-        .background-overlay {
+
+        .modal {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, rgba(26,26,26,0.8) 0%, rgba(15,15,15,0.9) 100%);
-            z-index: -1;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #2a2a2a;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 350px;
+            width: 90%;
+            text-align: center;
+            position: relative;
+        }
+
+        .close-button {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .prize-animation {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .certificate-modal .modal-content {
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            color: #000;
+        }
+
+        .admin-contact-button {
+            background: linear-gradient(45deg, #EF55A5, #FF6B9D);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s;
+        }
+
+        .admin-contact-button:hover {
+            transform: translateY(-2px);
         }
     </style>
 </head>
 <body>
-    <!-- Animated Background -->
-    <div class="animated-background"></div>
-    <div class="background-overlay"></div>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+        </div>
+        <h2>Kosmetichka Lottery</h2>
+        <p>Загрузка...</p>
+    </div>
 
     <!-- Main App Container -->
     <div id="app">
-        <!-- Loading Screen -->
-        <div id="loading-screen" class="loading-screen">
-            <div class="loading-spinner">🎰</div>
-            <div class="loading-text">Загрузка Kosmetichka...</div>
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="user-info">
+                    <div class="avatar">👤</div>
+                    <div class="user-details">
+                        <div class="username" id="username">Пользователь</div>
+                        <div class="user-stats">
+                            <div class="stars" id="stars-display">
+                                <span class="icon">⭐</span>
+                                <span class="count" id="stars-count">100</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="settings-button" id="settings-button">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="main-content" id="main-content">
+            <!-- Main Screen (Roulette) -->
+            <div class="screen active" id="main-screen">
+                <div class="wheel-container">
+                    <div class="wheel-wrapper">
+                        <div class="wheel" id="wheel"></div>
+                        <div class="wheel-pointer"></div>
+                        <div class="wheel-center">
+                            <div class="center-logo">🎰</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="spin-controls">
+                    <button class="spin-button" id="spin-button">
+                        <span>Крутить за ⭐ 20</span>
+                    </button>
+                    <div class="spin-info">
+                        <p>Крути рулетку и выигрывай призы!</p>
+                    </div>
+                </div>
+
+                <div class="recent-wins" id="recent-wins">
+                    <h3>Последние выигрыши</h3>
+                    <div class="prize-history" id="prize-history">
+                        <!-- Prize history will be populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tasks Screen -->
+            <div class="screen" id="tasks-screen">
+                <div class="screen-header">
+                    <h2>Задания</h2>
+                    <p>Выполняй задания и получай звезды!</p>
+                </div>
+                
+                <div class="tasks-container" id="tasks-container">
+                    <!-- Tasks will be populated by JS -->
+                </div>
+            </div>
+
+            <!-- Profile Screen -->
+            <div class="screen" id="profile-screen">
+                <div class="screen-header">
+                    <h2>Профиль</h2>
+                </div>
+                
+                <div class="profile-container">
+                    <div class="profile-stats" id="profile-stats">
+                        <!-- Profile stats will be populated by JS -->
+                    </div>
+                    
+                    <div class="leaderboard-section">
+                        <h3>Лидерборд</h3>
+                        <div class="leaderboard" id="leaderboard">
+                            <!-- Leaderboard will be populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mega Roulette Screen -->
+            <div class="screen" id="mega-roulette-screen">
+                <div class="screen-header">
+                    <h2>Мега Рулетка</h2>
+                    <p>Большие призы ждут!</p>
+                </div>
+                
+                <div class="mega-roulette-container">
+                    <!-- Mega roulette content will be populated by JS -->
+                </div>
+            </div>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-screen="main-screen">
+                <i class="fas fa-home"></i>
+                <span>Главная</span>
+            </button>
+            <button class="nav-item" data-screen="tasks-screen">
+                <i class="fas fa-tasks"></i>
+                <span>Задания</span>
+            </button>
+            <button class="nav-item" data-screen="profile-screen">
+                <i class="fas fa-user"></i>
+                <span>Профиль</span>
+            </button>
+            <button class="nav-item" data-screen="mega-roulette-screen">
+                <i class="fas fa-star"></i>
+                <span>Мега</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Prize Modal -->
+    <div class="modal" id="prize-modal">
+        <div class="modal-content">
+            <button class="close-button" onclick="closePrizeModal()">&times;</button>
+            <div class="prize-animation">
+                <i class="fas fa-gift"></i>
+            </div>
+            <h3 id="prize-title">Поздравляем!</h3>
+            <p id="prize-description">Вы выиграли приз!</p>
+            <button class="admin-contact-button" onclick="closePrizeModal()">Понятно</button>
         </div>
     </div>
 
-    <!-- JavaScript Modules -->
-    <script type="module">
-        // Проверяем поддержку модулей
-        console.log('🚀 Инициализация приложения...');
-        
-        try {
-            // Динамический импорт для лучшей совместимости
-            const { default: App } = await import('./js/app.js');
+    <!-- Certificate Modal -->
+    <div class="modal certificate-modal" id="certificate-modal">
+        <div class="modal-content">
+            <button class="close-button" onclick="closeCertificateModal()">&times;</button>
+            <div class="prize-animation">
+                <i class="fas fa-certificate"></i>
+            </div>
+            <h3>🎉 Поздравляем!</h3>
+            <p id="certificate-description">Вы выиграли сертификат!</p>
+            <div class="certificate-info">
+                <p><strong>Для получения приза:</strong></p>
+                <p>Напишите администратору с указанием вашего Telegram ID</p>
+                <p class="user-id">ID: <span id="user-telegram-id">123456789</span></p>
+            </div>
+            <button class="admin-contact-button" onclick="contactAdmin()">
+                <i class="fas fa-paper-plane"></i>
+                Написать администратору
+            </button>
+            <button class="admin-contact-button" onclick="closeCertificateModal()" style="background: #666; margin-top: 10px;">
+                Закрыть
+            </button>
+        </div>
+    </div>
+
+    <!-- Subscription Check Modal -->
+    <div class="modal" id="subscription-modal">
+        <div class="modal-content">
+            <h3>📱 Подпишитесь на каналы</h3>
+            <p>Для продолжения игры подпишитесь на наши каналы:</p>
+            <div class="subscription-channels" id="subscription-channels">
+                <!-- Channels will be populated by JS -->
+            </div>
+            <button class="admin-contact-button" onclick="checkSubscriptions()">
+                Проверить подписки
+            </button>
+        </div>
+    </div>
+
+    <!-- JS Configuration and Modules -->
+    <script type="module" src="js/config.js"></script>
+    <script type="module" src="js/utils.js"></script>
+    <script type="module" src="js/api.js"></script>
+    <script type="module" src="js/subscription-checker.js"></script>
+    <script type="module" src="js/wheel.js"></script>
+    <script type="module" src="js/tasks.js"></script>
+    <script type="module" src="js/profile.js"></script>
+    <script type="module" src="js/navigation.js"></script>
+    <script type="module" src="js/app.js"></script>
+
+    <!-- Global Functions -->
+    <script>
+        // Global functions that need to be accessible from onclick handlers
+        function closePrizeModal() {
+            document.getElementById('prize-modal').classList.remove('active');
+        }
+
+        function closeCertificateModal() {
+            document.getElementById('certificate-modal').classList.remove('active');
+        }
+
+        function contactAdmin() {
+            // Get bot username from environment or use default
+            const botUsername = 'kosmetichka_lottery_bot'; // This should be dynamic
+            const userTelegramId = document.getElementById('user-telegram-id').textContent;
+            const adminMessage = `Здравствуйте! Я выиграл(а) сертификат в Kosmetichka Lottery Bot. Мой Telegram ID: ${userTelegramId}`;
             
-            // Ждем полной загрузки DOM
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', initApp);
+            // Open Telegram chat with admin/support
+            const telegramUrl = `https://t.me/${botUsername}?text=${encodeURIComponent(adminMessage)}`;
+            
+            if (window.Telegram?.WebApp) {
+                window.Telegram.WebApp.openTelegramLink(telegramUrl);
             } else {
-                initApp();
+                window.open(telegramUrl, '_blank');
             }
             
-            function initApp() {
-                try {
-                    console.log('🎮 Создание экземпляра приложения...');
-                    window.app = new App();
-                    
-                    // ИСПРАВЛЕНИЕ: Запускаем инициализацию правильно
-                    window.app.init().then(() => {
-                        console.log('✅ Приложение полностью готово!');
-                    }).catch(error => {
-                        console.error('❌ Ошибка инициализации:', error);
-                        showErrorScreen(error);
-                    });
-                    
-                } catch (error) {
-                    console.error('❌ Ошибка создания приложения:', error);
-                    showErrorScreen(error);
+            closeCertificateModal();
+        }
+
+        function checkSubscriptions() {
+            // This will be implemented in the JS modules
+            if (window.subscriptionChecker) {
+                window.subscriptionChecker.checkAllSubscriptions();
+            }
+        }
+
+        // Initialize app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎰 Kosmetichka Lottery Bot загружается...');
+            
+            // Initialize Telegram WebApp
+            if (window.Telegram?.WebApp) {
+                window.Telegram.WebApp.ready();
+                window.Telegram.WebApp.expand();
+                
+                // Set user data if available
+                const user = window.Telegram.WebApp.initDataUnsafe?.user;
+                if (user) {
+                    document.getElementById('username').textContent = user.first_name || 'Пользователь';
+                    document.getElementById('user-telegram-id').textContent = user.id;
                 }
             }
-            
-        } catch (error) {
-            console.error('❌ Ошибка загрузки модулей:', error);
-            showErrorScreen(error);
-        }
-        
-        // Функция показа экрана ошибки
-        function showErrorScreen(error) {
-            const app = document.getElementById('app');
-            if (app) {
-                app.innerHTML = `
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; padding: 20px; text-align: center; background: linear-gradient(135deg, #1a1a1a 0%, #2d1b3d 100%); color: white;">
-                        <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
-                        <h2>Произошла ошибка</h2>
-                        <p style="opacity: 0.8; margin: 10px 0;">Не удалось загрузить приложение Kosmetichka</p>
-                        <p style="font-size: 14px; margin-top: 10px; opacity: 0.6; max-width: 300px;">
-                            ${error.message || 'Неизвестная ошибка'}
-                        </p>
-                        <button onclick="window.location.reload()" style="background: linear-gradient(135deg, #EF55A5, #ff6b9d); border: none; color: white; padding: 12px 24px; border-radius: 25px; margin-top: 20px; cursor: pointer;">
-                            🔄 Перезагрузить
-                        </button>
-                        <button onclick="localStorage.clear(); window.location.reload();" style="background: linear-gradient(135deg, #666, #444); border: none; color: white; padding: 8px 16px; border-radius: 20px; margin-top: 10px; cursor: pointer; font-size: 12px;">
-                            🧹 Очистить данные
-                        </button>
-                    </div>
-                `;
-            }
-        }
-        
-        // ИСПРАВЛЕНИЕ: Принудительное скрытие загрузочного экрана через 5 секунд
-        setTimeout(() => {
-            const loadingScreen = document.getElementById('loading-screen');
-            if (loadingScreen && loadingScreen.style.display !== 'none') {
-                console.log('⚠️ Принудительное скрытие загрузочного экрана');
-                loadingScreen.style.opacity = '0';
-                setTimeout(() => {
-                    loadingScreen.style.display = 'none';
-                }, 500);
-            }
-        }, 5000);
-        
-        // Глобальная обработка ошибок
-        window.addEventListener('error', (event) => {
-            console.error('🚨 Глобальная ошибка:', event.error);
         });
-        
-        window.addEventListener('unhandledrejection', (event) => {
-            console.error('🚨 Необработанное отклонение промиса:', event.reason);
-        });
-        
-    </script>
-    
-    <!-- Fallback для браузеров без поддержки модулей -->
-    <script nomodule>
-        document.getElementById('app').innerHTML = `
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; padding: 20px; text-align: center;">
-                <div style="font-size: 48px; margin-bottom: 20px;">📱</div>
-                <h2>Браузер не поддерживается</h2>
-                <p style="margin: 20px 0;">Используйте более современный браузер или откройте приложение в Telegram</p>
-                <button onclick="window.location.href='https://telegram.org'" style="background: linear-gradient(135deg, #EF55A5, #ff6b9d); border: none; color: white; padding: 12px 24px; border-radius: 25px; cursor: pointer;">
-                    Открыть в Telegram
-                </button>
-            </div>
-        `;
     </script>
 </body>
 </html>

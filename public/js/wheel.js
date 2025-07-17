@@ -86,12 +86,20 @@ class WheelManager {
     async spin() {
         if (this.isSpinning) return;
         
-        // Проверяем, достаточно ли кристаллов
-        const userData = getUserData();
-        const spinCost = 10; // Стоимость прокрутки
+        // Проверяем подписки на каналы
+        if (window.subscriptionChecker) {
+            const hasSubscriptions = await window.subscriptionChecker.checkAllSubscriptions();
+            if (!hasSubscriptions) {
+                return; // Пользователь увидит модал с требованием подписки
+            }
+        }
         
-        if (userData.stats.crystals < spinCost) {
-            this.showNotification('Недостаточно кристаллов для прокрутки!', 'error');
+        // Проверяем, достаточно ли звезд
+        const userData = getUserData();
+        const spinCost = APP_CONFIG.wheel.starCost; // 20 звезд за прокрутку
+        
+        if (userData.stats.stars < spinCost) {
+            this.showNotification('Недостаточно звезд для прокрутки!', 'error');
             return;
         }
 
@@ -99,10 +107,10 @@ class WheelManager {
         this.spinButton.disabled = true;
         this.spinButton.innerHTML = '<span>Крутится...</span>';
         
-        // Списываем кристаллы
-        userData.stats.crystals -= spinCost;
+        // Списываем звезды
+        userData.stats.stars -= spinCost;
         updateUserData(userData);
-        updateCrystalDisplay();
+        updateStarDisplay();
 
         // Добавляем эффекты
         this.addSpinEffects();
@@ -193,18 +201,18 @@ class WheelManager {
                 id: Date.now()
             });
             
-            // Добавляем кристаллы если это приз с кристаллами
-            if (prize.type === 'crystals') {
-                const crystalReward = 50;
-                userData.stats.crystals += crystalReward;
-                userData.stats.totalCrystalsEarned += crystalReward;
-                this.showCrystalGainEffect(crystalReward);
+            // Добавляем звезды если это приз со звездами
+            if (prize.type.includes('stars')) {
+                const starReward = prize.value || 0;
+                userData.stats.stars += starReward;
+                userData.stats.totalStarsEarned += starReward;
+                this.showStarGainEffect(starReward);
             }
         }
         
         updateUserData(userData);
         this.updatePrizeHistory();
-        updateCrystalDisplay();
+        updateStarDisplay();
         
         // Показываем модальное окно с результатом
         this.showPrizeModal(prize);
@@ -219,6 +227,12 @@ class WheelManager {
     }
 
     showPrizeModal(prize) {
+        // Проверяем, является ли приз сертификатом
+        if (prize.type.includes('golden-apple') || prize.type.includes('dolce')) {
+            this.showCertificateModal(prize);
+            return;
+        }
+
         const modal = document.getElementById('prize-modal');
         const title = document.getElementById('prize-title');
         const description = document.getElementById('prize-description');
@@ -232,6 +246,20 @@ class WheelManager {
             title.textContent = 'Поздравляем!';
             description.textContent = `Вы выиграли: ${prize.description}`;
             animation.className = 'fas fa-gift';
+        }
+        
+        modal.classList.add('active');
+    }
+
+    showCertificateModal(prize) {
+        const modal = document.getElementById('certificate-modal');
+        const description = document.getElementById('certificate-description');
+        
+        description.textContent = `Вы выиграли: ${prize.name}!`;
+        
+        // Обновляем Telegram ID пользователя
+        if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+            document.getElementById('user-telegram-id').textContent = window.Telegram.WebApp.initDataUnsafe.user.id;
         }
         
         modal.classList.add('active');
@@ -293,9 +321,9 @@ class WheelManager {
         }
     }
 
-    showCrystalGainEffect(amount) {
-        const crystalElement = document.querySelector('.crystals');
-        crystalElement.classList.add('gaining');
+    showStarGainEffect(amount) {
+        const starElement = document.querySelector('.stars');
+        starElement.classList.add('gaining');
         
         // Создаем плавающий текст
         const floatingText = document.createElement('div');
@@ -310,10 +338,10 @@ class WheelManager {
             animation: floatUp 2s ease-out forwards;
         `;
         
-        crystalElement.appendChild(floatingText);
+        starElement.appendChild(floatingText);
         
         setTimeout(() => {
-            crystalElement.classList.remove('gaining');
+            starElement.classList.remove('gaining');
             floatingText.remove();
         }, 2000);
     }
@@ -362,8 +390,8 @@ class WheelManager {
                     case 'social_butterfly':
                         unlocked = userData.stats.referrals >= 10;
                         break;
-                    case 'crystal_collector':
-                        unlocked = userData.stats.totalCrystalsEarned >= 1000;
+                    case 'star_collector':
+                        unlocked = userData.stats.totalStarsEarned >= 1000;
                         break;
                     case 'daily_champion':
                         unlocked = this.checkDailyChampion(userData);
@@ -372,7 +400,7 @@ class WheelManager {
                 
                 if (unlocked) {
                     userData.stats.achievements.push(achievement.id);
-                    userData.stats.crystals += achievement.reward;
+                    userData.stats.stars += achievement.reward;
                     unlockedAchievements.push(achievement);
                 }
             }
@@ -398,7 +426,7 @@ class WheelManager {
         achievements.forEach((achievement, index) => {
             setTimeout(() => {
                 this.showNotification(
-                    `Достижение разблокировано: ${achievement.title}! +${achievement.reward} кристаллов`,
+                    `Достижение разблокировано: ${achievement.title}! +${achievement.reward} звезд`,
                     'achievement'
                 );
             }, index * 1000);

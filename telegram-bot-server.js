@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const path = require('path');
 const cors = require('cors');
 const fs = require('fs');
+const Database = require('./database');
 
 // Загружаем переменные окружения
 if (fs.existsSync('.env')) {
@@ -79,8 +80,8 @@ app.use(express.static(publicPath, {
     }
 }));
 
-// База данных пользователей (в памяти)
-const users = new Map();
+// Инициализация базы данных
+const db = new Database();
 
 // Промокоды
 const PROMO_CODES = {
@@ -134,7 +135,7 @@ app.get('/health', (req, res) => {
         status: 'OK',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
-        users: users.size,
+        users: 'database',
         webapp_url: WEBAPP_URL,
         bot_status: bot ? 'connected' : 'disconnected',
         memory: process.memoryUsage(),
@@ -165,7 +166,7 @@ app.get('/debug', (req, res) => {
             connected: !!bot,
             username: BOT_USERNAME
         },
-        users: users.size,
+        users: 'database',
         uptime: process.uptime()
     };
     
@@ -209,41 +210,93 @@ app.post('/api/telegram-webhook', async (req, res) => {
     }
 });
 
+// API для проверки подписок на каналы
+app.post('/api/check-subscriptions', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        
+        if (!userId) {
+            return res.status(400).json({ error: 'User ID required' });
+        }
+        
+        const subscriptions = await db.getUserSubscriptions(userId);
+        
+        res.json({ 
+            subscriptions: {
+                channel1: subscriptions.is_subscribed_channel1 || false,
+                channel2: subscriptions.is_subscribed_channel2 || false,
+                dolcedeals: subscriptions.is_subscribed_dolcedeals || false
+            }
+        });
+    } catch (error) {
+        console.error('❌ Ошибка проверки подписок:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для получения лидерборда
+app.get('/api/leaderboard', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 10;
+        
+        // Обновляем лидерборд
+        await db.updateLeaderboard();
+        
+        // Получаем топ игроков
+        const leaderboard = await db.getLeaderboard(limit);
+        
+        res.json({ leaderboard });
+    } catch (error) {
+        console.error('❌ Ошибка получения лидерборда:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для получения позиции пользователя в лидерборде
+app.get('/api/user-rank/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        const rank = await db.getUserRank(parseInt(userId));
+        
+        res.json({ rank });
+    } catch (error) {
+        console.error('❌ Ошибка получения ранга:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // === КОМАНДЫ БОТА ===
 
 if (bot) {
     // Команда /start
-    bot.onText(/\/start/, (msg) => {
+    bot.onText(/\/start/, async (msg) => {
         const chatId = msg.chat.id;
         const userId = msg.from.id;
         
         console.log(`👤 Новый пользователь: ${userId} (${msg.from.first_name})`);
         
-        // Сохраняем пользователя
-        users.set(userId, {
-            id: userId,
-            username: msg.from.username,
-            first_name: msg.from.first_name,
-            chat_id: chatId,
-            created_at: new Date().toISOString(),
-            webapp_data: {
-                stats: {
-                    crystals: 150,
-                    totalSpins: 0,
-                    prizesWon: 0,
-                    referrals: 0,
-                    totalCrystalsEarned: 150
-                },
-                tasks: {
-                    completed: [],
-                    daily: {
-                        lastReset: null,
-                        completed: []
-                    }
-                },
-                prizes: []
+        try {
+            // Проверяем, существует ли пользователь
+            let user = await db.getUser(userId);
+            
+            if (!user) {
+                // Создаем нового пользователя
+                await db.createUser({
+                    telegram_id: userId,
+                    username: msg.from.username,
+                    first_name: msg.from.first_name,
+                    last_name: msg.from.last_name
+                });
+                console.log(`✅ Создан новый пользователь: ${userId}`);
+            } else {
+                // Обновляем активность существующего пользователя
+                await db.updateUserActivity(userId);
+                console.log(`🔄 Пользователь ${userId} вернулся`);
             }
-        });
+        } catch (error) {
+            console.error('❌ Ошибка обработки пользователя:', error);
+        }
         
         const welcomeMessage = `🎰 *Добро пожаловать в Kosmetichka Lottery Bot\\!*
 
@@ -296,71 +349,80 @@ if (bot) {
     });
 
     // Команда /stats
-    bot.onText(/\/stats/, (msg) => {
+    bot.onText(/\/stats/, async (msg) => {
         const chatId = msg.chat.id;
         const userId = msg.from.id;
-        const user = users.get(userId);
         
-        if (!user) {
-            bot.sendMessage(chatId, '❌ Сначала запустите бота командой /start');
-            return;
-        }
-        
-        const stats = user.webapp_data?.stats || {};
-        const registrationDate = new Date(user.created_at).toLocaleDateString('ru-RU');
-        
-        const message = `
+        try {
+            const user = await db.getUser(userId);
+            
+            if (!user) {
+                bot.sendMessage(chatId, '❌ Сначала запустите бота командой /start');
+                return;
+            }
+            
+            const registrationDate = new Date(user.join_date).toLocaleDateString('ru-RU');
+            
+            const message = `
 👤 **Ваш профиль:**
 
 🆔 ID: ${userId}
 📅 Дата регистрации: ${registrationDate}
 
 📊 **Статистика:**
-🎰 Прокруток: ${stats.totalSpins || 0}
-🎁 Призов: ${stats.prizesWon || 0}
-💎 Кристаллов: ${stats.crystals || 150}
-👥 Рефералов: ${stats.referrals || 0}
+🎰 Прокруток: ${user.total_spins || 0}
+🎁 Призов: ${user.prizes_won || 0}
+⭐ Звезд: ${user.stars || 100}
+👥 Рефералов: ${user.referrals || 0}
 
 🎮 Играйте больше, чтобы улучшить статистику!
-        `;
-        
-        bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+            `;
+            
+            bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } catch (error) {
+            console.error('❌ Ошибка получения статистики:', error);
+            bot.sendMessage(chatId, '❌ Ошибка получения статистики');
+        }
     });
 
     // Команда /promo для промокодов
-    bot.onText(/\/promo (.+)/, (msg, match) => {
+    bot.onText(/\/promo (.+)/, async (msg, match) => {
         const chatId = msg.chat.id;
         const userId = msg.from.id;
         const promoCode = match[1].toUpperCase();
         
-        const user = users.get(userId);
-        if (!user) {
-            bot.sendMessage(chatId, '❌ Сначала запустите бота командой /start');
-            return;
+        try {
+            const user = await db.getUser(userId);
+            if (!user) {
+                bot.sendMessage(chatId, '❌ Сначала запустите бота командой /start');
+                return;
+            }
+            
+            const promo = PROMO_CODES[promoCode];
+            if (!promo) {
+                bot.sendMessage(chatId, '❌ Промокод не найден или недействителен');
+                return;
+            }
+            
+            if (promo.used.has(userId)) {
+                bot.sendMessage(chatId, '❌ Вы уже использовали этот промокод');
+                return;
+            }
+            
+            // Активируем промокод
+            promo.used.add(userId);
+            
+            // Обновляем звезды в базе данных
+            await db.updateUserStars(userId, promo.crystals);
+            
+            bot.sendMessage(chatId, `✅ Промокод активирован!\n⭐ Получено ${promo.crystals} звезд`);
+            
+            // Уведомляем админов
+            notifyAdmins(`Пользователь ${user.first_name} (${userId}) активировал промокод ${promoCode}`);
+        } catch (error) {
+            console.error('❌ Ошибка активации промокода:', error);
+            bot.sendMessage(chatId, '❌ Ошибка активации промокода');
         }
-        
-        const promo = PROMO_CODES[promoCode];
-        if (!promo) {
-            bot.sendMessage(chatId, '❌ Промокод не найден или недействителен');
-            return;
-        }
-        
-        if (promo.used.has(userId)) {
-            bot.sendMessage(chatId, '❌ Вы уже использовали этот промокод');
-            return;
-        }
-        
-        // Активируем промокод
-        promo.used.add(userId);
-        
-        if (!user.webapp_data) user.webapp_data = { stats: { crystals: 0 } };
-        user.webapp_data.stats.crystals += promo.crystals;
-        user.webapp_data.stats.totalCrystalsEarned += promo.crystals;
-        
-        bot.sendMessage(chatId, `✅ Промокод активирован!\n💎 Получено ${promo.crystals} кристаллов`);
-        
-        // Уведомляем админов
-        notifyAdmins(`Пользователь ${user.first_name} (${userId}) активировал промокод ${promoCode}`);
     });
 
     // Команда /help
@@ -403,30 +465,35 @@ if (bot) {
     bot.onText(/\/top/, async (msg) => {
         const chatId = msg.chat.id;
         
-        // Получаем топ пользователей
-        const topUsers = Array.from(users.values())
-            .filter(user => user.webapp_data && user.webapp_data.stats)
-            .sort((a, b) => (b.webapp_data.stats.totalSpins || 0) - (a.webapp_data.stats.totalSpins || 0))
-            .slice(0, 10);
-        
-        if (topUsers.length === 0) {
-            bot.sendMessage(chatId, '📊 Пока нет активных игроков. Будьте первым!');
-            return;
-        }
-        
-        let message = '🏆 **Топ-10 игроков:**\n\n';
-        
-        topUsers.forEach((user, index) => {
-            const position = index + 1;
-            const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : `${position}.`;
-            const name = user.first_name || 'Игрок';
-            const spins = user.webapp_data.stats.totalSpins || 0;
-            const prizes = user.webapp_data.stats.prizesWon || 0;
+        try {
+            // Обновляем лидерборд
+            await db.updateLeaderboard();
             
-            message += `${medal} ${name} - ${spins} прокруток, ${prizes} призов\n`;
-        });
-        
-        bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+            // Получаем топ игроков
+            const topUsers = await db.getLeaderboard(10);
+            
+            if (topUsers.length === 0) {
+                bot.sendMessage(chatId, '📊 Пока нет активных игроков. Будьте первым!');
+                return;
+            }
+            
+            let message = '🏆 **Топ-10 игроков:**\n\n';
+            
+            topUsers.forEach((user, index) => {
+                const position = index + 1;
+                const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : `${position}.`;
+                const name = user.first_name || 'Игрок';
+                const stars = user.total_stars || 0;
+                const prizes = user.total_prizes || 0;
+                
+                message += `${medal} ${name} - ${stars} ⭐, ${prizes} призов\n`;
+            });
+            
+            bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } catch (error) {
+            console.error('❌ Ошибка получения топа:', error);
+            bot.sendMessage(chatId, '❌ Ошибка получения топа игроков');
+        }
     });
 
     // Обработка callback кнопок
@@ -437,31 +504,36 @@ if (bot) {
         
         await bot.answerCallbackQuery(query.id);
         
-        const user = users.get(userId);
-        
-        switch (data) {
-            case 'stats':
-                if (user && user.webapp_data) {
-                    const stats = user.webapp_data.stats;
-                    bot.sendMessage(chatId, `📊 **Ваша статистика:**\n\n🎰 Прокруток: ${stats.totalSpins || 0}\n🎁 Призов: ${stats.prizesWon || 0}\n💎 Кристаллов: ${stats.crystals || 150}`, {
-                        parse_mode: 'Markdown'
-                    });
-                } else {
-                    bot.sendMessage(chatId, '📊 Сначала поиграйте в рулетку!');
-                }
-                break;
-                
-            case 'prizes':
-                if (user && user.webapp_data && user.webapp_data.prizes && user.webapp_data.prizes.length > 0) {
-                    let message = '🎁 **Ваши призы:**\n\n';
-                    user.webapp_data.prizes.slice(0, 5).forEach((prize, index) => {
-                        message += `${index + 1}. ${prize.name} - ${prize.description}\n`;
-                    });
-                    bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
-                } else {
-                    bot.sendMessage(chatId, '🎁 У вас пока нет призов. Крутите рулетку!');
-                }
-                break;
+        try {
+            const user = await db.getUser(userId);
+            
+            switch (data) {
+                case 'stats':
+                    if (user) {
+                        bot.sendMessage(chatId, `📊 **Ваша статистика:**\n\n🎰 Прокруток: ${user.total_spins || 0}\n🎁 Призов: ${user.prizes_won || 0}\n⭐ Звезд: ${user.stars || 100}`, {
+                            parse_mode: 'Markdown'
+                        });
+                    } else {
+                        bot.sendMessage(chatId, '📊 Сначала запустите бота командой /start');
+                    }
+                    break;
+                    
+                case 'prizes':
+                    if (user) {
+                        const prizes = await db.getUserPrizes(userId);
+                        if (prizes && prizes.length > 0) {
+                            let message = '🎁 **Ваши призы:**\n\n';
+                            prizes.slice(0, 5).forEach((prize, index) => {
+                                message += `${index + 1}. ${prize.prize_name} - ${prize.prize_type}\n`;
+                            });
+                            bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+                        } else {
+                            bot.sendMessage(chatId, '🎁 У вас пока нет призов. Крутите рулетку!');
+                        }
+                    } else {
+                        bot.sendMessage(chatId, '🎁 Сначала запустите бота командой /start');
+                    }
+                    break;
                 
             case 'promo':
                 bot.sendMessage(chatId, '💎 **Введите промокод:**\n\nОтправьте команду: `/promo ВАШ_КОД`\n\nПример: `/promo WELCOME2024`', {
@@ -485,11 +557,15 @@ if (bot) {
                     ]
                 };
                 
-                bot.sendMessage(chatId, '👥 **Приглашайте друзей и получайте бонусы!**\n\nЗа каждого приглашенного друга вы получите:\n• 50 💎 кристаллов\n• Дополнительные бонусы\n\nНажмите кнопку ниже, чтобы поделиться ботом:', {
+                bot.sendMessage(chatId, '👥 **Приглашайте друзей и получайте бонусы!**\n\nЗа каждого приглашенного друга вы получите:\n• 50 ⭐ звезд\n• Дополнительные бонусы\n\nНажмите кнопку ниже, чтобы поделиться ботом:', {
                     reply_markup: inviteKeyboard,
                     parse_mode: 'Markdown'
                 });
                 break;
+            }
+        } catch (error) {
+            console.error('❌ Ошибка callback query:', error);
+            bot.sendMessage(chatId, '❌ Произошла ошибка');
         }
     });
 
@@ -642,99 +718,176 @@ function createBasicHTML() {
 
 // Обработка прокрутки рулетки
 async function handleWheelSpin(userId, data) {
-    const user = users.get(userId);
-    if (!user) return;
-    
-    console.log(`🎰 Пользователь ${userId} крутит рулетку`);
-    
-    // Обновляем статистику
-    if (!user.webapp_data) user.webapp_data = { stats: {}, prizes: [] };
-    if (!user.webapp_data.stats) user.webapp_data.stats = {};
-    
-    user.webapp_data.stats.totalSpins = (user.webapp_data.stats.totalSpins || 0) + 1;
-    
-    // Логика обработки призов
-    if (bot && data.prize && data.prize.type !== 'empty') {
-        try {
-            user.webapp_data.stats.prizesWon = (user.webapp_data.stats.prizesWon || 0) + 1;
+    try {
+        const user = await db.getUser(userId);
+        if (!user) return;
+        
+        console.log(`🎰 Пользователь ${userId} крутит рулетку`);
+        
+        // Обновляем статистику прокруток
+        await db.updateUserSpinStats(userId);
+        
+        // Добавляем запись в историю
+        if (data.prize) {
+            await db.addSpinHistory(userId, data.prize, data.spinType || 'normal');
             
-            // Добавляем приз в список
-            if (!user.webapp_data.prizes) user.webapp_data.prizes = [];
-            user.webapp_data.prizes.unshift({
-                ...data.prize,
-                timestamp: new Date().toISOString(),
-                id: Date.now()
-            });
-            
-            await bot.sendMessage(user.chat_id, `🎉 Поздравляем!\n🎁 Вы выиграли: ${data.prize.description || data.prize.name}!`);
-            
-            // Уведомляем админов о крупных призах
-            if (data.prize.type === 'golden-apple' || data.prize.type === 'dolce') {
-                notifyAdmins(`🎉 Пользователь ${user.first_name} (${userId}) выиграл: ${data.prize.name}`);
+            // Если приз не пустой - обрабатываем его
+            if (data.prize.type !== 'empty') {
+                // Обновляем статистику призов
+                await db.updateUserPrizeStats(userId);
+                
+                // Добавляем приз в коллекцию пользователя
+                await db.addUserPrize(userId, data.prize);
+                
+                // Если это звезды - обновляем баланс
+                if (data.prize.type.includes('stars')) {
+                    const starsAmount = data.prize.value || 0;
+                    await db.updateUserStars(userId, starsAmount);
+                }
+                
+                // Отправляем уведомление в телеграм
+                if (bot) {
+                    try {
+                        await bot.sendMessage(userId, `🎉 Поздравляем!\n🎁 Вы выиграли: ${data.prize.description || data.prize.name}!`);
+                        
+                        // Уведомляем админов о крупных призах (сертификаты)
+                        if (data.prize.type.includes('golden-apple') || data.prize.type.includes('dolce')) {
+                            notifyAdmins(`🎉 Пользователь ${user.first_name} (${userId}) выиграл: ${data.prize.name}`);
+                        }
+                    } catch (error) {
+                        console.error('Ошибка отправки уведомления:', error);
+                    }
+                }
             }
-        } catch (error) {
-            console.error('Ошибка отправки уведомления:', error);
         }
+    } catch (error) {
+        console.error('❌ Ошибка обработки прокрутки:', error);
     }
 }
 
 // Обработка выполнения задания
 async function handleTaskCompleted(userId, data) {
-    const user = users.get(userId);
-    if (!user) return;
-    
-    console.log(`✅ Пользователь ${userId} выполнил задание: ${data.taskId}`);
-    
-    if (bot) {
-        try {
-            await bot.sendMessage(user.chat_id, `✅ Задание выполнено!\n💎 Получено ${data.reward} кристаллов`);
-        } catch (error) {
-            console.error('Ошибка отправки уведомления:', error);
+    try {
+        const user = await db.getUser(userId);
+        if (!user) return;
+        
+        console.log(`✅ Пользователь ${userId} выполнил задание: ${data.taskId}`);
+        
+        // Пробуем добавить задание как выполненное
+        const taskAdded = await db.completeTask(userId, data);
+        
+        if (taskAdded) {
+            // Обновляем звезды пользователя
+            const rewardAmount = data.reward?.amount || 0;
+            if (rewardAmount > 0) {
+                await db.updateUserStars(userId, rewardAmount);
+            }
+            
+            // Отправляем уведомление
+            if (bot) {
+                try {
+                    await bot.sendMessage(userId, `✅ Задание выполнено!\n⭐ Получено ${rewardAmount} звезд`);
+                } catch (error) {
+                    console.error('Ошибка отправки уведомления:', error);
+                }
+            }
         }
+    } catch (error) {
+        console.error('❌ Ошибка обработки задания:', error);
     }
 }
 
 // Обработка подписки на канал
 async function handleChannelSubscription(userId, data) {
-    const user = users.get(userId);
-    if (!user) return;
-    
-    console.log(`📱 Пользователь ${userId} подписался на канал: ${data.channel}`);
-    
-    // Даем бонус за подписку
-    if (!user.webapp_data) user.webapp_data = { stats: {} };
-    if (!user.webapp_data.stats) user.webapp_data.stats = {};
-    
-    const bonus = data.channel === 'dolcedeals' ? 100 : 75;
-    user.webapp_data.stats.crystals = (user.webapp_data.stats.crystals || 0) + bonus;
-    
-    if (bot) {
-        try {
-            await bot.sendMessage(user.chat_id, `📱 Спасибо за подписку на канал!\n💎 Получено ${bonus} кристаллов`);
-        } catch (error) {
-            console.error('Ошибка отправки уведомления:', error);
+    try {
+        const user = await db.getUser(userId);
+        if (!user) return;
+        
+        console.log(`📱 Пользователь ${userId} подписался на канал: ${data.channel}`);
+        
+        // Определяем поле для обновления подписки
+        let channelField;
+        let bonus = 50;
+        
+        switch (data.channel) {
+            case 'kosmetichka_channel':
+                channelField = 'is_subscribed_channel1';
+                bonus = 50;
+                break;
+            case 'kosmetichka_instagram':
+                channelField = 'is_subscribed_channel2';
+                bonus = 50;
+                break;
+            case 'dolcedeals':
+                channelField = 'is_subscribed_dolcedeals';
+                bonus = 75;
+                break;
+            default:
+                console.log(`❓ Неизвестный канал: ${data.channel}`);
+                return;
         }
+        
+        // Обновляем статус подписки
+        await db.updateUserSubscription(userId, channelField, true);
+        
+        // Даем бонус за подписку
+        await db.updateUserStars(userId, bonus);
+        
+        if (bot) {
+            try {
+                await bot.sendMessage(userId, `📱 Спасибо за подписку на канал!\n⭐ Получено ${bonus} звезд`);
+            } catch (error) {
+                console.error('Ошибка отправки уведомления:', error);
+            }
+        }
+    } catch (error) {
+        console.error('❌ Ошибка обработки подписки:', error);
     }
 }
 
 // Синхронизация данных пользователя
 async function syncUserData(userId, webAppData) {
-    const user = users.get(userId);
-    if (!user) return webAppData;
-    
-    console.log(`🔄 Синхронизация данных пользователя ${userId}`);
-    
-    const syncedData = {
-        ...webAppData,
-        profile: {
-            ...webAppData.profile,
-            telegramId: userId,
-            verified: true
-        }
-    };
-    
-    user.webapp_data = syncedData;
-    return syncedData;
+    try {
+        const user = await db.getUser(userId);
+        if (!user) return webAppData;
+        
+        console.log(`🔄 Синхронизация данных пользователя ${userId}`);
+        
+        // Обновляем активность пользователя
+        await db.updateUserActivity(userId);
+        
+        // Получаем актуальные данные из базы
+        const prizes = await db.getUserPrizes(userId);
+        const completedTasks = await db.getUserCompletedTasks(userId);
+        const subscriptions = await db.getUserSubscriptions(userId);
+        
+        const syncedData = {
+            ...webAppData,
+            profile: {
+                ...webAppData.profile,
+                telegramId: userId,
+                verified: true,
+                name: user.first_name || 'Пользователь'
+            },
+            stats: {
+                stars: user.stars || 100,
+                totalSpins: user.total_spins || 0,
+                prizesWon: user.prizes_won || 0,
+                referrals: user.referrals || 0,
+                totalStarsEarned: user.total_stars_earned || 100
+            },
+            prizes: prizes || [],
+            tasks: {
+                completed: completedTasks || [],
+                subscriptions: subscriptions || {}
+            }
+        };
+        
+        return syncedData;
+    } catch (error) {
+        console.error('❌ Ошибка синхронизации:', error);
+        return webAppData;
+    }
 }
 
 // Уведомления администратора
