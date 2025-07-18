@@ -358,7 +358,7 @@
         }
 
         // Initialize app when DOM is loaded
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             console.log('🎰 Kosmetichka Lottery Bot загружается...');
             
             // Initialize Telegram WebApp
@@ -371,6 +371,21 @@
                 if (user) {
                     document.getElementById('username').textContent = user.first_name || 'Пользователь';
                     document.getElementById('user-telegram-id').textContent = user.id;
+                }
+            }
+            
+            // Import and initialize main app
+            try {
+                const { default: App } = await import('./js/app.js');
+                const app = new App();
+                await app.init();
+                console.log('✅ App инициализирован успешно');
+            } catch (error) {
+                console.error('❌ Ошибка инициализации приложения:', error);
+                // Hide loading screen even on error
+                const loadingScreen = document.querySelector('.loading-screen');
+                if (loadingScreen) {
+                    loadingScreen.style.display = 'none';
                 }
             }
         });
