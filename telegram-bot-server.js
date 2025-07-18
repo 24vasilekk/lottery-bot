@@ -15,6 +15,7 @@ if (fs.existsSync('.env')) {
 
 // Настройки
 const BOT_TOKEN = process.env.BOT_TOKEN || '7607592239:AAHimwv6gNj8dzm9L96eQQPjkz59AdSO198';
+const DEBUG_MODE = process.env.DEBUG_MODE === 'true' || false;
 
 // Определяем URL для Railway
 let WEBAPP_URL = process.env.WEBAPP_URL;
@@ -109,6 +110,16 @@ try {
             }
         }
     });
+    
+    // Устанавливаем минимальный уровень логирования
+    if (bot.options) {
+        bot.options.request = {
+            ...bot.options.request,
+            // Отключаем подробное логирование соединений
+            verbose: false
+        };
+    }
+    
     console.log('🤖 Telegram Bot инициализирован успешно');
 } catch (error) {
     console.error('❌ Ошибка инициализации бота:', error.message);
@@ -598,21 +609,41 @@ if (bot) {
 
     // Обработка ошибок бота
     bot.on('error', (error) => {
-        console.error('❌ Ошибка бота:', error);
+        // Фильтруем и показываем только важные ошибки
+        if (error.code === 'ETELEGRAM') {
+            console.error('❌ Ошибка Telegram API:', error.message);
+        } else {
+            console.error('❌ Ошибка бота:', error.message);
+        }
+        
+        // Подробности только в режиме отладки
+        if (DEBUG_MODE) {
+            console.error('🐛 Подробности ошибки:', error);
+        }
     });
 
     bot.on('polling_error', (error) => {
-        console.error('❌ Ошибка polling:', error);
-        
-        // Если это конфликт 409, пытаемся переподключиться
-        if (error.code === 'ETELEGRAM' && error.message.includes('409')) {
-            console.log('🔄 Обнаружен конфликт polling, попытка переподключения...');
-            botPolling = false;
+        // Фильтруем подробности и показываем только суть
+        if (error.code === 'ETELEGRAM') {
+            console.error('❌ Ошибка polling:', error.message);
             
-            // Ждем и пытаемся переподключиться
-            setTimeout(() => {
-                startPolling();
-            }, 10000); // 10 секунд
+            // Если это конфликт 409, пытаемся переподключиться
+            if (error.message.includes('409')) {
+                console.log('🔄 Обнаружен конфликт polling, попытка переподключения...');
+                botPolling = false;
+                
+                // Ждем и пытаемся переподключиться
+                setTimeout(() => {
+                    startPolling();
+                }, 10000); // 10 секунд
+            }
+        } else {
+            console.error('❌ Ошибка polling:', error.message);
+        }
+        
+        // Подробности только в режиме отладки
+        if (DEBUG_MODE) {
+            console.error('🐛 Подробности ошибки polling:', error);
         }
     });
 
