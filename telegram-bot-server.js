@@ -14,7 +14,11 @@ if (fs.existsSync('.env')) {
 }
 
 // Настройки
-const BOT_TOKEN = process.env.BOT_TOKEN || '7607592239:AAHimwv6gNj8dzm9L96eQQPjkz59AdSO198';
+const BOT_TOKEN = process.env.BOT_TOKEN;
+if (!BOT_TOKEN) {
+    console.error('❌ BOT_TOKEN не установлен в переменных окружения!');
+    process.exit(1);
+}
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true' || false;
 
 // Определяем URL для Railway
@@ -94,7 +98,10 @@ const PROMO_CODES = {
 };
 
 // ID администраторов
-const ADMIN_IDS = [123456789]; // Замените на ваши ID
+const ADMIN_IDS = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',').map(id => parseInt(id.trim())) : [];
+if (ADMIN_IDS.length === 0) {
+    console.warn('⚠️ ADMIN_IDS не установлены в переменных окружения!');
+}
 
 // Создаем и настраиваем бота
 let bot;
