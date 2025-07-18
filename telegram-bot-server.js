@@ -14,10 +14,9 @@ if (fs.existsSync('.env')) {
 }
 
 // Настройки
-const BOT_TOKEN = process.env.BOT_TOKEN;
-if (!BOT_TOKEN) {
-    console.error('❌ BOT_TOKEN не установлен в переменных окружения!');
-    process.exit(1);
+const BOT_TOKEN = process.env.BOT_TOKEN || '7607592239:AAHimwv6gNj8dzm9L96eQQPjkz59AdSO198';
+if (!process.env.BOT_TOKEN) {
+    console.warn('⚠️ BOT_TOKEN не установлен в переменных окружения, используется тестовый токен');
 }
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true' || false;
 
@@ -43,6 +42,20 @@ console.log(`   🔧 Порт: ${PORT}`);
 console.log(`   🌐 WebApp URL: ${WEBAPP_URL}`);
 console.log(`   🤖 Бот токен: ${BOT_TOKEN ? 'установлен ✅' : 'НЕ УСТАНОВЛЕН ❌'}`);
 console.log(`   👤 Имя бота: @${BOT_USERNAME}`);
+
+// Предупреждения для продакшена
+if (!process.env.BOT_TOKEN || !process.env.ADMIN_IDS) {
+    console.log('\n⚠️  ВНИМАНИЕ: ТЕСТОВЫЙ РЕЖИМ');
+    console.log('==========================================');
+    if (!process.env.BOT_TOKEN) {
+        console.log('   🔑 Используется хардкод BOT_TOKEN');
+    }
+    if (!process.env.ADMIN_IDS) {
+        console.log('   👤 Используется тестовый ADMIN_ID');
+    }
+    console.log('   📝 Для продакшена установите переменные окружения!');
+    console.log('==========================================\n');
+}
 
 // Создаем Express приложение
 const app = express();
@@ -98,9 +111,9 @@ const PROMO_CODES = {
 };
 
 // ID администраторов
-const ADMIN_IDS = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',').map(id => parseInt(id.trim())) : [];
-if (ADMIN_IDS.length === 0) {
-    console.warn('⚠️ ADMIN_IDS не установлены в переменных окружения!');
+const ADMIN_IDS = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',').map(id => parseInt(id.trim())) : [123456789]; // Тестовый ID
+if (!process.env.ADMIN_IDS) {
+    console.warn('⚠️ ADMIN_IDS не установлены в переменных окружения, используется тестовый ID');
 }
 
 // Создаем и настраиваем бота
