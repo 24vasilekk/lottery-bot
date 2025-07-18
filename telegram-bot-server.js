@@ -14,9 +14,11 @@ if (fs.existsSync('.env')) {
 }
 
 // Настройки
-const BOT_TOKEN = process.env.BOT_TOKEN || '7607592239:AAHimwv6gNj8dzm9L96eQQPjkz59AdSO198';
-if (!process.env.BOT_TOKEN) {
-    console.warn('⚠️ BOT_TOKEN не установлен в переменных окружения, используется тестовый токен');
+const BOT_TOKEN = process.env.BOT_TOKEN;
+if (!BOT_TOKEN) {
+    console.error('❌ BOT_TOKEN environment variable is required for Railway deployment');
+    console.error('Set BOT_TOKEN in Railway dashboard environment variables');
+    process.exit(1);
 }
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true' || false;
 
@@ -28,8 +30,10 @@ if (!WEBAPP_URL) {
     } else if (process.env.RAILWAY_PRIVATE_DOMAIN) {
         WEBAPP_URL = `https://${process.env.RAILWAY_PRIVATE_DOMAIN}`;
     } else {
-        // Для Railway используем стандартный формат
-        WEBAPP_URL = 'https://lottery-bot.railway.app';
+        console.error('❌ WEBAPP_URL not configured for Railway');
+        console.error('Railway should auto-provide RAILWAY_PUBLIC_DOMAIN');
+        console.error('Manual setup: Set WEBAPP_URL=https://your-app-name.railway.app');
+        process.exit(1);
     }
 }
 
@@ -111,9 +115,11 @@ const PROMO_CODES = {
 };
 
 // ID администраторов
-const ADMIN_IDS = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',').map(id => parseInt(id.trim())) : [123456789]; // Тестовый ID
-if (!process.env.ADMIN_IDS) {
-    console.warn('⚠️ ADMIN_IDS не установлены в переменных окружения, используется тестовый ID');
+const ADMIN_IDS = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',').map(id => parseInt(id.trim())) : [];
+if (ADMIN_IDS.length === 0) {
+    console.error('❌ ADMIN_IDS environment variable is required for Railway deployment');
+    console.error('Set ADMIN_IDS=your_telegram_id in Railway dashboard');
+    process.exit(1);
 }
 
 // Создаем и настраиваем бота
