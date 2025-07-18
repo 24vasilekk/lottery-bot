@@ -97,9 +97,11 @@ const ADMIN_IDS = [123456789]; // Замените на ваши ID
 
 // Создаем и настраиваем бота
 let bot;
+let botPolling = false;
+
 try {
     bot = new TelegramBot(BOT_TOKEN, { 
-        polling: true,
+        polling: false,  // Отключаем polling при инициализации
         request: {
             agentOptions: {
                 keepAlive: true,
@@ -110,6 +112,31 @@ try {
     console.log('🤖 Telegram Bot инициализирован успешно');
 } catch (error) {
     console.error('❌ Ошибка инициализации бота:', error.message);
+}
+
+// Функция для безопасного запуска polling
+async function startPolling() {
+    if (botPolling || !bot) return;
+    
+    try {
+        // Сначала останавливаем любые активные сессии
+        await bot.stopPolling();
+        
+        // Ждем немного для очистки
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Запускаем polling
+        await bot.startPolling();
+        botPolling = true;
+        console.log('✅ Polling запущен успешно');
+        
+    } catch (error) {
+        console.error('❌ Ошибка запуска polling:', error.message);
+        botPolling = false;
+        
+        // Повторная попытка через 5 секунд
+        setTimeout(startPolling, 5000);
+    }
 }
 
 // === МАРШРУТЫ ===
@@ -576,6 +603,17 @@ if (bot) {
 
     bot.on('polling_error', (error) => {
         console.error('❌ Ошибка polling:', error);
+        
+        // Если это конфликт 409, пытаемся переподключиться
+        if (error.code === 'ETELEGRAM' && error.message.includes('409')) {
+            console.log('🔄 Обнаружен конфликт polling, попытка переподключения...');
+            botPolling = false;
+            
+            // Ждем и пытаемся переподключиться
+            setTimeout(() => {
+                startPolling();
+            }, 10000); // 10 секунд
+        }
     });
 
     // Статистика для администратора
@@ -941,9 +979,10 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 // Graceful shutdown
 process.on('SIGTERM', () => {
     console.log('🛑 Получен сигнал SIGTERM, завершаем работу...');
+    botPolling = false;
     server.close(() => {
         if (bot) {
-            bot.stopPolling();
+            bot.stopPolling().catch(console.error);
         }
         process.exit(0);
     });
@@ -951,9 +990,10 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
     console.log('\n🛑 Получен сигнал SIGINT, завершаем работу...');
+    botPolling = false;
     server.close(() => {
         if (bot) {
-            bot.stopPolling();
+            bot.stopPolling().catch(console.error);
         }
         process.exit(0);
     });
@@ -970,3 +1010,8 @@ process.on('uncaughtException', (error) => {
 });
 
 console.log('🚀 Kosmetichka Lottery Bot инициализация завершена!');
+
+// Запускаем polling после инициализации сервера
+setTimeout(() => {
+    startPolling();
+}, 2000); // Ждем 2 секунды после запуска сервера
