@@ -1,0 +1,992 @@
+/* public/css/tasks.css - ОБНОВЛЕНО ДЛЯ СИСТЕМЫ КАНАЛОВ */
+
+/* ========================================
+   ОСНОВНЫЕ СТИЛИ ЭКРАНА ЗАДАНИЙ
+   ======================================== */
+
+#tasks-screen {
+    padding: 20px;
+    padding-bottom: 100px;
+    background: var(--dark-bg);
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+/* ========================================
+   ЗАГОЛОВОК И СЧЕТЧИК
+   ======================================== */
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.header h2 {
+    font-size: 24px;
+    font-weight: bold;
+    background: linear-gradient(135deg, var(--primary-color), var(--lime-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.task-counter {
+    background: linear-gradient(135deg, var(--purple-color), var(--primary-color));
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: bold;
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 15px rgba(128, 158, 255, 0.3);
+}
+
+/* ========================================
+   ВКЛАДКИ ЗАДАНИЙ
+   ======================================== */
+
+.task-tabs {
+    display: flex;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    padding: 8px;
+    margin-bottom: 30px;
+    width: 100%;
+    box-sizing: border-box;
+    gap: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}
+
+.task-tab {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 16px 20px;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 56px;
+    word-wrap: break-word;
+    hyphens: auto;
+    line-height: 1.2;
+}
+
+.task-tab:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.task-tab.active {
+    background: linear-gradient(135deg, var(--primary-color), var(--purple-color));
+    color: white;
+    transform: scale(1.02);
+    box-shadow: 0 6px 20px rgba(239, 85, 165, 0.4);
+}
+
+.task-tab.active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+    pointer-events: none;
+}
+
+/* ========================================
+   СЕКЦИИ ЗАДАНИЙ
+   ======================================== */
+
+.task-section {
+    display: none;
+    animation: fadeIn 0.4s ease;
+    width: 100%;
+}
+
+.task-section.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ========================================
+   ЭЛЕМЕНТЫ ЗАДАНИЙ
+   ======================================== */
+
+.task-item {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.task-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.task-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+}
+
+.task-item:hover::before {
+    opacity: 1;
+}
+
+.task-item.completed {
+    opacity: 0.7;
+    border-color: rgba(76, 175, 80, 0.4);
+    background: rgba(76, 175, 80, 0.08);
+}
+
+.task-item.completed::before {
+    background: linear-gradient(90deg, transparent, #4CAF50, transparent);
+    opacity: 0.8;
+}
+
+/* ========================================
+   ИКОНКИ И КОНТЕНТ ЗАДАНИЙ
+   ======================================== */
+
+.task-icon {
+    font-size: 32px;
+    min-width: 56px;
+    height: 56px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--primary-color), var(--purple-color));
+    border-radius: 16px;
+    flex-shrink: 0;
+    box-shadow: 0 4px 15px rgba(239, 85, 165, 0.3);
+}
+
+.task-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.task-name {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+    line-height: 1.3;
+    word-wrap: break-word;
+}
+
+.task-description {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin-bottom: 12px;
+    word-wrap: break-word;
+}
+
+.task-reward {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--lime-color);
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.task-reward i {
+    font-size: 16px;
+}
+
+/* ========================================
+   КРАСИВАЯ КНОПКА "ВЫПОЛНИТЬ"
+   ======================================== */
+
+.task-complete-btn {
+    background: linear-gradient(135deg, #EF55A5, #FF6B9D, #CCD537);
+    border: none;
+    color: white;
+    padding: 14px 24px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    min-width: 110px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 
+        0 6px 20px rgba(239, 85, 165, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
+}
+
+/* Эффект при наведении */
+.task-complete-btn:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 
+        0 12px 30px rgba(239, 85, 165, 0.6),
+        0 6px 20px rgba(255, 107, 157, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    background: linear-gradient(135deg, #FF6B9D, #EF55A5, #D4ED47);
+}
+
+/* Анимированный блик на кнопке */
+.task-complete-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.6s ease;
+}
+
+.task-complete-btn:hover::before {
+    left: 100%;
+}
+
+/* Эффект нажатия */
+.task-complete-btn:active {
+    transform: translateY(-1px) scale(1.02);
+    transition: all 0.1s ease;
+}
+
+/* Состояние для заблокированной кнопки */
+.task-complete-btn:disabled {
+    background: linear-gradient(135deg, #666, #555);
+    color: #999;
+    cursor: not-allowed;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    transform: none;
+}
+
+.task-complete-btn:disabled:hover {
+    transform: none;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Дополнительные стили кнопок */
+.task-button {
+    background: linear-gradient(135deg, var(--lime-color), #d4ed47);
+    border: none;
+    color: #000;
+    padding: 12px 20px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    min-width: 100px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(204, 213, 55, 0.3);
+}
+
+.task-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(204, 213, 55, 0.5);
+}
+
+.task-button:disabled {
+    background: linear-gradient(135deg, #666, #444);
+    color: #999;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+.task-button.completed {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    color: white;
+}
+
+.check-button {
+    background: linear-gradient(135deg, var(--purple-color), #9bb5ff);
+    color: white;
+}
+
+.check-button:hover {
+    box-shadow: 0 6px 20px rgba(128, 158, 255, 0.4);
+}
+
+/* Статус выполненного задания */
+.task-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #4CAF50;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 12px 20px;
+    background: rgba(76, 175, 80, 0.1);
+    border-radius: 20px;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.task-status i {
+    font-size: 16px;
+}
+
+/* ========================================
+   ПУСТОЕ СОСТОЯНИЕ
+   ======================================== */
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+    font-style: italic;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.empty-state::before {
+    content: '📋';
+    font-size: 48px;
+    opacity: 0.5;
+}
+
+.empty-state p {
+    margin: 5px 0;
+    line-height: 1.4;
+}
+
+/* ========================================
+   ПРОГРЕСС ДЛЯ ЗАДАНИЙ С ДРУЗЬЯМИ
+   ======================================== */
+
+.task-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--lime-color), #d4ed47);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+    min-width: 60px;
+    text-align: right;
+}
+
+/* ========================================
+   СПЕЦИАЛЬНЫЕ СТИЛИ ДЛЯ РАЗНЫХ ТИПОВ ЗАДАНИЙ
+   ======================================== */
+
+/* Ежедневные задания */
+.task-section[id="daily-tasks"] .task-item {
+    border-left: 4px solid var(--primary-color);
+}
+
+/* Задания с друзьями */
+.task-section[id="friends-tasks"] .task-item {
+    border-left: 4px solid var(--purple-color);
+}
+
+/* Активные задания */
+.task-section[id="active-tasks"] .task-item {
+    border-left: 4px solid var(--lime-color);
+}
+
+/* Выполненные задания */
+.task-section[id="completed-tasks-section"] .task-item {
+    border-left: 4px solid #4CAF50;
+}
+
+/* ========================================
+   АНИМАЦИЯ ПУЛЬСАЦИИ ДЛЯ АКТИВНЫХ КНОПОК
+   ======================================== */
+
+@keyframes buttonPulse {
+    0% {
+        box-shadow: 
+            0 6px 20px rgba(239, 85, 165, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    50% {
+        box-shadow: 
+            0 8px 25px rgba(239, 85, 165, 0.6),
+            0 4px 15px rgba(255, 107, 157, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+    100% {
+        box-shadow: 
+            0 6px 20px rgba(239, 85, 165, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+}
+
+/* Применение пульсации к кнопкам (по желанию) */
+.task-complete-btn.pulse {
+    animation: buttonPulse 2s ease-in-out infinite;
+}
+
+/* ========================================
+   АДАПТИВНОСТЬ
+   ======================================== */
+
+@media (max-width: 480px) {
+    #tasks-screen {
+        padding: 15px;
+        padding-bottom: 100px;
+    }
+    
+    .task-tabs {
+        padding: 6px;
+        gap: 4px;
+    }
+    
+    .task-tab {
+        font-size: 13px;
+        padding: 14px 16px;
+        min-height: 52px;
+    }
+    
+    .task-item {
+        padding: 20px;
+        gap: 15px;
+    }
+    
+    .task-icon {
+        font-size: 28px;
+        min-width: 50px;
+        height: 50px;
+    }
+    
+    .task-name {
+        font-size: 15px;
+    }
+    
+    .task-description {
+        font-size: 13px;
+    }
+    
+    .task-complete-btn {
+        font-size: 13px;
+        padding: 12px 20px;
+        min-width: 100px;
+    }
+    
+    .task-button {
+        font-size: 13px;
+        padding: 10px 16px;
+        min-width: 90px;
+    }
+}
+
+@media (max-width: 375px) {
+    .task-tabs {
+        padding: 4px;
+        gap: 2px;
+    }
+    
+    .task-tab {
+        font-size: 12px;
+        padding: 12px 14px;
+        min-height: 48px;
+    }
+    
+    .task-item {
+        padding: 18px;
+        gap: 12px;
+    }
+    
+    .task-icon {
+        font-size: 26px;
+        min-width: 46px;
+        height: 46px;
+        border-radius: 12px;
+    }
+    
+    .task-name {
+        font-size: 14px;
+    }
+    
+    .task-description {
+        font-size: 12px;
+    }
+    
+    .task-complete-btn {
+        font-size: 12px;
+        padding: 10px 18px;
+        min-width: 90px;
+    }
+    
+    .task-button {
+        font-size: 12px;
+        padding: 8px 14px;
+        min-width: 80px;
+    }
+}
+
+@media (max-width: 320px) {
+    .task-tab {
+        font-size: 11px;
+        padding: 10px 12px;
+        min-height: 44px;
+        line-height: 1.1;
+    }
+    
+    .task-item {
+        padding: 16px;
+        gap: 10px;
+    }
+    
+    .task-icon {
+        font-size: 24px;
+        min-width: 42px;
+        height: 42px;
+    }
+    
+    .task-name {
+        font-size: 13px;
+        margin-bottom: 6px;
+    }
+    
+    .task-complete-btn {
+        font-size: 11px;
+        padding: 8px 16px;
+        min-width: 80px;
+    }
+    
+    .task-button {
+        font-size: 11px;
+        padding: 6px 12px;
+        min-width: 70px;
+    }
+}
+
+/* ========================================
+   СТИЛИ ДЛЯ СИСТЕМЫ КАНАЛОВ
+   ======================================== */
+
+/* Заблокированное состояние */
+.blocked-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: rgba(255, 69, 58, 0.1);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 69, 58, 0.2);
+    margin-bottom: 20px;
+}
+
+.blocked-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.blocked-state h3 {
+    color: #FF453A;
+    font-size: 20px;
+    margin-bottom: 15px;
+    font-weight: bold;
+}
+
+.blocked-state p {
+    color: var(--text-secondary);
+    margin: 8px 0;
+    line-height: 1.4;
+}
+
+/* Задания каналов */
+.channel-task-item {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.channel-task-item.hot-offer {
+    background: rgba(255, 107, 157, 0.1);
+    border: 1px solid rgba(255, 107, 157, 0.3);
+    animation: hotGlow 2s ease-in-out infinite;
+}
+
+@keyframes hotGlow {
+    0%, 100% {
+        box-shadow: 0 4px 15px rgba(255, 107, 157, 0.2);
+    }
+    50% {
+        box-shadow: 0 8px 25px rgba(255, 107, 157, 0.4);
+    }
+}
+
+.hot-badge {
+    position: absolute;
+    top: -8px;
+    right: 15px;
+    background: linear-gradient(45deg, #FF6B9D, #EF55A5);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 12px;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(255, 107, 157, 0.4);
+    z-index: 2;
+}
+
+.channel-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.channel-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    line-height: 1.3;
+}
+
+.channel-description {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin-bottom: 12px;
+}
+
+.channel-reward {
+    color: var(--lime-color);
+    font-weight: bold;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.subscribe-btn {
+    background: linear-gradient(135deg, #32D74B, #28C940);
+    border: none;
+    color: white;
+    padding: 14px 24px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    min-width: 120px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(50, 215, 75, 0.3);
+    flex-shrink: 0;
+}
+
+.subscribe-btn:hover {
+    background: linear-gradient(135deg, #28C940, #32D74B);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(50, 215, 75, 0.4);
+}
+
+/* Ежедневные задания */
+.daily-task-item {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+    position: relative;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.daily-task-item.completed {
+    opacity: 0.7;
+    border-color: rgba(76, 175, 80, 0.4);
+    background: rgba(76, 175, 80, 0.08);
+}
+
+.claim-btn {
+    background: linear-gradient(135deg, var(--lime-color), #d4ed47);
+    border: none;
+    color: #000;
+    padding: 12px 20px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    min-width: 100px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(204, 213, 55, 0.3);
+    flex-shrink: 0;
+}
+
+.claim-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(204, 213, 55, 0.5);
+}
+
+.claim-btn.disabled {
+    background: linear-gradient(135deg, #666, #444);
+    color: #999;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+.claim-btn.ready {
+    animation: buttonPulse 2s ease-in-out infinite;
+}
+
+.completed-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #4CAF50;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 12px 20px;
+    background: rgba(76, 175, 80, 0.1);
+    border-radius: 20px;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+/* Реферальная секция */
+.referral-section {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    padding: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.referral-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 24px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.referral-link {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.referral-link input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.referral-link button {
+    background: linear-gradient(135deg, var(--purple-color), #9bb5ff);
+    border: none;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.referral-description p {
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.4;
+    margin: 8px 0;
+}
+
+/* Горячие предложения */
+.hot-offer-item {
+    background: linear-gradient(135deg, rgba(255, 107, 157, 0.1), rgba(239, 85, 165, 0.1));
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 16px;
+    border: 2px solid rgba(255, 107, 157, 0.3);
+    position: relative;
+    overflow: hidden;
+    animation: hotPulse 3s ease-in-out infinite;
+}
+
+@keyframes hotPulse {
+    0%, 100% {
+        border-color: rgba(255, 107, 157, 0.3);
+        box-shadow: 0 4px 15px rgba(255, 107, 157, 0.2);
+    }
+    50% {
+        border-color: rgba(255, 107, 157, 0.5);
+        box-shadow: 0 8px 25px rgba(255, 107, 157, 0.4);
+    }
+}
+
+.offer-content {
+    margin-bottom: 16px;
+}
+
+.offer-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.offer-description {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.offer-reward {
+    color: #FFD700;
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+.offer-timer {
+    color: #FF6B9D;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.hot-subscribe-btn {
+    background: linear-gradient(135deg, #FF6B9D, #EF55A5);
+    border: none;
+    color: white;
+    padding: 16px 32px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4);
+    animation: buttonPulse 2s ease-in-out infinite;
+}
+
+.hot-subscribe-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(255, 107, 157, 0.6);
+}
+
+/* Адаптивные стили для новых элементов */
+@media (max-width: 480px) {
+    .channel-task-item, .daily-task-item, .hot-offer-item {
+        padding: 20px;
+        gap: 15px;
+    }
+    
+    .channel-title, .offer-title {
+        font-size: 15px;
+    }
+    
+    .subscribe-btn, .claim-btn, .hot-subscribe-btn {
+        font-size: 13px;
+        padding: 12px 20px;
+        min-width: 100px;
+    }
+    
+    .hot-subscribe-btn {
+        padding: 14px 28px;
+        font-size: 14px;
+    }
+    
+    .referral-link {
+        flex-direction: column;
+    }
+    
+    .referral-link button {
+        width: 100%;
+    }
+}

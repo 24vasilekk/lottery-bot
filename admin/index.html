@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kosmetichka Admin Panel</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .admin-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .admin-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+            border: none;
+            margin-bottom: 20px;
+        }
+        
+        .admin-card .card-header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 15px 15px 0 0;
+            font-weight: bold;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .tab-content {
+            margin-top: 20px;
+        }
+        
+        .nav-pills .nav-link.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #56ab2f, #a8e6cf);
+            border: none;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff416c, #ff4b2b);
+            border: none;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            border: none;
+        }
+        
+        .table {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .badge-active { background: #28a745; }
+        .badge-inactive { background: #dc3545; }
+        .badge-hot { 
+            background: linear-gradient(45deg, #ff6b9d, #c471ed);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .prize-item {
+            border-left: 4px solid;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 0 10px 10px 0;
+        }
+        
+        .prize-certificate { border-left-color: #ffc107; background: #fff3cd; }
+        .prize-stars { border-left-color: #17a2b8; background: #d1ecf1; }
+        .prize-cosmetics { border-left-color: #e83e8c; background: #f8d7da; }
+        .prize-empty { border-left-color: #6c757d; background: #e2e3e5; }
+    </style>
+</head>
+<body>
+    <div class="admin-header">
+        <div class="container">
+            <div class="row align-items-center py-3">
+                <div class="col">
+                    <h1 class="mb-0">
+                        <i class="fas fa-crown text-warning"></i>
+                        Kosmetichka Admin Panel
+                    </h1>
+                    <small class="text-muted">Управление системой заданий и призов</small>
+                </div>
+                <div class="col-auto">
+                    <span class="badge bg-success fs-6">
+                        <i class="fas fa-circle"></i> Онлайн
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Statistics Cards -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalUsers">-</div>
+                    <div>Всего пользователей</div>
+                    <small><i class="fas fa-users"></i> Активных за 24ч: <span id="activeUsers">-</span></small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalChannels">-</div>
+                    <div>Активных каналов</div>
+                    <small><i class="fas fa-fire"></i> Горячих: <span id="hotChannels">-</span></small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalSubscriptions">-</div>
+                    <div>Всего подписок</div>
+                    <small><i class="fas fa-chart-up"></i> За сегодня: <span id="todaySubscriptions">-</span></small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value" id="pendingPrizes">-</div>
+                    <div>Ожидают выдачи</div>
+                    <small><i class="fas fa-gift"></i> Сертификатов: <span id="pendingCertificates">-</span></small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-pills justify-content-center mb-4">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="pill" href="#channels">
+                    <i class="fas fa-broadcast-tower"></i> Каналы
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="pill" href="#prizes">
+                    <i class="fas fa-gift"></i> Призы и сертификаты
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="pill" href="#users">
+                    <i class="fas fa-users"></i> Пользователи
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="pill" href="#analytics">
+                    <i class="fas fa-chart-bar"></i> Аналитика
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="pill" href="#settings">
+                    <i class="fas fa-cogs"></i> Настройки
+                </a>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Channels Tab -->
+            <div class="tab-pane fade show active" id="channels">
+                <div class="admin-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-broadcast-tower"></i> Управление каналами</h5>
+                        <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#addChannelModal">
+                            <i class="fas fa-plus"></i> Добавить канал
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Канал</th>
+                                        <th>Награда</th>
+                                        <th>Тип размещения</th>
+                                        <th>Подписчиков</th>
+                                        <th>Статус</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="channelsTable">
+                                    <!-- Будет заполнено JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prizes Tab -->
+            <div class="tab-pane fade" id="prizes">
+                <div class="admin-card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-gift"></i> Призы ожидающие выдачи</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="prizesContainer">
+                            <!-- Будет заполнено JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users Tab -->
+            <div class="tab-pane fade" id="users">
+                <div class="admin-card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-users"></i> Управление пользователями</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Имя</th>
+                                        <th>Звезды</th>
+                                        <th>Подписки</th>
+                                        <th>Призы</th>
+                                        <th>Статус</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTable">
+                                    <!-- Будет заполнено JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Tab -->
+            <div class="tab-pane fade" id="analytics">
+                <div class="admin-card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Аналитика и статистика</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <canvas id="subscriptionsChart" width="400" height="200"></canvas>
+                            </div>
+                            <div class="col-md-6">
+                                <canvas id="prizesChart" width="400" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div class="tab-pane fade" id="settings">
+                <div class="admin-card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-cogs"></i> Системные настройки</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="settingsForm">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Стоимость прокрутки (звезды)</label>
+                                        <input type="number" class="form-control" id="spinCost" value="20">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Стартовые звезды для новых пользователей</label>
+                                        <input type="number" class="form-control" id="startingStars" value="20">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Награда за активного реферала</label>
+                                        <input type="number" class="form-control" id="referralReward" value="20">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Минимальное время подписки (часы)</label>
+                                        <input type="number" class="form-control" id="minSubscriptionTime" value="72">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Подписок для активации реферала</label>
+                                        <input type="number" class="form-control" id="referralActivationCount" value="2">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Bot Token</label>
+                                        <input type="password" class="form-control" id="botToken" placeholder="Скрыт">
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Сохранить настройки
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Channel Modal -->
+    <div class="modal fade" id="addChannelModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавить канал</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addChannelForm">
+                        <div class="mb-3">
+                            <label class="form-label">Username канала (без @)</label>
+                            <input type="text" class="form-control" id="channelUsername" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Название канала</label>
+                            <input type="text" class="form-control" id="channelName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Награда (звезды)</label>
+                            <input type="number" class="form-control" id="channelReward" value="50" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Тип размещения</label>
+                            <select class="form-control" id="placementType" required>
+                                <option value="time">По времени</option>
+                                <option value="target">По целевому количеству</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="durationField">
+                            <label class="form-label">Длительность (часы)</label>
+                            <input type="number" class="form-control" id="placementDuration" value="24">
+                        </div>
+                        <div class="mb-3" id="targetField" style="display: none;">
+                            <label class="form-label">Целевое количество подписчиков</label>
+                            <input type="number" class="form-control" id="subscribersTarget" value="100">
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="isHotOffer">
+                                <label class="form-check-label">
+                                    🔥 Горячее предложение (x2 награда)
+                                </label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="addChannel()">Добавить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>
+    <script src="admin.js"></script>
+</body>
+</html>

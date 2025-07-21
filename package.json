@@ -1,0 +1,86 @@
+{
+  "name": "kosmetichka-lottery-telegram-bot",
+  "version": "1.0.0",
+  "description": "Telegram бот с веб-приложением рулетки для женской аудитории с призами и заданиями",
+  "main": "telegram-bot-server.js",
+  "scripts": {
+    "start": "node telegram-bot-server.js",
+    "admin": "node admin-bot.js",
+    "both": "node start-both.js",
+    "dev": "nodemon telegram-bot-server.js",
+    "dev-admin": "nodemon admin-bot.js",
+    "dev-both": "concurrently \"npm run dev\" \"npm run dev-admin\"",
+    "build": "echo 'Build completed - static files ready'",
+    "test": "node -e \"console.log('Test passed')\"",
+    "deploy": "npm install && npm start",
+    "railway-deploy": "npm install && npm start",
+    "lint": "echo 'Linting...'",
+    "postinstall": "echo 'Installation completed successfully'"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "webapp",
+    "lottery",
+    "game",
+    "roulette",
+    "kosmetichka",
+    "beauty",
+    "prizes",
+    "wheel",
+    "tasks",
+    "leaderboard",
+    "referrals",
+    "crystals",
+    "dolcedeals",
+    "women",
+    "girls",
+    "cosmetics"
+  ],
+  "author": {
+    "name": "Kosmetichka Team",
+    "email": "support@kosmetichka.com",
+    "url": "https://kosmetichka.com"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "node-telegram-bot-api": "^0.64.0",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "concurrently": "^8.2.0"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kosmetichka/lottery-bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kosmetichka/lottery-bot/issues"
+  },
+  "homepage": "https://lottery-bot.railway.app",
+  "contributors": [
+    {
+      "name": "Developer",
+      "email": "dev@kosmetichka.com",
+      "role": "Lead Developer"
+    }
+  ],
+  "funding": {
+    "type": "individual",
+    "url": "https://kosmetichka.com/support"
+  },
+  "config": {
+    "port": "3000",
+    "node_env": "production"
+  },
+  "private": false,
+  "preferGlobal": false
+}

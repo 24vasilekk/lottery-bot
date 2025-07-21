@@ -1,0 +1,16 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "npm run both"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[env]
+NODE_ENV = "production"
+PORT = { default = "3000" }
+ADMIN_PORT = { default = "3001" }
+
+[[services]]
+[services.web]
+name = "kosmetichka-lottery-bot"

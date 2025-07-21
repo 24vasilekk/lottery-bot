@@ -1,0 +1,338 @@
+/* ========================================
+   ДОПОЛНИТЕЛЬНЫЕ СТИЛИ ДЛЯ СОСТОЯНИЙ КНОПОК
+   public/css/button-states.css
+   ======================================== */
+
+/* ========================================
+   1. СОСТОЯНИЯ КНОПОК ПРОКРУТКИ
+   ======================================== */
+
+/* Состояние загрузки */
+.spin-btn.loading {
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.spin-btn.loading i.fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Активное состояние */
+.spin-btn.active {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 25px rgba(239, 85, 165, 0.6);
+}
+
+.spin-btn.secondary.active {
+    box-shadow: 0 8px 25px rgba(204, 213, 55, 0.6);
+}
+
+/* Заблокированное состояние - улучшенное */
+.spin-btn.disabled,
+.spin-btn:disabled {
+    background: linear-gradient(135deg, #666, #444) !important;
+    color: #999 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+    opacity: 0.6;
+}
+
+.spin-btn.disabled::before,
+.spin-btn:disabled::before {
+    display: none;
+}
+
+.spin-btn.disabled:hover,
+.spin-btn:disabled:hover {
+    transform: none !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* ========================================
+   2. АНИМАЦИИ УВЕДОМЛЕНИЙ
+   ======================================== */
+
+.status-messages-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 300px;
+    pointer-events: none;
+}
+
+.status-message {
+    background: rgba(42, 42, 42, 0.95);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transform: translateX(100px);
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    border-left: 4px solid var(--primary-color);
+    pointer-events: auto;
+}
+
+.status-message.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.status-message.success {
+    border-left-color: #4CAF50;
+    background: linear-gradient(90deg, rgba(76, 175, 80, 0.1), rgba(42, 42, 42, 0.95));
+}
+
+.status-message.error {
+    border-left-color: #f44336;
+    background: linear-gradient(90deg, rgba(244, 67, 54, 0.1), rgba(42, 42, 42, 0.95));
+}
+
+.status-message.info {
+    border-left-color: #2196F3;
+    background: linear-gradient(90deg, rgba(33, 150, 243, 0.1), rgba(42, 42, 42, 0.95));
+}
+
+/* ========================================
+   3. ПОСЛЕДНИЕ ВЫИГРЫШИ - УЛУЧШЕННЫЕ
+   ======================================== */
+
+.recent-win-item {
+    position: relative;
+    overflow: hidden;
+}
+
+.recent-win-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    transition: left 0.6s ease;
+}
+
+.recent-win-item:hover::before {
+    left: 100%;
+}
+
+.recent-win-item.new {
+    animation: prizeReveal 0.6s ease-out;
+    border-left: 3px solid var(--lime-color);
+}
+
+.win-time {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: auto;
+}
+
+/* ========================================
+   4. РУЛЕТКА - СОСТОЯНИЯ
+   ======================================== */
+
+.wheel.spinning {
+    pointer-events: none;
+}
+
+.wheel.spinning .wheel-center {
+    animation: pulse 0.5s ease-in-out infinite alternate;
+}
+
+.wheel-center.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ========================================
+   5. ЭФФЕКТЫ КОНФЕТТИ
+   ======================================== */
+
+.confetti {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    background: var(--primary-color);
+    animation: confetti-fall 3s linear infinite;
+    z-index: 999;
+    pointer-events: none;
+}
+
+.confetti:nth-child(odd) {
+    background: var(--lime-color);
+    animation-delay: 0.5s;
+}
+
+.confetti:nth-child(3n) {
+    background: var(--purple-color);
+    animation-delay: 1s;
+}
+
+@keyframes confetti-fall {
+    0% {
+        transform: translateY(-100vh) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+    }
+}
+
+/* ========================================
+   6. ПУЛЬСАЦИЯ ДЛЯ ВАЖНЫХ ЭЛЕМЕНТОВ
+   ======================================== */
+
+.pulse-animation {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(239, 85, 165, 0.7);
+    }
+    70% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(239, 85, 165, 0);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(239, 85, 165, 0);
+    }
+}
+
+/* ========================================
+   7. МОБИЛЬНЫЕ УЛУЧШЕНИЯ
+   ======================================== */
+
+/* Улучшенные тапы на мобильных */
+.spin-btn {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.spin-btn:active {
+    transform: translateY(0) scale(0.98);
+}
+
+/* Вибрация при тапе (только для поддерживающих устройств) */
+@media (hover: none) and (pointer: coarse) {
+    .spin-btn:active {
+        transition: transform 0.1s ease;
+    }
+}
+
+/* ========================================
+   8. УЛУЧШЕНИЯ ДЛЯ ДОСТУПНОСТИ
+   ======================================== */
+
+/* Фокус для клавиатурной навигации */
+.spin-btn:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.spin-btn:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* Высокий контраст */
+@media (prefers-contrast: high) {
+    .spin-btn {
+        border: 2px solid white;
+    }
+    
+    .spin-btn.disabled {
+        border-color: #666;
+    }
+}
+
+/* Уменьшенные анимации */
+@media (prefers-reduced-motion: reduce) {
+    .spin-btn,
+    .status-message,
+    .recent-win-item {
+        transition: none;
+    }
+    
+    .confetti,
+    .pulse-animation,
+    .spin-btn.loading i.fa-spinner {
+        animation: none;
+    }
+}
+
+/* ========================================
+   9. ДОПОЛНИТЕЛЬНЫЕ ЭФФЕКТЫ
+   ======================================== */
+
+/* Эффект звездочек при выигрыше */
+.star-effect {
+    position: absolute;
+    color: #FFD700;
+    font-size: 20px;
+    animation: starFloat 2s ease-out forwards;
+    pointer-events: none;
+    z-index: 100;
+}
+
+@keyframes starFloat {
+    0% {
+        opacity: 0;
+        transform: scale(0) translateY(0);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.2) translateY(-20px);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.8) translateY(-40px);
+    }
+}
+
+/* Эффект блеска для выигрышных элементов */
+.win-glow {
+    box-shadow: 0 0 20px rgba(204, 213, 55, 0.6);
+    animation: winGlow 1s ease-in-out 3;
+}
+
+@keyframes winGlow {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(204, 213, 55, 0.6);
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(204, 213, 55, 0.9);
+    }
+}
+
+/* ========================================
+   10. ОТЛАДОЧНЫЕ СТИЛИ
+   ======================================== */
+
+/* Включить для отладки границ элементов */
+.debug * {
+    outline: 1px solid red;
+}
+
+.debug .spin-btn {
+    outline: 2px solid lime;
+}
+
+.debug .wheel {
+    outline: 2px solid yellow;
+}

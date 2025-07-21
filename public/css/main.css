@@ -1,0 +1,764 @@
+/* ========================================
+   MAIN.CSS - ПОЛНОСТЬЮ ОБНОВЛЕННЫЙ ФАЙЛ
+   Главный экран с рулеткой для Kosmetichka Bot
+   ======================================== */
+
+/* ========================================
+   1. CSS ПЕРЕМЕННЫЕ
+   ======================================== */
+
+:root {
+    /* Основные цвета проекта */
+    --primary-color: #EF55A5;
+    --lime-color: #CCD537;
+    --purple-color: #809EFF;
+    
+    /* Фоны */
+    --dark-bg: #1a1a1a;
+    --card-bg: #2a2a2a;
+    --glass-bg: rgba(42, 42, 42, 0.85);
+    
+    /* Тексты */
+    --text-primary: #ffffff;
+    --text-secondary: #cccccc;
+    --text-muted: #999999;
+    
+    /* Градиенты */
+    --gradient-pink: linear-gradient(135deg, #EF55A5, #ff6b9d);
+    --gradient-lime: linear-gradient(135deg, #CCD537, #a4b93a);
+    --gradient-purple: linear-gradient(135deg, #809EFF, #9c27b0);
+    --gradient-dark: linear-gradient(135deg, #1a1a1a 0%, #2d1b3d 100%);
+    
+    /* Тени */
+    --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --shadow-button: 0 8px 25px rgba(239, 85, 165, 0.4);
+    --shadow-lime: 0 8px 25px rgba(204, 213, 55, 0.4);
+    --shadow-purple: 0 8px 25px rgba(128, 158, 255, 0.4);
+    
+    /* Радиусы */
+    --radius-small: 10px;
+    --radius-medium: 15px;
+    --radius-large: 25px;
+    --radius-full: 50%;
+    
+    /* Анимации */
+    --transition-fast: 0.2s ease;
+    --transition-medium: 0.3s ease;
+    --transition-slow: 0.6s ease;
+}
+
+/* ========================================
+   2. БАЗОВЫЕ СТИЛИ
+   ======================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--gradient-dark);
+    color: var(--text-primary);
+    overflow-x: hidden;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.app-container {
+    min-height: 100vh;
+    position: relative;
+    padding-bottom: 90px;
+}
+
+/* ========================================
+   3. ЭКРАНЫ
+   ======================================== */
+
+.screen {
+    display: none;
+    min-height: calc(100vh - 90px);
+    padding: 20px 20px 120px 20px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all var(--transition-medium);
+    overflow-y: auto;
+    width: 100%;
+}
+
+.screen.active {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ========================================
+   4. ЗАГОЛОВОК (HEADER)
+   ======================================== */
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 0 10px;
+    gap: 15px;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex: 1;
+    min-width: 0;
+}
+
+.profile-pic {
+    width: 50px;
+    height: 50px;
+    border-radius: var(--radius-full);
+    background: var(--gradient-pink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all var(--transition-medium);
+    box-shadow: var(--shadow-soft);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.profile-pic:hover {
+    transform: scale(1.05);
+    box-shadow: 0 10px 35px rgba(239, 85, 165, 0.6);
+}
+
+.user-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.user-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-stars {
+    font-size: 16px;
+    color: var(--lime-color);
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Кнопка мега рулетки */
+.mega-btn {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    border: none;
+    color: #000;
+    padding: 12px 16px;
+    border-radius: var(--radius-large);
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all var(--transition-medium);
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+    white-space: nowrap;
+}
+
+.mega-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.6);
+}
+
+/* ========================================
+   5. РУЛЕТКА
+   ======================================== */
+
+.wheel-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 30px;
+    width: 100%;
+}
+
+.wheel {
+    position: relative;
+    width: 350px;
+    height: 350px;
+    margin: 0 auto 30px;
+}
+
+/* Указатель рулетки */
+.wheel-pointer {
+    position: absolute;
+    top: -35px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 30px solid transparent;
+    border-right: 30px solid transparent;
+    border-top: 45px solid #ffffff;
+    z-index: 11;
+    filter: drop-shadow(0 8px 16px rgba(0,0,0,0.6));
+}
+
+.wheel-pointer::after {
+    content: '';
+    position: absolute;
+    top: -50px;
+    left: -12px;
+    width: 24px;
+    height: 24px;
+    background: radial-gradient(circle, #ffffff 40%, transparent 70%);
+    border-radius: 50%;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+}
+
+/* SVG рулетки */
+#wheel-svg {
+    width: 100%;
+    height: 100%;
+    transition: transform 3s cubic-bezier(0.23, 1, 0.320, 1);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+/* Центральная кнопка SPIN */
+.wheel-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+    background: #000000;
+    border-radius: var(--radius-full);
+    border: 4px solid #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    color: #888888;
+    z-index: 10;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    letter-spacing: 1px;
+}
+
+.wheel-center:hover {
+    transform: translate(-50%, -50%) scale(1.05);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
+    color: #aaa;
+}
+
+/* ========================================
+   6. КНОПКИ УПРАВЛЕНИЯ - ГОРИЗОНТАЛЬНЫЕ
+   ======================================== */
+
+.spin-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+    margin-top: 20px;
+    padding: 0 10px;
+}
+
+/* ОСНОВНОЙ КОНТЕЙНЕР КНОПОК - ГОРИЗОНТАЛЬНО */
+.spin-buttons {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 12px;
+    width: 100%;
+    max-width: 380px;
+    justify-content: center;
+    align-items: stretch;
+    flex-wrap: nowrap !important;
+}
+
+/* СТИЛИ КНОПОК ПРОКРУТКИ */
+.spin-btn {
+    flex: 1;
+    min-width: 140px;
+    max-width: 180px;
+    background: var(--gradient-pink);
+    border: none;
+    color: white;
+    padding: 16px 12px;
+    border-radius: var(--radius-large);
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all var(--transition-medium);
+    box-shadow: var(--shadow-button);
+    position: relative;
+    overflow: hidden;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 55px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* Вторичная кнопка (За друга) */
+.spin-btn.secondary {
+    background: var(--gradient-lime);
+    color: var(--dark-bg);
+    box-shadow: var(--shadow-lime);
+}
+
+/* Первичная кнопка (За звезды) */
+.spin-btn.primary {
+    background: var(--gradient-pink);
+    color: white;
+    box-shadow: var(--shadow-button);
+}
+
+/* Эффекты при наведении */
+.spin-btn:hover:not(:disabled) {
+    transform: translateY(-3px);
+}
+
+.spin-btn.primary:hover:not(:disabled) {
+    box-shadow: 0 12px 35px rgba(239, 85, 165, 0.6);
+}
+
+.spin-btn.secondary:hover:not(:disabled) {
+    box-shadow: 0 12px 35px rgba(204, 213, 55, 0.6);
+}
+
+/* Активное состояние */
+.spin-btn:active {
+    transform: translateY(-1px);
+}
+
+/* Заблокированное состояние */
+.spin-btn:disabled {
+    background: linear-gradient(135deg, #666, #444);
+    color: #999;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.spin-btn.disabled {
+    background: linear-gradient(135deg, #666, #444);
+    color: #999;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Анимационный эффект блеска */
+.spin-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left var(--transition-slow);
+    z-index: 1;
+}
+
+.spin-btn:hover:not(:disabled)::before {
+    left: 100%;
+}
+
+/* Иконки в кнопках */
+.spin-btn i {
+    font-size: 16px;
+    flex-shrink: 0;
+    z-index: 2;
+    position: relative;
+}
+
+/* Текст в кнопках */
+.spin-btn span {
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
+    z-index: 2;
+    position: relative;
+}
+
+/* ========================================
+   7. ПОСЛЕДНИЕ ВЫИГРЫШИ
+   ======================================== */
+
+.recent-wins {
+    margin-top: 30px;
+    margin-bottom: 40px;
+    width: 100%;
+}
+
+.recent-wins-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    display: block;
+    color: var(--text-primary);
+}
+
+.recent-wins-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.recent-win-item {
+    background: var(--card-bg);
+    padding: 12px 15px;
+    border-radius: var(--radius-medium);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all var(--transition-medium);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.recent-win-item:hover {
+    background: rgba(42, 42, 42, 0.8);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-soft);
+}
+
+.recent-win-item.empty {
+    color: var(--text-muted);
+    font-style: italic;
+    justify-content: center;
+    padding: 20px;
+}
+
+.win-description {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+/* ========================================
+   8. АНИМАЦИИ
+   ======================================== */
+
+/* Анимация вращения рулетки */
+@keyframes wheelSpin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(var(--wheel-rotation, 1800deg));
+    }
+}
+
+.wheel.spinning #wheel-svg {
+    animation: wheelSpin var(--spin-duration, 3s) cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+/* Пульсация для активных элементов */
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.spin-btn.pulsing {
+    animation: pulse 1s ease-in-out infinite;
+}
+
+/* Появление призов */
+@keyframes prizeReveal {
+    0% {
+        opacity: 0;
+        transform: scale(0.5) translateY(20px);
+    }
+    50% {
+        transform: scale(1.1) translateY(-5px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.recent-win-item.new {
+    animation: prizeReveal 0.6s ease-out;
+}
+
+/* ========================================
+   9. АДАПТИВНОСТЬ
+   ======================================== */
+
+/* Большие экраны (iPhone 14 Pro Max и больше) */
+@media (min-width: 430px) {
+    .wheel {
+        width: 380px;
+        height: 380px;
+    }
+    
+    .spin-buttons {
+        max-width: 400px;
+        gap: 15px;
+    }
+    
+    .spin-btn {
+        padding: 18px 16px;
+        font-size: 15px;
+        min-width: 160px;
+        max-width: 190px;
+    }
+    
+    .spin-btn i {
+        font-size: 18px;
+    }
+}
+
+/* Стандартные экраны (iPhone 12-14) */
+@media (max-width: 429px) and (min-width: 375px) {
+    .wheel {
+        width: 350px;
+        height: 350px;
+    }
+    
+    .spin-buttons {
+        gap: 12px;
+        max-width: 360px;
+    }
+    
+    .spin-btn {
+        min-width: 140px;
+        max-width: 175px;
+        font-size: 14px;
+        padding: 16px 12px;
+    }
+}
+
+/* Маленькие экраны (iPhone SE, старые модели) */
+@media (max-width: 374px) {
+    .screen {
+        padding: 15px 15px 120px 15px;
+    }
+    
+    .wheel {
+        width: 300px;
+        height: 300px;
+    }
+    
+    .wheel-pointer {
+        top: -30px;
+        border-left: 25px solid transparent;
+        border-right: 25px solid transparent;
+        border-top: 40px solid #ffffff;
+    }
+    
+    .wheel-pointer::after {
+        top: -45px;
+        left: -10px;
+        width: 20px;
+        height: 20px;
+    }
+    
+    .wheel-center {
+        width: 60px;
+        height: 60px;
+        font-size: 12px;
+    }
+    
+    .spin-buttons {
+        gap: 8px;
+        max-width: 320px;
+        padding: 0 5px;
+    }
+    
+    .spin-btn {
+        min-width: 120px;
+        max-width: 150px;
+        font-size: 12px;
+        padding: 14px 8px;
+        min-height: 50px;
+    }
+    
+    .spin-btn i {
+        font-size: 14px;
+    }
+    
+    .spin-btn span {
+        font-size: 12px;
+    }
+}
+
+/* Очень маленькие экраны */
+@media (max-width: 320px) {
+    .screen {
+        padding: 12px 12px 120px 12px;
+    }
+    
+    .wheel {
+        width: 260px;
+        height: 260px;
+    }
+    
+    .wheel-center {
+        width: 50px;
+        height: 50px;
+        font-size: 10px;
+    }
+    
+    .spin-buttons {
+        gap: 6px;
+        max-width: 280px;
+    }
+    
+    .spin-btn {
+        min-width: 105px;
+        max-width: 135px;
+        font-size: 11px;
+        padding: 12px 6px;
+        min-height: 48px;
+    }
+    
+    .spin-btn i {
+        font-size: 12px;
+    }
+    
+    .spin-btn span {
+        font-size: 10px;
+    }
+    
+    .user-name {
+        font-size: 16px;
+    }
+    
+    .user-stars {
+        font-size: 14px;
+    }
+}
+
+/* ========================================
+   10. ДОПОЛНИТЕЛЬНЫЕ ФИКСЫ
+   ======================================== */
+
+/* Принудительное горизонтальное расположение */
+.spin-buttons > * {
+    flex-shrink: 0;
+}
+
+/* Исправление возможных конфликтов стилей */
+.spin-buttons .spin-btn {
+    display: flex !important;
+    flex-direction: row !important;
+}
+
+/* Сглаживание шрифтов */
+.spin-btn,
+.user-name,
+.recent-wins-title {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Улучшение производительности анимаций */
+.spin-btn,
+.wheel-center,
+.profile-pic {
+    will-change: transform;
+}
+
+/* Убираем выделение текста на мобильных */
+.spin-btn,
+.wheel-center,
+.profile-pic {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Фикс для Safari */
+.spin-btn {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* ========================================
+   11. ТЕМЫ И СОСТОЯНИЯ
+   ======================================== */
+
+/* Состояние загрузки */
+.wheel.loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.wheel.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top: 3px solid white;
+    border-radius: 50%;
+    animation: loading 1s linear infinite;
+    z-index: 20;
+}
+
+@keyframes loading {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Успешное состояние */
+.recent-win-item.success {
+    border-left: 4px solid var(--lime-color);
+    background: linear-gradient(90deg, rgba(204, 213, 55, 0.1), transparent);
+}
+
+/* Состояние ошибки */
+.spin-btn.error {
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* ========================================
+   КОНЕЦ ФАЙЛА
+   ======================================== */

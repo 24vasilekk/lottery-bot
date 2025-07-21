@@ -1,0 +1,2625 @@
+// telegram-bot-server.js - ПОЛНАЯ РАБОЧАЯ ВЕРСИЯ для Railway
+
+const express = require('express');
+const TelegramBot = require('node-telegram-bot-api');
+const crypto = require('crypto');
+const path = require('path');
+const cors = require('cors');
+const fs = require('fs');
+const Database = require('./database');
+
+// Загружаем переменные окружения
+if (fs.existsSync('.env')) {
+    require('dotenv').config();
+}
+
+// Настройки
+const BOT_TOKEN = process.env.BOT_TOKEN;
+if (!BOT_TOKEN) {
+    console.error('❌ BOT_TOKEN environment variable is required for Railway deployment');
+    console.error('Set BOT_TOKEN in Railway dashboard environment variables');
+    process.exit(1);
+}
+const DEBUG_MODE = process.env.DEBUG_MODE === 'true' || false;
+
+// Определяем URL для Railway
+let WEBAPP_URL = process.env.WEBAPP_URL;
+if (!WEBAPP_URL) {
+    if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+        WEBAPP_URL = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+    } else if (process.env.RAILWAY_PRIVATE_DOMAIN) {
+        WEBAPP_URL = `https://${process.env.RAILWAY_PRIVATE_DOMAIN}`;
+    } else {
+        console.error('❌ WEBAPP_URL not configured for Railway');
+        console.error('Railway should auto-provide RAILWAY_PUBLIC_DOMAIN');
+        console.error('Manual setup: Set WEBAPP_URL=https://your-app-name.railway.app');
+        process.exit(1);
+    }
+}
+
+const BOT_USERNAME = process.env.BOT_USERNAME || 'kosmetichka_lottery_bot';
+const PORT = process.env.PORT || 3000;
+
+console.log('🚀 ИНИЦИАЛИЗАЦИЯ KOSMETICHKA LOTTERY BOT');
+console.log('==========================================');
+console.log(`   🔧 Порт: ${PORT}`);
+console.log(`   🌐 WebApp URL: ${WEBAPP_URL}`);
+console.log(`   🤖 Бот токен: ${BOT_TOKEN ? 'установлен ✅' : 'НЕ УСТАНОВЛЕН ❌'}`);
+console.log(`   👤 Имя бота: @${BOT_USERNAME}`);
+
+// Предупреждения для продакшена
+if (!process.env.BOT_TOKEN || !process.env.ADMIN_IDS) {
+    console.log('\n⚠️  ВНИМАНИЕ: ТЕСТОВЫЙ РЕЖИМ');
+    console.log('==========================================');
+    if (!process.env.BOT_TOKEN) {
+        console.log('   🔑 Используется хардкод BOT_TOKEN');
+    }
+    if (!process.env.ADMIN_IDS) {
+        console.log('   👤 Используется тестовый ADMIN_ID');
+    }
+    console.log('   📝 Для продакшена установите переменные окружения!');
+    console.log('==========================================\n');
+}
+
+// Создаем Express приложение
+const app = express();
+
+// Middleware
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Telegram-Init-Data']
+}));
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Логирование запросов
+app.use((req, res, next) => {
+    const timestamp = new Date().toISOString();
+    console.log(`📥 ${timestamp} - ${req.method} ${req.url} - ${req.ip}`);
+    next();
+});
+
+// Настройка статических файлов
+const publicPath = path.join(__dirname, 'public');
+app.use(express.static(publicPath, {
+    etag: false,
+    maxAge: 0,
+    setHeaders: (res, filePath) => {
+        // Устанавливаем правильные MIME типы
+        if (filePath.endsWith('.html')) {
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        } else if (filePath.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+        } else if (filePath.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css; charset=utf-8');
+        }
+        
+        // Заголовки для WebApp
+        res.setHeader('X-Frame-Options', 'ALLOWALL');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+    }
+}));
+
+// Инициализация базы данных
+const db = new Database();
+
+// Импорт фоновых задач
+const BackgroundTaskManager = require('./admin/background-tasks.js');
+
+// Промокоды
+const PROMO_CODES = {
+    'WELCOME2024': { crystals: 100, used: new Set() },
+    'LUCKY777': { crystals: 77, used: new Set() },
+    'FRIENDS': { crystals: 50, used: new Set() },
+    'NEWBIE': { crystals: 200, used: new Set() },
+    'DOLCEDEALS': { crystals: 150, used: new Set() }
+};
+
+// ID администраторов
+const ADMIN_IDS = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',').map(id => parseInt(id.trim())) : [];
+if (ADMIN_IDS.length === 0) {
+    console.error('❌ ADMIN_IDS environment variable is required for Railway deployment');
+    console.error('Set ADMIN_IDS=your_telegram_id in Railway dashboard');
+    process.exit(1);
+}
+
+// Создаем и настраиваем бота
+let bot;
+let botPolling = false;
+
+try {
+    bot = new TelegramBot(BOT_TOKEN, { 
+        polling: false,  // Отключаем polling при инициализации
+        request: {
+            agentOptions: {
+                keepAlive: true,
+                family: 4
+            }
+        }
+    });
+    
+    // Устанавливаем минимальный уровень логирования
+    if (bot.options) {
+        bot.options.request = {
+            ...bot.options.request,
+            // Отключаем подробное логирование соединений
+            verbose: false
+        };
+    }
+    
+    console.log('🤖 Telegram Bot инициализирован успешно');
+} catch (error) {
+    console.error('❌ Ошибка инициализации бота:', error.message);
+}
+
+// Функция для безопасного запуска polling
+async function startPolling() {
+    if (botPolling || !bot) return;
+    
+    try {
+        // Сначала останавливаем любые активные сессии
+        await bot.stopPolling();
+        
+        // Ждем немного для очистки
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Запускаем polling
+        await bot.startPolling();
+        botPolling = true;
+        console.log('✅ Polling запущен успешно');
+        
+    } catch (error) {
+        console.error('❌ Ошибка запуска polling:', error.message);
+        botPolling = false;
+        
+        // Повторная попытка через 5 секунд
+        setTimeout(startPolling, 5000);
+    }
+}
+
+// === МАРШРУТЫ ===
+
+// Главная страница
+app.get('/', (req, res) => {
+    console.log('🏠 Запрос главной страницы');
+    
+    const indexPath = path.join(publicPath, 'index.html');
+    
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        // Если файла нет, создаем базовую страницу
+        const htmlContent = createBasicHTML();
+        res.send(htmlContent);
+    }
+});
+
+// Health check
+app.get('/health', (req, res) => {
+    const health = {
+        status: 'OK',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        users: 'database',
+        webapp_url: WEBAPP_URL,
+        bot_status: bot ? 'connected' : 'disconnected',
+        memory: process.memoryUsage(),
+        env: process.env.NODE_ENV || 'development'
+    };
+    
+    console.log('💊 Health check запрошен');
+    res.json(health);
+});
+
+// Debug информация
+app.get('/debug', (req, res) => {
+    const debugInfo = {
+        timestamp: new Date().toISOString(),
+        environment: {
+            NODE_ENV: process.env.NODE_ENV,
+            PORT: PORT,
+            WEBAPP_URL: WEBAPP_URL,
+            RAILWAY_PUBLIC_DOMAIN: process.env.RAILWAY_PUBLIC_DOMAIN,
+            RAILWAY_PRIVATE_DOMAIN: process.env.RAILWAY_PRIVATE_DOMAIN
+        },
+        paths: {
+            __dirname: __dirname,
+            publicPath: publicPath,
+            indexExists: fs.existsSync(path.join(publicPath, 'index.html'))
+        },
+        bot: {
+            connected: !!bot,
+            username: BOT_USERNAME
+        },
+        users: 'database',
+        uptime: process.uptime()
+    };
+    
+    res.json(debugInfo);
+});
+
+// API для взаимодействия с WebApp
+app.post('/api/telegram-webhook', async (req, res) => {
+    try {
+        const { action, data, user } = req.body;
+        
+        console.log(`📡 WebApp API: ${action} от пользователя ${user?.id}`);
+        console.log('📋 Полученные данные:', JSON.stringify({ action, data, user }, null, 2));
+        
+        if (!user || !user.id) {
+            console.error('❌ Нет данных пользователя в запросе');
+            return res.status(400).json({ error: 'User data required' });
+        }
+        
+        const userId = user.id;
+        
+        switch (action) {
+            case 'wheel_spin':
+                try {
+                    console.log('🎰 WHEEL_SPIN - Входящие данные:', {
+                        userId: userId,
+                        data: data,
+                        prize: data?.prize,
+                        spinType: data?.spinType,
+                        user: data?.user
+                    });
+                    
+                    await handleWheelSpin(userId, data);
+                    console.log('✅ wheel_spin обработан успешно');
+                    return res.json({ success: true, message: 'Prize saved successfully' });
+                } catch (wheelError) {
+                    console.error('❌ Ошибка в handleWheelSpin:', wheelError);
+                    return res.status(500).json({ 
+                        success: false, 
+                        error: 'Failed to save prize to database' 
+                    });
+                }
+            case 'task_completed':
+                await handleTaskCompleted(userId, data);
+                break;
+            case 'sync_user':
+                const userData = await syncUserData(userId, data.userData);
+                return res.json({ userData });
+            case 'subscribe_channel':
+                await handleChannelSubscription(userId, data);
+                break;
+            default:
+                console.log(`❓ Неизвестное действие: ${action}`);
+        }
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Ошибка webhook:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для проверки подписок на каналы
+app.post('/api/check-subscriptions', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        
+        if (!userId) {
+            return res.status(400).json({ error: 'User ID required' });
+        }
+        
+        const subscriptions = await db.getUserSubscriptions(userId);
+        
+        res.json({ 
+            subscriptions: {
+                channel1: subscriptions.is_subscribed_channel1 || false,
+                channel2: subscriptions.is_subscribed_channel2 || false,
+                dolcedeals: subscriptions.is_subscribed_dolcedeals || false
+            }
+        });
+    } catch (error) {
+        console.error('❌ Ошибка проверки подписок:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для получения лидерборда
+app.get('/api/leaderboard', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 10;
+        
+        // Обновляем лидерборд
+        await db.updateLeaderboard();
+        
+        // Получаем топ игроков
+        const leaderboard = await db.getLeaderboard(limit);
+        
+        res.json({ leaderboard });
+    } catch (error) {
+        console.error('❌ Ошибка получения лидерборда:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для получения позиции пользователя в лидерборде
+app.get('/api/user-rank/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        const rank = await db.getUserRank(parseInt(userId));
+        
+        res.json({ rank });
+    } catch (error) {
+        console.error('❌ Ошибка получения ранга:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для отладки - получение всех данных пользователя
+app.get('/api/debug-user/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        console.log(`🔍 Отладка данных пользователя ${userId}`);
+        
+        const user = await db.getUser(parseInt(userId));
+        const prizes = await db.getUserPrizes(parseInt(userId));
+        const completedTasks = await db.getUserCompletedTasks(parseInt(userId));
+        
+        const debugData = {
+            user: user,
+            prizesCount: prizes ? prizes.length : 0,
+            prizes: prizes,
+            completedTasks: completedTasks,
+            timestamp: new Date().toISOString()
+        };
+        
+        console.log('🔍 Данные пользователя из БД:', JSON.stringify(debugData, null, 2));
+        
+        res.json(debugData);
+    } catch (error) {
+        console.error('❌ Ошибка отладки пользователя:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// ===================== API ENDPOINTS ДЛЯ СИСТЕМЫ ЗАДАНИЙ =====================
+
+// API для получения активных каналов для подписки
+app.get('/api/channels/active', async (req, res) => {
+    try {
+        const channels = await db.getActiveChannels();
+        res.json({ channels });
+    } catch (error) {
+        console.error('❌ Ошибка получения каналов:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для проверки подписки на канал
+app.post('/api/subscription/check', async (req, res) => {
+    try {
+        const { userId, channelUsername } = req.body;
+        
+        if (!userId || !channelUsername) {
+            return res.status(400).json({ 
+                error: 'Требуются userId и channelUsername' 
+            });
+        }
+
+        console.log(`🔍 Проверка подписки пользователя ${userId} на канал ${channelUsername}`);
+        
+        const isSubscribed = await checkUserChannelSubscription(userId, channelUsername);
+        
+        res.json({ 
+            isSubscribed,
+            userId,
+            channel: channelUsername,
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка проверки подписки:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для выполнения задания подписки на канал
+app.post('/api/subscription/complete', async (req, res) => {
+    try {
+        const { userId, channelId, userData } = req.body;
+        
+        if (!userId || !channelId) {
+            return res.status(400).json({ 
+                error: 'Требуются userId и channelId' 
+            });
+        }
+
+        console.log(`🎯 Выполнение задания подписки: пользователь ${userId}, канал ${channelId}`);
+        
+        // Используем нашу функцию обработки подписки
+        const result = await handleChannelSubscriptionTask(userId, channelId, userData);
+        
+        if (result.success) {
+            res.json({
+                success: true,
+                reward: result.reward,
+                message: result.message,
+                userStats: result.userStats
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                error: result.error,
+                banUntil: result.banUntil
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка выполнения задания:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для проверки всех подписок пользователя
+app.post('/api/subscriptions/check-all', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        
+        if (!userId) {
+            return res.status(400).json({ 
+                error: 'Требуется userId' 
+            });
+        }
+
+        console.log(`🔍 Проверка всех подписок пользователя ${userId}`);
+        
+        const violations = await checkAllUserSubscriptions(userId);
+        
+        if (violations.length > 0) {
+            // Обрабатываем нарушения
+            const user = await db.getUser(userId);
+            const result = await handleSubscriptionViolations(user, violations);
+            
+            res.json({
+                hasViolations: true,
+                violations,
+                banApplied: result.banApplied,
+                banUntil: result.banUntil,
+                message: result.message
+            });
+        } else {
+            res.json({
+                hasViolations: false,
+                message: 'Все подписки активны'
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка проверки подписок:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для получения доступных заданий для пользователя
+app.get('/api/tasks/available/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        console.log(`📋 Получение доступных заданий для пользователя ${userId}`);
+        
+        // Проверяем, не заблокирован ли пользователь
+        const user = await db.getUser(parseInt(userId));
+        if (!user) {
+            return res.status(404).json({ error: 'Пользователь не найден' });
+        }
+        
+        if (user.tasks_ban_until && new Date(user.tasks_ban_until) > new Date()) {
+            return res.json({
+                blocked: true,
+                banUntil: user.tasks_ban_until,
+                message: 'Вы временно заблокированы за отписку от каналов'
+            });
+        }
+        
+        // Получаем активные каналы
+        const channels = await db.getActiveChannels();
+        
+        // Получаем ежедневные задания
+        const dailyTasks = await db.getDailyTasksForUser(parseInt(userId));
+        
+        // Получаем горячие предложения
+        const hotOffers = await db.getActiveHotOffers();
+        
+        res.json({
+            blocked: false,
+            channels: channels || [],
+            dailyTasks: dailyTasks || [],
+            hotOffers: hotOffers || []
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения заданий:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для получения статистики реферальной системы
+app.get('/api/referral/stats/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        const stats = await db.getReferralStats(parseInt(userId));
+        
+        res.json({ stats });
+    } catch (error) {
+        console.error('❌ Ошибка получения статистики рефералов:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для активации реферала
+app.post('/api/referral/activate', async (req, res) => {
+    try {
+        const { userId, referrerId } = req.body;
+        
+        if (!userId || !referrerId) {
+            return res.status(400).json({ 
+                error: 'Требуются userId и referrerId' 
+            });
+        }
+        
+        const result = await db.activateReferral(parseInt(userId), parseInt(referrerId));
+        
+        res.json(result);
+    } catch (error) {
+        console.error('❌ Ошибка активации реферала:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// ===================== ADMIN API ENDPOINTS =====================
+
+// Статическая раздача админки
+app.use('/admin', express.static('admin'));
+
+// Middleware для проверки прав админа (упрощенная версия)
+function requireAdmin(req, res, next) {
+    // В продакшене здесь должна быть полноценная аутентификация
+    const adminToken = req.headers['admin-token'] || req.query.token;
+    
+    // Временно пропускаем всех (в продакшене нужна аутентификация)
+    // if (adminToken !== process.env.ADMIN_TOKEN) {
+    //     return res.status(403).json({ error: 'Доступ запрещен' });
+    // }
+    
+    next();
+}
+
+// Получение общей статистики
+app.get('/api/admin/stats', requireAdmin, async (req, res) => {
+    try {
+        console.log('📊 Админ: запрос общей статистики');
+
+        // Общая статистика пользователей
+        const totalUsers = await new Promise((resolve, reject) => {
+            db.db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
+                if (err) reject(err);
+                else resolve(row.count);
+            });
+        });
+
+        // Активные пользователи за 24 часа
+        const activeUsers = await new Promise((resolve, reject) => {
+            db.db.get(
+                'SELECT COUNT(*) as count FROM users WHERE last_activity > datetime("now", "-1 day")',
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row.count);
+                }
+            );
+        });
+
+        // Статистика каналов
+        const totalChannels = await new Promise((resolve, reject) => {
+            db.db.get('SELECT COUNT(*) as count FROM partner_channels WHERE is_active = 1', (err, row) => {
+                if (err) reject(err);
+                else resolve(row.count);
+            });
+        });
+
+        const hotChannels = await new Promise((resolve, reject) => {
+            db.db.get(
+                'SELECT COUNT(*) as count FROM partner_channels WHERE is_active = 1 AND is_hot_offer = 1',
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row.count);
+                }
+            );
+        });
+
+        // Статистика подписок
+        const totalSubscriptions = await new Promise((resolve, reject) => {
+            db.db.get('SELECT COUNT(*) as count FROM user_channel_subscriptions', (err, row) => {
+                if (err) reject(err);
+                else resolve(row.count);
+            });
+        });
+
+        const todaySubscriptions = await new Promise((resolve, reject) => {
+            db.db.get(
+                'SELECT COUNT(*) as count FROM user_channel_subscriptions WHERE created_date > date("now")',
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row.count);
+                }
+            );
+        });
+
+        // Призы ожидающие выдачи
+        const pendingPrizes = await new Promise((resolve, reject) => {
+            db.db.get('SELECT COUNT(*) as count FROM prizes WHERE is_given = 0', (err, row) => {
+                if (err) reject(err);
+                else resolve(row.count);
+            });
+        });
+
+        const pendingCertificates = await new Promise((resolve, reject) => {
+            db.db.get(
+                'SELECT COUNT(*) as count FROM prizes WHERE is_given = 0 AND type LIKE "%certificate%"',
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row.count);
+                }
+            );
+        });
+
+        const stats = {
+            totalUsers,
+            activeUsers,
+            totalChannels,
+            hotChannels,
+            totalSubscriptions,
+            todaySubscriptions,
+            pendingPrizes,
+            pendingCertificates
+        };
+
+        res.json(stats);
+    } catch (error) {
+        console.error('❌ Ошибка получения статистики админом:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Получение списка каналов
+app.get('/api/admin/channels', requireAdmin, async (req, res) => {
+    try {
+        console.log('📺 Админ: запрос списка каналов');
+
+        const channels = await new Promise((resolve, reject) => {
+            db.db.all(`
+                SELECT pc.*,
+                       COUNT(ucs.id) as current_subscribers
+                FROM partner_channels pc
+                LEFT JOIN user_channel_subscriptions ucs ON pc.id = ucs.channel_id AND ucs.is_active = 1
+                GROUP BY pc.id
+                ORDER BY pc.created_date DESC
+            `, (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
+
+        res.json(channels);
+    } catch (error) {
+        console.error('❌ Ошибка получения каналов:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Добавление нового канала
+app.post('/api/admin/channels', requireAdmin, async (req, res) => {
+    try {
+        const {
+            channel_username,
+            channel_name,
+            reward_stars,
+            placement_type,
+            placement_duration,
+            subscribers_target,
+            is_hot_offer
+        } = req.body;
+
+        console.log(`📺 Админ: добавление канала @${channel_username}`);
+
+        // Вычисляем end_date
+        let endDate = null;
+        if (placement_type === 'time') {
+            endDate = new Date(Date.now() + (placement_duration * 60 * 60 * 1000)).toISOString();
+        }
+
+        const channelId = await new Promise((resolve, reject) => {
+            db.db.run(`
+                INSERT INTO partner_channels (
+                    channel_username, channel_name, reward_stars, placement_type,
+                    placement_duration, target_subscribers, is_hot_offer, end_date
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `, [
+                channel_username, channel_name, reward_stars, placement_type,
+                placement_duration, subscribers_target, is_hot_offer ? 1 : 0, endDate
+            ], function(err) {
+                if (err) reject(err);
+                else resolve(this.lastID);
+            });
+        });
+
+        res.json({ success: true, id: channelId });
+    } catch (error) {
+        console.error('❌ Ошибка добавления канала:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Переключение горячего предложения
+app.patch('/api/admin/channels/:id/hot-offer', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { is_hot_offer } = req.body;
+
+        console.log(`🔥 Админ: изменение горячего предложения канала ${id} на ${is_hot_offer}`);
+
+        await new Promise((resolve, reject) => {
+            db.db.run(
+                'UPDATE partner_channels SET is_hot_offer = ? WHERE id = ?',
+                [is_hot_offer ? 1 : 0, id],
+                (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Ошибка изменения горячего предложения:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Деактивация канала
+app.delete('/api/admin/channels/:id', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        console.log(`❌ Админ: деактивация канала ${id}`);
+
+        await new Promise((resolve, reject) => {
+            db.db.run(
+                'UPDATE partner_channels SET is_active = 0 WHERE id = ?',
+                [id],
+                (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Ошибка деактивации канала:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Получение призов ожидающих выдачи
+app.get('/api/admin/pending-prizes', requireAdmin, async (req, res) => {
+    try {
+        console.log('🎁 Админ: запрос призов ожидающих выдачи');
+
+        const prizes = await new Promise((resolve, reject) => {
+            db.db.all(`
+                SELECT p.*, u.first_name as user_name, u.username, u.telegram_id as user_telegram_id
+                FROM prizes p
+                JOIN users u ON p.user_id = u.id
+                WHERE p.is_given = 0
+                ORDER BY p.created_at DESC
+            `, (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
+
+        res.json(prizes);
+    } catch (error) {
+        console.error('❌ Ошибка получения призов:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Отметка приза как выданного
+app.patch('/api/admin/prizes/:id/given', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        console.log(`✅ Админ: отметка приза ${id} как выданного`);
+
+        await new Promise((resolve, reject) => {
+            db.db.run(
+                'UPDATE prizes SET is_given = 1, given_date = CURRENT_TIMESTAMP WHERE id = ?',
+                [id],
+                (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Ошибка отметки приза:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Получение списка пользователей
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+    try {
+        console.log('👥 Админ: запрос списка пользователей');
+
+        const users = await new Promise((resolve, reject) => {
+            db.db.all(`
+                SELECT u.*,
+                       COUNT(DISTINCT ucs.id) as subscription_count,
+                       COUNT(DISTINCT p.id) as prizes_won
+                FROM users u
+                LEFT JOIN user_channel_subscriptions ucs ON u.id = ucs.user_id
+                LEFT JOIN prizes p ON u.id = p.user_id
+                GROUP BY u.id
+                ORDER BY u.created_date DESC
+                LIMIT 100
+            `, (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
+
+        res.json(users);
+    } catch (error) {
+        console.error('❌ Ошибка получения пользователей:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Получение аналитики
+app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
+    try {
+        console.log('📈 Админ: запрос аналитики');
+
+        // Подписки по дням за последние 7 дней
+        const subscriptionsData = await new Promise((resolve, reject) => {
+            db.db.all(`
+                SELECT DATE(created_date) as date, COUNT(*) as count
+                FROM user_channel_subscriptions
+                WHERE created_date > datetime('now', '-7 days')
+                GROUP BY DATE(created_date)
+                ORDER BY date
+            `, (err, rows) => {
+                if (err) reject(err);
+                else resolve({
+                    labels: rows.map(r => r.date),
+                    values: rows.map(r => r.count)
+                });
+            });
+        });
+
+        // Распределение призов
+        const prizesData = await new Promise((resolve, reject) => {
+            db.db.all(`
+                SELECT type, COUNT(*) as count
+                FROM prizes
+                GROUP BY type
+            `, (err, rows) => {
+                if (err) reject(err);
+                else resolve({
+                    labels: rows.map(r => r.type),
+                    values: rows.map(r => r.count)
+                });
+            });
+        });
+
+        res.json({
+            subscriptionsData,
+            prizesData
+        });
+    } catch (error) {
+        console.error('❌ Ошибка получения аналитики:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// === КОМАНДЫ БОТА ===
+
+if (bot) {
+    // Команда /start
+    bot.onText(/\/start/, async (msg) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+        
+        console.log(`👤 Пользователь ${userId} (${msg.from.first_name}) запустил бота`);
+        
+        try {
+            // Проверяем, существует ли пользователь
+            let user = await db.getUser(userId);
+            
+            if (!user) {
+                // Создаем нового пользователя
+                console.log(`🆕 Создаем нового пользователя: ${userId}`);
+                await db.createUser({
+                    telegram_id: userId,
+                    username: msg.from.username || '',
+                    first_name: msg.from.first_name || 'Пользователь',
+                    last_name: msg.from.last_name || ''
+                });
+                
+                // Проверяем, что пользователь создан
+                user = await db.getUser(userId);
+                if (user) {
+                    console.log(`✅ Пользователь ${userId} успешно создан с ID: ${user.id}`);
+                } else {
+                    console.error(`❌ Не удалось создать пользователя ${userId}`);
+                    bot.sendMessage(chatId, '❌ Ошибка создания профиля. Попробуйте позже.');
+                    return;
+                }
+            } else {
+                // Обновляем данные и активность существующего пользователя
+                console.log(`🔄 Пользователь ${userId} вернулся (БД ID: ${user.id})`);
+                
+                // Обновляем профиль если изменились данные
+                if (user.first_name !== msg.from.first_name || 
+                    user.username !== (msg.from.username || '')) {
+                    await db.updateUserProfile(userId, {
+                        username: msg.from.username || '',
+                        first_name: msg.from.first_name || 'Пользователь',
+                        last_name: msg.from.last_name || ''
+                    });
+                    console.log(`📝 Обновлен профиль пользователя ${userId}`);
+                }
+                
+                await db.updateUserActivity(userId);
+            }
+        } catch (error) {
+            console.error('❌ Ошибка обработки пользователя:', error);
+            bot.sendMessage(chatId, '❌ Ошибка обработки профиля. Попробуйте позже.');
+            return;
+        }
+        
+        const welcomeMessage = `🎰 *Добро пожаловать в Kosmetichka Lottery Bot\\!*
+
+💄 *Специально для девушек\\!*
+🌸 Крути рулетку и выигрывай призы\\!
+💎 Выполняй задания за кристаллы
+🏆 Соревнуйся в таблице лидеров
+👥 Приглашай друзей и получай бонусы
+
+✨ *Призы:*
+🍎 Сертификаты в Золотое яблоко
+🚚 Доставка Dolce Deals
+💎 Кристаллы и бонусы
+
+📱 *Подписывайся на @dolcedeals для скидок\\!*
+
+Нажми кнопку ниже, чтобы начать играть\\! ⬇️`;
+        
+        const keyboard = {
+            inline_keyboard: [
+                [
+                    {
+                        text: '🎰 Запустить Kosmetichka Lottery',
+                        web_app: { url: WEBAPP_URL }
+                    }
+                ],
+                [
+                    { text: '📊 Моя статистика', callback_data: 'stats' },
+                    { text: '🎁 Мои призы', callback_data: 'prizes' }
+                ],
+                [
+                    { text: '💎 Промокод', callback_data: 'promo' },
+                    { text: '👥 Пригласить друзей', callback_data: 'invite' }
+                ]
+            ]
+        };
+        
+        bot.sendMessage(chatId, welcomeMessage, { 
+            reply_markup: keyboard,
+            parse_mode: 'MarkdownV2'
+        });
+    });
+
+    // Команда /test для отладки
+    bot.onText(/\/test/, (msg) => {
+        const chatId = msg.chat.id;
+        bot.sendMessage(chatId, `🧪 *Тестирование бота*\n\n🌐 WebApp URL: \`${WEBAPP_URL}\`\n⚡ Статус: Работает`, {
+            parse_mode: 'MarkdownV2'
+        });
+    });
+
+    // Команда /admin для доступа к панели управления
+    bot.onText(/\/admin/, async (msg) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+        
+        console.log(`👑 Запрос админки от пользователя ${userId}`);
+        
+        // Проверяем права админа (список ID админов)
+        const adminIds = [
+            parseInt(process.env.ADMIN_ID) || 0,
+            // Добавьте сюда ID других админов
+        ];
+        
+        if (!adminIds.includes(userId)) {
+            await bot.sendMessage(chatId, '❌ У вас нет прав для доступа к админ-панели.');
+            return;
+        }
+        
+        const serverUrl = process.env.SERVER_URL || 'http://localhost:3000';
+        const adminUrl = `${serverUrl}/admin`;
+        
+        await bot.sendMessage(
+            chatId,
+            `👑 **Админ-панель Kosmetichka Lottery**\n\n` +
+            `🔗 [Открыть панель управления](${adminUrl})\n\n` +
+            `📊 Функции админки:\n` +
+            `• Управление каналами\n` +
+            `• Просмотр призов для выдачи\n` +
+            `• Статистика пользователей\n` +
+            `• Аналитика и графики\n` +
+            `• Системные настройки\n\n` +
+            `⚡ Обновляется в реальном времени`,
+            { 
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [[
+                        { text: '🚀 Открыть админку', url: adminUrl }
+                    ]]
+                }
+            }
+        );
+    });
+
+    // Команда /stats
+    bot.onText(/\/stats/, async (msg) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+        
+        try {
+            const user = await db.getUser(userId);
+            
+            if (!user) {
+                bot.sendMessage(chatId, '❌ Сначала запустите бота командой /start');
+                return;
+            }
+            
+            const registrationDate = new Date(user.join_date).toLocaleDateString('ru-RU');
+            
+            const message = `
+👤 **Ваш профиль:**
+
+🆔 ID: ${userId}
+📅 Дата регистрации: ${registrationDate}
+
+📊 **Статистика:**
+🎰 Прокруток: ${user.total_spins || 0}
+🎁 Призов: ${user.prizes_won || 0}
+⭐ Звезд: ${user.stars || 20}
+👥 Рефералов: ${user.referrals || 0}
+
+🎮 Играйте больше, чтобы улучшить статистику!
+            `;
+            
+            bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } catch (error) {
+            console.error('❌ Ошибка получения статистики:', error);
+            bot.sendMessage(chatId, '❌ Ошибка получения статистики');
+        }
+    });
+
+    // Команда /promo для промокодов
+    bot.onText(/\/promo (.+)/, async (msg, match) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+        const promoCode = match[1].toUpperCase();
+        
+        try {
+            const user = await db.getUser(userId);
+            if (!user) {
+                bot.sendMessage(chatId, '❌ Сначала запустите бота командой /start');
+                return;
+            }
+            
+            const promo = PROMO_CODES[promoCode];
+            if (!promo) {
+                bot.sendMessage(chatId, '❌ Промокод не найден или недействителен');
+                return;
+            }
+            
+            if (promo.used.has(userId)) {
+                bot.sendMessage(chatId, '❌ Вы уже использовали этот промокод');
+                return;
+            }
+            
+            // Активируем промокод
+            promo.used.add(userId);
+            
+            // Обновляем звезды в базе данных
+            await db.updateUserStars(userId, promo.crystals);
+            
+            bot.sendMessage(chatId, `✅ Промокод активирован!\n⭐ Получено ${promo.crystals} звезд`);
+            
+            // Уведомляем админов
+            notifyAdmins(`Пользователь ${user.first_name} (${userId}) активировал промокод ${promoCode}`);
+        } catch (error) {
+            console.error('❌ Ошибка активации промокода:', error);
+            bot.sendMessage(chatId, '❌ Ошибка активации промокода');
+        }
+    });
+
+    // Команда /help
+    bot.onText(/\/help/, (msg) => {
+        const chatId = msg.chat.id;
+        const helpMessage = `
+🤖 **Помощь по Kosmetichka Lottery Bot**
+
+🎰 **Основные команды:**
+/start - Запустить бота
+/stats - Показать статистику
+/balance - Мой баланс звезд
+/deposit - Пополнить звезды
+/promo <код> - Активировать промокод
+/help - Эта справка
+
+🎯 **Как играть:**
+1. Нажмите "Запустить Kosmetichka Lottery"
+2. Крутите рулетку за звезды (20 ⭐ за прокрутку)
+3. Выполняйте задания для получения звезд
+4. Приглашайте друзей за бонусы
+
+⭐ **Звезды:**
+• Получайте за выполнение заданий
+• Тратьте на прокрутки рулетки
+• Зарабатывайте за приглашение друзей
+• Пополняйте через Telegram Stars
+
+🎁 **Призы:**
+• Сертификаты в Золотое яблоко
+• Доставка Dolce Deals
+• Дополнительные звезды
+
+📱 **Подписывайтесь на @dolcedeals для скидок!**
+
+❓ Есть вопросы? Пишите в поддержку.
+        `;
+        
+        bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+    });
+
+    // Команда /testprize для тестирования сохранения призов
+    bot.onText(/\/testprize/, async (msg) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+        
+        try {
+            const user = await db.getUser(userId);
+            if (!user) {
+                bot.sendMessage(chatId, '❌ Сначала запустите бота командой /start');
+                return;
+            }
+            
+            // Создаем тестовый приз
+            const testPrize = {
+                type: 'stars-50',
+                name: '⭐ 50 звезд (тест)',
+                value: 50,
+                description: 'Тестовый приз для проверки БД'
+            };
+            
+            console.log(`🧪 Создание тестового приза для пользователя ${userId}`);
+            
+            // Сохраняем приз через транзакцию
+            await db.addUserPrizeWithTransaction(userId, testPrize, 'test');
+            
+            // Проверяем, что приз сохранился
+            const prizes = await db.getUserPrizes(userId);
+            
+            bot.sendMessage(chatId, `✅ Тестовый приз добавлен!\n\nТеперь у вас ${prizes.length} призов в БД.\n\nПопробуйте нажать кнопку "🎁 Мои призы"`);
+            
+        } catch (error) {
+            console.error('❌ Ошибка тестирования:', error);
+            bot.sendMessage(chatId, '❌ Ошибка при добавлении тестового приза');
+        }
+    });
+
+    // Команда /debug для отладки (временная)
+    bot.onText(/\/debug/, async (msg) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+        
+        try {
+            console.log(`🔍 Debug запрос от пользователя ${userId}`);
+            
+            const user = await db.getUser(userId);
+            console.log('👤 Данные пользователя:', user);
+            
+            const prizes = await db.getUserPrizes(userId);
+            console.log(`🎁 Количество призов: ${prizes ? prizes.length : 0}`);
+            
+            // Проверяем общее количество пользователей в БД
+            const allUsersCount = await new Promise((resolve) => {
+                db.db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
+                    resolve(row ? row.count : 0);
+                });
+            });
+            
+            // Проверяем общее количество призов в БД
+            const allPrizesCount = await new Promise((resolve) => {
+                db.db.get('SELECT COUNT(*) as count FROM user_prizes', (err, row) => {
+                    resolve(row ? row.count : 0);
+                });
+            });
+            
+            // Проверяем последние записи в spin_history
+            const lastSpins = await new Promise((resolve) => {
+                db.db.all('SELECT * FROM spin_history ORDER BY spin_date DESC LIMIT 5', (err, rows) => {
+                    resolve(rows || []);
+                });
+            });
+            
+            const debugMessage = `
+🔍 **Отладочная информация:**
+
+👤 **Пользователь в БД:** ${user ? 'Да' : 'Нет'}
+🆔 **Ваш Telegram ID:** ${userId}
+${user ? `
+📊 **Статистика:**
+⭐ Звезд: ${user.stars}
+🎯 Прокруток: ${user.total_spins}
+🎁 Призов: ${user.prizes_won}
+📅 Регистрация: ${new Date(user.join_date).toLocaleDateString('ru-RU')}
+` : ''}
+
+🎁 **Призы в БД:** ${prizes ? prizes.length : 0}
+${prizes && prizes.length > 0 ? `
+Последние призы:
+${prizes.slice(0, 3).map((p, i) => `${i+1}. ${p.prize_name}`).join('\n')}
+` : ''}
+
+📊 **Общая статистика БД:**
+👥 Всего пользователей: ${allUsersCount}
+🎁 Всего призов: ${allPrizesCount}
+
+🕐 **Последние прокрутки:**
+${lastSpins.length > 0 ? lastSpins.map((spin, i) => 
+    `${i+1}. User ID: ${spin.user_id}, Prize: ${spin.won_prize || 'none'}`
+).join('\n') : 'Нет записей'}
+            `;
+            
+            bot.sendMessage(chatId, debugMessage, { parse_mode: 'Markdown' });
+        } catch (error) {
+            console.error('❌ Ошибка отладки:', error);
+            bot.sendMessage(chatId, '❌ Ошибка при получении отладочных данных');
+        }
+    });
+
+    // Топ игроков
+    bot.onText(/\/top/, async (msg) => {
+        const chatId = msg.chat.id;
+        
+        try {
+            // Обновляем лидерборд
+            await db.updateLeaderboard();
+            
+            // Получаем топ игроков
+            const topUsers = await db.getLeaderboard(10);
+            
+            if (topUsers.length === 0) {
+                bot.sendMessage(chatId, '📊 Пока нет активных игроков. Будьте первым!');
+                return;
+            }
+            
+            let message = '🏆 **Топ-10 игроков:**\n\n';
+            
+            topUsers.forEach((user, index) => {
+                const position = index + 1;
+                const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : `${position}.`;
+                const name = user.first_name || 'Игрок';
+                const stars = user.total_stars || 0;
+                const prizes = user.total_prizes || 0;
+                
+                message += `${medal} ${name} - ${stars} ⭐, ${prizes} призов\n`;
+            });
+            
+            bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } catch (error) {
+            console.error('❌ Ошибка получения топа:', error);
+            bot.sendMessage(chatId, '❌ Ошибка получения топа игроков');
+        }
+    });
+
+    // Обработка callback кнопок
+    bot.on('callback_query', async (query) => {
+        const chatId = query.message.chat.id;
+        const userId = query.from.id;
+        const data = query.data;
+        
+        await bot.answerCallbackQuery(query.id);
+        
+        try {
+            const user = await db.getUser(userId);
+            
+            switch (data) {
+                case 'stats':
+                    if (user) {
+                        bot.sendMessage(chatId, `📊 **Ваша статистика:**\n\n🎰 Прокруток: ${user.total_spins || 0}\n🎁 Призов: ${user.prizes_won || 0}\n⭐ Звезд: ${user.stars || 20}`, {
+                            parse_mode: 'Markdown'
+                        });
+                    } else {
+                        bot.sendMessage(chatId, '📊 Сначала запустите бота командой /start');
+                    }
+                    break;
+                    
+                case 'prizes':
+                    if (user) {
+                        console.log(`🔍 Запрос призов для пользователя ${userId}`);
+                        const prizes = await db.getUserPrizes(userId);
+                        console.log(`📦 Найдено призов в БД: ${prizes ? prizes.length : 0}`);
+                        
+                        if (prizes && prizes.length > 0) {
+                            let message = '🎁 **Ваши призы:**\n\n';
+                            
+                            // Показываем до 15 призов с подробной информацией
+                            prizes.slice(0, 15).forEach((prize, index) => {
+                                const date = new Date(prize.won_date).toLocaleDateString('ru-RU');
+                                const claimed = prize.is_claimed ? '✅' : '⏳';
+                                
+                                message += `${index + 1}. **${prize.prize_name}** ${claimed}\n`;
+                                if (prize.prize_value) {
+                                    message += `   💰 Стоимость: ${prize.prize_value}\n`;
+                                }
+                                message += `   📅 Выиграно: ${date}\n\n`;
+                            });
+                            
+                            if (prizes.length > 15) {
+                                message += `... и еще ${prizes.length - 15} призов\n\n`;
+                            }
+                            
+                            message += '💡 Откройте мини-приложение для управления всеми призами.';
+                            
+                            const keyboard = {
+                                inline_keyboard: [[
+                                    { text: '🎮 Открыть приложение', web_app: { url: WEBAPP_URL } }
+                                ]]
+                            };
+                            
+                            bot.sendMessage(chatId, message, { 
+                                parse_mode: 'Markdown',
+                                reply_markup: keyboard
+                            });
+                        } else {
+                            bot.sendMessage(chatId, '📦 У вас пока нет призов.\n\n🎮 Откройте мини-приложение и крутите рулетку!', {
+                                reply_markup: {
+                                    inline_keyboard: [[
+                                        { text: '🎰 Играть', web_app: { url: WEBAPP_URL } }
+                                    ]]
+                                }
+                            });
+                        }
+                    } else {
+                        bot.sendMessage(chatId, '🎁 Сначала запустите бота командой /start');
+                    }
+                    break;
+                
+            case 'promo':
+                bot.sendMessage(chatId, '💎 **Введите промокод:**\n\nОтправьте команду: `/promo ВАШ_КОД`\n\nПример: `/promo WELCOME2024`', {
+                    parse_mode: 'Markdown'
+                });
+                break;
+                
+            case 'invite':
+                const shareText = '🎰 Привет! Присоединяйся к Kosmetichka Lottery Bot - крути рулетку и выигрывай призы! 💄✨';
+                const botUrl = `https://t.me/${BOT_USERNAME}`;
+                const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botUrl)}&text=${encodeURIComponent(shareText)}`;
+                
+                const inviteKeyboard = {
+                    inline_keyboard: [
+                        [
+                            {
+                                text: '👥 Пригласить друзей',
+                                url: shareUrl
+                            }
+                        ]
+                    ]
+                };
+                
+                bot.sendMessage(chatId, '👥 **Приглашайте друзей и получайте бонусы!**\n\nЗа каждого приглашенного друга вы получите:\n• 50 ⭐ звезд\n• Дополнительные бонусы\n\nНажмите кнопку ниже, чтобы поделиться ботом:', {
+                    reply_markup: inviteKeyboard,
+                    parse_mode: 'Markdown'
+                });
+                break;
+            }
+        } catch (error) {
+            console.error('❌ Ошибка callback query:', error);
+            bot.sendMessage(chatId, '❌ Произошла ошибка');
+        }
+    });
+
+    // Обработка ошибок бота
+    bot.on('error', (error) => {
+        // Фильтруем и показываем только важные ошибки
+        if (error.code === 'ETELEGRAM') {
+            console.error('❌ Ошибка Telegram API:', error.message);
+        } else {
+            console.error('❌ Ошибка бота:', error.message);
+        }
+        
+        // Подробности только в режиме отладки
+        if (DEBUG_MODE) {
+            console.error('🐛 Подробности ошибки:', error);
+        }
+    });
+
+    bot.on('polling_error', (error) => {
+        // Фильтруем подробности и показываем только суть
+        if (error.code === 'ETELEGRAM') {
+            console.error('❌ Ошибка polling:', error.message);
+            
+            // Если это конфликт 409, пытаемся переподключиться
+            if (error.message.includes('409')) {
+                console.log('🔄 Обнаружен конфликт polling, попытка переподключения...');
+                botPolling = false;
+                
+                // Ждем и пытаемся переподключиться
+                setTimeout(() => {
+                    startPolling();
+                }, 10000); // 10 секунд
+            }
+        } else {
+            console.error('❌ Ошибка polling:', error.message);
+        }
+        
+        // Подробности только в режиме отладки
+        if (DEBUG_MODE) {
+            console.error('🐛 Подробности ошибки polling:', error);
+        }
+    });
+
+    // Статистика для администратора
+    bot.onText(/\/admin_stats/, (msg) => {
+        const userId = msg.from.id;
+        
+        if (!ADMIN_IDS.includes(userId)) {
+            bot.sendMessage(msg.chat.id, '❌ Недостаточно прав');
+            return;
+        }
+        
+        const totalUsers = users.size;
+        const activeUsers = Array.from(users.values()).filter(u => u.webapp_data).length;
+        const totalSpins = Array.from(users.values())
+            .reduce((sum, u) => sum + (u.webapp_data?.stats?.totalSpins || 0), 0);
+        
+        const message = `
+📊 **Статистика бота:**
+
+👥 Всего пользователей: ${totalUsers}
+🎮 Активных игроков: ${activeUsers}
+🎰 Всего прокруток: ${totalSpins}
+📅 Дата: ${new Date().toLocaleDateString('ru-RU')}
+        `;
+        
+        bot.sendMessage(msg.chat.id, message, { parse_mode: 'Markdown' });
+    });
+
+    // Рассылка (только для админов)
+    bot.onText(/\/broadcast (.+)/, (msg, match) => {
+        const userId = msg.from.id;
+        
+        if (!ADMIN_IDS.includes(userId)) {
+            bot.sendMessage(msg.chat.id, '❌ Недостаточно прав');
+            return;
+        }
+        
+        const message = match[1];
+        let sent = 0;
+        
+        users.forEach(async (user) => {
+            try {
+                await bot.sendMessage(user.chat_id, `📢 ${message}`);
+                sent++;
+            } catch (error) {
+                console.log(`Ошибка отправки пользователю ${user.id}:`, error.message);
+            }
+        });
+        
+        bot.sendMessage(msg.chat.id, `✅ Рассылка отправлена ${sent} пользователям`);
+    });
+
+    // ===== КОМАНДЫ ДЛЯ ДЕПОЗИТА TELEGRAM STARS =====
+
+    // Команда /balance - показать баланс
+    bot.onText(/\/balance/, async (msg) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+
+        try {
+            const user = await db.getUser(userId);
+            
+            if (!user) {
+                bot.sendMessage(chatId, '❌ Сначала запустите бота командой /start');
+                return;
+            }
+
+            const balance = user.stars || 0;
+            const totalEarned = user.total_stars_earned || 20;
+            const totalSpent = totalEarned - balance;
+
+            const message = `
+💰 **Ваш баланс звезд**
+
+⭐ Текущий баланс: **${balance} звезд**
+📈 Всего заработано: **${totalEarned} звезд**
+📉 Всего потрачено: **${totalSpent} звезд**
+
+💡 Используйте /deposit для пополнения баланса
+🎰 20 ⭐ = 1 прокрутка рулетки
+            `;
+
+            bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } catch (error) {
+            console.error('❌ Ошибка получения баланса:', error);
+            bot.sendMessage(chatId, '❌ Ошибка получения баланса');
+        }
+    });
+
+    // Команда /deposit - пополнить звезды
+    bot.onText(/\/deposit/, async (msg) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+
+        try {
+            const user = await db.getUser(userId);
+            
+            if (!user) {
+                bot.sendMessage(chatId, '❌ Сначала запустите бота командой /start');
+                return;
+            }
+
+            // Создаем кнопки для разных сумм пополнения
+            const keyboard = {
+                inline_keyboard: [
+                    [
+                        { text: '⭐ 100 звезд (100 ⭐)', callback_data: 'deposit_100' },
+                        { text: '⭐ 200 звезд (200 ⭐)', callback_data: 'deposit_200' }
+                    ],
+                    [
+                        { text: '⭐ 500 звезд (500 ⭐)', callback_data: 'deposit_500' },
+                        { text: '⭐ 1000 звезд (1000 ⭐)', callback_data: 'deposit_1000' }
+                    ],
+                    [
+                        { text: '⭐ Другая сумма', callback_data: 'deposit_custom' }
+                    ]
+                ]
+            };
+
+            const message = `
+💰 **Пополнение звезд через Telegram Stars**
+
+⭐ Telegram Stars = ⭐ Игровые звезды (1:1)
+
+🎰 20 звезд = 1 прокрутка рулетки
+🎁 Больше звезд = больше шансов на призы!
+
+Выберите сумму для пополнения:
+            `;
+
+            bot.sendMessage(chatId, message, { 
+                parse_mode: 'Markdown',
+                reply_markup: keyboard
+            });
+
+        } catch (error) {
+            console.error('❌ Ошибка команды депозита:', error);
+            bot.sendMessage(chatId, '❌ Ошибка при открытии меню пополнения');
+        }
+    });
+
+    // Обработка колбэков для депозита
+    bot.on('callback_query', async (callbackQuery) => {
+        const msg = callbackQuery.message;
+        const chatId = msg.chat.id;
+        const userId = callbackQuery.from.id;
+        const data = callbackQuery.data;
+
+        try {
+            // Депозит фиксированных сумм
+            if (data.startsWith('deposit_')) {
+                const amount = data.split('_')[1];
+                
+                if (amount === 'custom') {
+                    bot.sendMessage(chatId, `
+💰 **Пополнение на произвольную сумму**
+
+Отправьте сообщение в формате:
+\`/pay 250\` - пополнить на 250 звезд
+
+Минимум: 50 звезд
+Максимум: 2500 звезд
+                    `, { parse_mode: 'Markdown' });
+                    
+                } else {
+                    const starsAmount = parseInt(amount);
+                    await handleStarsPayment(userId, starsAmount, chatId);
+                }
+            }
+            
+            // Подтверждаем обработку колбэка
+            bot.answerCallbackQuery(callbackQuery.id);
+            
+        } catch (error) {
+            console.error('❌ Ошибка обработки колбэка:', error);
+            bot.answerCallbackQuery(callbackQuery.id, { text: 'Ошибка обработки запроса' });
+        }
+    });
+
+    // Команда /pay для произвольной суммы
+    bot.onText(/\/pay (\d+)/, async (msg, match) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+        const amount = parseInt(match[1]);
+
+        if (amount < 50 || amount > 2500) {
+            bot.sendMessage(chatId, '❌ Сумма должна быть от 50 до 2500 звезд');
+            return;
+        }
+
+        await handleStarsPayment(userId, amount, chatId);
+    });
+
+    // === API ENDPOINTS ДЛЯ ДЕПОЗИТА ===
+    
+    // Создание платежа через мини-апп
+    app.post('/api/deposit/create', async (req, res) => {
+        try {
+            const { userId, amount, userData } = req.body;
+
+            if (!userId || !amount || amount < 50 || amount > 2500) {
+                return res.json({ 
+                    success: false, 
+                    error: 'Некорректная сумма пополнения' 
+                });
+            }
+
+            // Проверяем пользователя
+            const user = await db.getUser(userId);
+            if (!user) {
+                return res.json({ 
+                    success: false, 
+                    error: 'Пользователь не найден' 
+                });
+            }
+
+            // Создаем инвойс через бота
+            if (bot) {
+                await handleStarsPayment(userId, amount, userId);
+                res.json({ 
+                    success: true, 
+                    message: 'Счет отправлен в чат с ботом' 
+                });
+            } else {
+                res.json({ 
+                    success: false, 
+                    error: 'Бот недоступен' 
+                });
+            }
+
+        } catch (error) {
+            console.error('❌ Ошибка создания депозита:', error);
+            res.json({ 
+                success: false, 
+                error: 'Ошибка сервера' 
+            });
+        }
+    });
+
+    // Получение истории транзакций пользователя
+    app.get('/api/user/:userId/transactions', async (req, res) => {
+        try {
+            const { userId } = req.params;
+            const transactions = await db.getUserTransactions(userId, 50);
+
+            res.json({
+                success: true,
+                transactions: transactions
+            });
+
+        } catch (error) {
+            console.error('❌ Ошибка получения транзакций:', error);
+            res.json({
+                success: false,
+                error: 'Ошибка получения истории транзакций'
+            });
+        }
+    });
+}
+
+// === ФУНКЦИИ ДЛЯ TELEGRAM STARS ===
+
+// Обработка платежа через Telegram Stars
+async function handleStarsPayment(userId, starsAmount, chatId) {
+    try {
+        console.log(`💰 Создание счета на ${starsAmount} звезд для пользователя ${userId}`);
+        
+        const user = await db.getUser(userId);
+        if (!user) {
+            bot.sendMessage(chatId, '❌ Пользователь не найден');
+            return;
+        }
+
+        // Создаем инвойс через Bot API
+        const invoice = {
+            title: `🎰 Kosmetichka Lottery - ${starsAmount} звезд`,
+            description: `Пополнение игрового баланса на ${starsAmount} звезд для участия в лотерее`,
+            payload: JSON.stringify({
+                userId: userId,
+                amount: starsAmount,
+                type: 'stars_deposit',
+                timestamp: Date.now()
+            }),
+            provider_token: '', // Для Telegram Stars это пустая строка
+            currency: 'XTR', // Telegram Stars currency
+            prices: [
+                {
+                    label: `⭐ ${starsAmount} игровых звезд`,
+                    amount: starsAmount // Сумма в Telegram Stars
+                }
+            ],
+            need_name: false,
+            need_phone_number: false,
+            need_email: false,
+            need_shipping_address: false,
+            send_phone_number_to_provider: false,
+            send_email_to_provider: false,
+            is_flexible: false
+        };
+
+        const message = `
+💰 **Счет на пополнение создан**
+
+⭐ Сумма: ${starsAmount} Telegram Stars
+🎰 Получите: ${starsAmount} игровых звезд
+💰 Курс: 1:1 (Telegram Stars = игровые звезды)
+
+Нажмите кнопку ниже для оплаты:
+        `;
+
+        // Отправляем инвойс
+        await bot.sendInvoice(chatId, invoice.title, invoice.description, 
+            invoice.payload, invoice.provider_token, invoice.currency, 
+            invoice.prices, {
+                need_name: invoice.need_name,
+                need_phone_number: invoice.need_phone_number,
+                need_email: invoice.need_email,
+                need_shipping_address: invoice.need_shipping_address,
+                send_phone_number_to_provider: invoice.send_phone_number_to_provider,
+                send_email_to_provider: invoice.send_email_to_provider,
+                is_flexible: invoice.is_flexible
+            });
+
+        bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+
+    } catch (error) {
+        console.error('❌ Ошибка создания платежа:', error);
+        bot.sendMessage(chatId, '❌ Ошибка создания счета для оплаты. Попробуйте позже.');
+    }
+}
+
+// Обработка pre_checkout_query (проверка перед оплатой)
+if (bot) {
+    bot.on('pre_checkout_query', async (preCheckoutQuery) => {
+        console.log('💳 Pre-checkout query получен:', preCheckoutQuery);
+        
+        try {
+            const payload = JSON.parse(preCheckoutQuery.invoice_payload);
+            
+            // Проверяем валидность платежа
+            if (payload.type === 'stars_deposit' && payload.userId && payload.amount) {
+                const user = await db.getUser(payload.userId);
+                
+                if (user) {
+                    // Одобряем платеж
+                    await bot.answerPreCheckoutQuery(preCheckoutQuery.id, true);
+                    console.log('✅ Pre-checkout одобрен');
+                } else {
+                    await bot.answerPreCheckoutQuery(preCheckoutQuery.id, false, {
+                        error_message: 'Пользователь не найден'
+                    });
+                }
+            } else {
+                await bot.answerPreCheckoutQuery(preCheckoutQuery.id, false, {
+                    error_message: 'Неверные данные платежа'
+                });
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка pre-checkout:', error);
+            await bot.answerPreCheckoutQuery(preCheckoutQuery.id, false, {
+                error_message: 'Ошибка обработки платежа'
+            });
+        }
+    });
+
+    // Обработка успешного платежа
+    bot.on('successful_payment', async (msg) => {
+        console.log('🎉 Успешный платеж получен:', msg.successful_payment);
+        
+        try {
+            const payment = msg.successful_payment;
+            const payload = JSON.parse(payment.invoice_payload);
+            const userId = payload.userId;
+            const starsAmount = payload.amount;
+            
+            // Добавляем звезды пользователю
+            await db.updateUserStars(userId, starsAmount);
+            
+            // Записываем транзакцию в БД
+            await db.addStarsTransaction({
+                user_id: userId,
+                amount: starsAmount,
+                type: 'deposit',
+                telegram_payment_id: payment.telegram_payment_charge_id,
+                provider_payment_id: payment.provider_payment_charge_id,
+                currency: payment.currency,
+                total_amount: payment.total_amount
+            });
+            
+            // Получаем обновленный баланс
+            const user = await db.getUser(userId);
+            const newBalance = user ? user.stars : 0;
+            
+            // Отправляем подтверждение пользователю
+            const confirmMessage = `
+🎉 **Пополнение выполнено успешно!**
+
+⭐ Зачислено: **${starsAmount} звезд**
+💰 Ваш баланс: **${newBalance} звезд**
+
+🎰 Теперь вы можете делать прокрутки рулетки!
+🎁 Удачи в выигрыше призов!
+            `;
+            
+            await bot.sendMessage(msg.chat.id, confirmMessage, { parse_mode: 'Markdown' });
+            
+            // Уведомляем админов о крупных пополнениях
+            if (starsAmount >= 1000) {
+                const user = await db.getUser(userId);
+                if (user) {
+                    notifyAdmins(`💰 Крупное пополнение: ${user.first_name} (${userId}) пополнил на ${starsAmount} звезд`);
+                }
+            }
+            
+            console.log(`✅ Пополнение обработано: ${userId} получил ${starsAmount} звезд`);
+            
+        } catch (error) {
+            console.error('❌ Ошибка обработки успешного платежа:', error);
+            bot.sendMessage(msg.chat.id, '❌ Ошибка при зачислении звезд. Обратитесь в поддержку.');
+        }
+    });
+}
+
+// === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
+
+// Создание базового HTML если файл отсутствует
+function createBasicHTML() {
+    return `<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kosmetichka Lottery Bot</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #EF55A5 0%, #809EFF 50%, #CCD537 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            text-align: center;
+            max-width: 400px;
+            background: rgba(0,0,0,0.3);
+            padding: 40px 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #fff, #CCD537);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .emoji { font-size: 48px; margin-bottom: 20px; }
+        .button {
+            background: linear-gradient(45deg, #EF55A5, #FF6B9D);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.2s;
+        }
+        .button:hover { transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="emoji">🎰</div>
+        <h1>Kosmetichka Lottery</h1>
+        <p>✨ Добро пожаловать в мир красоты и призов!</p>
+        <button class="button" onclick="initApp()">🚀 Запустить приложение</button>
+        <div id="status" style="margin-top: 20px; font-size: 14px;"></div>
+    </div>
+    <script>
+        function initApp() {
+            const tg = window.Telegram?.WebApp;
+            if (tg) {
+                tg.ready();
+                tg.expand();
+                document.getElementById('status').innerHTML = '✅ Приложение инициализировано!';
+                console.log('WebApp готов к работе');
+            } else {
+                document.getElementById('status').innerHTML = '⚠️ Откройте через Telegram бота';
+            }
+        }
+        window.addEventListener('load', () => {
+            console.log('🚀 Kosmetichka Lottery загружено');
+            const tg = window.Telegram?.WebApp;
+            if (tg) {
+                initApp();
+            }
+        });
+    </script>
+</body>
+</html>`;
+}
+
+// Обработка прокрутки рулетки
+async function handleWheelSpin(userId, data) {
+    try {
+        console.log('🎰 HANDLE_WHEEL_SPIN - Начало обработки:', {
+            userId: userId,
+            hasData: !!data,
+            hasPrize: !!data?.prize,
+            prizeType: data?.prize?.type,
+            prizeName: data?.prize?.name,
+            spinType: data?.spinType
+        });
+        
+        let user = await db.getUser(userId);
+        
+        // Если пользователя нет в БД - создаем его
+        if (!user) {
+            console.log(`👤 Создание пользователя ${userId} при прокрутке рулетки`);
+            
+            const userData = {
+                telegram_id: userId,
+                username: data.user?.username || '',
+                first_name: data.user?.first_name || 'Пользователь',
+                last_name: data.user?.last_name || ''
+            };
+            
+            await db.createUser(userData);
+            user = await db.getUser(userId);
+            
+            if (!user) {
+                console.error('❌ Не удалось создать пользователя');
+                return;
+            }
+        }
+        
+        console.log(`🎰 Пользователь ${userId} крутит рулетку`);
+        console.log('🎁 Данные приза:', JSON.stringify(data.prize, null, 2));
+        
+        // Обновляем статистику прокруток
+        await db.updateUserSpinStats(userId);
+        console.log('✅ Статистика прокруток обновлена');
+        
+        // Обрабатываем приз
+        if (data.prize) {
+            if (data.prize.type !== 'empty') {
+                console.log('🏆 Обрабатываем выигрышный приз с транзакцией');
+                
+                // Используем безопасную транзакцию для добавления приза
+                await db.addUserPrizeWithTransaction(userId, data.prize, data.spinType || 'normal');
+                console.log('✅ Приз добавлен в БД с транзакцией');
+                
+                // Если это звезды - обновляем баланс
+                if (data.prize.type.includes('stars')) {
+                    const starsAmount = data.prize.value || 0;
+                    await db.updateUserStars(userId, starsAmount);
+                }
+                
+                // Отправляем уведомление в телеграм
+                if (bot) {
+                    try {
+                        await bot.sendMessage(userId, `🎉 Поздравляем!\n🎁 Вы выиграли: ${data.prize.description || data.prize.name}!`);
+                        
+                        // Уведомляем админов о крупных призах (сертификаты)
+                        if (data.prize.type.includes('golden-apple') || data.prize.type.includes('dolce')) {
+                            notifyAdmins(`🎉 Пользователь ${user.first_name} (${userId}) выиграл: ${data.prize.name}`);
+                        }
+                    } catch (error) {
+                        console.error('Ошибка отправки уведомления:', error);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('❌ Ошибка обработки прокрутки:', error);
+    }
+}
+
+// Обработка выполнения задания
+async function handleTaskCompleted(userId, data) {
+    try {
+        const user = await db.getUser(userId);
+        if (!user) return;
+        
+        console.log(`✅ Пользователь ${userId} выполнил задание: ${data.taskId}`);
+        
+        // Пробуем добавить задание как выполненное
+        const taskAdded = await db.completeTask(userId, data);
+        
+        if (taskAdded) {
+            // Обновляем звезды пользователя
+            const rewardAmount = data.reward?.amount || 0;
+            if (rewardAmount > 0) {
+                await db.updateUserStars(userId, rewardAmount);
+            }
+            
+            // Отправляем уведомление
+            if (bot) {
+                try {
+                    await bot.sendMessage(userId, `✅ Задание выполнено!\n⭐ Получено ${rewardAmount} звезд`);
+                } catch (error) {
+                    console.error('Ошибка отправки уведомления:', error);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('❌ Ошибка обработки задания:', error);
+    }
+}
+
+// Обработка подписки на канал
+async function handleChannelSubscription(userId, data) {
+    try {
+        const user = await db.getUser(userId);
+        if (!user) return;
+        
+        console.log(`📱 Пользователь ${userId} подписался на канал: ${data.channel}`);
+        
+        // Определяем поле для обновления подписки
+        let channelField;
+        let bonus = 50;
+        
+        switch (data.channel) {
+            case 'kosmetichka_channel':
+                channelField = 'is_subscribed_channel1';
+                bonus = 50;
+                break;
+            case 'kosmetichka_instagram':
+                channelField = 'is_subscribed_channel2';
+                bonus = 50;
+                break;
+            case 'dolcedeals':
+                channelField = 'is_subscribed_dolcedeals';
+                bonus = 75;
+                break;
+            default:
+                console.log(`❓ Неизвестный канал: ${data.channel}`);
+                return;
+        }
+        
+        // Обновляем статус подписки
+        await db.updateUserSubscription(userId, channelField, true);
+        
+        // Даем бонус за подписку
+        await db.updateUserStars(userId, bonus);
+        
+        if (bot) {
+            try {
+                await bot.sendMessage(userId, `📱 Спасибо за подписку на канал!\n⭐ Получено ${bonus} звезд`);
+            } catch (error) {
+                console.error('Ошибка отправки уведомления:', error);
+            }
+        }
+    } catch (error) {
+        console.error('❌ Ошибка обработки подписки:', error);
+    }
+}
+
+// Синхронизация данных пользователя
+async function syncUserData(userId, webAppData) {
+    try {
+        let user = await db.getUser(userId);
+        
+        // Если пользователя нет в БД - создаем его
+        if (!user) {
+            console.log(`👤 Создание нового пользователя ${userId} через веб-приложение`);
+            
+            // Берем данные из Telegram WebApp если есть
+            const telegramUser = webAppData.userData?.user || webAppData.user || {};
+            const userData = {
+                telegram_id: userId,
+                username: telegramUser.username || '',
+                first_name: telegramUser.first_name || 'Пользователь',
+                last_name: telegramUser.last_name || ''
+            };
+            
+            await db.createUser(userData);
+            user = await db.getUser(userId);
+            
+            if (!user) {
+                console.error('❌ Не удалось создать пользователя');
+                return webAppData;
+            }
+        }
+        
+        console.log(`🔄 Синхронизация данных пользователя ${userId}`);
+        
+        // Обновляем активность пользователя
+        await db.updateUserActivity(userId);
+        
+        // Получаем актуальные данные из базы
+        const prizes = await db.getUserPrizes(userId);
+        const completedTasks = await db.getUserCompletedTasks(userId);
+        const subscriptions = await db.getUserSubscriptions(userId);
+        
+        const syncedData = {
+            ...webAppData,
+            profile: {
+                ...webAppData.profile,
+                telegramId: userId,
+                verified: true,
+                name: user.first_name || 'Пользователь'
+            },
+            stats: {
+                stars: user.stars || 20,
+                totalSpins: user.total_spins || 0,
+                prizesWon: user.prizes_won || 0,
+                referrals: user.referrals || 0,
+                totalStarsEarned: user.total_stars_earned || 20
+            },
+            prizes: prizes || [],
+            tasks: {
+                completed: completedTasks || [],
+                subscriptions: subscriptions || {}
+            }
+        };
+        
+        return syncedData;
+    } catch (error) {
+        console.error('❌ Ошибка синхронизации:', error);
+        return webAppData;
+    }
+}
+
+// Уведомления администратора
+function notifyAdmins(message) {
+    ADMIN_IDS.forEach(adminId => {
+        if (bot) {
+            try {
+                bot.sendMessage(adminId, `🔔 ${message}`);
+            } catch (error) {
+                console.error(`Ошибка отправки админу ${adminId}:`, error);
+            }
+        }
+    });
+}
+
+// Обработка ошибок Express
+app.use((error, req, res, next) => {
+    console.error('❌ Express ошибка:', error);
+    res.status(500).json({ 
+        error: 'Внутренняя ошибка сервера', 
+        message: process.env.NODE_ENV === 'development' ? error.message : 'Что-то пошло не так'
+    });
+});
+
+// 404 handler
+app.use((req, res) => {
+    console.log(`❌ 404: ${req.method} ${req.url}`);
+    res.status(404).json({ 
+        error: 'Страница не найдена', 
+        url: req.url,
+        timestamp: new Date().toISOString()
+    });
+});
+
+// === ЗАПУСК СЕРВЕРА ===
+
+// Переменная для фоновых задач
+let backgroundTasks = null;
+
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log('\n🎉 KOSMETICHKA LOTTERY BOT ЗАПУЩЕН!');
+    console.log('=====================================');
+    console.log(`   📡 Порт: ${PORT}`);
+    console.log(`   🌐 URL: ${WEBAPP_URL}`);
+    console.log(`   🤖 Бот: ${bot ? '✅ Подключен' : '❌ Ошибка'}`);
+    console.log(`   📁 Static: ${fs.existsSync(publicPath) ? '✅' : '❌'}`);
+    console.log(`   👑 Admin: ${WEBAPP_URL}/admin`);
+    console.log(`   ⚡ Готов к работе!`);
+    console.log('\n🔗 Для тестирования:');
+    console.log(`   • Health: ${WEBAPP_URL}/health`);
+    console.log(`   • Debug: ${WEBAPP_URL}/debug`);
+    console.log('=====================================\n');
+    
+    // Запускаем фоновые задачи только если бот инициализирован
+    if (bot) {
+        try {
+            backgroundTasks = new BackgroundTaskManager(db, bot);
+            console.log('🔄 Фоновые задачи запущены');
+        } catch (error) {
+            console.error('❌ Ошибка запуска фоновых задач:', error);
+        }
+    }
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('🛑 Получен сигнал SIGTERM, завершаем работу...');
+    botPolling = false;
+    
+    if (backgroundTasks) {
+        backgroundTasks.stopAllTasks();
+    }
+    
+    server.close(() => {
+        if (bot) {
+            bot.stopPolling().catch(console.error);
+        }
+        process.exit(0);
+    });
+});
+
+process.on('SIGINT', () => {
+    console.log('\n🛑 Получен сигнал SIGINT, завершаем работу...');
+    botPolling = false;
+    
+    if (backgroundTasks) {
+        backgroundTasks.stopAllTasks();
+    }
+    
+    server.close(() => {
+        if (bot) {
+            bot.stopPolling().catch(console.error);
+        }
+        process.exit(0);
+    });
+});
+
+// Обработка необработанных ошибок
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// === ФУНКЦИИ ДЛЯ СИСТЕМЫ ЗАДАНИЙ ===
+
+// Проверка подписки пользователя на канал через Bot API
+async function checkUserChannelSubscription(userId, channelUsername) {
+    try {
+        console.log(`🔍 Проверка подписки пользователя ${userId} на канал @${channelUsername}`);
+        
+        // Добавляем @ если его нет
+        const channelId = channelUsername.startsWith('@') ? channelUsername : `@${channelUsername}`;
+        
+        const chatMember = await bot.getChatMember(channelId, userId);
+        console.log(`📋 Статус пользователя ${userId} в канале ${channelId}:`, chatMember.status);
+        
+        // Проверяем статус участника
+        const isSubscribed = ['creator', 'administrator', 'member'].includes(chatMember.status);
+        
+        return {
+            isSubscribed: isSubscribed,
+            status: chatMember.status,
+            channelId: channelId
+        };
+        
+    } catch (error) {
+        console.error(`❌ Ошибка проверки подписки на канал @${channelUsername}:`, error.message);
+        
+        // Если канал приватный или бот не админ, считаем что не подписан
+        if (error.message.includes('Bad Request: chat not found') || 
+            error.message.includes('Forbidden')) {
+            console.warn(`⚠️ Канал @${channelUsername} недоступен для проверки`);
+            return {
+                isSubscribed: false,
+                status: 'unknown',
+                error: 'channel_unavailable'
+            };
+        }
+        
+        return {
+            isSubscribed: false,
+            status: 'error',
+            error: error.message
+        };
+    }
+}
+
+// Обработка выполнения задания подписки на канал
+async function handleChannelSubscriptionTask(userId, channelId, userData) {
+    try {
+        console.log(`🎯 Обработка задания подписки: пользователь ${userId}, канал ${channelId}`);
+        
+        const user = await db.getUser(userId);
+        if (!user) {
+            console.error(`❌ Пользователь ${userId} не найден в БД`);
+            return { success: false, error: 'User not found' };
+        }
+        
+        // Проверяем, не заблокированы ли задания
+        const isBanned = await db.isUserTasksBanned(user.id);
+        if (isBanned) {
+            console.log(`⛔ Пользователь ${userId} заблокирован для выполнения заданий`);
+            return { success: false, error: 'Tasks banned' };
+        }
+        
+        // Получаем информацию о канале-партнере
+        const channels = await db.getActivePartnerChannels();
+        const channel = channels.find(c => c.id == channelId);
+        
+        if (!channel) {
+            console.error(`❌ Канал с ID ${channelId} не найден или неактивен`);
+            return { success: false, error: 'Channel not found' };
+        }
+        
+        // Проверяем, не выполнял ли уже это задание
+        const existingSubscription = await db.checkUserSubscription(user.id, channelId);
+        if (existingSubscription) {
+            console.log(`ℹ️ Пользователь ${userId} уже подписан на канал ${channel.channel_username}`);
+            return { success: false, error: 'Already subscribed' };
+        }
+        
+        // Проверяем подписку через Bot API
+        const subscriptionCheck = await checkUserChannelSubscription(userId, channel.channel_username);
+        
+        if (!subscriptionCheck.isSubscribed) {
+            console.log(`❌ Пользователь ${userId} НЕ подписан на канал @${channel.channel_username}`);
+            return { 
+                success: false, 
+                error: 'Not subscribed',
+                channelUsername: channel.channel_username
+            };
+        }
+        
+        // Рассчитываем награду (с учетом горячего предложения)
+        let rewardStars = channel.reward_stars;
+        if (channel.is_hot_offer) {
+            rewardStars = Math.floor(rewardStars * channel.hot_offer_multiplier);
+            console.log(`🔥 Горячее предложение! Награда увеличена до ${rewardStars} звезд`);
+        }
+        
+        // Сохраняем подписку в БД
+        await db.addUserChannelSubscription(user.id, channelId, rewardStars);
+        console.log(`✅ Подписка сохранена: пользователь ${userId}, канал ${channel.channel_username}`);
+        
+        // Обновляем счетчик подписчиков канала
+        await db.updatePartnerChannelSubscribers(channelId, 1);
+        
+        // Начисляем звезды пользователю
+        await db.updateUserStars(userId, rewardStars);
+        console.log(`⭐ Начислено ${rewardStars} звезд пользователю ${userId}`);
+        
+        // Проверяем и разблокируем достижения
+        const unlockedAchievements = await db.checkAndUnlockAchievements(user.id);
+        let achievementStars = 0;
+        
+        if (unlockedAchievements.length > 0) {
+            achievementStars = unlockedAchievements.reduce((sum, ach) => sum + ach.stars, 0);
+            await db.updateUserStars(userId, achievementStars);
+            console.log(`🏆 Разблокированы достижения на ${achievementStars} звезд:`, unlockedAchievements.map(a => a.key));
+        }
+        
+        // Проверяем активацию реферера (если это 2-я подписка)
+        const userSubscriptions = await db.getUserChannelSubscriptions(user.id);
+        if (userSubscriptions.length === 2 && user.referrer_id && !user.is_referrer_verified) {
+            // Активируем реферера
+            await new Promise((resolve, reject) => {
+                db.db.run(
+                    'UPDATE users SET is_referrer_verified = 1 WHERE id = ?',
+                    [user.id],
+                    (err) => err ? reject(err) : resolve()
+                );
+            });
+            
+            // Награждаем реферера 20 звездами
+            await db.updateUserStars(user.referrer_id, 20);
+            
+            console.log(`👥 Активирован реферер пользователя ${userId} после 2-й подписки, выдано 20 звезд`);
+            
+            // Отправляем уведомление рефереру
+            try {
+                const referrer = await db.getUser(user.referrer_id);
+                if (referrer) {
+                    await bot.sendMessage(
+                        referrer.telegram_id,
+                        `🎉 Ваш друг выполнил 2 подписки и активировался!\n\n+20 звезд за активного реферала!\n\nПриглашайте еще друзей и получайте больше наград! 🎁`
+                    );
+                }
+            } catch (notifyError) {
+                console.warn('⚠️ Не удалось уведомить реферера:', notifyError.message);
+            }
+        }
+        
+        // Обновляем прогресс ежедневных заданий
+        await db.updateDailyTaskProgress(user.id, 'daily_login', 1); // За выполнение любого задания
+        
+        if (channel.is_hot_offer) {
+            await db.updateDailyTaskProgress(user.id, 'daily_hot_offer', 1);
+        }
+        
+        console.log(`🎉 Задание выполнено успешно: ${rewardStars} звезд + ${achievementStars} за достижения`);
+        
+        return {
+            success: true,
+            starsEarned: rewardStars,
+            achievementStars: achievementStars,
+            achievements: unlockedAchievements,
+            channelName: channel.channel_name,
+            isHotOffer: channel.is_hot_offer
+        };
+        
+    } catch (error) {
+        console.error(`❌ Ошибка обработки задания подписки:`, error);
+        return { success: false, error: 'Internal error' };
+    }
+}
+
+// Массовая проверка подписок (для фоновых процессов)
+async function checkAllUserSubscriptions(userId) {
+    try {
+        console.log(`🔄 Массовая проверка подписок пользователя ${userId}`);
+        
+        const user = await db.getUser(userId);
+        if (!user) return;
+        
+        const userSubscriptions = await db.getUserChannelSubscriptions(user.id);
+        const violations = [];
+        
+        for (const subscription of userSubscriptions) {
+            const subscriptionAge = Date.now() - new Date(subscription.subscribed_date).getTime();
+            const minAge = 72 * 60 * 60 * 1000; // 72 часа в миллисекундах
+            
+            // Проверяем только подписки старше 72 часов
+            if (subscriptionAge >= minAge) {
+                const checkResult = await checkUserChannelSubscription(
+                    user.telegram_id, 
+                    subscription.channel_username
+                );
+                
+                if (!checkResult.isSubscribed) {
+                    console.log(`❌ Пользователь ${userId} отписался от канала @${subscription.channel_username}`);
+                    violations.push({
+                        channelId: subscription.channel_id,
+                        channelUsername: subscription.channel_username,
+                        subscriptionDate: subscription.subscribed_date
+                    });
+                }
+            }
+        }
+        
+        // Обрабатываем нарушения
+        if (violations.length > 0) {
+            await handleSubscriptionViolations(user, violations);
+        }
+        
+        return violations.length;
+        
+    } catch (error) {
+        console.error(`❌ Ошибка массовой проверки подписок пользователя ${userId}:`, error);
+        return -1;
+    }
+}
+
+// Обработка нарушений подписок
+async function handleSubscriptionViolations(user, violations) {
+    try {
+        console.log(`⚠️ Обработка ${violations.length} нарушений пользователя ${user.telegram_id}`);
+        
+        const currentViolationCount = user.violation_count || 0;
+        let penaltyHours = 12; // По умолчанию 12 часов (уменьшено)
+        
+        // Рассчитываем штраф по прогрессии (уменьшено)
+        if (currentViolationCount === 0) {
+            penaltyHours = 12; // 1-е нарушение - 12 часов
+        } else if (currentViolationCount === 1) {
+            penaltyHours = 24; // 2-е нарушение - 1 день
+        } else {
+            penaltyHours = 72; // 3+ нарушений - 3 дня
+        }
+        
+        // Записываем нарушения в БД
+        for (const violation of violations) {
+            await db.addSubscriptionViolation(
+                user.id, 
+                violation.channelId, 
+                'early_unsubscribe', 
+                penaltyHours
+            );
+            
+            // Деактивируем подписку
+            await new Promise((resolve, reject) => {
+                db.db.run(
+                    'UPDATE user_channel_subscriptions SET is_active = 0, unsubscribed_date = CURRENT_TIMESTAMP WHERE user_id = ? AND channel_id = ?',
+                    [user.id, violation.channelId],
+                    (err) => err ? reject(err) : resolve()
+                );
+            });
+        }
+        
+        // Применяем бан на задания
+        await db.updateUserTasksBan(user.id, penaltyHours);
+        
+        // Уведомляем пользователя
+        const violationsList = violations.map(v => `@${v.channelUsername}`).join(', ');
+        let penaltyText = '';
+        
+        if (penaltyHours === 12) {
+            penaltyText = '12 часов';
+        } else if (penaltyHours === 24) {
+            penaltyText = '1 день';
+        } else {
+            penaltyText = '3 дня';
+        }
+        
+        try {
+            await bot.sendMessage(
+                user.telegram_id,
+                `⚠️ **Нарушение правил подписок**\n\n` +
+                `Вы отписались от каналов: ${violationsList}\n` +
+                `до истечения минимального срока подписки (72 часа).\n\n` +
+                `**Блокировка заданий на ${penaltyText}**\n\n` +
+                `Повторные нарушения приведут к увеличению срока блокировки.\n\n` +
+                `⚡ Подпишитесь обратно, чтобы избежать штрафов в будущем.`,
+                { parse_mode: 'Markdown' }
+            );
+        } catch (notifyError) {
+            console.warn('⚠️ Не удалось уведомить о нарушении:', notifyError.message);
+        }
+        
+        console.log(`🚫 Применен бан на ${penaltyHours} часов для пользователя ${user.telegram_id}`);
+        
+    } catch (error) {
+        console.error('❌ Ошибка обработки нарушений подписок:', error);
+    }
+}
+
+process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception:', error);
+    process.exit(1);
+});
+
+console.log('🚀 Kosmetichka Lottery Bot инициализация завершена!');
+
+// Запускаем polling после инициализации сервера
+setTimeout(() => {
+    startPolling();
+}, 2000); // Ждем 2 секунды после запуска сервера
