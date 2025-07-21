@@ -245,7 +245,7 @@ export class ProfileScreen {
             'beauty_set': '💄',
             'jewelry': '💎',
             'empty': '🌟'
-        };
+        }; 
         
         return icons[prizeType] || '🎁';
     }
