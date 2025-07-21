@@ -95,6 +95,66 @@ body {
 }
 
 /* ========================================
+   ЯРКИЙ ФОН ДЛЯ ГЛАВНОГО ЭКРАНА
+   ======================================== */
+
+#main-screen {
+    position: relative;
+    /* Добавляем яркий анимированный фон с радиальными градиентами */
+    background: 
+        radial-gradient(circle at 15% 30%, rgba(239, 85, 165, 0.12) 0%, transparent 60%),
+        radial-gradient(circle at 85% 15%, rgba(128, 158, 255, 0.12) 0%, transparent 60%),
+        radial-gradient(circle at 50% 85%, rgba(204, 213, 55, 0.12) 0%, transparent 60%),
+        radial-gradient(circle at 20% 80%, rgba(239, 85, 165, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(128, 158, 255, 0.08) 0%, transparent 50%),
+        linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(45, 27, 61, 0.95) 100%);
+    background-size: 100% 100%, 100% 100%, 100% 100%, 80% 80%, 80% 80%, 100% 100%;
+    background-attachment: fixed;
+}
+
+/* Анимированный overlay для главного экрана */
+#main-screen::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        linear-gradient(45deg, transparent 40%, rgba(239, 85, 165, 0.04) 50%, transparent 60%),
+        linear-gradient(-45deg, transparent 40%, rgba(128, 158, 255, 0.04) 50%, transparent 60%),
+        linear-gradient(135deg, transparent 30%, rgba(204, 213, 55, 0.03) 50%, transparent 70%);
+    background-size: 200% 200%, 200% 200%, 300% 300%;
+    animation: backgroundFlow 15s ease-in-out infinite, 
+               backgroundPulse 8s ease-in-out infinite alternate;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Дополнительный слой с плавающими цветными пятнами */
+#main-screen::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(ellipse at 60% 20%, rgba(239, 85, 165, 0.06) 0%, transparent 40%),
+        radial-gradient(ellipse at 30% 70%, rgba(128, 158, 255, 0.06) 0%, transparent 40%),
+        radial-gradient(ellipse at 80% 80%, rgba(204, 213, 55, 0.06) 0%, transparent 40%);
+    animation: floatingSpots 20s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Убеждаемся, что весь контент главного экрана находится выше фона */
+#main-screen > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* ========================================
    4. ЗАГОЛОВОК (HEADER)
    ======================================== */
 
@@ -105,6 +165,17 @@ body {
     margin-bottom: 30px;
     padding: 0 10px;
     gap: 15px;
+}
+
+/* Улучшаем header на главном экране */
+#main-screen .header {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    padding: 15px 20px;
+    margin-bottom: 35px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
 .user-info {
@@ -134,6 +205,19 @@ body {
 .profile-pic:hover {
     transform: scale(1.05);
     box-shadow: 0 10px 35px rgba(239, 85, 165, 0.6);
+}
+
+#main-screen .profile-pic {
+    box-shadow: 
+        0 8px 20px rgba(239, 85, 165, 0.4),
+        0 4px 10px rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+#main-screen .profile-pic:hover {
+    box-shadow: 
+        0 12px 30px rgba(239, 85, 165, 0.6),
+        0 6px 15px rgba(0, 0, 0, 0.4);
 }
 
 .user-details {
@@ -182,6 +266,19 @@ body {
     box-shadow: 0 6px 20px rgba(255, 215, 0, 0.6);
 }
 
+#main-screen .mega-btn {
+    box-shadow: 
+        0 6px 20px rgba(255, 215, 0, 0.5),
+        0 3px 10px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+#main-screen .mega-btn:hover {
+    box-shadow: 
+        0 8px 25px rgba(255, 215, 0, 0.7),
+        0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
 /* ========================================
    5. РУЛЕТКА
    ======================================== */
@@ -194,11 +291,26 @@ body {
     width: 100%;
 }
 
+/* Особый стиль для рулетки на главном экране */
+#main-screen .wheel-container {
+    position: relative;
+    z-index: 2;
+}
+
 .wheel {
     position: relative;
     width: 350px;
     height: 350px;
     margin: 0 auto 30px;
+}
+
+#main-screen .wheel {
+    filter: drop-shadow(0 0 30px rgba(239, 85, 165, 0.15));
+    transition: filter 0.3s ease;
+}
+
+#main-screen .wheel:hover {
+    filter: drop-shadow(0 0 40px rgba(239, 85, 165, 0.25));
 }
 
 /* Указатель рулетки */
@@ -334,6 +446,19 @@ body {
     box-shadow: var(--shadow-button);
 }
 
+/* Усиливаем свечение кнопок на ярком фоне главного экрана */
+#main-screen .spin-btn {
+    box-shadow: 
+        0 8px 25px rgba(239, 85, 165, 0.4),
+        0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+#main-screen .spin-btn.secondary {
+    box-shadow: 
+        0 8px 25px rgba(204, 213, 55, 0.4),
+        0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
 /* Эффекты при наведении */
 .spin-btn:hover:not(:disabled) {
     transform: translateY(-3px);
@@ -345,6 +470,18 @@ body {
 
 .spin-btn.secondary:hover:not(:disabled) {
     box-shadow: 0 12px 35px rgba(204, 213, 55, 0.6);
+}
+
+#main-screen .spin-btn:hover:not(:disabled) {
+    box-shadow: 
+        0 12px 35px rgba(239, 85, 165, 0.6),
+        0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+#main-screen .spin-btn.secondary:hover:not(:disabled) {
+    box-shadow: 
+        0 12px 35px rgba(204, 213, 55, 0.6),
+        0 6px 20px rgba(0, 0, 0, 0.4);
 }
 
 /* Активное состояние */
@@ -415,12 +552,35 @@ body {
     width: 100%;
 }
 
+/* Улучшаем recent wins на главном экране */
+#main-screen .recent-wins {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
 .recent-wins-title {
     font-size: 18px;
     font-weight: 600;
     margin-bottom: 15px;
     display: block;
     color: var(--text-primary);
+}
+
+#main-screen .recent-wins-title {
+    background: linear-gradient(135deg, 
+        #EF55A5 0%, 
+        #FF6B9D 25%, 
+        #809EFF 75%, 
+        #CCD537 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
+    margin-bottom: 20px;
 }
 
 .recent-wins-list {
@@ -444,6 +604,18 @@ body {
     background: rgba(42, 42, 42, 0.8);
     transform: translateY(-2px);
     box-shadow: var(--shadow-soft);
+}
+
+#main-screen .recent-win-item {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+#main-screen .recent-win-item:hover {
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 25px rgba(239, 85, 165, 0.2);
 }
 
 .recent-win-item.empty {
@@ -513,6 +685,62 @@ body {
 
 .recent-win-item.new {
     animation: prizeReveal 0.6s ease-out;
+}
+
+/* АНИМАЦИИ ДЛЯ ГЛАВНОГО ЭКРАНА */
+@keyframes backgroundFlow {
+    0%, 100% {
+        background-position: 0% 0%, 100% 100%, 50% 50%;
+    }
+    25% {
+        background-position: 25% 25%, 75% 75%, 25% 75%;
+    }
+    50% {
+        background-position: 50% 50%, 50% 50%, 75% 25%;
+    }
+    75% {
+        background-position: 75% 25%, 25% 75%, 50% 100%;
+    }
+}
+
+@keyframes backgroundPulse {
+    0% {
+        opacity: 0.8;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1.02);
+    }
+}
+
+@keyframes floatingSpots {
+    0% {
+        background-position: 0% 0%, 100% 100%, 50% 50%;
+        transform: rotate(0deg);
+    }
+    33% {
+        background-position: 100% 0%, 0% 50%, 100% 100%;
+        transform: rotate(120deg);
+    }
+    66% {
+        background-position: 50% 100%, 100% 0%, 0% 50%;
+        transform: rotate(240deg);
+    }
+    100% {
+        background-position: 0% 0%, 100% 100%, 50% 50%;
+        transform: rotate(360deg);
+    }
+}
+
+/* Градиентная анимация для элементов */
+@keyframes gradientShift {
+    0%, 100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
 }
 
 /* ========================================
@@ -662,6 +890,27 @@ body {
     .user-stars {
         font-size: 14px;
     }
+    
+    #main-screen .header {
+        padding: 12px 16px;
+        margin-bottom: 25px;
+    }
+    
+    #main-screen .recent-wins {
+        padding: 16px;
+    }
+}
+
+/* Адаптивность для фона главного экрана на мобильных */
+@media (max-width: 480px) {
+    #main-screen::before,
+    #main-screen::after {
+        background-size: 150% 150%, 150% 150%, 200% 200%;
+    }
+    
+    #main-screen {
+        background-size: 120% 120%, 120% 120%, 120% 120%, 100% 100%, 100% 100%, 100% 100%;
+    }
 }
 
 /* ========================================
@@ -757,6 +1006,47 @@ body {
     0%, 100% { transform: translateX(0); }
     25% { transform: translateX(-5px); }
     75% { transform: translateX(5px); }
+}
+
+/* ========================================
+   РЕЖИМ ВЫСОКОЙ КОНТРАСТНОСТИ
+   ======================================== */
+
+@media (prefers-contrast: high) {
+    #main-screen {
+        background: 
+            radial-gradient(circle at 15% 30%, rgba(239, 85, 165, 0.2) 0%, transparent 60%),
+            radial-gradient(circle at 85% 15%, rgba(128, 158, 255, 0.2) 0%, transparent 60%),
+            radial-gradient(circle at 50% 85%, rgba(204, 213, 55, 0.2) 0%, transparent 60%),
+            linear-gradient(135deg, rgba(26, 26, 26, 1) 0%, rgba(45, 27, 61, 1) 100%);
+    }
+    
+    #main-screen::before {
+        opacity: 0.5;
+    }
+    
+    #main-screen::after {
+        display: none;
+    }
+}
+
+/* ========================================
+   РЕЖИМ УМЕНЬШЕНИЯ ДВИЖЕНИЯ
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    #main-screen::before,
+    #main-screen::after {
+        animation: none;
+    }
+    
+    #main-screen .wheel {
+        filter: drop-shadow(0 0 20px rgba(239, 85, 165, 0.2));
+    }
+    
+    #main-screen .wheel:hover {
+        filter: drop-shadow(0 0 25px rgba(239, 85, 165, 0.3));
+    }
 }
 
 /* ========================================
