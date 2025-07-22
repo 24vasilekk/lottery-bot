@@ -370,7 +370,7 @@ body {
     width: 100%;
     max-width: 414px;
     /* ИСПРАВЛЕНА ПРОЗРАЧНОСТЬ */
-    background: rgba(42, 42, 42, 0.85); /* ПРОЗРАЧНЫЙ ФОН 70% */
+    background: rgba(42, 42, 42, 0.95); /* ПРОЗРАЧНЫЙ ФОН 70% */
     backdrop-filter: blur(20px); /* РАЗМЫТИЕ ФОНА */
     -webkit-backdrop-filter: blur(20px); /* ДЛЯ SAFARI */
     display: flex;
