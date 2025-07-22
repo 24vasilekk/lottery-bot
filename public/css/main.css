@@ -1,5 +1,5 @@
 /* ========================================
-   MAIN.CSS - ИСПРАВЛЕНЫ ПРОБЛЕМЫ С ПРОКРУТКОЙ
+   MAIN.CSS - ИСПРАВЛЕНА ПРОБЛЕМА ДВОЙНОГО СВАЙПА
    Главный экран с рулеткой для Kosmetichka Bot
    ======================================== */
 
@@ -58,22 +58,28 @@
 }
 
 html {
-    overflow-x: hidden; /* Запрещаем горизонтальную прокрутку */
+    overflow-x: hidden;
     width: 100%;
     max-width: 100vw;
+    /* ИСПРАВЛЕНИЕ: принудительная вертикальная прокрутка */
+    touch-action: pan-y;
+    -webkit-text-size-adjust: 100%;
 }
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background: var(--gradient-dark);
     color: var(--text-primary);
-    overflow-x: hidden; /* Запрещаем горизонтальную прокрутку */
+    overflow-x: hidden;
     min-height: 100vh;
     width: 100%;
     max-width: 100vw;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     position: relative;
+    /* ИСПРАВЛЕНИЕ: оптимизация прокрутки */
+    touch-action: pan-y;
+    overscroll-behavior: contain;
 }
 
 .app-container {
@@ -82,7 +88,9 @@ body {
     padding-bottom: 90px;
     width: 100%;
     max-width: 100vw;
-    overflow-x: hidden; /* Запрещаем горизонтальную прокрутку */
+    overflow-x: hidden;
+    /* ИСПРАВЛЕНИЕ: принудительная вертикальная прокрутка */
+    touch-action: pan-y;
 }
 
 /* ========================================
@@ -96,11 +104,16 @@ body {
     opacity: 0;
     transform: translateY(20px);
     transition: all var(--transition-medium);
-    overflow-y: auto; /* Разрешаем вертикальную прокрутку */
-    overflow-x: hidden; /* Запрещаем горизонтальную прокрутку */
+    overflow-y: auto;
+    overflow-x: hidden;
     width: 100%;
-    max-width: 100vw; /* Не даем выйти за границы экрана */
+    max-width: 100vw;
     box-sizing: border-box;
+    /* ИСПРАВЛЕНИЕ: оптимизация прокрутки */
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    will-change: scroll-position;
 }
 
 .screen.active {
@@ -116,9 +129,11 @@ body {
 #main-screen {
     position: relative;
     width: 100%;
-    max-width: 100vw; /* Не даем выйти за границы экрана */
-    overflow-x: hidden; /* Запрещаем горизонтальную прокрутку */
-    /* ИСПРАВЛЕН: убран background-attachment: fixed, который проблематичен на мобильных */
+    max-width: 100vw;
+    overflow-x: hidden;
+    /* ИСПРАВЛЕНИЕ: принудительная вертикальная прокрутка */
+    touch-action: pan-y;
+    /* Упрощенный фон для лучшей производительности */
     background: 
         radial-gradient(circle at 15% 30%, rgba(239, 85, 165, 0.12) 0%, transparent 60%),
         radial-gradient(circle at 85% 15%, rgba(128, 158, 255, 0.12) 0%, transparent 60%),
@@ -127,10 +142,9 @@ body {
         radial-gradient(circle at 80% 70%, rgba(128, 158, 255, 0.08) 0%, transparent 50%),
         linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(45, 27, 61, 0.95) 100%);
     background-size: 100% 100%, 100% 100%, 100% 100%, 80% 80%, 80% 80%, 100% 100%;
-    /* УБРАН: background-attachment: fixed; */
 }
 
-/* Анимированный overlay для главного экрана - ИСПРАВЛЕН */
+/* ИСПРАВЛЕНИЕ: Упрощенные анимированные слои для мобильных */
 #main-screen::before {
     content: '';
     position: absolute;
@@ -138,21 +152,20 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    width: 100%; /* Ограничиваем ширину */
-    height: 100%; /* Ограничиваем высоту */
+    width: 100%;
+    height: 100%;
     background: 
-        linear-gradient(45deg, transparent 40%, rgba(239, 85, 165, 0.04) 50%, transparent 60%),
-        linear-gradient(-45deg, transparent 40%, rgba(128, 158, 255, 0.04) 50%, transparent 60%),
-        linear-gradient(135deg, transparent 30%, rgba(204, 213, 55, 0.03) 50%, transparent 70%);
-    background-size: 200% 200%, 200% 200%, 300% 300%;
-    animation: backgroundFlow 15s ease-in-out infinite, 
-               backgroundPulse 8s ease-in-out infinite alternate;
+        linear-gradient(45deg, transparent 40%, rgba(239, 85, 165, 0.03) 50%, transparent 60%),
+        linear-gradient(-45deg, transparent 40%, rgba(128, 158, 255, 0.03) 50%, transparent 60%);
+    background-size: 150% 150%, 150% 150%; /* Уменьшен размер для производительности */
+    /* ИСПРАВЛЕНИЕ: отключение анимации на мобильных */
     pointer-events: none;
     z-index: 0;
-    overflow: hidden; /* Предотвращаем выход за границы */
+    overflow: hidden;
+    /* Более простая анимация */
+    animation: backgroundFlowSimple 20s ease-in-out infinite;
 }
 
-/* Дополнительный слой с плавающими цветными пятнами - ИСПРАВЛЕН */
 #main-screen::after {
     content: '';
     position: absolute;
@@ -160,16 +173,17 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    width: 100%; /* Ограничиваем ширину */
-    height: 100%; /* Ограничиваем высоту */
+    width: 100%;
+    height: 100%;
     background: 
-        radial-gradient(ellipse at 60% 20%, rgba(239, 85, 165, 0.06) 0%, transparent 40%),
-        radial-gradient(ellipse at 30% 70%, rgba(128, 158, 255, 0.06) 0%, transparent 40%),
-        radial-gradient(ellipse at 80% 80%, rgba(204, 213, 55, 0.06) 0%, transparent 40%);
-    animation: floatingSpots 20s linear infinite;
+        radial-gradient(ellipse at 60% 20%, rgba(239, 85, 165, 0.04) 0%, transparent 35%),
+        radial-gradient(ellipse at 30% 70%, rgba(128, 158, 255, 0.04) 0%, transparent 35%);
+    /* ИСПРАВЛЕНИЕ: отключение сложной анимации */
     pointer-events: none;
     z-index: 0;
-    overflow: hidden; /* Предотвращаем выход за границы */
+    overflow: hidden;
+    /* Более простая анимация */
+    animation: floatingSpotsSimple 25s linear infinite;
 }
 
 /* Убеждаемся, что весь контент главного экрана находится выше фона */
@@ -179,6 +193,8 @@ body {
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
+    /* ИСПРАВЛЕНИЕ: принудительная вертикальная прокрутка для всех элементов */
+    touch-action: pan-y;
 }
 
 /* ========================================
@@ -195,19 +211,29 @@ body {
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
+    /* ИСПРАВЛЕНИЕ: принудительная вертикальная прокрутка */
+    touch-action: pan-y;
 }
 
-/* Улучшаем header на главном экране */
+/* ИСПРАВЛЕНИЕ: Упрощенный backdrop-filter для мобильных */
 #main-screen .header {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(15px);
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 20px;
     padding: 15px 20px;
     margin-bottom: 35px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     width: 100%;
     max-width: 100%;
+    /* Убран backdrop-filter для мобильных */
+}
+
+/* На десктопе восстанавливаем backdrop-filter */
+@media (min-width: 768px) {
+    #main-screen .header {
+        backdrop-filter: blur(15px);
+        background: rgba(255, 255, 255, 0.05);
+    }
 }
 
 .user-info {
@@ -216,7 +242,7 @@ body {
     gap: 15px;
     flex: 1;
     min-width: 0;
-    max-width: calc(100% - 100px); /* Оставляем место для mega-btn */
+    max-width: calc(100% - 100px);
 }
 
 .profile-pic {
@@ -234,6 +260,8 @@ body {
     box-shadow: var(--shadow-soft);
     border: 2px solid rgba(255, 255, 255, 0.1);
     flex-shrink: 0;
+    /* ИСПРАВЛЕНИЕ: принудительная вертикальная прокрутка */
+    touch-action: pan-y;
 }
 
 .profile-pic:hover {
@@ -260,7 +288,7 @@ body {
     gap: 2px;
     min-width: 0;
     flex: 1;
-    overflow: hidden; /* Предотвращаем переполнение */
+    overflow: hidden;
 }
 
 .user-name {
@@ -296,6 +324,8 @@ body {
     box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
     white-space: nowrap;
     flex-shrink: 0;
+    /* ИСПРАВЛЕНИЕ: принудительная вертикальная прокрутка */
+    touch-action: pan-y;
 }
 
 .mega-btn:hover {
@@ -328,6 +358,8 @@ body {
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
+    /* ИСПРАВЛЕНИЕ: принудительная вертикальная прокрутка */
+    touch-action: pan-y;
 }
 
 /* Особый стиль для рулетки на главном экране */
@@ -341,8 +373,10 @@ body {
     width: 350px;
     height: 350px;
     margin: 0 auto 30px;
-    max-width: calc(100vw - 40px); /* Оставляем отступы по бокам */
+    max-width: calc(100vw - 40px);
     max-height: calc(100vw - 40px);
+    /* ИСПРАВЛЕНИЕ: принудительная вертикальная прокрутка */
+    touch-action: pan-y;
 }
 
 #main-screen .wheel {
@@ -367,6 +401,8 @@ body {
     border-top: 45px solid #ffffff;
     z-index: 11;
     filter: drop-shadow(0 8px 16px rgba(0,0,0,0.6));
+    /* ИСПРАВЛЕНИЕ: принудительная вертикальная прокрутка */
+    touch-action: pan-y;
 }
 
 .wheel-pointer::after {
@@ -388,6 +424,8 @@ body {
     transition: transform 3s cubic-bezier(0.23, 1, 0.320, 1);
     border-radius: var(--radius-full);
     overflow: hidden;
+    /* ИСПРАВЛЕНИЕ: принудительная вертикальная прокрутка */
+    touch-action: pan-y;
 }
 
 /* Центральная кнопка SPIN */
@@ -412,6 +450,8 @@ body {
     cursor: pointer;
     transition: all var(--transition-fast);
     letter-spacing: 1px;
+    /* ИСПРАВЛЕНИЕ: принудительная вертикальная прокрутка */
+    touch-action: pan-y;
 }
 
 .wheel-center:hover {
@@ -434,6 +474,8 @@ body {
     margin-top: 20px;
     padding: 0 10px;
     box-sizing: border-box;
+    /* ИСПРАВЛЕНИЕ: принудительная вертикальная прокрутка */
+    touch-action: pan-y;
 }
 
 /* ОСНОВНОЙ КОНТЕЙНЕР КНОПОК - ГОРИЗОНТАЛЬНО */
@@ -447,6 +489,8 @@ body {
     align-items: stretch;
     flex-wrap: nowrap !important;
     box-sizing: border-box;
+    /* ИСПРАВЛЕНИЕ: принудительная вертикальная прокрутка */
+    touch-action: pan-y;
 }
 
 /* СТИЛИ КНОПОК ПРОКРУТКИ */
@@ -475,6 +519,8 @@ body {
     text-align: center;
     white-space: nowrap;
     box-sizing: border-box;
+    /* ИСПРАВЛЕНИЕ: принудительная вертикальная прокрутка */
+    touch-action: pan-y;
 }
 
 /* Вторичная кнопка (За друга) */
@@ -597,16 +643,25 @@ body {
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
+    /* ИСПРАВЛЕНИЕ: принудительная вертикальная прокрутка */
+    touch-action: pan-y;
 }
 
-/* Улучшаем recent wins на главном экране */
+/* ИСПРАВЛЕНИЕ: Упрощенный backdrop-filter для мобильных */
 #main-screen .recent-wins {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(15px);
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 20px;
     padding: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* На десктопе восстанавливаем backdrop-filter */
+@media (min-width: 768px) {
+    #main-screen .recent-wins {
+        backdrop-filter: blur(15px);
+        background: rgba(255, 255, 255, 0.05);
+    }
 }
 
 .recent-wins-title {
@@ -650,6 +705,8 @@ body {
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
+    /* ИСПРАВЛЕНИЕ: принудительная вертикальная прокрутка */
+    touch-action: pan-y;
 }
 
 .recent-win-item:hover {
@@ -660,14 +717,13 @@ body {
 
 #main-screen .recent-win-item {
     background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
 }
 
 #main-screen .recent-win-item:hover {
     background: rgba(255, 255, 255, 0.12);
-    box-shadow: 0 8px 25px rgba(239, 85, 165, 0.2);
+    box-shadow: 0 4px 15px rgba(239, 85, 165, 0.2);
 }
 
 .recent-win-item.empty {
@@ -687,7 +743,7 @@ body {
 }
 
 /* ========================================
-   8. АНИМАЦИИ
+   8. АНИМАЦИИ - ОПТИМИЗИРОВАНЫ
    ======================================== */
 
 /* Анимация вращения рулетки */
@@ -743,49 +799,28 @@ body {
     animation: prizeReveal 0.6s ease-out;
 }
 
-/* ИСПРАВЛЕННЫЕ АНИМАЦИИ ДЛЯ ГЛАВНОГО ЭКРАНА */
-@keyframes backgroundFlow {
+/* ИСПРАВЛЕНИЕ: Упрощенные анимации для лучшей производительности */
+@keyframes backgroundFlowSimple {
     0%, 100% {
-        background-position: 0% 0%, 100% 100%, 50% 50%;
-    }
-    25% {
-        background-position: 25% 25%, 75% 75%, 25% 75%;
+        background-position: 0% 0%, 100% 100%;
     }
     50% {
-        background-position: 50% 50%, 50% 50%, 75% 25%;
-    }
-    75% {
-        background-position: 75% 25%, 25% 75%, 50% 100%;
+        background-position: 100% 100%, 0% 0%;
     }
 }
 
-@keyframes backgroundPulse {
+@keyframes floatingSpotsSimple {
     0% {
+        background-position: 0% 0%, 100% 100%;
         opacity: 0.8;
-        transform: scale(1);
     }
-    100% {
+    50% {
+        background-position: 50% 50%, 50% 50%;
         opacity: 1;
-        transform: scale(1.01); /* Уменьшили масштаб */
-    }
-}
-
-@keyframes floatingSpots {
-    0% {
-        background-position: 0% 0%, 100% 100%, 50% 50%;
-        transform: rotate(0deg);
-    }
-    33% {
-        background-position: 100% 0%, 0% 50%, 100% 100%;
-        transform: rotate(120deg);
-    }
-    66% {
-        background-position: 50% 100%, 100% 0%, 0% 50%;
-        transform: rotate(240deg);
     }
     100% {
-        background-position: 0% 0%, 100% 100%, 50% 50%;
-        transform: rotate(360deg);
+        background-position: 100% 100%, 0% 0%;
+        opacity: 0.8;
     }
 }
 
@@ -986,15 +1021,16 @@ body {
     }
 }
 
-/* Адаптивность для фона главного экрана на мобильных - ИСПРАВЛЕНА */
-@media (max-width: 480px) {
+/* ИСПРАВЛЕНИЕ: Отключение сложных анимаций на мобильных */
+@media (max-width: 768px) {
     #main-screen::before,
     #main-screen::after {
-        background-size: 150% 150%, 150% 150%, 200% 200%;
+        /* Упрощенные размеры фона */
+        background-size: 120% 120%, 120% 120%;
     }
     
     #main-screen {
-        background-size: 120% 120%, 120% 120%, 120% 120%, 100% 100%, 100% 100%, 100% 100%;
+        background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
     }
 }
 
@@ -1045,26 +1081,54 @@ body {
     appearance: none;
 }
 
-/* ДОПОЛНИТЕЛЬНЫЕ ФИКСЫ ДЛЯ ПРОКРУТКИ */
-
-/* Ограничиваем ширину всех элементов */
+/* ГЛАВНОЕ ИСПРАВЛЕНИЕ: Ограничиваем ширину всех элементов */
 * {
     max-width: 100%;
 }
 
-/* Убеждаемся, что нет горизонтального overflow */
+/* ГЛАВНОЕ ИСПРАВЛЕНИЕ: Убеждаемся, что нет горизонтального overflow */
 body, html, .app-container, .screen, #main-screen {
     overflow-x: hidden !important;
+    touch-action: pan-y !important;
 }
 
-/* Фикс для iOS Safari */
+/* ИСПРАВЛЕНИЕ: Специальные фиксы для iOS Safari */
 @supports (-webkit-touch-callout: none) {
     #main-screen {
         -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
     }
     
     .screen {
         -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
+    
+    /* Отключаем сложные анимации на iOS */
+    #main-screen::before,
+    #main-screen::after {
+        animation-duration: 0.1s;
+        animation-iteration-count: 1;
+    }
+}
+
+/* ИСПРАВЛЕНИЕ: Дополнительные фиксы для мобильных браузеров */
+@media (max-width: 768px) {
+    /* Отключаем backdrop-filter на мобильных полностью */
+    * {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+    
+    /* Упрощаем анимации */
+    #main-screen::before {
+        animation: none;
+        background: linear-gradient(45deg, transparent 40%, rgba(239, 85, 165, 0.02) 50%, transparent 60%);
+    }
+    
+    #main-screen::after {
+        animation: none;
+        background: radial-gradient(ellipse at 60% 20%, rgba(239, 85, 165, 0.02) 0%, transparent 35%);
     }
 }
 
@@ -1145,7 +1209,7 @@ body, html, .app-container, .screen, #main-screen {
 @media (prefers-reduced-motion: reduce) {
     #main-screen::before,
     #main-screen::after {
-        animation: none;
+        animation: none !important;
     }
     
     #main-screen .wheel {
@@ -1154,6 +1218,12 @@ body, html, .app-container, .screen, #main-screen {
     
     #main-screen .wheel:hover {
         filter: drop-shadow(0 0 25px rgba(239, 85, 165, 0.3));
+    }
+    
+    /* Отключаем все трансформации и анимации */
+    * {
+        animation: none !important;
+        transition: none !important;
     }
 }
 
