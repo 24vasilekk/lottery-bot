@@ -64,6 +64,8 @@ class Database {
                     is_claimed BOOLEAN DEFAULT 0,
                     won_date DATETIME DEFAULT CURRENT_TIMESTAMP,
                     claimed_date DATETIME,
+                    is_posted_to_channel BOOLEAN DEFAULT 0,
+                    posted_to_channel_date DATETIME,
                     FOREIGN KEY(user_id) REFERENCES users(id)
                 )`,
 
@@ -139,6 +141,11 @@ class Database {
                     is_active BOOLEAN DEFAULT 1,
                     is_hot_offer BOOLEAN DEFAULT 0, -- горячее предложение
                     hot_offer_multiplier REAL DEFAULT 2.0, -- множитель для горячего предложения
+                    auto_renewal BOOLEAN DEFAULT 0, -- автоматическое продление
+                    priority_score INTEGER DEFAULT 50, -- приоритет отображения (0-100)
+                    renewal_count INTEGER DEFAULT 0, -- количество продлений
+                    deactivation_reason TEXT, -- причина деактивации
+                    deactivated_at DATETIME, -- время деактивации
                     created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
                     start_date DATETIME DEFAULT CURRENT_TIMESTAMP,
                     end_date DATETIME, -- рассчитывается автоматически
@@ -229,6 +236,25 @@ class Database {
                     transaction_date DATETIME DEFAULT CURRENT_TIMESTAMP,
                     metadata TEXT, -- дополнительная информация в JSON формате
                     FOREIGN KEY(user_id) REFERENCES users(id)
+                )`,
+
+                // Настройки рулеток
+                `CREATE TABLE IF NOT EXISTS wheel_settings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    wheel_type TEXT NOT NULL UNIQUE, -- 'mega' или 'normal'
+                    settings_data TEXT NOT NULL, -- JSON с настройками призов
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )`,
+
+                // Уведомления администратора для автоматизации
+                `CREATE TABLE IF NOT EXISTS admin_notifications (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    channel_id INTEGER,
+                    notification_type TEXT NOT NULL, -- 'low_activity', 'expired', 'target_reached'
+                    message TEXT,
+                    is_read BOOLEAN DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(channel_id) REFERENCES partner_channels(id)
                 )`,
 
                 // Достижения убраны - не используются
@@ -612,12 +638,19 @@ class Database {
                  SELECT r.id, rf.id FROM users r, users rf
                  WHERE r.telegram_id = ? AND rf.telegram_id = ?`,
                 [referrerTelegramId, referredTelegramId],
-                function(err) {
-                    if (err) reject(err);
-                    else {
+                async (err) => {
+                    if (err) {
+                        reject(err);
+                    } else {
                         if (this.changes > 0) {
-                            // Обновляем счетчик рефералов
-                            resolve(true);
+                            // Обновляем счетчик рефералов у пригласившего
+                            try {
+                                await this.updateReferralCount(referrerTelegramId);
+                                resolve(true);
+                            } catch (updateErr) {
+                                console.error('Ошибка обновления счетчика рефералов:', updateErr);
+                                resolve(true); // Реферал все равно добавлен
+                            }
                         } else {
                             resolve(false);
                         }
@@ -640,7 +673,107 @@ class Database {
         });
     }
 
+    async getReferral(referrerId, userId) {
+        return new Promise((resolve, reject) => {
+            this.db.get(
+                `SELECT r.* FROM referrals r
+                 JOIN users ref ON r.referrer_id = ref.id
+                 JOIN users rfd ON r.referred_id = rfd.id
+                 WHERE ref.telegram_id = ? AND rfd.telegram_id = ?`,
+                [referrerId, userId],
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                }
+            );
+        });
+    }
+
+    async getUserReferralsCount(telegramId) {
+        return new Promise((resolve, reject) => {
+            this.db.get(
+                `SELECT COUNT(*) as count FROM referrals r
+                 JOIN users u ON r.referrer_id = u.id
+                 WHERE u.telegram_id = ?`,
+                [telegramId],
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row ? row.count : 0);
+                }
+            );
+        });
+    }
+
+    // === МЕТОДЫ ДЛЯ НАСТРОЕК РУЛЕТКИ ===
+
+    async getWheelSettings(wheelType) {
+        return new Promise((resolve, reject) => {
+            this.db.get(
+                'SELECT * FROM wheel_settings WHERE wheel_type = ?',
+                [wheelType],
+                (err, row) => {
+                    if (err) {
+                        reject(err);
+                    } else if (row) {
+                        try {
+                            resolve({
+                                prizes: JSON.parse(row.settings_data)
+                            });
+                        } catch (parseErr) {
+                            reject(new Error('Ошибка парсинга настроек: ' + parseErr.message));
+                        }
+                    } else {
+                        resolve(null);
+                    }
+                }
+            );
+        });
+    }
+
+    async saveWheelSettings(wheelType, settings) {
+        return new Promise((resolve, reject) => {
+            const settingsData = JSON.stringify(settings.prizes);
+            
+            this.db.run(
+                `INSERT OR REPLACE INTO wheel_settings (wheel_type, settings_data, updated_at) 
+                 VALUES (?, ?, datetime('now'))`,
+                [wheelType, settingsData],
+                function(err) {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve();
+                    }
+                }
+            );
+        });
+    }
+
     // === МЕТОДЫ ДЛЯ ЛИДЕРБОРДА ===
+
+    async getReferralsLeaderboard(telegramId, limit = 10) {
+        return new Promise((resolve, reject) => {
+            this.db.all(`
+                SELECT 
+                    u.id,
+                    u.username,
+                    u.first_name,
+                    COUNT(r2.id) as referrals_count,
+                    ROW_NUMBER() OVER (ORDER BY COUNT(r2.id) DESC, u.created_date ASC) as rank_position
+                FROM users u
+                JOIN referrals r ON u.id = r.referred_id
+                LEFT JOIN referrals r2 ON u.id = r2.referrer_id
+                WHERE r.referrer_id = (SELECT id FROM users WHERE telegram_id = ?)
+                AND u.is_active = 1
+                GROUP BY u.id, u.username, u.first_name, u.created_date
+                ORDER BY referrals_count DESC, u.created_date ASC
+                LIMIT ?
+            `, [telegramId, limit], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows || []);
+            });
+        });
+    }
 
     async updateLeaderboard() {
         return new Promise((resolve, reject) => {

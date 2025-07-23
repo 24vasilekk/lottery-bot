@@ -51,7 +51,7 @@ export class MainScreen {
                             </button>
                             <button id="spin-button-friend" class="spin-btn secondary" type="button">
                                 <i class="fas fa-heart"></i>
-                                <span>За друга (${this.app.gameData.availableFriendSpins})</span>
+                                <span id="friend-button-text">Прокрутка за друга</span>
                             </button>
                         </div>
                     </div>
@@ -266,10 +266,19 @@ export class MainScreen {
             return;
         }
 
-        if (type === 'friend' && this.app.gameData.availableFriendSpins <= 0) {
-            this.app.showStatusMessage('Нет доступных прокруток за друга!', 'error');
-            console.log('❌ Нет прокруток за друга');
-            return;
+        if (type === 'friend') {
+            const referralsCount = this.app.gameData.referrals || 0;
+            const friendSpinsUsed = this.app.gameData.friendSpinsUsed || 0;
+            
+            if (referralsCount === 0) {
+                this.showReferralLink();
+                return;
+            }
+            
+            if (friendSpinsUsed >= referralsCount) {
+                this.app.showStatusMessage('Использованы все прокрутки за друга! Пригласите еще друзей', 'error');
+                return;
+            }
         }
 
         this.isSpinning = true;
@@ -280,8 +289,8 @@ export class MainScreen {
             this.app.gameData.stars -= APP_CONFIG.wheel.starCost;
             console.log(`💰 Списано ${APP_CONFIG.wheel.starCost} звезд. Осталось: ${this.app.gameData.stars}`);
         } else if (type === 'friend') {
-            this.app.gameData.availableFriendSpins -= 1;
-            console.log(`❤️ Использована прокрутка за друга. Осталось: ${this.app.gameData.availableFriendSpins}`);
+            this.app.gameData.friendSpinsUsed = (this.app.gameData.friendSpinsUsed || 0) + 1;
+            console.log(`❤️ Использована прокрутка за друга. Использовано: ${this.app.gameData.friendSpinsUsed}`);
         }
 
         // Обновление UI
@@ -460,15 +469,23 @@ export class MainScreen {
         }
 
         if (spinFriendBtn) {
-            const canSpinFriend = !this.isSpinning && this.app.gameData.availableFriendSpins > 0;
+            const referralsCount = this.app.gameData.referrals || 0;
+            const friendSpinsUsed = this.app.gameData.friendSpinsUsed || 0;
+            const availableSpins = Math.max(0, referralsCount - friendSpinsUsed);
+            
+            const canSpinFriend = !this.isSpinning && availableSpins > 0;
             spinFriendBtn.disabled = !canSpinFriend;
             spinFriendBtn.classList.toggle('disabled', !canSpinFriend);
             
             // Обновление текста кнопки
             if (this.isSpinning) {
                 spinFriendBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i><span>Крутится...</span>`;
+            } else if (referralsCount === 0) {
+                spinFriendBtn.innerHTML = `<i class="fas fa-share"></i><span>Пригласить друга</span>`;
+            } else if (availableSpins === 0) {
+                spinFriendBtn.innerHTML = `<i class="fas fa-heart"></i><span>Пригласи еще</span>`;
             } else {
-                spinFriendBtn.innerHTML = `<i class="fas fa-heart"></i><span>За друга (${this.app.gameData.availableFriendSpins})</span>`;
+                spinFriendBtn.innerHTML = `<i class="fas fa-heart"></i><span>За друга (${availableSpins})</span>`;
             }
         }
     }
@@ -520,5 +537,73 @@ export class MainScreen {
     destroy() {
         console.log('🧹 Очистка главного экрана...');
         this.removeEventListeners();
+    }
+
+    showReferralLink() {
+        // Генерируем реферальную ссылку
+        const userId = this.app.tg?.initDataUnsafe?.user?.id || 'demo';
+        const referralLink = `https://t.me/your_bot_username?start=ref_${userId}`;
+        
+        // Создаем модальное окно
+        const modal = document.createElement('div');
+        modal.className = 'referral-modal';
+        modal.innerHTML = `
+            <div class="referral-modal-content">
+                <div class="referral-header">
+                    <h3>🎁 Пригласи друга и получи прокрутку!</h3>
+                    <button class="close-modal" onclick="this.closest('.referral-modal').remove()">×</button>
+                </div>
+                <div class="referral-body">
+                    <p>У вас пока нет приглашенных друзей. Поделитесь ссылкой с друзьями, чтобы получить бесплатные прокрутки!</p>
+                    <div class="referral-link-container">
+                        <input type="text" id="referral-link" value="${referralLink}" readonly>
+                        <button class="copy-btn" onclick="this.copyReferralLink('${referralLink}')">
+                            <i class="fas fa-copy"></i> Копировать
+                        </button>
+                    </div>
+                    <div class="referral-info">
+                        <p>💫 За каждого друга вы получаете 1 бесплатную прокрутку колеса!</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Автоматически копируем ссылку
+        this.copyReferralLink(referralLink);
+    }
+    
+    copyReferralLink(link) {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(link).then(() => {
+                this.app.showStatusMessage('Ссылка скопирована в буфер обмена!', 'success');
+            }).catch(() => {
+                this.fallbackCopyTextToClipboard(link);
+            });
+        } else {
+            this.fallbackCopyTextToClipboard(link);
+        }
+    }
+    
+    fallbackCopyTextToClipboard(text) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.top = "0";
+        textArea.style.left = "0";
+        textArea.style.position = "fixed";
+        
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            document.execCommand('copy');
+            this.app.showStatusMessage('Ссылка скопирована в буфер обмена!', 'success');
+        } catch (err) {
+            this.app.showStatusMessage('Не удалось скопировать ссылку', 'error');
+        }
+        
+        document.body.removeChild(textArea);
     }
 }

@@ -87,6 +87,15 @@ class AdminPanel {
             case 'analytics':
                 await this.loadAnalytics();
                 break;
+            case 'wheel-settings':
+                await this.loadWheelSettings();
+                break;
+            case 'automation':
+                await this.loadAutomationTab();
+                break;
+            case 'wins-channel':
+                await this.loadWinsChannelTab();
+                break;
         }
     }
 
@@ -484,8 +493,672 @@ class AdminPanel {
             alertDiv.remove();
         }, 5000);
     }
+
+    adjustUserStars(telegramId) {
+        const user = this.users.find(u => u.telegram_id === telegramId);
+        if (!user) {
+            this.showAlert('Пользователь не найден', 'error');
+            return;
+        }
+
+        // Заполняем данные в модальном окне
+        document.getElementById('starsUserName').textContent = user.username || `ID: ${user.telegram_id}`;
+        document.getElementById('currentStars').textContent = user.stars || 0;
+        document.getElementById('starsAmount').value = '';
+        document.getElementById('starsReason').value = '';
+        document.getElementById('starsOperation').value = 'add';
+        
+        // Сохраняем ID пользователя для использования при подтверждении
+        this.currentAdjustUserId = telegramId;
+        this.currentAdjustUserStars = user.stars || 0;
+        
+        // Обновляем превью
+        this.updateStarsPreview();
+        
+        // Показываем модальное окно
+        const modal = new bootstrap.Modal(document.getElementById('adjustStarsModal'));
+        modal.show();
+    }
+
+    updateStarsPreview() {
+        const operation = document.getElementById('starsOperation').value;
+        const amount = parseInt(document.getElementById('starsAmount').value) || 0;
+        const currentStars = this.currentAdjustUserStars || 0;
+        let newBalance = 0;
+
+        switch(operation) {
+            case 'add':
+                newBalance = currentStars + amount;
+                break;
+            case 'subtract':
+                newBalance = Math.max(0, currentStars - amount);
+                break;
+            case 'set':
+                newBalance = amount;
+                break;
+        }
+
+        const balanceElement = document.getElementById('newStarsBalance');
+        balanceElement.textContent = newBalance;
+        balanceElement.className = newBalance >= 0 ? 'text-success' : 'text-danger';
+    }
+
+    async confirmAdjustStars() {
+        const operation = document.getElementById('starsOperation').value;
+        const amount = parseInt(document.getElementById('starsAmount').value) || 0;
+        const reason = document.getElementById('starsReason').value.trim();
+
+        if (amount < 0) {
+            this.showAlert('Количество должно быть положительным числом', 'error');
+            return;
+        }
+
+        if (!reason) {
+            this.showAlert('Укажите причину изменения баланса', 'error');
+            return;
+        }
+
+        try {
+            const response = await this.apiCall('/api/admin/users/stars', 'POST', {
+                telegramId: this.currentAdjustUserId,
+                operation: operation,
+                amount: amount,
+                reason: reason
+            });
+
+            if (response.success) {
+                this.showAlert('Баланс звезд успешно обновлен', 'success');
+                
+                // Закрываем модальное окно
+                const modal = bootstrap.Modal.getInstance(document.getElementById('adjustStarsModal'));
+                modal.hide();
+                
+                // Обновляем таблицу пользователей
+                await this.loadUsers();
+            } else {
+                this.showAlert(response.error || 'Ошибка при обновлении баланса', 'error');
+            }
+        } catch (error) {
+            console.error('Error adjusting stars:', error);
+            this.showAlert('Ошибка при обновлении баланса звезд', 'error');
+        }
+    }
+
+    async loadWheelSettings() {
+        try {
+            // Загружаем настройки для обеих рулеток
+            const [megaSettings, normalSettings] = await Promise.all([
+                this.apiCall('/api/admin/wheel-settings/mega'),
+                this.apiCall('/api/admin/wheel-settings/normal')
+            ]);
+
+            this.renderMegaWheelSettings(megaSettings);
+            this.renderNormalWheelSettings(normalSettings);
+        } catch (error) {
+            console.error('Error loading wheel settings:', error);
+            this.showAlert('Ошибка загрузки настроек рулетки', 'error');
+        }
+    }
+
+    renderMegaWheelSettings(settings) {
+        const container = document.getElementById('megaPrizesContainer');
+        if (!container) return;
+
+        // Дефолтные настройки мега рулетки
+        const defaultPrizes = [
+            { id: 'airpods4', name: 'AirPods 4', chance: 0.1 },
+            { id: 'cert5000', name: 'Сертификат 5000₽', chance: 1.9 },
+            { id: 'cert3000', name: 'Сертификат 3000₽', chance: 5.0 },
+            { id: 'powerbank', name: 'Повербанк', chance: 8.0 },
+            { id: 'cert2000', name: 'Сертификат 2000₽', chance: 12.0 },
+            { id: 'charger', name: 'Беспроводная зарядка', chance: 15.0 },
+            { id: 'cert1000', name: 'Сертификат 1000₽', chance: 18.0 },
+            { id: 'stars100', name: '100 звезд', chance: 15.0 },
+            { id: 'empty', name: 'Повезет в следующий раз', chance: 25.0 }
+        ];
+
+        const prizes = settings?.prizes || defaultPrizes;
+        let html = '';
+
+        prizes.forEach(prize => {
+            html += `
+                <div class="mb-3">
+                    <label class="form-label">${prize.name}</label>
+                    <div class="input-group">
+                        <input type="number" 
+                               class="form-control mega-prize-chance" 
+                               data-prize-id="${prize.id}"
+                               value="${prize.chance}" 
+                               min="0" 
+                               max="100" 
+                               step="0.1">
+                        <span class="input-group-text">%</span>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+            <div class="mt-3 p-3 bg-light rounded">
+                <strong>Сумма вероятностей: <span id="megaTotalChance">0</span>%</strong>
+                <div class="progress mt-2" style="height: 10px;">
+                    <div id="megaChanceProgress" class="progress-bar" style="width: 0%"></div>
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = html;
+        
+        // Добавляем обработчики для автоматического подсчета
+        container.querySelectorAll('.mega-prize-chance').forEach(input => {
+            input.addEventListener('input', () => this.updateMegaTotalChance());
+        });
+        
+        this.updateMegaTotalChance();
+    }
+
+    renderNormalWheelSettings(settings) {
+        const container = document.getElementById('normalPrizesContainer');
+        if (!container) return;
+
+        // Дефолтные настройки обычной рулетки (нужно будет получить из config.js)
+        const defaultPrizes = [
+            { id: 'stars50', name: '50 звезд', chance: 30.0 },
+            { id: 'stars30', name: '30 звезд', chance: 25.0 },
+            { id: 'stars20', name: '20 звезд', chance: 20.0 },
+            { id: 'stars10', name: '10 звезд', chance: 15.0 },
+            { id: 'empty', name: 'Ничего', chance: 10.0 }
+        ];
+
+        const prizes = settings?.prizes || defaultPrizes;
+        let html = '';
+
+        prizes.forEach(prize => {
+            html += `
+                <div class="mb-3">
+                    <label class="form-label">${prize.name}</label>
+                    <div class="input-group">
+                        <input type="number" 
+                               class="form-control normal-prize-chance" 
+                               data-prize-id="${prize.id}"
+                               value="${prize.chance}" 
+                               min="0" 
+                               max="100" 
+                               step="0.1">
+                        <span class="input-group-text">%</span>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+            <div class="mt-3 p-3 bg-light rounded">
+                <strong>Сумма вероятностей: <span id="normalTotalChance">0</span>%</strong>
+                <div class="progress mt-2" style="height: 10px;">
+                    <div id="normalChanceProgress" class="progress-bar" style="width: 0%"></div>
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = html;
+        
+        // Добавляем обработчики для автоматического подсчета
+        container.querySelectorAll('.normal-prize-chance').forEach(input => {
+            input.addEventListener('input', () => this.updateNormalTotalChance());
+        });
+        
+        this.updateNormalTotalChance();
+    }
+
+    updateMegaTotalChance() {
+        const inputs = document.querySelectorAll('.mega-prize-chance');
+        let total = 0;
+        
+        inputs.forEach(input => {
+            total += parseFloat(input.value) || 0;
+        });
+
+        document.getElementById('megaTotalChance').textContent = total.toFixed(1);
+        
+        const progress = document.getElementById('megaChanceProgress');
+        progress.style.width = `${Math.min(total, 100)}%`;
+        
+        if (total === 100) {
+            progress.className = 'progress-bar bg-success';
+        } else if (total > 100) {
+            progress.className = 'progress-bar bg-danger';
+        } else {
+            progress.className = 'progress-bar bg-warning';
+        }
+    }
+
+    updateNormalTotalChance() {
+        const inputs = document.querySelectorAll('.normal-prize-chance');
+        let total = 0;
+        
+        inputs.forEach(input => {
+            total += parseFloat(input.value) || 0;
+        });
+
+        document.getElementById('normalTotalChance').textContent = total.toFixed(1);
+        
+        const progress = document.getElementById('normalChanceProgress');
+        progress.style.width = `${Math.min(total, 100)}%`;
+        
+        if (total === 100) {
+            progress.className = 'progress-bar bg-success';
+        } else if (total > 100) {
+            progress.className = 'progress-bar bg-danger';
+        } else {
+            progress.className = 'progress-bar bg-warning';
+        }
+    }
+
+    async saveMegaWheelSettings() {
+        const inputs = document.querySelectorAll('.mega-prize-chance');
+        const prizes = [];
+        let total = 0;
+
+        inputs.forEach(input => {
+            const chance = parseFloat(input.value) || 0;
+            total += chance;
+            prizes.push({
+                id: input.dataset.prizeId,
+                chance: chance
+            });
+        });
+
+        if (Math.abs(total - 100) > 0.1) {
+            this.showAlert('Сумма вероятностей должна равняться 100%', 'error');
+            return;
+        }
+
+        try {
+            const response = await this.apiCall('/api/admin/wheel-settings/mega', 'POST', { prizes });
+            
+            if (response.success) {
+                this.showAlert('Настройки мега рулетки сохранены', 'success');
+            } else {
+                this.showAlert(response.error || 'Ошибка сохранения настроек', 'error');
+            }
+        } catch (error) {
+            console.error('Error saving mega wheel settings:', error);
+            this.showAlert('Ошибка сохранения настроек мега рулетки', 'error');
+        }
+    }
+
+    async saveNormalWheelSettings() {
+        const inputs = document.querySelectorAll('.normal-prize-chance');
+        const prizes = [];
+        let total = 0;
+
+        inputs.forEach(input => {
+            const chance = parseFloat(input.value) || 0;
+            total += chance;
+            prizes.push({
+                id: input.dataset.prizeId,
+                chance: chance
+            });
+        });
+
+        if (Math.abs(total - 100) > 0.1) {
+            this.showAlert('Сумма вероятностей должна равняться 100%', 'error');
+            return;
+        }
+
+        try {
+            const response = await this.apiCall('/api/admin/wheel-settings/normal', 'POST', { prizes });
+            
+            if (response.success) {
+                this.showAlert('Настройки обычной рулетки сохранены', 'success');
+            } else {
+                this.showAlert(response.error || 'Ошибка сохранения настроек', 'error');
+            }
+        } catch (error) {
+            console.error('Error saving normal wheel settings:', error);
+            this.showAlert('Ошибка сохранения настроек обычной рулетки', 'error');
+        }
+    }
+
+    // Методы для автоматизации
+    async loadAutomationTab() {
+        try {
+            await Promise.all([
+                this.loadAutomationStats(),
+                this.loadAutomationChannels(),
+                this.loadAutomationNotifications()
+            ]);
+        } catch (error) {
+            console.error('❌ Ошибка загрузки вкладки автоматизации:', error);
+        }
+    }
+
+    async loadAutomationStats() {
+        try {
+            const stats = await this.apiCall('/api/admin/automation/stats');
+            this.updateAutomationStats(stats.stats);
+        } catch (error) {
+            console.error('❌ Ошибка загрузки статистики автоматизации:', error);
+        }
+    }
+
+    updateAutomationStats(stats) {
+        // Обновляем статистику в карточках
+        document.querySelector('#automation #totalChannels').textContent = stats.totalChannels || 0;
+        document.querySelector('#automation #activeChannels').textContent = stats.activeChannels || 0;
+        document.querySelector('#automation #expiredChannels').textContent = stats.expiredChannels || 0;
+        document.querySelector('#automation #completedChannels').textContent = stats.completedChannels || 0;
+        document.querySelector('#automation #autoRenewalChannels').textContent = stats.autoRenewalChannels || 0;
+        document.querySelector('#automation #avgPriorityScore').textContent = Math.round(stats.avgPriorityScore || 0);
+    }
+
+    async loadAutomationChannels() {
+        try {
+            const channels = await this.apiCall('/api/admin/automation/channels');
+            this.renderAutomationChannelsTable(channels);
+        } catch (error) {
+            console.error('❌ Ошибка загрузки каналов автоматизации:', error);
+        }
+    }
+
+    renderAutomationChannelsTable(channels) {
+        const tbody = document.getElementById('automationChannelsTable');
+        if (!tbody) return;
+        
+        tbody.innerHTML = '';
+
+        channels.forEach(channel => {
+            const row = document.createElement('tr');
+            
+            const priorityClass = this.getPriorityClass(channel.priority_score);
+            const autoRenewalBadge = channel.auto_renewal 
+                ? '<span class="badge bg-success">Включено</span>'
+                : '<span class="badge bg-secondary">Отключено</span>';
+            
+            row.innerHTML = `
+                <td>
+                    <div class="d-flex align-items-center">
+                        <i class="fab fa-telegram text-primary me-2"></i>
+                        <div>
+                            <strong>@${channel.channel_username}</strong>
+                            <br><small class="text-muted">${channel.channel_name}</small>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span class="priority-badge ${priorityClass}">${channel.priority_score || 50}</span>
+                </td>
+                <td>${autoRenewalBadge}</td>
+                <td>
+                    <span class="badge bg-info">${channel.renewal_count || 0}</span>
+                </td>
+                <td>
+                    ${this.getChannelStatusBadge(channel)}
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" 
+                                onclick="toggleAutoRenewal(${channel.id}, ${!channel.auto_renewal})" 
+                                title="Переключить автопродление">
+                            <i class="fas fa-sync"></i>
+                        </button>
+                        <button class="btn btn-outline-info" 
+                                onclick="admin.viewChannelAutomationLog(${channel.id})" 
+                                title="Журнал автоматизации">
+                            <i class="fas fa-history"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+
+            tbody.appendChild(row);
+        });
+    }
+
+    getPriorityClass(priority) {
+        if (priority >= 70) return 'priority-high';
+        if (priority >= 40) return 'priority-medium';
+        return 'priority-low';
+    }
+
+    async loadAutomationNotifications() {
+        try {
+            const notifications = await this.apiCall('/api/admin/automation/notifications');
+            this.renderAutomationNotifications(notifications);
+        } catch (error) {
+            console.error('❌ Ошибка загрузки уведомлений автоматизации:', error);
+        }
+    }
+
+    renderAutomationNotifications(notifications) {
+        const container = document.getElementById('recentNotifications');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        if (notifications.length === 0) {
+            container.innerHTML = '<div class="text-muted text-center">Нет уведомлений</div>';
+            return;
+        }
+
+        notifications.forEach(notification => {
+            const notificationDiv = document.createElement('div');
+            notificationDiv.className = 'notification-item';
+            
+            const date = new Date(notification.created_at).toLocaleString('ru-RU');
+            notificationDiv.innerHTML = `
+                <div class="d-flex justify-content-between">
+                    <span>${notification.message}</span>
+                    <small class="text-muted">${date}</small>
+                </div>
+            `;
+
+            container.appendChild(notificationDiv);
+        });
+    }
+
+    async forceAutomationCheck() {
+        try {
+            await this.apiCall('/api/admin/automation/force-check', 'POST');
+            this.showSuccess('Принудительная проверка автоматизации запущена');
+            
+            // Обновляем данные через 3 секунды
+            setTimeout(() => {
+                this.loadAutomationTab();
+            }, 3000);
+        } catch (error) {
+            console.error('❌ Ошибка принудительной проверки:', error);
+            this.showError('Ошибка запуска принудительной проверки');
+        }
+    }
+
+    async toggleAutoRenewal(channelId, enable) {
+        try {
+            await this.apiCall(`/api/admin/automation/channels/${channelId}/auto-renewal`, 'PATCH', {
+                auto_renewal: enable
+            });
+            
+            this.showSuccess(`Автопродление ${enable ? 'включено' : 'отключено'}`);
+            await this.loadAutomationChannels();
+            await this.loadAutomationStats();
+        } catch (error) {
+            console.error('❌ Ошибка переключения автопродления:', error);
+            this.showError('Ошибка изменения настроек автопродления');
+        }
+    }
+
+    viewChannelAutomationLog(channelId) {
+        // Здесь можно открыть модальное окно с журналом автоматизации для конкретного канала
+        this.showSuccess('Функция журнала автоматизации в разработке');
+    }
+
+    showAutomationLog() {
+        // Здесь можно открыть полный журнал автоматизации
+        this.showSuccess('Полный журнал автоматизации в разработке');
+    }
+
+    // Методы для канала выигрышей
+    async loadWinsChannelTab() {
+        try {
+            await Promise.all([
+                this.loadWinsChannelStats(),
+                this.loadRecentWins()
+            ]);
+        } catch (error) {
+            console.error('❌ Ошибка загрузки вкладки канала выигрышей:', error);
+        }
+    }
+
+    async loadWinsChannelStats() {
+        try {
+            const response = await this.apiCall('/api/admin/wins-channel/stats');
+            this.updateWinsChannelStats(response.stats);
+        } catch (error) {
+            console.error('❌ Ошибка загрузки статистики канала выигрышей:', error);
+        }
+    }
+
+    updateWinsChannelStats(stats) {
+        document.getElementById('totalWinsPosted').textContent = stats.totalWinsPosted || 0;
+        document.getElementById('todayWinsPosted').textContent = stats.todayWinsPosted || 0;
+        document.getElementById('weekWinsPosted').textContent = stats.weekWinsPosted || 0;
+        
+        // Обновляем ID канала, если он настроен
+        const channelIdElement = document.getElementById('channelIdDisplay');
+        if (process.env.WINS_CHANNEL_ID) {
+            channelIdElement.textContent = process.env.WINS_CHANNEL_ID;
+        } else {
+            channelIdElement.textContent = 'Не настроен';
+        }
+    }
+
+    async loadRecentWins() {
+        try {
+            const recentWins = await this.apiCall('/api/admin/wins-channel/recent');
+            this.renderRecentWinsTable(recentWins);
+        } catch (error) {
+            console.error('❌ Ошибка загрузки недавних выигрышей:', error);
+        }
+    }
+
+    renderRecentWinsTable(wins) {
+        const tbody = document.getElementById('recentWinsTable');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        if (wins.length === 0) {
+            const row = document.createElement('tr');
+            row.innerHTML = '<td colspan="5" class="text-center text-muted">Нет опубликованных выигрышей</td>';
+            tbody.appendChild(row);
+            return;
+        }
+
+        wins.forEach(win => {
+            const row = document.createElement('tr');
+            
+            const wonDate = new Date(win.won_date).toLocaleString('ru-RU');
+            const postedDate = win.posted_to_channel_date 
+                ? new Date(win.posted_to_channel_date).toLocaleString('ru-RU')
+                : 'Не опубликован';
+            
+            const prizeIcon = this.getWinPrizeIcon(win.prize_type);
+            const userName = win.first_name || 'Пользователь';
+            const userHandle = win.username ? `(@${win.username})` : '';
+
+            row.innerHTML = `
+                <td>
+                    <div class="d-flex align-items-center">
+                        <span class="me-2" style="font-size: 1.2rem;">${prizeIcon}</span>
+                        <div>
+                            <strong>${win.prize_name}</strong>
+                            <br><small class="text-muted">${win.prize_type}</small>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div>
+                        <strong>${userName}</strong>
+                        <br><small class="text-muted">${userHandle}</small>
+                    </div>
+                </td>
+                <td>
+                    <small>${wonDate}</small>
+                </td>
+                <td>
+                    ${win.posted_to_channel_date 
+                        ? `<small class="text-success">${postedDate}</small>`
+                        : '<span class="badge bg-warning">Ожидает</span>'
+                    }
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        ${!win.posted_to_channel_date 
+                            ? `<button class="btn btn-outline-primary" onclick="admin.manualPostWin(${win.id})" title="Опубликовать">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>`
+                            : '<span class="text-muted">Опубликован</span>'
+                        }
+                    </div>
+                </td>
+            `;
+
+            tbody.appendChild(row);
+        });
+    }
+
+    getWinPrizeIcon(prizeType) {
+        const icons = {
+            'airpods4': '🎧',
+            'cert5000': '💎', 
+            'cert3000': '💍',
+            'cert2000': '💰',
+            'cert1000': '🏅',
+            'powerbank': '🔋',
+            'charger': '⚡',
+            'golden-apple': '🍎',
+            'dolce': '💄'
+        };
+        
+        return icons[prizeType] || '🎁';
+    }
+
+    async manualPostWin(prizeId) {
+        if (!confirm('Опубликовать этот выигрыш в канале?')) return;
+
+        try {
+            await this.apiCall(`/api/admin/wins-channel/post/${prizeId}`, 'POST');
+            this.showSuccess('Выигрыш успешно опубликован в канале');
+            
+            // Обновляем данные
+            await this.loadWinsChannelTab();
+        } catch (error) {
+            console.error('❌ Ошибка публикации выигрыша:', error);
+            this.showError('Ошибка публикации выигрыша: ' + (error.message || 'Неизвестная ошибка'));
+        }
+    }
+
+    async testWinsChannel() {
+        if (!confirm('Отправить тестовое сообщение в канал выигрышей?')) return;
+
+        try {
+            await this.apiCall('/api/admin/wins-channel/test', 'POST');
+            this.showSuccess('Тестовое сообщение отправлено в канал');
+        } catch (error) {
+            console.error('❌ Ошибка тестирования канала:', error);
+            this.showError('Ошибка тестирования канала: ' + (error.message || 'Неизвестная ошибка'));
+        }
+    }
 }
 
 // Глобальные функции для использования в HTML
 window.addChannel = () => admin.addChannel();
+window.updateStarsPreview = () => admin.updateStarsPreview();
+window.confirmAdjustStars = () => admin.confirmAdjustStars();
+window.loadAutomationStats = () => admin.loadAutomationStats();
+window.forceAutomationCheck = () => admin.forceAutomationCheck();
+window.toggleAutoRenewal = (channelId, enable) => admin.toggleAutoRenewal(channelId, enable);
+window.showAutomationLog = () => admin.showAutomationLog();
+window.loadWinsChannelTab = () => admin.loadWinsChannelTab();
+window.testWinsChannel = () => admin.testWinsChannel();
 window.admin = new AdminPanel();

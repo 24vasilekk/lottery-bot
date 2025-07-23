@@ -858,3 +858,132 @@
     transition: all 0.3s ease;
     flex-shrink: 0; /* Предотвращает сжатие */
 }
+
+/* ========================================
+   10. СПИСОК ПРИЗОВ
+   ======================================== */
+
+.mega-prizes-list {
+    margin-top: 40px;
+    padding: 30px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.prizes-title {
+    text-align: center;
+    font-size: 24px;
+    color: #FFD700;
+    margin-bottom: 25px;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.prizes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.prize-item {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    padding: 20px;
+    text-align: center;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.prize-item.legendary {
+    border-color: #FFD700;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 140, 0, 0.05));
+}
+
+.prize-item.epic {
+    border-color: #9945FF;
+    background: linear-gradient(135deg, rgba(153, 69, 255, 0.1), rgba(255, 0, 255, 0.05));
+}
+
+.prize-item.rare {
+    border-color: #00C9FF;
+    background: linear-gradient(135deg, rgba(0, 201, 255, 0.1), rgba(0, 255, 255, 0.05));
+}
+
+.prize-item.common {
+    border-color: #00FF88;
+    background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 255, 0, 0.05));
+}
+
+.prize-item.empty {
+    border-color: #666;
+    background: rgba(100, 100, 100, 0.1);
+}
+
+.prize-icon {
+    font-size: 36px;
+    margin-bottom: 10px;
+}
+
+.prize-name {
+    font-size: 14px;
+    color: #fff;
+    margin-bottom: 5px;
+}
+
+.prize-value {
+    font-size: 12px;
+    color: #FFD700;
+    font-weight: bold;
+}
+
+/* ========================================
+   11. МОДАЛЬНОЕ ОКНО ВЫИГРЫША
+   ======================================== */
+
+.mega-win-stars {
+    color: #FFD700;
+    font-weight: bold;
+    font-size: 16px;
+    margin: 15px 0;
+}
+
+.mega-win-instruction {
+    color: #FFF;
+    font-size: 14px;
+    margin: 20px 0;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    border-left: 4px solid #FFD700;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    border: none;
+    color: white;
+    padding: 12px 30px;
+    border-radius: 25px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(76, 175, 80, 0.4);
+}
+
+.btn-contact {
+    background: linear-gradient(135deg, #FF6B35, #F7931E);
+    border: none;
+    color: white;
+    padding: 12px 30px;
+    border-radius: 25px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.btn-contact:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255, 107, 53, 0.4);
+}

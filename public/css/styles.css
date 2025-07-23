@@ -54,6 +54,9 @@ body {
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
     /* ИСПРАВЛЕНА ПРОКРУТКА - УБРАН overflow: hidden */
+    /* Улучшение прокрутки на мобильных */
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
 }
 
 #app {
@@ -65,6 +68,8 @@ body {
     /* ИСПРАВЛЕНА ПРОКРУТКА - ДОБАВЛЕНА ВОЗМОЖНОСТЬ ПРОКРУТКИ */
     overflow-y: auto;
     padding-bottom: 90px; /* Отступ для нижней навигации */
+    /* Улучшение прокрутки на мобильных */
+    -webkit-overflow-scrolling: touch;
 }
 
 /* ========================================
@@ -1117,4 +1122,168 @@ body {
         padding: 10px 8px;
         font-size: 11px;
     }
+}
+
+/* ========================================
+   РЕФЕРАЛЬНОЕ МОДАЛЬНОЕ ОКНО
+   ======================================== */
+
+.referral-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    backdrop-filter: blur(10px);
+}
+
+.referral-modal-content {
+    background: var(--glass-bg);
+    border-radius: 20px;
+    max-width: 400px;
+    width: 90%;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+}
+
+.referral-header {
+    background: linear-gradient(135deg, var(--primary-pink), var(--primary-purple));
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.referral-header h3 {
+    margin: 0;
+    color: white;
+    font-size: 18px;
+}
+
+.close-modal {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.3s ease;
+}
+
+.close-modal:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.referral-body {
+    padding: 25px;
+}
+
+.referral-body p {
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.referral-link-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+#referral-link {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 12px;
+    color: white;
+    font-size: 14px;
+}
+
+.copy-btn {
+    background: linear-gradient(135deg, var(--primary-lime), #a8c414);
+    border: none;
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: black;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.copy-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(204, 213, 55, 0.4);
+}
+
+.referral-info {
+    background: rgba(255, 215, 0, 0.1);
+    border-radius: 10px;
+    padding: 15px;
+    border-left: 4px solid #FFD700;
+}
+
+.referral-info p {
+    margin: 0;
+    color: #FFD700;
+    font-weight: bold;
+}
+
+/* ========================================
+   ЛИДЕРБОРД РЕФЕРАЛОВ
+   ======================================== */
+
+.leaderboard-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 5px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+}
+
+.tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.tab-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    background: linear-gradient(135deg, var(--primary-pink), var(--primary-purple));
+    color: white;
+    box-shadow: 0 4px 15px rgba(239, 85, 165, 0.3);
+}
+
+.leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }

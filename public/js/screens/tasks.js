@@ -26,7 +26,7 @@ export class TasksScreen {
                     <button class="task-tab active" data-tab="channels">📺 Каналы</button>
                     <button class="task-tab" data-tab="daily">📅 Ежедневные</button>
                     <button class="task-tab" data-tab="referral">👥 Рефералы</button>
-                    <button class="task-tab" data-tab="hot">🔥 Горячие</button>
+                    <button class="task-tab" data-tab="hot">🔥 Активные</button>
                 </div>
 
                 <div id="channels-tasks" class="task-section active">
@@ -121,32 +121,33 @@ export class TasksScreen {
     // ===================== НОВЫЕ МЕТОДЫ ДЛЯ СИСТЕМЫ КАНАЛОВ =====================
     
     async loadTasks() {
-        if (!this.app.tg?.initDataUnsafe?.user?.id) {
-            console.warn('Нет данных пользователя для загрузки заданий');
-            return;
-        }
-
         try {
-            const userId = this.app.tg.initDataUnsafe.user.id;
-            const response = await fetch(`/api/tasks/available/${userId}`);
-            const data = await response.json();
+            // Попытка загрузки каналов, если есть данные пользователя
+            if (this.app.tg?.initDataUnsafe?.user?.id) {
+                const userId = this.app.tg.initDataUnsafe.user.id;
+                const response = await fetch(`/api/tasks/available/${userId}`);
+                const data = await response.json();
 
-            if (data.blocked) {
-                this.userBlocked = true;
-                this.blockMessage = data.message;
-                this.banUntil = data.banUntil;
+                if (data.blocked) {
+                    this.userBlocked = true;
+                    this.blockMessage = data.message;
+                    this.banUntil = data.banUntil;
+                } else {
+                    this.userBlocked = false;
+                    this.channels = data.channels || [];
+                }
+                
+                console.log('✅ Задания каналов загружены:', data);
             } else {
-                this.userBlocked = false;
-                this.channels = data.channels || [];
-                this.dailyTasks = data.dailyTasks || [];
-                this.hotOffers = data.hotOffers || [];
+                console.warn('Нет данных пользователя для загрузки заданий каналов');
+                this.channels = [];
             }
 
             // Обновляем интерфейс
             this.refreshTabContent(this.currentTab);
-            console.log('✅ Задания загружены:', data);
         } catch (error) {
             console.error('❌ Ошибка загрузки заданий:', error);
+            this.channels = [];
         }
     }
 
@@ -197,148 +198,80 @@ export class TasksScreen {
     }
 
     renderDailyTasks() {
-        if (!this.dailyTasks || this.dailyTasks.length === 0) {
+        if (!TASKS_CONFIG.daily) {
+            return '<div class="empty-state">Ежедневные задания загружаются...</div>';
+        }
+
+        const todayTasks = TASKS_CONFIG.daily.filter(task => !this.isTaskCompleted(task.id));
+        
+        if (todayTasks.length === 0) {
             return '<div class="empty-state">Все ежедневные задания выполнены! 🎉</div>';
         }
         
-        return this.dailyTasks.map(task => this.renderDailyTaskItem(task)).join('');
+        return todayTasks.map(task => this.renderTaskItem(task, 'daily')).join('');
     }
 
-    renderDailyTaskItem(task) {
-        const isCompleted = task.completed || false;
-        const progress = task.progress || 0;
-        const target = task.target || 1;
-        
-        return `
-            <div class="daily-task-item ${isCompleted ? 'completed' : ''}" data-task-id="${task.id}">
-                <div class="task-icon">${task.icon}</div>
-                <div class="task-content">
-                    <div class="task-name">${task.name}</div>
-                    <div class="task-description">${task.description}</div>
-                    <div class="task-progress">
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${Math.min(100, (progress / target) * 100)}%"></div>
-                        </div>
-                        <div class="progress-text">${progress}/${target}</div>
-                    </div>
-                    <div class="task-reward">+${task.reward} ⭐</div>
-                </div>
-                ${isCompleted ? 
-                    '<div class="completed-badge">✅ Выполнено</div>' :
-                    `<button class="claim-btn ${progress >= target ? 'ready' : 'disabled'}" 
-                             onclick="handleDailyTaskClaim('${task.id}')"
-                             ${progress < target ? 'disabled' : ''}>
-                        ${progress >= target ? 'Получить' : 'В процессе'}
-                     </button>`
-                }
-            </div>
-        `;
-    }
 
     renderReferralTasks() {
-        const referralCount = this.app.gameData.referralCount || 0;
-        const activeReferrals = this.app.gameData.activeReferrals || 0;
-        
-        return `
+        if (!TASKS_CONFIG.friends) {
+            return '<div class="empty-state">Задания с друзьями загружаются...</div>';
+        }
+
+        const referrals = this.app.gameData.referrals || 0;
+        const availableTasks = TASKS_CONFIG.friends.filter(task => {
+            const isCompleted = this.isTaskCompleted(task.id);
+            const hasEnoughReferrals = referrals >= (task.required || 1);
+            return !isCompleted;
+        });
+
+        let content = `
             <div class="referral-section">
                 <div class="referral-stats">
                     <div class="stat-item">
-                        <div class="stat-value">${referralCount}</div>
-                        <div class="stat-label">Приглашено</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">${activeReferrals}</div>
-                        <div class="stat-label">Активных</div>
+                        <div class="stat-value">${referrals}</div>
+                        <div class="stat-label">👥 Приглашено друзей</div>
                     </div>
                 </div>
                 
-                <div class="referral-link">
-                    <input type="text" id="referral-link" value="${this.getReferralLink()}" readonly>
-                    <button onclick="copyReferralLink()">Копировать</button>
+                <div class="referral-link-container">
+                    <h4>🔗 Ваша реферальная ссылка:</h4>
+                    <div class="referral-link">
+                        <input type="text" id="referral-link" value="${this.getReferralLink()}" readonly>
+                        <button onclick="copyReferralLink()">📋 Копировать</button>
+                    </div>
                 </div>
                 
                 <div class="referral-description">
-                    <p>Приглашайте друзей и получайте награды!</p>
-                    <p>За каждого активного реферала (выполнил 2+ подписки) вы получите 20 ⭐</p>
+                    <p>💡 Приглашайте друзей и получайте звезды!</p>
+                    <p>⭐ За каждого друга вы получите 100 звезд</p>
                 </div>
             </div>
         `;
+
+        if (availableTasks.length > 0) {
+            content += '<div class="referral-tasks">';
+            content += availableTasks.map(task => this.renderTaskItem(task, 'friends')).join('');
+            content += '</div>';
+        }
+
+        return content;
     }
 
     renderHotOffers() {
-        if (!this.hotOffers || this.hotOffers.length === 0) {
-            return '<div class="empty-state">Сейчас нет горячих предложений</div>';
+        if (!TASKS_CONFIG.active) {
+            return '<div class="empty-state">Горячие предложения загружаются...</div>';
         }
 
-        return this.hotOffers.map(offer => this.renderHotOfferItem(offer)).join('');
-    }
-
-    renderHotOfferItem(offer) {
-        const timeLeft = Math.max(0, new Date(offer.expires_at) - new Date());
-        const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
-        const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+        const activeTasks = TASKS_CONFIG.active.filter(task => !this.isTaskCompleted(task.id));
         
-        return `
-            <div class="hot-offer-item" data-offer-id="${offer.id}">
-                <div class="hot-badge">🔥 ГОРЯЧЕЕ ПРЕДЛОЖЕНИЕ</div>
-                <div class="offer-content">
-                    <div class="offer-title">${offer.title}</div>
-                    <div class="offer-description">${offer.description}</div>
-                    <div class="offer-reward">+${offer.reward} ⭐ (x${offer.multiplier})</div>
-                    <div class="offer-timer">
-                        ⏰ Осталось: ${hoursLeft}ч ${minutesLeft}м
-                    </div>
-                </div>
-                <button class="hot-subscribe-btn" onclick="handleHotOfferSubscribe('${offer.id}', '${offer.channel_username}')">
-                    Подписаться сейчас!
-                </button>
-            </div>
-        `;
-    }
-
-    renderFriendsTasks() {
-        if (!TASKS_CONFIG.friends) return '<div class="empty-state">Задания с друзьями загружаются...</div>';
-        
-        const referrals = this.app.gameData.referrals || 0;
-        const tasks = TASKS_CONFIG.friends.filter(task => {
-            const isCompleted = this.isTaskCompleted(task.id);
-            const hasEnoughReferrals = referrals >= (task.required || 1);
-            return !isCompleted && hasEnoughReferrals;
-        });
-        
-        if (tasks.length === 0) {
-            return `
-                <div class="empty-state">
-                    <p>Приглашайте друзей, чтобы получить больше заданий!</p>
-                    <p>У вас сейчас: ${referrals} друзей</p>
-                </div>
-            `;
-        }
-        
-        return tasks.map(task => this.renderTaskItem(task, 'friends')).join('');
-    }
-
-    renderActiveTasks() {
-        if (!TASKS_CONFIG.active) return '<div class="empty-state">Активные задания загружаются...</div>';
-        
-        const tasks = TASKS_CONFIG.active.filter(task => !this.isTaskCompleted(task.id));
-        
-        if (tasks.length === 0) {
+        if (activeTasks.length === 0) {
             return '<div class="empty-state">Все активные задания выполнены! 🌟</div>';
         }
-        
-        return tasks.map(task => this.renderTaskItem(task, 'active')).join('');
+
+        return activeTasks.map(task => this.renderTaskItem(task, 'active')).join('');
     }
 
-    renderCompletedTasks() {
-        const completedTasks = this.getCompletedTasksList();
-        
-        if (completedTasks.length === 0) {
-            return '<div class="empty-state">Пока нет выполненных заданий</div>';
-        }
-        
-        return completedTasks.map(task => this.renderCompletedTaskItem(task)).join('');
-    }
+
 
     renderTaskItem(task, category) {
         const reward = task.reward || { type: 'stars', amount: 0 };
@@ -362,45 +295,17 @@ export class TasksScreen {
         `;
     }
 
-    renderCompletedTaskItem(task) {
-        const reward = task.reward || { type: 'stars', amount: 0 };
-        const rewardText = reward.type === 'stars' ? `+${reward.amount} ⭐` : 'Награда получена';
-        
-        return `
-            <div class="task-item completed">
-                <div class="task-icon">${task.icon}</div>
-                <div class="task-content">
-                    <div class="task-name">${task.name}</div>
-                    <div class="task-description">${task.description}</div>
-                    <div class="task-reward">${rewardText}</div>
-                </div>
-                <div class="task-status">
-                    <i class="fas fa-check-circle"></i>
-                    Выполнено
-                </div>
-            </div>
-        `;
-    }
 
     attachTaskEventListeners() {
-        // Глобальные обработчики для новой системы заданий
+        // Глобальные обработчики для системы заданий
         window.handleChannelSubscribe = (channelId, channelUsername) => {
             this.handleChannelSubscribe(channelId, channelUsername);
-        };
-
-        window.handleHotOfferSubscribe = (offerId, channelUsername) => {
-            this.handleHotOfferSubscribe(offerId, channelUsername);
-        };
-
-        window.handleDailyTaskClaim = (taskId) => {
-            this.handleDailyTaskClaim(taskId);
         };
 
         window.copyReferralLink = () => {
             this.copyReferralLink();
         };
 
-        // Старые обработчики для совместимости
         window.handleTaskComplete = (taskId, category) => {
             this.completeTask(taskId, category);
         };
@@ -562,16 +467,6 @@ export class TasksScreen {
         }
     }
 
-    async handleHotOfferSubscribe(offerId, channelUsername) {
-        // Аналогично обычной подписке, но с учетом горячего предложения
-        await this.handleChannelSubscribe(offerId, channelUsername);
-    }
-
-    async handleDailyTaskClaim(taskId) {
-        console.log(`🎯 Получение награды за ежедневное задание: ${taskId}`);
-        // Реализация получения награды за ежедневное задание
-        this.app.showStatusMessage('Награда получена!', 'success');
-    }
 
     getReferralLink() {
         if (!this.app.tg?.initDataUnsafe?.user?.id) {

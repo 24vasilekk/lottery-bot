@@ -99,7 +99,6 @@ body {
 
 .screen {
     display: none;
-    min-height: calc(100vh - 90px);
     padding: 20px 20px 120px 20px;
     opacity: 0;
     transform: translateY(20px);

@@ -190,11 +190,21 @@ class Navigation {
         this.loadLeaderboard();
     }
 
-    async loadLeaderboard() {
+    async loadLeaderboard(showOnlyReferrals = false) {
         const container = document.getElementById('leaderboard');
         if (!container) return;
 
+        const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+
         container.innerHTML = `
+            <div class="leaderboard-controls">
+                <button class="tab-btn ${!showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(false)">
+                    <i class="fas fa-trophy"></i> Общий
+                </button>
+                <button class="tab-btn ${showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(true)">
+                    <i class="fas fa-users"></i> Мои рефералы
+                </button>
+            </div>
             <div class="loading">
                 <i class="fas fa-spinner fa-spin"></i>
                 <p>Загрузка лидерборда...</p>
@@ -202,39 +212,76 @@ class Navigation {
         `;
 
         try {
-            const response = await fetch('/api/leaderboard?limit=10');
+            const endpoint = showOnlyReferrals && userId ? 
+                `/api/referrals-leaderboard/${userId}?limit=10` : 
+                '/api/leaderboard?limit=10';
+                
+            const response = await fetch(endpoint);
             if (!response.ok) throw new Error('Ошибка загрузки лидерборда');
 
             const data = await response.json();
             const leaderboard = data.leaderboard || [];
 
             if (leaderboard.length === 0) {
+                const emptyMessage = showOnlyReferrals ? 
+                    'У вас пока нет приглашенных друзей' : 
+                    'Пока нет данных лидерборда';
+                    
                 container.innerHTML = `
+                    <div class="leaderboard-controls">
+                        <button class="tab-btn ${!showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(false)">
+                            <i class="fas fa-trophy"></i> Общий
+                        </button>
+                        <button class="tab-btn ${showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(true)">
+                            <i class="fas fa-users"></i> Мои рефералы
+                        </button>
+                    </div>
                     <div class="empty-state">
-                        <p>Пока нет данных лидерборда</p>
-                        <p>Будь первым!</p>
+                        <p>${emptyMessage}</p>
+                        ${showOnlyReferrals ? '<p>Пригласите друзей и они появятся здесь!</p>' : '<p>Будь первым!</p>'}
                     </div>
                 `;
                 return;
             }
 
-            let leaderboardHTML = '';
+            let leaderboardHTML = `
+                <div class="leaderboard-controls">
+                    <button class="tab-btn ${!showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(false)">
+                        <i class="fas fa-trophy"></i> Общий
+                    </button>
+                    <button class="tab-btn ${showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(true)">
+                        <i class="fas fa-users"></i> Мои рефералы
+                    </button>
+                </div>
+                <div class="leaderboard-list">
+            `;
+            
             leaderboard.forEach((player, index) => {
                 const position = index + 1;
                 const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : `${position}.`;
+                
+                let statsContent = '';
+                if (showOnlyReferrals) {
+                    // Для лидерборда рефералов показываем количество их рефералов
+                    statsContent = `${player.referrals_count || 0} 👥`;
+                } else {
+                    // Для общего лидерборда показываем звезды и призы
+                    statsContent = `${player.total_stars || 0} ⭐`;
+                }
                 
                 leaderboardHTML += `
                     <div class="leaderboard-item ${position <= 3 ? 'top-player' : ''}">
                         <div class="player-rank">${medal}</div>
                         <div class="player-info">
                             <div class="player-name">${player.first_name || 'Игрок'}</div>
-                            <div class="player-stats">${player.total_stars} ⭐</div>
+                            <div class="player-stats">${statsContent}</div>
                         </div>
-                        <div class="player-prizes">${player.total_prizes} 🎁</div>
+                        ${!showOnlyReferrals ? `<div class="player-prizes">${player.total_prizes || 0} 🎁</div>` : ''}
                     </div>
                 `;
             });
-
+            
+            leaderboardHTML += '</div>';
             container.innerHTML = leaderboardHTML;
         } catch (error) {
             console.error('Ошибка загрузки лидерборда:', error);

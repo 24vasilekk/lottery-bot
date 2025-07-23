@@ -6,9 +6,8 @@
 
 #tasks-screen {
     padding: 20px;
-    padding-bottom: 100px;
+    padding-bottom: 120px;
     background: var(--dark-bg);
-    min-height: 100vh;
     box-sizing: border-box;
 }
 

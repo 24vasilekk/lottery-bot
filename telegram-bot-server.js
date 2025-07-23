@@ -108,6 +108,10 @@ const db = new Database();
 // Импорт фоновых задач
 const BackgroundTaskManager = require('./admin/background-tasks.js');
 
+// Импорт автоматизации спонсоров  
+const SponsorAutomation = require('./sponsor-automation.js');
+const WinsChannelManager = require('./wins-channel.js');
+
 // Промокоды
 const PROMO_CODES = {
     'WELCOME2024': { crystals: 100, used: new Set() },
@@ -334,6 +338,24 @@ app.get('/api/leaderboard', async (req, res) => {
         res.json({ leaderboard });
     } catch (error) {
         console.error('❌ Ошибка получения лидерборда:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для получения лидерборда рефералов пользователя
+app.get('/api/referrals-leaderboard/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const limit = parseInt(req.query.limit) || 10;
+        
+        const referralsLeaderboard = await db.getReferralsLeaderboard(parseInt(userId), limit);
+        
+        res.json({ 
+            leaderboard: referralsLeaderboard,
+            total: referralsLeaderboard.length 
+        });
+    } catch (error) {
+        console.error('❌ Ошибка получения лидерборда рефералов:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -809,6 +831,182 @@ app.delete('/api/admin/channels/:id', requireAdmin, async (req, res) => {
     }
 });
 
+// API для автоматизации спонсоров
+app.get('/api/admin/automation/stats', requireAdmin, async (req, res) => {
+    try {
+        const stats = await db.get(`
+            SELECT 
+                COUNT(*) as totalChannels,
+                COUNT(CASE WHEN is_active = 1 THEN 1 END) as activeChannels,
+                COUNT(CASE WHEN is_active = 0 AND deactivation_reason = 'time_expired' THEN 1 END) as expiredChannels,
+                COUNT(CASE WHEN is_active = 0 AND deactivation_reason = 'target_reached' THEN 1 END) as completedChannels,
+                COUNT(CASE WHEN auto_renewal = 1 THEN 1 END) as autoRenewalChannels,
+                AVG(priority_score) as avgPriorityScore
+            FROM partner_channels
+        `);
+
+        const recentNotifications = await db.all(`
+            SELECT an.*, pc.channel_username 
+            FROM admin_notifications an
+            LEFT JOIN partner_channels pc ON an.channel_id = pc.id
+            ORDER BY an.created_at DESC 
+            LIMIT 10
+        `);
+
+        res.json({
+            stats: stats || {},
+            recentNotifications: recentNotifications || []
+        });
+    } catch (error) {
+        console.error('❌ Ошибка получения статистики автоматизации:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Получение каналов для автоматизации  
+app.get('/api/admin/automation/channels', requireAdmin, async (req, res) => {
+    try {
+        const channels = await db.all(`
+            SELECT * FROM partner_channels 
+            ORDER BY priority_score DESC, created_at DESC
+        `);
+
+        res.json(channels || []);
+    } catch (error) {
+        console.error('❌ Ошибка получения каналов автоматизации:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Получение уведомлений автоматизации
+app.get('/api/admin/automation/notifications', requireAdmin, async (req, res) => {
+    try {
+        const notifications = await db.all(`
+            SELECT an.*, pc.channel_username 
+            FROM admin_notifications an
+            LEFT JOIN partner_channels pc ON an.channel_id = pc.id
+            ORDER BY an.created_at DESC 
+            LIMIT 20
+        `);
+
+        // Форматируем сообщения для отображения
+        const formattedNotifications = notifications.map(notification => ({
+            ...notification,
+            message: notification.message || `Канал @${notification.channel_username}: ${notification.notification_type}`
+        }));
+
+        res.json(formattedNotifications || []);
+    } catch (error) {
+        console.error('❌ Ошибка получения уведомлений автоматизации:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Переключение автопродления канала
+app.patch('/api/admin/automation/channels/:id/auto-renewal', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { auto_renewal } = req.body;
+
+        await db.run(`
+            UPDATE partner_channels 
+            SET auto_renewal = ? 
+            WHERE id = ?
+        `, [auto_renewal ? 1 : 0, id]);
+
+        console.log(`🔄 Админ: автопродление канала ${id} ${auto_renewal ? 'включено' : 'отключено'}`);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Ошибка изменения автопродления:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.post('/api/admin/automation/force-check', requireAdmin, async (req, res) => {
+    try {
+        console.log('🔄 Админ: принудительная проверка автоматизации');
+        
+        if (sponsorAutomation) {
+            // Запускаем принудительную проверку автоматизации
+            await sponsorAutomation.performAutomatedTasks();
+            console.log('✅ Принудительная проверка автоматизации выполнена');
+        } else {
+            console.log('⚠️ Система автоматизации не инициализирована');
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Принудительная проверка автоматизации запущена' 
+        });
+    } catch (error) {
+        console.error('❌ Ошибка принудительной проверки:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для канала выигрышей
+app.get('/api/admin/wins-channel/stats', requireAdmin, async (req, res) => {
+    try {
+        if (!winsChannelManager) {
+            return res.status(503).json({ error: 'Система постинга выигрышей не инициализирована' });
+        }
+
+        const stats = await winsChannelManager.getChannelStats();
+        res.json({ stats });
+    } catch (error) {
+        console.error('❌ Ошибка получения статистики канала выигрышей:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.get('/api/admin/wins-channel/recent', requireAdmin, async (req, res) => {
+    try {
+        if (!winsChannelManager) {
+            return res.status(503).json({ error: 'Система постинга выигрышей не инициализирована' });
+        }
+
+        const recentWins = await winsChannelManager.getRecentPostedWins();
+        res.json(recentWins);
+    } catch (error) {
+        console.error('❌ Ошибка получения недавних постов:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.post('/api/admin/wins-channel/post/:prizeId', requireAdmin, async (req, res) => {
+    try {
+        const { prizeId } = req.params;
+        
+        if (!winsChannelManager) {
+            return res.status(503).json({ error: 'Система постинга выигрышей не инициализирована' });
+        }
+
+        await winsChannelManager.manualPostWin(prizeId);
+        console.log(`✅ Админ: выигрыш ${prizeId} опубликован вручную`);
+        
+        res.json({ success: true, message: 'Выигрыш успешно опубликован' });
+    } catch (error) {
+        console.error('❌ Ошибка ручного постинга выигрыша:', error);
+        res.status(500).json({ error: error.message || 'Internal server error' });
+    }
+});
+
+app.post('/api/admin/wins-channel/test', requireAdmin, async (req, res) => {
+    try {
+        if (!winsChannelManager) {
+            return res.status(503).json({ error: 'Система постинга выигрышей не инициализирована' });
+        }
+
+        await winsChannelManager.testChannelConnection();
+        console.log('✅ Админ: тестовое сообщение отправлено в канал выигрышей');
+        
+        res.json({ success: true, message: 'Тестовое сообщение отправлено' });
+    } catch (error) {
+        console.error('❌ Ошибка тестирования канала выигрышей:', error);
+        res.status(500).json({ error: error.message || 'Internal server error' });
+    }
+});
+
 // Получение призов ожидающих выдачи
 app.get('/api/admin/pending-prizes', requireAdmin, async (req, res) => {
     try {
@@ -935,15 +1133,183 @@ app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
     }
 });
 
+// Endpoint для управления звездами пользователей
+app.post('/api/admin/users/stars', requireAdmin, async (req, res) => {
+    const { telegramId, operation, amount, reason } = req.body;
+    
+    if (!telegramId || !operation || amount === undefined || !reason) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Необходимо указать все параметры' 
+        });
+    }
+
+    if (amount < 0) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Количество должно быть положительным' 
+        });
+    }
+
+    try {
+        // Получаем текущего пользователя
+        const user = await db.getUser(telegramId);
+        if (!user) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Пользователь не найден' 
+            });
+        }
+
+        const currentStars = user.stars || 0;
+        let newStars = 0;
+        let starsChange = 0;
+
+        switch (operation) {
+            case 'add':
+                starsChange = amount;
+                newStars = currentStars + amount;
+                break;
+            case 'subtract':
+                starsChange = -amount;
+                newStars = Math.max(0, currentStars - amount);
+                break;
+            case 'set':
+                starsChange = amount - currentStars;
+                newStars = amount;
+                break;
+            default:
+                return res.status(400).json({ 
+                    success: false, 
+                    error: 'Неверная операция' 
+                });
+        }
+
+        // Обновляем баланс звезд
+        await db.updateUserStars(telegramId, starsChange);
+
+        // Добавляем запись в историю транзакций
+        await db.addStarsTransaction({
+            user_id: telegramId,
+            amount: starsChange,
+            transaction_type: 'admin_adjustment',
+            description: `Администратор: ${reason}`
+        });
+
+        console.log(`✅ Админ обновил звезды пользователя ${telegramId}: ${currentStars} -> ${newStars} (${operation} ${amount})`);
+
+        res.json({ 
+            success: true, 
+            oldBalance: currentStars,
+            newBalance: newStars,
+            change: starsChange
+        });
+    } catch (error) {
+        console.error('❌ Ошибка обновления звезд:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка при обновлении баланса' 
+        });
+    }
+});
+
+// Endpoints для настроек рулетки
+app.get('/api/admin/wheel-settings/mega', requireAdmin, async (req, res) => {
+    try {
+        // Получаем настройки мега рулетки из файла конфигурации или БД
+        const settings = await db.getWheelSettings('mega');
+        res.json(settings || { prizes: [] });
+    } catch (error) {
+        console.error('❌ Ошибка получения настроек мега рулетки:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.post('/api/admin/wheel-settings/mega', requireAdmin, async (req, res) => {
+    const { prizes } = req.body;
+    
+    if (!prizes || !Array.isArray(prizes)) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Неверный формат данных' 
+        });
+    }
+
+    // Проверяем что сумма вероятностей равна 100%
+    const totalChance = prizes.reduce((sum, prize) => sum + (prize.chance || 0), 0);
+    if (Math.abs(totalChance - 100) > 0.1) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Сумма вероятностей должна равняться 100%' 
+        });
+    }
+
+    try {
+        await db.saveWheelSettings('mega', { prizes });
+        console.log('✅ Настройки мега рулетки обновлены');
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Ошибка сохранения настроек мега рулетки:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка сохранения настроек' 
+        });
+    }
+});
+
+app.get('/api/admin/wheel-settings/normal', requireAdmin, async (req, res) => {
+    try {
+        // Получаем настройки обычной рулетки из файла конфигурации или БД
+        const settings = await db.getWheelSettings('normal');
+        res.json(settings || { prizes: [] });
+    } catch (error) {
+        console.error('❌ Ошибка получения настроек обычной рулетки:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.post('/api/admin/wheel-settings/normal', requireAdmin, async (req, res) => {
+    const { prizes } = req.body;
+    
+    if (!prizes || !Array.isArray(prizes)) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Неверный формат данных' 
+        });
+    }
+
+    // Проверяем что сумма вероятностей равна 100%
+    const totalChance = prizes.reduce((sum, prize) => sum + (prize.chance || 0), 0);
+    if (Math.abs(totalChance - 100) > 0.1) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Сумма вероятностей должна равняться 100%' 
+        });
+    }
+
+    try {
+        await db.saveWheelSettings('normal', { prizes });
+        console.log('✅ Настройки обычной рулетки обновлены');
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Ошибка сохранения настроек обычной рулетки:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка сохранения настроек' 
+        });
+    }
+});
+
 // === КОМАНДЫ БОТА ===
 
 if (bot) {
-    // Команда /start
-    bot.onText(/\/start/, async (msg) => {
+    // Команда /start с поддержкой реферальных ссылок
+    bot.onText(/\/start(?:\s(.+))?/, async (msg, match) => {
         const chatId = msg.chat.id;
         const userId = msg.from.id;
+        const startParam = match ? match[1] : null;
         
-        console.log(`👤 Пользователь ${userId} (${msg.from.first_name}) запустил бота`);
+        console.log(`👤 Пользователь ${userId} (${msg.from.first_name}) запустил бота${startParam ? ` с параметром: ${startParam}` : ''}`);
         
         try {
             // Проверяем, существует ли пользователь
@@ -984,6 +1350,38 @@ if (bot) {
                 }
                 
                 await db.updateUserActivity(userId);
+            }
+            
+            // Обработка реферальной ссылки
+            if (startParam && startParam.startsWith('ref_')) {
+                const referrerId = parseInt(startParam.substring(4));
+                if (referrerId && referrerId !== userId) {
+                    try {
+                        // Проверяем, что реферер существует
+                        const referrer = await db.getUser(referrerId);
+                        if (referrer) {
+                            // Проверяем, не был ли уже добавлен этот реферал
+                            const existingReferral = await db.getReferral(referrerId, userId);
+                            if (!existingReferral) {
+                                // Добавляем реферал
+                                await db.addReferral(referrerId, userId);
+                                console.log(`🤝 Пользователь ${userId} приглашен пользователем ${referrerId}`);
+                                
+                                // Уведомляем пригласившего
+                                try {
+                                    await bot.sendMessage(referrerId, 
+                                        `🎉 Поздравляем! Ваш друг ${msg.from.first_name} присоединился к боту!\n` +
+                                        `💫 Вы получили дополнительную прокрутку колеса!`
+                                    );
+                                } catch (notifyError) {
+                                    console.log('⚠️ Не удалось уведомить реферера:', notifyError.message);
+                                }
+                            }
+                        }
+                    } catch (refError) {
+                        console.error('❌ Ошибка обработки реферальной ссылки:', refError);
+                    }
+                }
             }
         } catch (error) {
             console.error('❌ Ошибка обработки пользователя:', error);
@@ -2190,6 +2588,7 @@ async function syncUserData(userId, webAppData) {
         const prizes = await db.getUserPrizes(userId);
         const completedTasks = await db.getUserCompletedTasks(userId);
         const subscriptions = await db.getUserSubscriptions(userId);
+        const actualReferralsCount = await db.getUserReferralsCount(userId);
         
         const syncedData = {
             ...webAppData,
@@ -2203,7 +2602,7 @@ async function syncUserData(userId, webAppData) {
                 stars: user.stars || 20,
                 totalSpins: user.total_spins || 0,
                 prizesWon: user.prizes_won || 0,
-                referrals: user.referrals || 0,
+                referrals: actualReferralsCount,
                 totalStarsEarned: user.total_stars_earned || 20
             },
             prizes: prizes || [],
@@ -2256,6 +2655,8 @@ app.use((req, res) => {
 
 // Переменная для фоновых задач
 let backgroundTasks = null;
+let sponsorAutomation = null;
+let winsChannelManager = null;
 
 const server = app.listen(PORT, '0.0.0.0', () => {
     console.log('\n🎉 KOSMETICHKA LOTTERY BOT ЗАПУЩЕН!');
@@ -2276,6 +2677,16 @@ const server = app.listen(PORT, '0.0.0.0', () => {
         try {
             backgroundTasks = new BackgroundTaskManager(db, bot);
             console.log('🔄 Фоновые задачи запущены');
+            
+            // Запускаем автоматизацию спонсоров
+            sponsorAutomation = new SponsorAutomation(bot);
+            console.log('🤖 Автоматизация спонсоров запущена');
+            
+            // Запускаем систему постинга выигрышей
+            winsChannelManager = new WinsChannelManager(bot);
+            // Инициализируем колонки БД для постинга
+            await winsChannelManager.addPostedColumn();
+            console.log('🏆 Система постинга выигрышей запущена');
         } catch (error) {
             console.error('❌ Ошибка запуска фоновых задач:', error);
         }

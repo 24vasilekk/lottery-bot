@@ -107,6 +107,69 @@
         .prize-stars { border-left-color: #17a2b8; background: #d1ecf1; }
         .prize-cosmetics { border-left-color: #e83e8c; background: #f8d7da; }
         .prize-empty { border-left-color: #6c757d; background: #e2e3e5; }
+        
+        /* Стили для автоматизации */
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid #e3e6f0;
+            margin-bottom: 15px;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        }
+        
+        .stat-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #5a5c69;
+        }
+        
+        .stat-label {
+            color: #858796;
+            font-size: 0.875rem;
+            font-weight: 400;
+        }
+        
+        .text-purple {
+            color: #6f42c1 !important;
+        }
+        
+        .priority-badge {
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        
+        .priority-high {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .priority-medium {
+            background-color: #ffc107;
+            color: black;
+        }
+        
+        .priority-low {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .notification-item {
+            padding: 8px 12px;
+            border-left: 3px solid #007bff;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
     </style>
 </head>
 <body>
@@ -182,6 +245,21 @@
             <li class="nav-item">
                 <a class="nav-link" data-bs-toggle="pill" href="#analytics">
                     <i class="fas fa-chart-bar"></i> Аналитика
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="pill" href="#wheel-settings">
+                    <i class="fas fa-dice"></i> Настройки рулетки
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="pill" href="#automation">
+                    <i class="fas fa-robot"></i> Автоматизация
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="pill" href="#wins-channel">
+                    <i class="fas fa-trophy"></i> Канал выигрышей
                 </a>
             </li>
             <li class="nav-item">
@@ -286,6 +364,274 @@
                 </div>
             </div>
 
+            <!-- Wheel Settings Tab -->
+            <div class="tab-pane fade" id="wheel-settings">
+                <div class="admin-card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-dice"></i> Настройки шансов выигрыша</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-crown"></i> Мега рулетка (5000 звезд)</h6>
+                                <form id="megaWheelSettingsForm">
+                                    <div id="megaPrizesContainer">
+                                        <!-- Prizes will be loaded here -->
+                                    </div>
+                                    <button type="button" class="btn btn-success mt-3" onclick="admin.saveMegaWheelSettings()">
+                                        <i class="fas fa-save"></i> Сохранить настройки мега рулетки
+                                    </button>
+                                </form>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-star"></i> Обычная рулетка (20 звезд)</h6>
+                                <form id="normalWheelSettingsForm">
+                                    <div id="normalPrizesContainer">
+                                        <!-- Prizes will be loaded here -->
+                                    </div>
+                                    <button type="button" class="btn btn-success mt-3" onclick="admin.saveNormalWheelSettings()">
+                                        <i class="fas fa-save"></i> Сохранить настройки рулетки
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="alert alert-info">
+                                    <h6><i class="fas fa-info-circle"></i> Важная информация:</h6>
+                                    <ul class="mb-0">
+                                        <li>Сумма всех вероятностей должна равняться 100%</li>
+                                        <li>Изменения применятся немедленно ко всем новым прокруткам</li>
+                                        <li>Рекомендуется тестировать новые настройки перед внедрением</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Automation Tab -->
+            <div class="tab-pane fade" id="automation">
+                <div class="admin-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-robot"></i> Автоматизация спонсоров</h5>
+                        <button class="btn btn-light btn-sm" onclick="loadAutomationStats()">
+                            <i class="fas fa-sync"></i> Обновить
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <!-- Статистика автоматизации -->
+                        <div class="row mb-4">
+                            <div class="col-md-2">
+                                <div class="stat-card">
+                                    <div class="stat-icon"><i class="fas fa-broadcast-tower"></i></div>
+                                    <div class="stat-info">
+                                        <div class="stat-number" id="totalChannels">0</div>
+                                        <div class="stat-label">Всего каналов</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="stat-card">
+                                    <div class="stat-icon text-success"><i class="fas fa-check-circle"></i></div>
+                                    <div class="stat-info">
+                                        <div class="stat-number" id="activeChannels">0</div>
+                                        <div class="stat-label">Активных</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="stat-card">
+                                    <div class="stat-icon text-warning"><i class="fas fa-clock"></i></div>
+                                    <div class="stat-info">
+                                        <div class="stat-number" id="expiredChannels">0</div>
+                                        <div class="stat-label">Истекших</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="stat-card">
+                                    <div class="stat-icon text-info"><i class="fas fa-target"></i></div>
+                                    <div class="stat-info">
+                                        <div class="stat-number" id="completedChannels">0</div>
+                                        <div class="stat-label">Выполненных</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="stat-card">
+                                    <div class="stat-icon text-primary"><i class="fas fa-redo"></i></div>
+                                    <div class="stat-info">
+                                        <div class="stat-number" id="autoRenewalChannels">0</div>
+                                        <div class="stat-label">Автопродление</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="stat-card">
+                                    <div class="stat-icon text-purple"><i class="fas fa-star"></i></div>
+                                    <div class="stat-info">
+                                        <div class="stat-number" id="avgPriorityScore">0</div>
+                                        <div class="stat-label">Ср. приоритет</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Управление -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Управление автоматизацией</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <button class="btn btn-primary btn-sm me-2" onclick="forceAutomationCheck()">
+                                            <i class="fas fa-play"></i> Принудительная проверка
+                                        </button>
+                                        <button class="btn btn-info btn-sm" onclick="showAutomationLog()">
+                                            <i class="fas fa-file-alt"></i> Лог автоматизации
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Последние уведомления</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="recentNotifications" style="max-height: 200px; overflow-y: auto;">
+                                            <!-- Будет заполнено JS -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Таблица каналов с автоматизацией -->
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Канал</th>
+                                        <th>Приоритет</th>
+                                        <th>Автопродление</th>
+                                        <th>Продлений</th>
+                                        <th>Статус</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="automationChannelsTable">
+                                    <!-- Будет заполнено JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wins Channel Tab -->
+            <div class="tab-pane fade" id="wins-channel">
+                <div class="admin-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-trophy"></i> Канал выигрышей</h5>
+                        <div>
+                            <button class="btn btn-success btn-sm me-2" onclick="testWinsChannel()">
+                                <i class="fas fa-vial"></i> Тест канала
+                            </button>
+                            <button class="btn btn-light btn-sm" onclick="loadWinsChannelTab()">
+                                <i class="fas fa-sync"></i> Обновить
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Статистика канала -->
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="stat-card">
+                                    <div class="stat-icon text-success"><i class="fas fa-trophy"></i></div>
+                                    <div class="stat-info">
+                                        <div class="stat-number" id="totalWinsPosted">0</div>
+                                        <div class="stat-label">Всего опубликовано</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="stat-card">
+                                    <div class="stat-icon text-primary"><i class="fas fa-calendar-day"></i></div>
+                                    <div class="stat-info">
+                                        <div class="stat-number" id="todayWinsPosted">0</div>
+                                        <div class="stat-label">За сегодня</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="stat-card">
+                                    <div class="stat-icon text-warning"><i class="fas fa-calendar-week"></i></div>
+                                    <div class="stat-info">
+                                        <div class="stat-number" id="weekWinsPosted">0</div>
+                                        <div class="stat-label">За неделю</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Настройки канала -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Настройки канала</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle"></i>
+                                            <strong>Настройка канала выигрышей:</strong>
+                                            <ul class="mb-0 mt-2">
+                                                <li>Добавьте переменную окружения <code>WINS_CHANNEL_ID</code> с ID канала</li>
+                                                <li>Система автоматически публикует значительные выигрыши каждые 2 минуты</li>
+                                                <li>Публикуются только сертификаты, техника и премиальные призы</li>
+                                                <li>Каждый выигрыш публикуется только один раз</li>
+                                            </ul>
+                                        </div>
+                                        <div class="text-center">
+                                            <span class="badge bg-info">ID канала: <span id="channelIdDisplay">Не настроен</span></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Недавние публикации -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Недавние публикации</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Приз</th>
+                                                <th>Победитель</th>
+                                                <th>Выигран</th>
+                                                <th>Опубликован</th>
+                                                <th>Действия</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="recentWinsTable">
+                                            <!-- Будет заполнено JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Settings Tab -->
             <div class="tab-pane fade" id="settings">
                 <div class="admin-card">
@@ -384,6 +730,51 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
                     <button type="button" class="btn btn-primary" onclick="addChannel()">Добавить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для управления звездами -->
+    <div class="modal fade" id="adjustStarsModal" tabindex="-1" aria-labelledby="adjustStarsModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="adjustStarsModalLabel">Управление звездами пользователя</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="adjustStarsForm">
+                        <div class="mb-3">
+                            <label class="form-label">Пользователь: <strong id="starsUserName"></strong></label>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Текущий баланс: <strong id="currentStars"></strong> звезд</label>
+                        </div>
+                        <div class="mb-3">
+                            <label for="starsOperation" class="form-label">Операция</label>
+                            <select class="form-select" id="starsOperation" onchange="updateStarsPreview()">
+                                <option value="add">Добавить звезды</option>
+                                <option value="subtract">Убрать звезды</option>
+                                <option value="set">Установить количество</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="starsAmount" class="form-label">Количество</label>
+                            <input type="number" class="form-control" id="starsAmount" min="0" oninput="updateStarsPreview()">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Новый баланс: <strong id="newStarsBalance" class="text-success">0</strong> звезд</label>
+                        </div>
+                        <div class="mb-3">
+                            <label for="starsReason" class="form-label">Причина изменения</label>
+                            <textarea class="form-control" id="starsReason" rows="2" placeholder="Укажите причину изменения баланса"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmAdjustStars()">Применить</button>
                 </div>
             </div>
         </div>

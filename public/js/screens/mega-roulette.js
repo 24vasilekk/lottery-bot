@@ -16,6 +16,7 @@ export class MegaRouletteScreen {
             { id: 'cert2000', name: 'Сертификат 2000₽', icon: '💳', rarity: 'common', value: 2000 },
             { id: 'charger', name: 'Беспроводная зарядка', icon: '⚡', rarity: 'common', value: 1500 },
             { id: 'cert1000', name: 'Сертификат 1000₽', icon: '🎁', rarity: 'common', value: 1000 },
+            { id: 'stars100', name: '100 звезд', icon: '⭐', rarity: 'common', value: 100 },
             { id: 'empty', name: 'Повезет в следующий раз', icon: '🌟', rarity: 'empty', value: 0 }
         ];
     }
@@ -100,10 +101,23 @@ export class MegaRouletteScreen {
                         <div class="mega-btn-bg"></div>
                         <div class="mega-btn-content">
                             ${!canSpin ? '<i class="fas fa-clock"></i> Недоступно' : 
-                              !hasEnoughStars ? '<i class="fas fa-times"></i> Недостаточно звезд' :
+                              !hasEnoughStars ? '<i class="fas fa-star"></i> 5000 звезд' :
                               '<i class="fas fa-crown"></i> КРУТИТЬ МЕГА РУЛЕТКУ'}
                         </div>
                     </button>
+                </div>
+
+                <div class="mega-prizes-list">
+                    <h3 class="prizes-title">🎁 Список призов</h3>
+                    <div class="prizes-grid">
+                        ${this.megaPrizes.map(prize => `
+                            <div class="prize-item ${prize.rarity}">
+                                <div class="prize-icon">${prize.icon}</div>
+                                <div class="prize-name">${prize.name}</div>
+                                ${prize.value > 0 ? `<div class="prize-value">${prize.value} ₽</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
 
                 ${canSpin ? '' : '<div class="mega-next-spin-info">Мега рулетка доступна раз в месяц для особых игроков</div>'}
@@ -179,7 +193,7 @@ export class MegaRouletteScreen {
         this.app.updateStarsDisplay();
 
         // Определяем выигрыш
-        const wonPrize = this.calculateMegaPrize();
+        const wonPrize = await this.calculateMegaPrize();
         const segmentAngle = 360 / this.megaPrizes.length;
         const winIndex = this.megaPrizes.findIndex(p => p.id === wonPrize.id);
         
@@ -216,19 +230,75 @@ export class MegaRouletteScreen {
         }, 4000);
     }
 
-    calculateMegaPrize() {
+    async calculateMegaPrize() {
+        try {
+            // Получаем актуальные настройки шансов из API
+            const response = await fetch('/api/admin/wheel-settings/mega');
+            let prizeChances = [];
+            
+            if (response.ok) {
+                const settings = await response.json();
+                if (settings.prizes && settings.prizes.length > 0) {
+                    // Используем настройки из админки
+                    prizeChances = settings.prizes;
+                } else {
+                    // Используем дефолтные настройки
+                    prizeChances = this.getDefaultMegaPrizeChances();
+                }
+            } else {
+                // Если API недоступно, используем дефолтные настройки
+                prizeChances = this.getDefaultMegaPrizeChances();
+            }
+            
+            // Определяем выигрыш на основе шансов
+            const random = Math.random() * 100;
+            let cumulative = 0;
+            
+            for (const prizeChance of prizeChances) {
+                cumulative += prizeChance.chance;
+                if (random < cumulative) {
+                    return this.megaPrizes.find(p => p.id === prizeChance.id);
+                }
+            }
+            
+            // Если ничего не выпало (не должно происходить), возвращаем пустой приз
+            return this.megaPrizes.find(p => p.id === 'empty');
+            
+        } catch (error) {
+            console.error('Ошибка получения настроек мега рулетки:', error);
+            // В случае ошибки используем дефолтную логику
+            return this.calculateMegaPrizeDefault();
+        }
+    }
+    
+    getDefaultMegaPrizeChances() {
+        return [
+            { id: 'airpods4', chance: 0.1 },
+            { id: 'cert5000', chance: 1.9 },
+            { id: 'cert3000', chance: 5.0 },
+            { id: 'powerbank', chance: 8.0 },
+            { id: 'cert2000', chance: 12.0 },
+            { id: 'charger', chance: 15.0 },
+            { id: 'cert1000', chance: 18.0 },
+            { id: 'stars100', chance: 15.0 },
+            { id: 'empty', chance: 25.0 }
+        ];
+    }
+    
+    calculateMegaPrizeDefault() {
         const random = Math.random() * 100;
         
-        // Шансы выигрыша (более редкие призы)
-        if (random < 0.1) return this.megaPrizes.find(p => p.id === 'airpods4'); // 0.1% AirPods 4
-        if (random < 2) return this.megaPrizes.find(p => p.id === 'cert5000'); // 1.9% 5000₽
-        if (random < 7) return this.megaPrizes.find(p => p.id === 'cert3000'); // 5% 3000₽
-        if (random < 15) return this.megaPrizes.find(p => p.id === 'powerbank'); // 8% PowerBank
-        if (random < 30) return this.megaPrizes.find(p => p.id === 'cert2000'); // 15% 2000₽
-        if (random < 50) return this.megaPrizes.find(p => p.id === 'charger'); // 20% Зарядка
-        if (random < 75) return this.megaPrizes.find(p => p.id === 'cert1000'); // 25% 1000₽
+        // Дефолтные шансы выигрыша
+        if (random < 0.1) return this.megaPrizes.find(p => p.id === 'airpods4');
+        if (random < 2) return this.megaPrizes.find(p => p.id === 'cert5000');
+        if (random < 7) return this.megaPrizes.find(p => p.id === 'cert3000');
+        if (random < 15) return this.megaPrizes.find(p => p.id === 'powerbank');
+        if (random < 27) return this.megaPrizes.find(p => p.id === 'cert2000');
+        if (random < 42) return this.megaPrizes.find(p => p.id === 'charger');
+        if (random < 60) return this.megaPrizes.find(p => p.id === 'cert1000');
+        if (random < 75) return this.megaPrizes.find(p => p.id === 'stars100');
         
-        return this.megaPrizes.find(p => p.id === 'empty'); // 25% пустой
+        return this.megaPrizes.find(p => p.id === 'empty');
     }
 
     processMegaWin(prize) {
@@ -248,31 +318,74 @@ export class MegaRouletteScreen {
 
         // Показываем результат
         if (prize.value > 0) {
-            this.showMegaWinAnimation(prize);
+            this.showMegaWinModal(prize);
         } else {
             this.app.showStatusMessage('В этот раз не повезло, но вы получили опыт!', 'info');
         }
     }
 
-    showMegaWinAnimation(prize) {
+    showMegaWinModal(prize) {
         const winModal = document.createElement('div');
         winModal.className = 'mega-win-modal';
-        winModal.innerHTML = `
-            <div class="mega-win-content">
-                <div class="mega-win-fireworks"></div>
-                <div class="mega-win-icon ${prize.rarity}">${prize.icon}</div>
-                <h2>🎉 ПОЗДРАВЛЯЕМ!</h2>
-                <h3>Вы выиграли:</h3>
-                <div class="mega-win-prize">${prize.name}</div>
-                <p>Приз будет отправлен администратором в течение 24 часов</p>
-                <button class="mega-win-close">Забрать приз</button>
-            </div>
-        `;
-
+        
+        // Определяем тип приза и соответствующее сообщение
+        let messageContent = '';
+        let isStarsPrize = false;
+        
+        // Проверяем, является ли приз звездами (100 звезд)
+        if (prize.id === 'stars100') {
+            isStarsPrize = true;
+            messageContent = `
+                <div class="mega-win-content">
+                    <div class="mega-win-fireworks"></div>
+                    <div class="mega-win-icon">⭐</div>
+                    <h2>ПОЗДРАВЛЯЕМ!</h2>
+                    <h3>Вы выиграли 100 звезд!</h3>
+                    <p class="mega-win-stars">Звезды уже зачислены на ваш баланс!</p>
+                    <button class="mega-win-close btn-primary">Отлично!</button>
+                </div>
+            `;
+            
+            // Добавляем 100 звезд на баланс
+            this.app.gameData.stars = (this.app.gameData.stars || 0) + 100;
+            this.app.saveGameData();
+            this.app.updateStarsDisplay();
+        } else {
+            // Для всех остальных призов (сертификаты, товары)
+            const isCertificate = prize.id.includes('cert');
+            const platform = isCertificate ? (
+                prize.name.toLowerCase().includes('вб') ? 'Вайлдберриз' : 
+                prize.name.toLowerCase().includes('я') ? 'Яндекс' : ''
+            ) : '';
+            
+            messageContent = `
+                <div class="mega-win-content">
+                    <div class="mega-win-fireworks"></div>
+                    <div class="mega-win-icon ${prize.rarity}">${prize.icon}</div>
+                    <h2>🎉 ПОЗДРАВЛЯЕМ!</h2>
+                    <h3>Вы выиграли:</h3>
+                    <div class="mega-win-prize">${prize.name}</div>
+                    ${isCertificate ? 
+                        `<p class="mega-win-instruction">📩 Напишите менеджеру для получения сертификата${platform ? ` на ${platform}` : ''}</p>` :
+                        `<p class="mega-win-instruction">📦 Напишите менеджеру для получения приза</p>`
+                    }
+                    <button class="mega-win-close btn-contact">Написать менеджеру</button>
+                </div>
+            `;
+        }
+        
+        winModal.innerHTML = messageContent;
         document.body.appendChild(winModal);
 
         // Закрытие модального окна
-        winModal.querySelector('.mega-win-close').addEventListener('click', () => {
+        const closeBtn = winModal.querySelector('.mega-win-close');
+        closeBtn.addEventListener('click', () => {
+            if (!isStarsPrize) {
+                // Для призов открываем контакт менеджера
+                if (this.app.tg && this.app.tg.openTelegramLink) {
+                    this.app.tg.openTelegramLink('https://t.me/your_manager_username');
+                }
+            }
             winModal.remove();
         });
 
