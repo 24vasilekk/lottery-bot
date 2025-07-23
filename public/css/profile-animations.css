@@ -1,0 +1,63 @@
+/* Анимации для профиля */
+@keyframes backgroundShift {
+    0% {
+        background: 
+            radial-gradient(ellipse at 30% 20%, rgba(255, 107, 157, 0.2) 0%, transparent 60%),
+            radial-gradient(ellipse at 70% 60%, rgba(196, 69, 105, 0.15) 0%, transparent 60%),
+            radial-gradient(ellipse at 10% 80%, rgba(118, 75, 162, 0.18) 0%, transparent 60%),
+            radial-gradient(ellipse at 90% 10%, rgba(255, 140, 0, 0.1) 0%, transparent 60%),
+            linear-gradient(135deg, #0a0a0a 0%, #1a0f15 30%, #1a1a1a 70%, #0f0f0f 100%);
+    }
+    50% {
+        background: 
+            radial-gradient(ellipse at 40% 30%, rgba(255, 107, 157, 0.25) 0%, transparent 65%),
+            radial-gradient(ellipse at 60% 70%, rgba(196, 69, 105, 0.18) 0%, transparent 65%),
+            radial-gradient(ellipse at 20% 70%, rgba(118, 75, 162, 0.2) 0%, transparent 65%),
+            radial-gradient(ellipse at 80% 20%, rgba(255, 140, 0, 0.12) 0%, transparent 65%),
+            linear-gradient(135deg, #0b0b0b 0%, #1b1016 30%, #1b1b1b 70%, #101010 100%);
+    }
+    100% {
+        background: 
+            radial-gradient(ellipse at 25% 25%, rgba(255, 107, 157, 0.22) 0%, transparent 60%),
+            radial-gradient(ellipse at 75% 65%, rgba(196, 69, 105, 0.16) 0%, transparent 60%),
+            radial-gradient(ellipse at 15% 75%, rgba(118, 75, 162, 0.19) 0%, transparent 60%),
+            radial-gradient(ellipse at 85% 15%, rgba(255, 140, 0, 0.11) 0%, transparent 60%),
+            linear-gradient(135deg, #0a0a0a 0%, #1a0f15 30%, #1a1a1a 70%, #0f0f0f 100%);
+    }
+}
+
+@keyframes avatarPulse {
+    0% {
+        box-shadow: 
+            0 0 30px rgba(255, 107, 157, 0.4),
+            0 8px 25px rgba(0, 0, 0, 0.3);
+    }
+    50% {
+        box-shadow: 
+            0 0 40px rgba(255, 107, 157, 0.6),
+            0 12px 35px rgba(0, 0, 0, 0.4);
+    }
+    100% {
+        box-shadow: 
+            0 0 30px rgba(255, 107, 157, 0.4),
+            0 8px 25px rgba(0, 0, 0, 0.3);
+    }
+}
+
+@keyframes cardFloat {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}

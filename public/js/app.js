@@ -339,6 +339,9 @@ export default class App {
             userName.textContent = this.tg.initDataUnsafe.user.first_name;
         }
 
+        // Обновление аватарки пользователя
+        this.updateUserAvatar();
+
         // Обновление бейджа заданий (ИСПРАВЛЕНО - УБИРАЕМ ЦИФРУ)
         this.updateTasksBadge();
 
@@ -556,6 +559,36 @@ export default class App {
         document.querySelectorAll('[data-stars]').forEach(el => {
             el.textContent = this.gameData.stars;
         });
+    }
+
+    // Обновление аватарки пользователя в header
+    updateUserAvatar() {
+        const avatarElement = document.querySelector('.header .avatar');
+        const user = this.tg?.initDataUnsafe?.user;
+        
+        if (avatarElement && user) {
+            // Очищаем текущее содержимое
+            avatarElement.innerHTML = '';
+            
+            // Пытаемся загрузить фото из Telegram
+            if (user.photo_url) {
+                const img = document.createElement('img');
+                img.src = user.photo_url;
+                img.alt = `Аватар ${user.first_name}`;
+                img.style.cssText = 'width: 100%; height: 100%; object-fit: cover; border-radius: 50%;';
+                
+                // Fallback если изображение не загрузится
+                img.onerror = () => {
+                    avatarElement.textContent = user.first_name?.charAt(0).toUpperCase() || '👤';
+                };
+                
+                avatarElement.appendChild(img);
+            } else if (user.first_name) {
+                avatarElement.textContent = user.first_name.charAt(0).toUpperCase();
+            } else {
+                avatarElement.textContent = '👤';
+            }
+        }
     }
 }
 

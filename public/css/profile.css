@@ -9,14 +9,16 @@
     overflow-y: visible;
     padding-bottom: 140px; /* УВЕЛИЧЕН ОТСТУП ДЛЯ ПОЛНОЙ ПРОКРУТКИ */
     position: relative;
-    /* Добавляем анимированный фон */
+    /* Улучшенный градиентный фон */
     background: 
-        radial-gradient(circle at 20% 50%, rgba(239, 85, 165, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, rgba(128, 158, 255, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 40% 80%, rgba(204, 213, 55, 0.1) 0%, transparent 50%),
-        linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(45, 27, 61, 0.95) 100%);
+        radial-gradient(ellipse at 30% 20%, rgba(255, 107, 157, 0.2) 0%, transparent 60%),
+        radial-gradient(ellipse at 70% 60%, rgba(196, 69, 105, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse at 10% 80%, rgba(118, 75, 162, 0.18) 0%, transparent 60%),
+        radial-gradient(ellipse at 90% 10%, rgba(255, 140, 0, 0.1) 0%, transparent 60%),
+        linear-gradient(135deg, #0a0a0a 0%, #1a0f15 30%, #1a1a1a 70%, #0f0f0f 100%);
     /* Улучшение прокрутки на мобильных */
     -webkit-overflow-scrolling: touch;
+    animation: backgroundShift 20s ease-in-out infinite alternate;
 }
 
 #profile-screen::before {
@@ -45,26 +47,36 @@
 .profile-header {
     display: flex;
     align-items: center;
-    gap: 20px;
-    padding: 20px;
-    margin-bottom: 20px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 20px;
-    backdrop-filter: blur(10px);
+    gap: 25px;
+    padding: 30px 25px;
+    margin-bottom: 25px;
+    background: 
+        linear-gradient(135deg, rgba(255, 107, 157, 0.15) 0%, rgba(196, 69, 105, 0.1) 50%, rgba(118, 75, 162, 0.15) 100%);
+    border-radius: 25px;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .profile-avatar {
-    width: 80px;
-    height: 80px;
+    width: 90px;
+    height: 90px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #ff6b9d 0%, #c44569 50%, #764ba2 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 32px;
+    font-size: 36px;
     font-weight: bold;
     color: white;
     flex-shrink: 0;
+    border: 3px solid rgba(255, 107, 157, 0.4);
+    box-shadow: 
+        0 0 30px rgba(255, 107, 157, 0.4),
+        0 8px 25px rgba(0, 0, 0, 0.3);
+    position: relative;
+    overflow: hidden;
+    animation: avatarPulse 3s ease-in-out infinite;
 }
 
 .profile-info {
@@ -72,10 +84,14 @@
 }
 
 .profile-name {
-    margin: 0 0 10px 0;
-    font-size: 24px;
+    margin: 0 0 15px 0;
+    font-size: 28px;
     font-weight: bold;
-    color: var(--text-primary);
+    background: linear-gradient(135deg, #ff6b9d, #c44569, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 20px rgba(255, 107, 157, 0.5);
 }
 
 .profile-stats {
@@ -446,11 +462,21 @@ input[type="checkbox"]:checked + .toggle-switch::after {
 }
 
 .stats-card {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 15px;
-    padding: 20px;
+    background: 
+        linear-gradient(135deg, rgba(255, 107, 157, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    border-radius: 20px;
+    padding: 25px 20px;
     text-align: center;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 107, 157, 0.2);
+    backdrop-filter: blur(15px);
+    transition: all 0.3s ease;
+    animation: cardFloat 6s ease-in-out infinite;
+}
+
+.stats-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 15px 40px rgba(255, 107, 157, 0.2);
+    border-color: rgba(255, 107, 157, 0.4);
 }
 
 .stats-card .stats-icon {

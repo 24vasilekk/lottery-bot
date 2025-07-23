@@ -12,7 +12,7 @@ export class ProfileScreen {
             <div id="profile-screen" class="screen">
                 <div class="profile-header">
                     <div class="profile-avatar">
-                        ${this.app.tg?.initDataUnsafe?.user?.first_name?.charAt(0) || '👤'}
+                        ${this.renderUserAvatar()}
                     </div>
                     <div class="profile-info">
                         <h2 class="profile-name">${this.app.tg?.initDataUnsafe?.user?.first_name || 'Пользователь'}</h2>
@@ -376,6 +376,26 @@ export class ProfileScreen {
             hour: '2-digit',
             minute: '2-digit'
         });
+    }
+
+    renderUserAvatar() {
+        const user = this.app.tg?.initDataUnsafe?.user;
+        
+        // Пытаемся получить фото профиля из Telegram
+        if (user?.photo_url) {
+            return `<img src="${user.photo_url}" alt="Аватар ${user.first_name}" 
+                         style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="avatar-fallback" style="display: none; width: 100%; height: 100%; 
+                         display: flex; align-items: center; justify-content: center; 
+                         font-size: 36px; font-weight: bold;">
+                        ${user.first_name?.charAt(0).toUpperCase() || '👤'}
+                    </div>`;
+        } else if (user?.first_name) {
+            return user.first_name.charAt(0).toUpperCase();
+        }
+        
+        return '👤';
     }
 
     destroy() {
