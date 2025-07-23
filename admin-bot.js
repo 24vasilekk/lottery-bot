@@ -15,16 +15,22 @@ const ADMIN_BOT_TOKEN = process.env.ADMIN_BOT_TOKEN;
 if (!ADMIN_BOT_TOKEN) {
     console.error('❌ ADMIN_BOT_TOKEN не установлен в переменных окружения');
     console.error('Для активации админ-бота добавьте ADMIN_BOT_TOKEN в переменные окружения');
-    console.error('В Render: Settings -> Environment -> Add Environment Variable');
+    console.error('В Railway: Settings -> Variables -> Add Variable');
     console.log('\n⚠️  Админ-бот не будет запущен без токена');
-    process.exit(0); // Выходим с кодом 0, чтобы не падал основной процесс
+    return; // Просто выходим из модуля, не завершая процесс
 }
 
 const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
 if (ADMIN_IDS.length === 0) {
     console.error('❌ ADMIN_IDS не установлены в переменных окружения');
-    console.error('Добавьте ADMIN_IDS=123456789,987654321 в .env файл');
-    process.exit(1);
+    console.error('Добавьте ADMIN_IDS=123456789,987654321 в переменные окружения');
+    return; // Просто выходим из модуля, не завершая процесс
+}
+
+// Просто выходим, если нет токенов
+if (!ADMIN_BOT_TOKEN || ADMIN_IDS.length === 0) {
+    console.log('⚠️  Админ-бот не запущен (нет токена или ID админов)');
+    return; // Просто выходим из модуля
 }
 
 // Используем отдельный порт для админ-панели
