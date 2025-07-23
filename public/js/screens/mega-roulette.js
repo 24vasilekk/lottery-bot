@@ -138,9 +138,15 @@ export class MegaRouletteScreen {
     setupEventListeners() {
         const backBtn = document.getElementById('mega-back-btn');
         if (backBtn) {
-            backBtn.addEventListener('click', () => {
+            console.log('🔙 Настройка кнопки выхода из мега-рулетки');
+            backBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('⬅ Нажата кнопка выхода из мега-рулетки');
                 this.app.navigation.navigateTo('main');
             });
+        } else {
+            console.error('❌ Кнопка выхода не найдена!');
         }
 
         const spinBtn = document.getElementById('mega-spin-btn');

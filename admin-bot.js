@@ -48,7 +48,24 @@ let adminBot = null;
 
 // Middleware
 app.use(express.json());
+// Используем упрощенную админку только для просмотра статистики
 app.use(express.static(path.join(__dirname, 'admin')));
+
+// Главная страница - упрощенная версия
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin', 'simple-index.html'));
+});
+
+// API для получения статистики (только чтение)
+app.get('/api/admin/stats', async (req, res) => {
+    try {
+        const stats = await getQuickStats();
+        res.json(stats);
+    } catch (error) {
+        console.error('Ошибка получения статистики:', error);
+        res.status(500).json({ error: 'Ошибка получения статистики' });
+    }
+});
 
 // Инициализация бота
 try {
@@ -80,23 +97,37 @@ if (adminBot) {
         }
 
         const welcomeMessage = `
-🔧 **Добро пожаловать в админ-панель Kosmetichka Lottery Bot**
+🤖 **Админ-бот Kosmetichka Lottery**
 
 👋 Привет, ${msg.from.first_name}!
 
-📊 **Доступные команды:**
-/panel - Открыть веб-панель
-/stats - Быстрая статистика  
-/users - Информация о пользователях
-/channels - Управление каналами
-/prizes - Ожидающие выдачи призы
-/broadcast - Рассылка сообщений
-/backup - Создать резервную копию
-/help - Помощь
+🛠️ **Основные команды:**
+/stats - Общая статистика
+/users - Последние пользователи
+/prizes - Ожидающие призы
+/channels - Активные каналы
 
-🌐 **Веб-панель:** ${ADMIN_URL}
+💰 **Управление пользователями:**
+/stars user_id amount - изменить звезды
+/set_prize user_id type "name" - добавить приз
 
-Выберите нужную команду для управления системой.
+🎰 **Настройки рулетки:**
+/wheel_settings mega|normal - посмотреть настройки
+/set_wheel_prob type index prob - изменить вероятность
+
+🤖 **Автоматизация:**
+/automation - статистика спонсоров
+/wins_stats - канал выигрышей
+
+💬 **Прочее:**
+/broadcast сообщение - рассылка
+/panel - веб-панель (сводка)
+/help - полная справка
+
+💡 **Пример:**
+\`/stars 123456789 +500\` - добавить 500 звезд
+
+Все управление происходит через команды бота!
         `;
 
         adminBot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
@@ -123,7 +154,7 @@ if (adminBot) {
             ]
         };
 
-        adminBot.sendMessage(chatId, '🔧 Нажмите кнопку ниже, чтобы открыть веб-панель:', {
+        adminBot.sendMessage(chatId, '📊 Веб-панель доступна только для просмотра статистики.\n🤖 Все управление происходит через команды бота!', {
             reply_markup: keyboard
         });
     });
@@ -438,6 +469,204 @@ if (adminBot) {
         }
     });
 
+    // Команда управления звездами /stars user_id amount
+    adminBot.onText(/\/stars (\d+) ([+-]?\d+)/, async (msg, match) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+
+        if (!isAdmin(userId)) {
+            adminBot.sendMessage(chatId, '❌ Доступ запрещен');
+            return;
+        }
+
+        const [, targetUserId, amount] = match;
+        const starsAmount = parseInt(amount);
+        
+        try {
+            await adjustUserStars(parseInt(targetUserId), starsAmount);
+            const user = await getUserInfo(parseInt(targetUserId));
+            
+            adminBot.sendMessage(chatId, 
+                `✅ **Баланс изменен!**\n\n` +
+                `👤 Пользователь: ${user.first_name}\n` +
+                `💰 Изменение: ${starsAmount > 0 ? '+' : ''}${starsAmount} ⭐\n` +
+                `💎 Новый баланс: ${user.stars} ⭐`, 
+                { parse_mode: 'Markdown' }
+            );
+        } catch (error) {
+            console.error('❌ Ошибка изменения звезд:', error);
+            adminBot.sendMessage(chatId, '❌ Ошибка изменения баланса');
+        }
+    });
+
+    // Команда управления призами /set_prize user_id prize_type prize_name
+    adminBot.onText(/\/set_prize (\d+) (\w+) "([^"]+)"/, async (msg, match) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+
+        if (!isAdmin(userId)) {
+            adminBot.sendMessage(chatId, '❌ Доступ запрещен');
+            return;
+        }
+
+        const [, targetUserId, prizeType, prizeName] = match;
+        
+        try {
+            await addUserPrize(parseInt(targetUserId), {
+                type: prizeType,
+                name: prizeName,
+                value: 0
+            });
+            
+            const user = await getUserInfo(parseInt(targetUserId));
+            
+            adminBot.sendMessage(chatId, 
+                `🎁 **Приз добавлен!**\n\n` +
+                `👤 Пользователь: ${user.first_name}\n` +
+                `🏆 Приз: ${prizeName}\n` +
+                `📋 Тип: ${prizeType}`, 
+                { parse_mode: 'Markdown' }
+            );
+        } catch (error) {
+            console.error('❌ Ошибка добавления приза:', error);
+            adminBot.sendMessage(chatId, '❌ Ошибка добавления приза');
+        }
+    });
+
+    // Команда настройки рулетки /wheel_settings mega|normal
+    adminBot.onText(/\/wheel_settings (mega|normal)/, async (msg, match) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+
+        if (!isAdmin(userId)) {
+            adminBot.sendMessage(chatId, '❌ Доступ запрещен');
+            return;
+        }
+
+        const [, wheelType] = match;
+        
+        try {
+            const settings = await getWheelSettings(wheelType);
+            
+            if (!settings) {
+                adminBot.sendMessage(chatId, `❌ Настройки ${wheelType} рулетки не найдены`);
+                return;
+            }
+
+            let message = `🎰 **Настройки ${wheelType === 'mega' ? 'МЕГА' : 'обычной'} рулетки:**\n\n`;
+            
+            settings.prizes.forEach((prize, index) => {
+                const icon = getPrizeIconByType(prize.type);
+                message += `${index + 1}. ${icon} **${prize.name}**\n`;
+                message += `   • Шанс: ${prize.probability}%\n`;
+                message += `   • Тип: ${prize.type}\n\n`;
+            });
+
+            message += `💡 **Команды изменения:**\n`;
+            message += `\`/set_wheel_prob ${wheelType} 1 15\` - установить 15% для 1-го приза\n`;
+            message += `\`/wheel_test ${wheelType}\` - тест рулетки`;
+
+            adminBot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } catch (error) {
+            console.error('❌ Ошибка получения настроек рулетки:', error);
+            adminBot.sendMessage(chatId, '❌ Ошибка получения настроек');
+        }
+    });
+
+    // Команда изменения вероятности /set_wheel_prob mega|normal index probability
+    adminBot.onText(/\/set_wheel_prob (mega|normal) (\d+) (\d+)/, async (msg, match) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+
+        if (!isAdmin(userId)) {
+            adminBot.sendMessage(chatId, '❌ Доступ запрещен');
+            return;
+        }
+
+        const [, wheelType, prizeIndex, probability] = match;
+        const index = parseInt(prizeIndex) - 1; // Пользователь вводит с 1, а в массиве с 0
+        const prob = parseInt(probability);
+        
+        try {
+            await updateWheelProbability(wheelType, index, prob);
+            
+            adminBot.sendMessage(chatId, 
+                `✅ **Вероятность обновлена!**\n\n` +
+                `🎰 Рулетка: ${wheelType === 'mega' ? 'МЕГА' : 'обычная'}\n` +
+                `🎁 Приз №${prizeIndex}\n` +
+                `📊 Новая вероятность: ${prob}%`, 
+                { parse_mode: 'Markdown' }
+            );
+        } catch (error) {
+            console.error('❌ Ошибка изменения вероятности:', error);
+            adminBot.sendMessage(chatId, '❌ Ошибка изменения настроек');
+        }
+    });
+
+    // Команда статистики автоматизации /automation
+    adminBot.onText(/\/automation/, async (msg) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+
+        if (!isAdmin(userId)) {
+            adminBot.sendMessage(chatId, '❌ Доступ запрещен');
+            return;
+        }
+
+        try {
+            const stats = await getAutomationStats();
+            
+            const message = `
+🤖 **Статистика автоматизации**\n\n` +
+                `📺 **Каналы:**\n` +
+                `• Всего: ${stats.totalChannels}\n` +
+                `• Активных: ${stats.activeChannels}\n` +
+                `• Истекших: ${stats.expiredChannels}\n` +
+                `• Выполненных: ${stats.completedChannels}\n` +
+                `• С автопродлением: ${stats.autoRenewalChannels}\n\n` +
+                `💡 **Команды:**\n` +
+                `/enable_auto channel_id - включить автопродление\n` +
+                `/disable_auto channel_id - выключить автопродление`;
+
+            adminBot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } catch (error) {
+            console.error('❌ Ошибка получения статистики автоматизации:', error);
+            adminBot.sendMessage(chatId, '❌ Ошибка получения статистики');
+        }
+    });
+
+    // Команда статистики канала выигрышей /wins_stats
+    adminBot.onText(/\/wins_stats/, async (msg) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+
+        if (!isAdmin(userId)) {
+            adminBot.sendMessage(chatId, '❌ Доступ запрещен');
+            return;
+        }
+
+        try {
+            const stats = await getWinsChannelStats();
+            
+            const message = `
+🏆 **Статистика канала выигрышей**\n\n` +
+                `📊 **Публикации:**\n` +
+                `• Всего опубликовано: ${stats.totalWinsPosted}\n` +
+                `• За сегодня: ${stats.todayWinsPosted}\n` +
+                `• За неделю: ${stats.weekWinsPosted}\n\n` +
+                `⚙️ **Настройка:**\n` +
+                `ID канала: \`${process.env.WINS_CHANNEL_ID || 'Не настроен'}\`\n\n` +
+                `💡 **Команды:**\n` +
+                `/post_win prize_id - опубликовать выигрыш вручную\n` +
+                `/test_wins_channel - тест канала`;
+
+            adminBot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } catch (error) {
+            console.error('❌ Ошибка получения статистики канала:', error);
+            adminBot.sendMessage(chatId, '❌ Ошибка получения статистики');
+        }
+    });
+
     // Команда /help
     adminBot.onText(/\/help/, (msg) => {
         const chatId = msg.chat.id;
@@ -451,24 +680,36 @@ if (adminBot) {
         const helpMessage = `
 🔧 **Справка по админ-боту**
 
-📊 **Команды статистики:**
-/stats - Быстрая статистика системы
-/users - Список последних пользователей  
-/prizes - Призы ожидающие выдачи
+📊 **Статистика:**
+/stats - Общая статистика системы
+/users - Последние пользователи  
+/prizes - Ожидающие выдачи призы
+/automation - Статистика автоматизации
+/wins_stats - Статистика канала выигрышей
 
-🛠️ **Управление:**
-/panel - Открыть веб-панель
-/channels - Управление каналами
-/broadcast <сообщение> - Рассылка всем пользователям
+🛠️ **Управление пользователями:**
+/stars user_id amount - изменить звезды (+100, -50)
+/set_prize user_id type "name" - добавить приз
 
-💾 **Система:**
-/backup - Создать резервную копию
+📺 **Управление каналами:**
+/channels - Список активных каналов
+/add_channel @username "Name" stars hours
+/remove_channel @username
+/hot_channel @username - горячее предложение
+
+🎰 **Настройки рулетки:**
+/wheel_settings mega|normal - показать настройки
+/set_wheel_prob mega|normal index probability
+
+💬 **Система:**
+/panel - Веб-панель (только для просмотра)
+/broadcast <сообщение> - Рассылка
 /help - Эта справка
 
-🌐 **Веб-панель:** ${ADMIN_URL}
-
-💡 **Пример рассылки:**
-\`/broadcast 🎉 Новые призы в рулетке!\`
+💡 **Примеры:**
+\`/stars 123456789 +500\` - добавить 500 звезд
+\`/set_prize 123456789 certificate "Сертификат 1000₽"\`
+\`/set_wheel_prob mega 1 15\` - 15% для 1-го приза мега рулетки
         `;
 
         adminBot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
@@ -601,6 +842,148 @@ async function sendBroadcast(message) {
                 total: users.length,
                 message: 'Функция рассылки требует доработки'
             });
+        });
+    });
+}
+
+// === ФУНКЦИИ УПРАВЛЕНИЯ ПОЛЬЗОВАТЕЛЯМИ ===
+
+async function adjustUserStars(telegramId, amount) {
+    return new Promise((resolve, reject) => {
+        db.db.run(`
+            UPDATE users 
+            SET stars = stars + ?, 
+                total_stars_earned = total_stars_earned + ?
+            WHERE telegram_id = ?
+        `, [amount, Math.max(0, amount), telegramId], (err) => {
+            if (err) reject(err);
+            else resolve();
+        });
+    });
+}
+
+async function getUserInfo(telegramId) {
+    return new Promise((resolve, reject) => {
+        db.db.get(`
+            SELECT * FROM users WHERE telegram_id = ?
+        `, [telegramId], (err, row) => {
+            if (err) reject(err);
+            else resolve(row);
+        });
+    });
+}
+
+async function addUserPrize(telegramId, prizeData) {
+    return new Promise((resolve, reject) => {
+        db.db.run(`
+            INSERT INTO user_prizes (user_id, prize_type, prize_name, prize_value) 
+            SELECT id, ?, ?, ? FROM users WHERE telegram_id = ?
+        `, [prizeData.type, prizeData.name, prizeData.value, telegramId], function(err) {
+            if (err) reject(err);
+            else resolve(this.lastID);
+        });
+    });
+}
+
+// === ФУНКЦИИ РУЛЕТКИ ===
+
+async function getWheelSettings(wheelType) {
+    return new Promise((resolve, reject) => {
+        db.db.get(`
+            SELECT * FROM wheel_settings WHERE wheel_type = ?
+        `, [wheelType], (err, row) => {
+            if (err) {
+                reject(err);
+            } else if (row) {
+                try {
+                    resolve({
+                        prizes: JSON.parse(row.settings_data)
+                    });
+                } catch (parseErr) {
+                    reject(new Error('Ошибка парсинга настроек: ' + parseErr.message));
+                }
+            } else {
+                resolve(null);
+            }
+        });
+    });
+}
+
+async function updateWheelProbability(wheelType, prizeIndex, probability) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const settings = await getWheelSettings(wheelType);
+            if (!settings || !settings.prizes[prizeIndex]) {
+                reject(new Error('Приз не найден'));
+                return;
+            }
+
+            settings.prizes[prizeIndex].probability = probability;
+            const settingsData = JSON.stringify(settings.prizes);
+
+            db.db.run(`
+                INSERT OR REPLACE INTO wheel_settings (wheel_type, settings_data, updated_at) 
+                VALUES (?, ?, datetime('now'))
+            `, [wheelType, settingsData], (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+function getPrizeIconByType(type) {
+    const icons = {
+        'certificate': '🏆',
+        'cert5000': '💎',
+        'cert3000': '💍', 
+        'cert2000': '💰',
+        'cert1000': '🏅',
+        'cosmetics': '💄',
+        'airpods4': '🎧',
+        'powerbank': '🔋',
+        'charger': '⚡',
+        'golden-apple': '🍎',
+        'dolce': '💄',
+        'stars': '⭐',
+        'empty': '❌'
+    };
+    return icons[type] || '🎁';
+}
+
+// === ФУНКЦИИ АВТОМАТИЗАЦИИ ===
+
+async function getAutomationStats() {
+    return new Promise((resolve, reject) => {
+        db.db.get(`
+            SELECT 
+                COUNT(*) as totalChannels,
+                COUNT(CASE WHEN is_active = 1 THEN 1 END) as activeChannels,
+                COUNT(CASE WHEN is_active = 0 AND deactivation_reason = 'time_expired' THEN 1 END) as expiredChannels,
+                COUNT(CASE WHEN is_active = 0 AND deactivation_reason = 'target_reached' THEN 1 END) as completedChannels,
+                COUNT(CASE WHEN auto_renewal = 1 THEN 1 END) as autoRenewalChannels
+            FROM partner_channels
+        `, (err, row) => {
+            if (err) reject(err);
+            else resolve(row || {});
+        });
+    });
+}
+
+async function getWinsChannelStats() {
+    return new Promise((resolve, reject) => {
+        db.db.get(`
+            SELECT 
+                COUNT(*) as totalWinsPosted,
+                COUNT(CASE WHEN posted_to_channel_date >= datetime('now', '-24 hours') THEN 1 END) as todayWinsPosted,
+                COUNT(CASE WHEN posted_to_channel_date >= datetime('now', '-7 days') THEN 1 END) as weekWinsPosted
+            FROM user_prizes 
+            WHERE is_posted_to_channel = 1
+        `, (err, row) => {
+            if (err) reject(err);
+            else resolve(row || { totalWinsPosted: 0, todayWinsPosted: 0, weekWinsPosted: 0 });
         });
     });
 }

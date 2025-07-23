@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kosmetichka Lottery - Statistics</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .admin-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        
+        .info-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+        }
+        
+        .bot-info {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .command-example {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 0 5px 5px 0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-header">
+        <div class="container">
+            <div class="row align-items-center py-3">
+                <div class="col">
+                    <h1 class="mb-0">
+                        <i class="fas fa-chart-bar text-primary"></i>
+                        Kosmetichka Lottery - Статистика
+                    </h1>
+                    <small class="text-muted">Панель мониторинга (только для просмотра)</small>
+                </div>
+                <div class="col-auto">
+                    <span class="badge bg-success fs-6">
+                        <i class="fas fa-circle"></i> Онлайн
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Statistics Cards -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalUsers">-</div>
+                    <div class="stat-label">Всего пользователей</div>
+                    <small class="text-muted"><i class="fas fa-users"></i> Активных за 24ч: <span id="activeUsers">-</span></small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalChannels">-</div>
+                    <div class="stat-label">Активных каналов</div>
+                    <small class="text-muted"><i class="fas fa-fire"></i> Горячих: <span id="hotChannels">-</span></small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalSpins">-</div>
+                    <div class="stat-label">Всего прокруток</div>
+                    <small class="text-muted"><i class="fas fa-chart-up"></i> За сегодня: <span id="todaySpins">-</span></small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value" id="pendingPrizes">-</div>
+                    <div class="stat-label">Ожидают выдачи</div>
+                    <small class="text-muted"><i class="fas fa-gift"></i> Призов</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bot Management Info -->
+        <div class="row">
+            <div class="col-12">
+                <div class="info-card">
+                    <div class="bot-info">
+                        <h4><i class="fas fa-robot"></i> Управление через админского бота</h4>
+                        <p class="mb-0">Все функции управления доступны через отдельного админского бота в Telegram</p>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-chart-bar"></i> Статистика и мониторинг</h5>
+                            <div class="command-example">/stats - Общая статистика системы</div>
+                            <div class="command-example">/users - Последние пользователи</div>
+                            <div class="command-example">/prizes - Ожидающие призы</div>
+                            <div class="command-example">/automation - Статистика автоматизации</div>
+                            <div class="command-example">/wins_stats - Канал выигрышей</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-cogs"></i> Управление системой</h5>
+                            <div class="command-example">/stars 123456789 +500 - Добавить звезды</div>
+                            <div class="command-example">/set_prize 123456789 cert "Сертификат"</div>
+                            <div class="command-example">/add_channel @channel "Название" 50 24</div>
+                            <div class="command-example">/wheel_settings mega - Настройки рулетки</div>
+                            <div class="command-example">/broadcast Сообщение - Рассылка</div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mt-4">
+                        <h6><i class="fas fa-info-circle"></i> Как получить доступ к админскому боту:</h6>
+                        <ol class="mb-0">
+                            <li>Настройте переменную окружения <code>ADMIN_BOT_TOKEN</code></li>
+                            <li>Добавьте ваш Telegram ID в <code>ADMIN_IDS</code></li>
+                            <li>Найдите бота по токену и отправьте команду <code>/start</code></li>
+                            <li>Используйте команду <code>/help</code> для полного списка команд</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Загрузка статистики
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/admin/stats');
+                const stats = await response.json();
+                
+                document.getElementById('totalUsers').textContent = stats.totalUsers || '0';
+                document.getElementById('activeUsers').textContent = stats.activeToday || '0';
+                document.getElementById('totalChannels').textContent = stats.activeChannels || '0';
+                document.getElementById('hotChannels').textContent = stats.hotOffers || '0';
+                document.getElementById('totalSpins').textContent = stats.totalSpins || '0';
+                document.getElementById('todaySpins').textContent = stats.spinsToday || '0';
+                document.getElementById('pendingPrizes').textContent = stats.pendingPrizes || '0';
+            } catch (error) {
+                console.error('Ошибка загрузки статистики:', error);
+            }
+        }
+
+        // Загружаем статистику при загрузке страницы
+        document.addEventListener('DOMContentLoaded', loadStats);
+        
+        // Обновляем статистику каждые 30 секунд
+        setInterval(loadStats, 30000);
+    </script>
+</body>
+</html>

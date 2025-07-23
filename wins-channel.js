@@ -64,16 +64,21 @@ class WinsChannelManager {
     async getUnpostedWins() {
         try {
             // Получаем значительные выигрыши за последние 24 часа
-            const wins = await this.db.all(`
-                SELECT p.*, u.first_name, u.username, u.telegram_id
-                FROM user_prizes p
-                JOIN users u ON p.user_id = u.id
-                WHERE p.won_date >= datetime('now', '-24 hours')
-                    AND p.is_posted_to_channel = 0
-                    AND p.prize_type IN ('airpods4', 'cert5000', 'cert3000', 'cert2000', 'cert1000', 'powerbank', 'charger', 'golden-apple', 'dolce')
-                ORDER BY p.won_date DESC
-                LIMIT 10
-            `);
+            const wins = await new Promise((resolve, reject) => {
+                this.db.db.all(`
+                    SELECT p.*, u.first_name, u.username, u.telegram_id
+                    FROM user_prizes p
+                    JOIN users u ON p.user_id = u.id
+                    WHERE p.won_date >= datetime('now', '-24 hours')
+                        AND p.is_posted_to_channel = 0
+                        AND p.prize_type IN ('airpods4', 'cert5000', 'cert3000', 'cert2000', 'cert1000', 'powerbank', 'charger', 'golden-apple', 'dolce')
+                    ORDER BY p.won_date DESC
+                    LIMIT 10
+                `, (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows || []);
+                });
+            });
 
             return wins || [];
         } catch (error) {
@@ -158,12 +163,17 @@ ${emoji} <b>${win.prize_name}</b>
 
     async markAsPosted(prizeId) {
         try {
-            await this.db.run(`
-                UPDATE user_prizes 
-                SET is_posted_to_channel = 1, 
-                    posted_to_channel_date = datetime('now')
-                WHERE id = ?
-            `, [prizeId]);
+            await new Promise((resolve, reject) => {
+                this.db.db.run(`
+                    UPDATE user_prizes 
+                    SET is_posted_to_channel = 1, 
+                        posted_to_channel_date = datetime('now')
+                    WHERE id = ?
+                `, [prizeId], (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                });
+            });
         } catch (error) {
             console.error('❌ Ошибка отметки приза как опубликованного:', error);
         }
@@ -172,15 +182,31 @@ ${emoji} <b>${win.prize_name}</b>
     async addPostedColumn() {
         try {
             // Добавляем колонки для отслеживания постинга в канал
-            await this.db.run(`
-                ALTER TABLE user_prizes 
-                ADD COLUMN is_posted_to_channel BOOLEAN DEFAULT 0
-            `);
+            await new Promise((resolve, reject) => {
+                this.db.db.run(`
+                    ALTER TABLE user_prizes 
+                    ADD COLUMN is_posted_to_channel BOOLEAN DEFAULT 0
+                `, (err) => {
+                    if (err && !err.message.includes('duplicate column name')) {
+                        reject(err);
+                    } else {
+                        resolve();
+                    }
+                });
+            });
             
-            await this.db.run(`
-                ALTER TABLE user_prizes 
-                ADD COLUMN posted_to_channel_date DATETIME
-            `);
+            await new Promise((resolve, reject) => {
+                this.db.db.run(`
+                    ALTER TABLE user_prizes 
+                    ADD COLUMN posted_to_channel_date DATETIME
+                `, (err) => {
+                    if (err && !err.message.includes('duplicate column name')) {
+                        reject(err);
+                    } else {
+                        resolve();
+                    }
+                });
+            });
             
             console.log('✅ Колонки для постинга в канал добавлены');
         } catch (error) {
@@ -199,14 +225,19 @@ ${emoji} <b>${win.prize_name}</b>
 
     async getChannelStats() {
         try {
-            const stats = await this.db.get(`
-                SELECT 
-                    COUNT(*) as totalWinsPosted,
-                    COUNT(CASE WHEN posted_to_channel_date >= datetime('now', '-24 hours') THEN 1 END) as todayWinsPosted,
-                    COUNT(CASE WHEN posted_to_channel_date >= datetime('now', '-7 days') THEN 1 END) as weekWinsPosted
-                FROM user_prizes 
-                WHERE is_posted_to_channel = 1
-            `);
+            const stats = await new Promise((resolve, reject) => {
+                this.db.db.get(`
+                    SELECT 
+                        COUNT(*) as totalWinsPosted,
+                        COUNT(CASE WHEN posted_to_channel_date >= datetime('now', '-24 hours') THEN 1 END) as todayWinsPosted,
+                        COUNT(CASE WHEN posted_to_channel_date >= datetime('now', '-7 days') THEN 1 END) as weekWinsPosted
+                    FROM user_prizes 
+                    WHERE is_posted_to_channel = 1
+                `, (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row || { totalWinsPosted: 0, todayWinsPosted: 0, weekWinsPosted: 0 });
+                });
+            });
 
             return stats || { totalWinsPosted: 0, todayWinsPosted: 0, weekWinsPosted: 0 };
         } catch (error) {
@@ -217,14 +248,19 @@ ${emoji} <b>${win.prize_name}</b>
 
     async getRecentPostedWins() {
         try {
-            const wins = await this.db.all(`
-                SELECT p.*, u.first_name, u.username
-                FROM user_prizes p
-                JOIN users u ON p.user_id = u.id
-                WHERE p.is_posted_to_channel = 1
-                ORDER BY p.posted_to_channel_date DESC
-                LIMIT 20
-            `);
+            const wins = await new Promise((resolve, reject) => {
+                this.db.db.all(`
+                    SELECT p.*, u.first_name, u.username
+                    FROM user_prizes p
+                    JOIN users u ON p.user_id = u.id
+                    WHERE p.is_posted_to_channel = 1
+                    ORDER BY p.posted_to_channel_date DESC
+                    LIMIT 20
+                `, (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows || []);
+                });
+            });
 
             return wins || [];
         } catch (error) {
@@ -235,12 +271,17 @@ ${emoji} <b>${win.prize_name}</b>
 
     async manualPostWin(prizeId) {
         try {
-            const win = await this.db.get(`
-                SELECT p.*, u.first_name, u.username, u.telegram_id
-                FROM user_prizes p
-                JOIN users u ON p.user_id = u.id
-                WHERE p.id = ?
-            `, [prizeId]);
+            const win = await new Promise((resolve, reject) => {
+                this.db.db.get(`
+                    SELECT p.*, u.first_name, u.username, u.telegram_id
+                    FROM user_prizes p
+                    JOIN users u ON p.user_id = u.id
+                    WHERE p.id = ?
+                `, [prizeId], (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                });
+            });
 
             if (!win) {
                 throw new Error('Приз не найден');

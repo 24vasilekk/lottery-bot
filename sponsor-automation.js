@@ -57,12 +57,17 @@ class SponsorAutomation {
     // 1. Проверка истекших каналов по времени
     async checkExpiredTimeChannels() {
         try {
-            const expiredChannels = await this.db.all(`
-                SELECT * FROM partner_channels 
-                WHERE placement_type = 'time' 
-                AND is_active = 1 
-                AND datetime(created_at, '+' || placement_duration || ' hours') <= datetime('now')
-            `);
+            const expiredChannels = await new Promise((resolve, reject) => {
+                this.db.db.all(`
+                    SELECT * FROM partner_channels 
+                    WHERE placement_type = 'time' 
+                    AND is_active = 1 
+                    AND datetime(created_at, '+' || placement_duration || ' hours') <= datetime('now')
+                `, (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows || []);
+                });
+            });
 
             for (const channel of expiredChannels) {
                 await this.deactivateChannel(channel, 'time_expired');
@@ -86,12 +91,17 @@ class SponsorAutomation {
     // 2. Проверка каналов, достигших цели
     async checkCompletedTargetChannels() {
         try {
-            const completedChannels = await this.db.all(`
-                SELECT * FROM partner_channels 
-                WHERE placement_type = 'target' 
-                AND is_active = 1 
-                AND current_subscribers >= subscribers_target
-            `);
+            const completedChannels = await new Promise((resolve, reject) => {
+                this.db.db.all(`
+                    SELECT * FROM partner_channels 
+                    WHERE placement_type = 'target' 
+                    AND is_active = 1 
+                    AND current_subscribers >= subscribers_target
+                `, (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows || []);
+                });
+            });
 
             for (const channel of completedChannels) {
                 await this.deactivateChannel(channel, 'target_reached');
@@ -115,21 +125,31 @@ class SponsorAutomation {
     // 3. Обновление приоритетов каналов
     async updateChannelPriorities() {
         try {
-            const activeChannels = await this.db.all(`
-                SELECT * FROM partner_channels 
-                WHERE is_active = 1
-                ORDER BY created_at DESC
-            `);
+            const activeChannels = await new Promise((resolve, reject) => {
+                this.db.db.all(`
+                    SELECT * FROM partner_channels 
+                    WHERE is_active = 1
+                    ORDER BY created_at DESC
+                `, (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows || []);
+                });
+            });
 
             for (const channel of activeChannels) {
                 const stats = await this.getChannelStats(channel.id);
                 const priority = await this.calculateChannelPriority(channel, stats);
                 
-                await this.db.run(`
-                    UPDATE partner_channels 
-                    SET priority_score = ? 
-                    WHERE id = ?
-                `, [priority, channel.id]);
+                await new Promise((resolve, reject) => {
+                    this.db.db.run(`
+                        UPDATE partner_channels 
+                        SET priority_score = ? 
+                        WHERE id = ?
+                    `, [priority, channel.id], (err) => {
+                        if (err) reject(err);
+                        else resolve();
+                    });
+                });
             }
 
             console.log(`📊 Обновлены приоритеты для ${activeChannels.length} каналов`);
@@ -141,18 +161,23 @@ class SponsorAutomation {
     // 4. Проверка каналов с низкой активностью
     async checkLowActivityChannels() {
         try {
-            const lowActivityChannels = await this.db.all(`
-                SELECT pc.*, 
-                       COUNT(ucs.id) as subscription_count,
-                       (julianday('now') - julianday(pc.created_at)) * 24 as hours_active
-                FROM partner_channels pc
-                LEFT JOIN user_channel_subscriptions ucs ON pc.id = ucs.channel_id 
-                    AND ucs.created_at >= datetime('now', '-24 hours')
-                WHERE pc.is_active = 1 
-                    AND pc.created_at <= datetime('now', '-6 hours')
-                GROUP BY pc.id
-                HAVING subscription_count < 2 AND hours_active >= 6
-            `);
+            const lowActivityChannels = await new Promise((resolve, reject) => {
+                this.db.db.all(`
+                    SELECT pc.*, 
+                           COUNT(ucs.id) as subscription_count,
+                           (julianday('now') - julianday(pc.created_at)) * 24 as hours_active
+                    FROM partner_channels pc
+                    LEFT JOIN user_channel_subscriptions ucs ON pc.id = ucs.channel_id 
+                        AND ucs.created_at >= datetime('now', '-24 hours')
+                    WHERE pc.is_active = 1 
+                        AND pc.created_at <= datetime('now', '-6 hours')
+                    GROUP BY pc.id
+                    HAVING subscription_count < 2 AND hours_active >= 6
+                `, (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows || []);
+                });
+            });
 
             for (const channel of lowActivityChannels) {
                 // Проверим, не уведомляли ли уже об этом канале
@@ -178,28 +203,38 @@ class SponsorAutomation {
     // 5. Автоматическое продление эффективных каналов
     async autoRenewEffectiveChannels() {
         try {
-            const effectiveChannels = await this.db.all(`
-                SELECT pc.*, 
-                       COUNT(ucs.id) as total_subscriptions,
-                       (julianday('now') - julianday(pc.created_at)) * 24 as hours_active
-                FROM partner_channels pc
-                LEFT JOIN user_channel_subscriptions ucs ON pc.id = ucs.channel_id
-                WHERE pc.placement_type = 'time' 
-                    AND pc.is_active = 1
-                    AND datetime(pc.created_at, '+' || pc.placement_duration || ' hours') <= datetime('now', '+2 hours')
-                    AND pc.auto_renewal = 1
-                GROUP BY pc.id
-                HAVING total_subscriptions >= 10 OR (total_subscriptions * 1.0 / hours_active) >= 0.5
-            `);
+            const effectiveChannels = await new Promise((resolve, reject) => {
+                this.db.db.all(`
+                    SELECT pc.*, 
+                           COUNT(ucs.id) as total_subscriptions,
+                           (julianday('now') - julianday(pc.created_at)) * 24 as hours_active
+                    FROM partner_channels pc
+                    LEFT JOIN user_channel_subscriptions ucs ON pc.id = ucs.channel_id
+                    WHERE pc.placement_type = 'time' 
+                        AND pc.is_active = 1
+                        AND datetime(pc.created_at, '+' || pc.placement_duration || ' hours') <= datetime('now', '+2 hours')
+                        AND pc.auto_renewal = 1
+                    GROUP BY pc.id
+                    HAVING total_subscriptions >= 10 OR (total_subscriptions * 1.0 / hours_active) >= 0.5
+                `, (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows || []);
+                });
+            });
 
             for (const channel of effectiveChannels) {
                 // Продлеваем на такой же период
-                await this.db.run(`
-                    UPDATE partner_channels 
-                    SET created_at = datetime('now'),
-                        renewal_count = COALESCE(renewal_count, 0) + 1
-                    WHERE id = ?
-                `, [channel.id]);
+                await new Promise((resolve, reject) => {
+                    this.db.db.run(`
+                        UPDATE partner_channels 
+                        SET created_at = datetime('now'),
+                            renewal_count = COALESCE(renewal_count, 0) + 1
+                        WHERE id = ?
+                    `, [channel.id], (err) => {
+                        if (err) reject(err);
+                        else resolve();
+                    });
+                });
 
                 await this.notifyAdmin(
                     `🔄 Автоматически продлен эффективный канал @${channel.channel_username}\n` +
@@ -218,33 +253,48 @@ class SponsorAutomation {
 
     // Вспомогательные методы
     async deactivateChannel(channel, reason) {
-        await this.db.run(`
-            UPDATE partner_channels 
-            SET is_active = 0, 
-                deactivation_reason = ?,
-                deactivated_at = datetime('now')
-            WHERE id = ?
-        `, [reason, channel.id]);
+        await new Promise((resolve, reject) => {
+            this.db.db.run(`
+                UPDATE partner_channels 
+                SET is_active = 0, 
+                    deactivation_reason = ?,
+                    deactivated_at = datetime('now')
+                WHERE id = ?
+            `, [reason, channel.id], (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
     }
 
     async getChannelStats(channelId) {
-        const stats = await this.db.get(`
-            SELECT 
-                COUNT(*) as subscriptions,
-                SUM(stars_earned) as totalStarsGiven,
-                MIN(created_at) as firstSubscription,
-                MAX(created_at) as lastSubscription
-            FROM user_channel_subscriptions 
-            WHERE channel_id = ?
-        `, [channelId]);
+        const stats = await new Promise((resolve, reject) => {
+            this.db.db.get(`
+                SELECT 
+                    COUNT(*) as subscriptions,
+                    SUM(stars_earned) as totalStarsGiven,
+                    MIN(created_at) as firstSubscription,
+                    MAX(created_at) as lastSubscription
+                FROM user_channel_subscriptions 
+                WHERE channel_id = ?
+            `, [channelId], (err, row) => {
+                if (err) reject(err);
+                else resolve(row || { subscriptions: 0, totalStarsGiven: 0 });
+            });
+        });
 
         return stats || { subscriptions: 0, totalStarsGiven: 0 };
     }
 
     async getChannelDuration(channelId) {
-        const channel = await this.db.get(`
-            SELECT created_at FROM partner_channels WHERE id = ?
-        `, [channelId]);
+        const channel = await new Promise((resolve, reject) => {
+            this.db.db.get(`
+                SELECT created_at FROM partner_channels WHERE id = ?
+            `, [channelId], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
 
         if (!channel) return 'неизвестно';
 
@@ -289,20 +339,30 @@ class SponsorAutomation {
     }
 
     async getLastNotification(channelId, type) {
-        const result = await this.db.get(`
-            SELECT created_at FROM admin_notifications 
-            WHERE channel_id = ? AND notification_type = ? 
-            ORDER BY created_at DESC LIMIT 1
-        `, [channelId, type]);
+        const result = await new Promise((resolve, reject) => {
+            this.db.db.get(`
+                SELECT created_at FROM admin_notifications 
+                WHERE channel_id = ? AND notification_type = ? 
+                ORDER BY created_at DESC LIMIT 1
+            `, [channelId, type], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
 
         return result ? new Date(result.created_at).getTime() : null;
     }
 
     async recordNotification(channelId, type) {
-        await this.db.run(`
-            INSERT INTO admin_notifications (channel_id, notification_type, created_at)
-            VALUES (?, ?, datetime('now'))
-        `, [channelId, type]);
+        await new Promise((resolve, reject) => {
+            this.db.db.run(`
+                INSERT INTO admin_notifications (channel_id, notification_type, created_at)
+                VALUES (?, ?, datetime('now'))
+            `, [channelId, type], (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
     }
 
     async notifyAdmin(message) {
@@ -324,15 +384,20 @@ class SponsorAutomation {
     // Публичные методы для внешнего использования
     async getAutomationStats() {
         try {
-            const stats = await this.db.get(`
-                SELECT 
-                    COUNT(*) as totalChannels,
-                    COUNT(CASE WHEN is_active = 1 THEN 1 END) as activeChannels,
-                    COUNT(CASE WHEN is_active = 0 AND deactivation_reason = 'time_expired' THEN 1 END) as expiredChannels,
-                    COUNT(CASE WHEN is_active = 0 AND deactivation_reason = 'target_reached' THEN 1 END) as completedChannels,
-                    COUNT(CASE WHEN auto_renewal = 1 THEN 1 END) as autoRenewalChannels
-                FROM partner_channels
-            `);
+            const stats = await new Promise((resolve, reject) => {
+                this.db.db.get(`
+                    SELECT 
+                        COUNT(*) as totalChannels,
+                        COUNT(CASE WHEN is_active = 1 THEN 1 END) as activeChannels,
+                        COUNT(CASE WHEN is_active = 0 AND deactivation_reason = 'time_expired' THEN 1 END) as expiredChannels,
+                        COUNT(CASE WHEN is_active = 0 AND deactivation_reason = 'target_reached' THEN 1 END) as completedChannels,
+                        COUNT(CASE WHEN auto_renewal = 1 THEN 1 END) as autoRenewalChannels
+                    FROM partner_channels
+                `, (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                });
+            });
 
             return stats;
         } catch (error) {
@@ -342,19 +407,29 @@ class SponsorAutomation {
     }
 
     async enableAutoRenewal(channelId) {
-        await this.db.run(`
-            UPDATE partner_channels 
-            SET auto_renewal = 1 
-            WHERE id = ?
-        `, [channelId]);
+        await new Promise((resolve, reject) => {
+            this.db.db.run(`
+                UPDATE partner_channels 
+                SET auto_renewal = 1 
+                WHERE id = ?
+            `, [channelId], (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
     }
 
     async disableAutoRenewal(channelId) {
-        await this.db.run(`
-            UPDATE partner_channels 
-            SET auto_renewal = 0 
-            WHERE id = ?
-        `, [channelId]);
+        await new Promise((resolve, reject) => {
+            this.db.db.run(`
+                UPDATE partner_channels 
+                SET auto_renewal = 0 
+                WHERE id = ?
+            `, [channelId], (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
     }
 }
 

@@ -51,7 +51,7 @@
     z-index: -1;
 }
 
-.mega-btn-content {
+.mega-roulette-btn .mega-btn-content {
     position: relative;
     width: 100%;
     height: 100%;
@@ -549,7 +549,7 @@
     left: 100%;
 }
 
-.mega-btn-content {
+.mega-spin-button .mega-btn-content {
     position: relative;
     z-index: 2;
     display: flex;
