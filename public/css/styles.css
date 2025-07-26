@@ -1842,3 +1842,59 @@ body {
         text-align: center;
     }
 }
+
+/* ========================================
+   МЕГА РУЛЕТКА УНИКАЛЬНЫЕ СТИЛИ
+   ======================================== */
+
+/* Золотое свечение для мега рулетки */
+#mega-roulette-screen .wheel {
+    box-shadow: 
+        0 0 40px rgba(255, 215, 0, 0.6),
+        0 0 80px rgba(255, 215, 0, 0.3),
+        0 10px 30px rgba(0, 0, 0, 0.5);
+    animation: megaGlow 3s ease-in-out infinite alternate;
+}
+
+@keyframes megaGlow {
+    0% { 
+        box-shadow: 
+            0 0 40px rgba(255, 215, 0, 0.6),
+            0 0 80px rgba(255, 215, 0, 0.3),
+            0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+    100% { 
+        box-shadow: 
+            0 0 60px rgba(255, 215, 0, 0.8),
+            0 0 120px rgba(255, 215, 0, 0.5),
+            0 15px 40px rgba(0, 0, 0, 0.6);
+    }
+}
+
+/* Уникальный центр мега рулетки */
+.mega-center {
+    background: linear-gradient(135deg, #FFD700, #FFA500) !important;
+    border: 3px solid #FFF !important;
+    box-shadow: 
+        0 0 20px rgba(255, 215, 0, 0.8),
+        inset 0 2px 4px rgba(255, 255, 255, 0.3) !important;
+}
+
+.mega-center-crown {
+    font-size: 24px;
+    margin-bottom: 2px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+.mega-center-text {
+    font-size: 10px;
+    font-weight: bold;
+    color: #000;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+}
+
+/* Золотистый указатель */
+#mega-roulette-screen .wheel-pointer {
+    border-top-color: #FFD700 !important;
+    filter: drop-shadow(0 3px 6px rgba(255, 215, 0, 0.4));
+}

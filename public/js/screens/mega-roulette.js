@@ -30,7 +30,7 @@ export class MegaRouletteScreen {
         return `
             <div id="mega-roulette-screen" class="screen">
                 <div class="mega-header">
-                    <button class="back-btn" id="mega-back-btn">
+                    <button class="back-btn" id="mega-back-btn" onclick="goBackToMain()">
                         <i class="fas fa-arrow-left"></i>
                     </button>
                     <div class="mega-title">
@@ -44,19 +44,16 @@ export class MegaRouletteScreen {
                 </div>
 
 
-                <div class="mega-wheel-container">
-                    <div class="mega-wheel-wrapper">
-                        <div id="mega-wheel" class="mega-wheel">
-                            <div class="mega-wheel-segments" id="mega-wheel-segments">
-                                <!-- Segments will be generated here -->
-                            </div>
-                            <div class="mega-wheel-center">
-                                <div class="mega-center-crown">👑</div>
-                                <span class="mega-center-text">MEGA</span>
-                            </div>
+                <div class="wheel-container">
+                    <div class="wheel" id="mega-wheel">
+                        <div class="wheel-pointer"></div>
+                        <svg id="mega-wheel-svg" width="400" height="400" viewBox="0 0 400 400">
+                            <g id="mega-wheel-segments"></g>
+                        </svg>
+                        <div class="wheel-center mega-center">
+                            <div class="mega-center-crown">👑</div>
+                            <span class="mega-center-text">MEGA</span>
                         </div>
-                        <div class="mega-wheel-pointer"></div>
-                        <div class="mega-wheel-glow"></div>
                     </div>
                 </div>
 
@@ -113,48 +110,11 @@ export class MegaRouletteScreen {
     }
 
     setupEventListeners() {
-        // Настройка кнопки выхода с глобальным обработчиком
-        this.globalBackHandler = (e) => {
-            if (e.target.closest('#mega-back-btn')) {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('⬅ Нажата кнопка выхода из мега-рулетки (global)');
-                this.app.navigation.navigateTo('main');
-            }
+        // Простое решение - используем onclick прямо в HTML
+        window.goBackToMain = () => {
+            console.log('⬅ Возврат на главную из мега-рулетки');
+            this.app.navigation.navigateTo('main');
         };
-        document.addEventListener('click', this.globalBackHandler);
-        
-        // Ждем немного для загрузки DOM
-        setTimeout(() => {
-            const backBtn = document.getElementById('mega-back-btn');
-            if (backBtn) {
-                console.log('🔙 Настройка кнопки выхода из мега-рулетки');
-                
-                const handleBackClick = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('⬅ Нажата кнопка выхода из мега-рулетки');
-                    this.app.navigation.navigateTo('main');
-                };
-                
-                // Очищаем все события
-                const newBackBtn = backBtn.cloneNode(true);
-                backBtn.parentNode.replaceChild(newBackBtn, backBtn);
-                
-                newBackBtn.addEventListener('click', handleBackClick, true);
-                newBackBtn.addEventListener('touchstart', handleBackClick, true);
-                newBackBtn.addEventListener('mousedown', handleBackClick, true);
-                
-                // Добавляем стили для лучшей видимости
-                newBackBtn.style.position = 'relative';
-                newBackBtn.style.zIndex = '9999';
-                newBackBtn.style.pointerEvents = 'auto';
-                newBackBtn.style.cursor = 'pointer';
-                
-            } else {
-                console.error('❌ Кнопка выхода не найдена!');
-            }
-        }, 300);
 
         const spinBtn = document.getElementById('mega-spin-btn');
         if (spinBtn && !spinBtn.disabled) {
@@ -165,27 +125,77 @@ export class MegaRouletteScreen {
     }
 
     generateMegaWheelSegments() {
-        const segmentsContainer = document.getElementById('mega-wheel-segments');
-        if (!segmentsContainer) return;
+        const container = document.getElementById('mega-wheel-segments');
+        if (!container) {
+            console.error('❌ Контейнер сегментов мега рулетки не найден');
+            return;
+        }
 
-        const segmentAngle = 360 / this.megaPrizes.length;
-        let html = '';
+        const radius = 180;
+        const centerX = 200;
+        const centerY = 200;
+        const anglePerSegment = (2 * Math.PI) / this.megaPrizes.length;
+
+        let svgContent = '';
 
         this.megaPrizes.forEach((prize, index) => {
-            const rotation = index * segmentAngle;
-            const rarityClass = prize.rarity;
-            
-            html += `
-                <div class="mega-segment ${rarityClass}" 
-                     style="transform: rotate(${rotation}deg)">
-                    <div class="mega-segment-content">
-                        <div class="mega-segment-icon">${prize.icon}</div>
-                    </div>
-                </div>
+            const startAngle = index * anglePerSegment - Math.PI / 2;
+            const endAngle = (index + 1) * anglePerSegment - Math.PI / 2;
+
+            const x1 = centerX + radius * Math.cos(startAngle);
+            const y1 = centerY + radius * Math.sin(startAngle);
+            const x2 = centerX + radius * Math.cos(endAngle);
+            const y2 = centerY + radius * Math.sin(endAngle);
+
+            const largeArc = anglePerSegment > Math.PI ? 1 : 0;
+
+            const path = `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+
+            // Получаем цвет по редкости
+            const color = this.getPrizeColor(prize.rarity);
+
+            // Текст иконки
+            const textAngle = (startAngle + endAngle) / 2;
+            const textRadius = radius * 0.7;
+            const textX = centerX + textRadius * Math.cos(textAngle);
+            const textY = centerY + textRadius * Math.sin(textAngle);
+
+            svgContent += `
+                <path 
+                    d="${path}" 
+                    fill="${color}" 
+                    stroke="rgba(255,255,255,0.3)" 
+                    stroke-width="2"
+                    class="wheel-segment-path mega-segment"
+                    data-prize-id="${prize.id}"
+                />
+                <text 
+                    x="${textX}" 
+                    y="${textY}" 
+                    text-anchor="middle" 
+                    dominant-baseline="middle" 
+                    font-size="24" 
+                    fill="white"
+                    font-weight="bold"
+                    class="segment-icon"
+                    filter="drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8))"
+                >${prize.icon}</text>
             `;
         });
 
-        segmentsContainer.innerHTML = html;
+        container.innerHTML = svgContent;
+        console.log('✅ SVG мега рулетки сгенерирован');
+    }
+
+    getPrizeColor(rarity) {
+        switch (rarity) {
+            case 'legendary': return '#FFD700';
+            case 'epic': return '#9966CC';
+            case 'rare': return '#1E90FF';
+            case 'common': return '#32CD32';
+            case 'empty': return '#696969';
+            default: return '#666666';
+        }
     }
 
     async spinMegaWheel() {
@@ -215,10 +225,11 @@ export class MegaRouletteScreen {
         const finalRotation = (spins * 360) + targetAngle;
 
         // Крутим колесо
-        const wheel = document.getElementById('mega-wheel');
+        const wheel = document.getElementById('mega-wheel-svg');
         if (wheel) {
+            this.wheelRotation += finalRotation;
             wheel.style.transition = 'transform 4s cubic-bezier(0.23, 1, 0.320, 1)';
-            wheel.style.transform = `rotate(${finalRotation}deg)`;
+            wheel.style.transform = `rotate(${this.wheelRotation}deg)`;
         }
 
         // Вибрация
@@ -484,9 +495,9 @@ export class MegaRouletteScreen {
         const modals = document.querySelectorAll('.mega-win-modal');
         modals.forEach(modal => modal.remove());
         
-        // Удаляем глобальный обработчик кнопки выхода
-        if (this.globalBackHandler) {
-            document.removeEventListener('click', this.globalBackHandler);
+        // Удаляем глобальную функцию
+        if (window.goBackToMain) {
+            delete window.goBackToMain;
         }
     }
 }
