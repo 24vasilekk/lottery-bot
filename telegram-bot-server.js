@@ -1213,6 +1213,142 @@ app.post('/api/admin/users/stars', requireAdmin, async (req, res) => {
     }
 });
 
+// API для ручных подкруток пользователям
+app.post('/api/admin/manual-spin', requireAdmin, async (req, res) => {
+    const { userId, spinType, reason } = req.body;
+    
+    if (!userId || !spinType || !reason) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Необходимо указать все параметры' 
+        });
+    }
+
+    try {
+        // Проверяем существование пользователя
+        const user = await db.getUser(userId);
+        if (!user) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Пользователь не найден' 
+            });
+        }
+
+        console.log(`🎲 Админ выдает прокрутку ${spinType} пользователю ${userId}: ${reason}`);
+
+        // Добавляем запись о ручной подкрутке в таблицу логов
+        await new Promise((resolve, reject) => {
+            db.db.run(`
+                INSERT INTO admin_actions (
+                    action_type, 
+                    target_user_id, 
+                    details, 
+                    admin_id, 
+                    created_at
+                ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            `, ['manual_spin', userId, JSON.stringify({spinType, reason}), 'admin', (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+
+        // В зависимости от типа подкрутки выполняем соответствующие действия
+        switch (spinType) {
+            case 'normal':
+                // Добавляем 20 звезд для обычной прокрутки
+                await db.updateUserStars(userId, 20);
+                break;
+                
+            case 'mega':
+                // Добавляем 5000 звезд для мега прокрутки
+                await db.updateUserStars(userId, 5000);
+                break;
+                
+            case 'friend':
+                // Увеличиваем количество доступных прокруток за друга
+                await new Promise((resolve, reject) => {
+                    db.db.run(`
+                        UPDATE users 
+                        SET available_friend_spins = available_friend_spins + 1 
+                        WHERE telegram_id = ?
+                    `, [userId], (err) => {
+                        if (err) reject(err);
+                        else resolve();
+                    });
+                });
+                break;
+        }
+
+        // Отправляем уведомление пользователю через бота
+        if (bot && userId) {
+            try {
+                let message = '';
+                switch (spinType) {
+                    case 'normal':
+                        message = `🎁 Вам выдана обычная прокрутка рулетки!\n💰 Получено: 20 звезд\n📝 Причина: ${reason}`;
+                        break;
+                    case 'mega':
+                        message = `👑 Вам выдана МЕГА прокрутка!\n💎 Получено: 5000 звезд\n📝 Причина: ${reason}`;
+                        break;
+                    case 'friend':
+                        message = `❤️ Вам выдана прокрутка за друга!\n🎯 Доступна бесплатная прокрутка\n📝 Причина: ${reason}`;
+                        break;
+                }
+                
+                await bot.sendMessage(userId, message);
+            } catch (botError) {
+                console.warn('⚠️ Не удалось отправить уведомление пользователю:', botError.message);
+            }
+        }
+
+        res.json({
+            success: true,
+            message: 'Прокрутка успешно выдана пользователю'
+        });
+    } catch (error) {
+        console.error('❌ Ошибка выдачи ручной подкрутки:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error' 
+        });
+    }
+});
+
+// API для получения недавних ручных подкруток
+app.get('/api/admin/manual-spins/recent', requireAdmin, async (req, res) => {
+    try {
+        const spins = await new Promise((resolve, reject) => {
+            db.db.all(`
+                SELECT aa.*, u.first_name, u.username
+                FROM admin_actions aa
+                LEFT JOIN users u ON aa.target_user_id = u.telegram_id
+                WHERE aa.action_type = 'manual_spin'
+                ORDER BY aa.created_at DESC
+                LIMIT 20
+            `, (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows || []);
+            });
+        });
+
+        // Парсим детали для удобства отображения
+        const formattedSpins = spins.map(spin => {
+            const details = JSON.parse(spin.details || '{}');
+            return {
+                ...spin,
+                spin_type: details.spinType,
+                reason: details.reason,
+                user_id: spin.target_user_id
+            };
+        });
+
+        res.json({ spins: formattedSpins });
+    } catch (error) {
+        console.error('❌ Ошибка получения ручных подкруток:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Endpoints для настроек рулетки
 app.get('/api/admin/wheel-settings/mega', requireAdmin, async (req, res) => {
     try {
@@ -2688,6 +2824,10 @@ const server = app.listen(PORT, '0.0.0.0', () => {
                 // Инициализируем колонки БД для постинга
                 await winsChannelManager.addPostedColumn();
                 console.log('🏆 Система постинга выигрышей запущена');
+                
+                // Запускаем систему мониторинга подписок
+                await startSubscriptionMonitoring();
+                console.log('🔍 Система мониторинга подписок запущена');
             } catch (error) {
                 console.error('❌ Ошибка запуска фоновых задач:', error);
             }
@@ -2731,6 +2871,321 @@ process.on('SIGINT', () => {
 // Обработка необработанных ошибок
 process.on('unhandledRejection', (reason, promise) => {
     console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// === СИСТЕМА ШТРАФОВ ЗА ОТПИСКУ ===
+
+// Периодическая проверка подписок (запускается каждые 6 часов)
+async function startSubscriptionMonitoring() {
+    console.log('🔍 Запуск системы мониторинга подписок...');
+    
+    // Проверяем каждые 6 часов
+    setInterval(async () => {
+        await checkAllUsersSubscriptions();
+    }, 6 * 60 * 60 * 1000);
+
+    // Первый запуск через 5 минут после старта сервера
+    setTimeout(() => {
+        checkAllUsersSubscriptions();
+    }, 5 * 60 * 1000);
+}
+
+async function checkAllUsersSubscriptions() {
+    try {
+        console.log('🔍 Начало проверки всех подписок пользователей...');
+        
+        // Получаем всех пользователей с активными подписками
+        const activeSubscriptions = await new Promise((resolve, reject) => {
+            db.db.all(`
+                SELECT ucs.*, u.telegram_id, pc.channel_username, pc.channel_name
+                FROM user_channel_subscriptions ucs
+                JOIN users u ON ucs.user_id = u.id  
+                JOIN partner_channels pc ON ucs.channel_id = pc.id
+                WHERE ucs.is_active = 1 AND ucs.is_verified = 1
+                AND ucs.subscribed_date <= datetime('now', '-1 hour')
+            `, (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows || []);
+            });
+        });
+
+        console.log(`📊 Найдено ${activeSubscriptions.length} активных подписок для проверки`);
+
+        let violationsFound = 0;
+        
+        for (const subscription of activeSubscriptions) {
+            try {
+                // Проверяем, подписан ли пользователь все еще
+                const subscriptionCheck = await checkUserChannelSubscription(
+                    subscription.telegram_id, 
+                    subscription.channel_username
+                );
+
+                if (!subscriptionCheck.isSubscribed) {
+                    // Пользователь отписался! Применяем штраф
+                    console.log(`⚠️ Пользователь ${subscription.telegram_id} отписался от ${subscription.channel_username}`);
+                    
+                    await applyUnsubscriptionPenalty(subscription);
+                    violationsFound++;
+                }
+
+            } catch (error) {
+                console.warn(`Ошибка проверки подписки ${subscription.id}:`, error.message);
+            }
+        }
+
+        console.log(`✅ Проверка завершена. Найдено нарушений: ${violationsFound}`);
+
+    } catch (error) {
+        console.error('❌ Ошибка системы мониторинга подписок:', error);
+    }
+}
+
+async function applyUnsubscriptionPenalty(subscription) {
+    try {
+        // Деактивируем подписку
+        await new Promise((resolve, reject) => {
+            db.db.run(`
+                UPDATE user_channel_subscriptions 
+                SET is_active = 0, unsubscribed_date = datetime('now')
+                WHERE id = ?
+            `, [subscription.id], (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+
+        // Уменьшаем счетчик подписчиков канала
+        await new Promise((resolve, reject) => {
+            db.db.run(`
+                UPDATE partner_channels 
+                SET current_subscribers = CASE 
+                    WHEN current_subscribers > 0 THEN current_subscribers - 1 
+                    ELSE 0 
+                END
+                WHERE id = ?
+            `, [subscription.channel_id], (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+
+        // Проверяем количество нарушений пользователя
+        const userViolations = await new Promise((resolve, reject) => {
+            db.db.get(`
+                SELECT violation_count FROM users WHERE telegram_id = ?
+            `, [subscription.telegram_id], (err, row) => {
+                if (err) reject(err);
+                else resolve(row?.violation_count || 0);
+            });
+        });
+
+        // Рассчитываем штраф в зависимости от количества нарушений
+        let penaltyHours = 12; // Базовый штраф 12 часов
+        if (userViolations >= 1) penaltyHours = 24;
+        if (userViolations >= 2) penaltyHours = 48;
+        if (userViolations >= 3) penaltyHours = 72;
+
+        // Применяем блокировку заданий
+        const banUntil = new Date(Date.now() + penaltyHours * 60 * 60 * 1000);
+        
+        await new Promise((resolve, reject) => {
+            db.db.run(`
+                UPDATE users SET 
+                    tasks_ban_until = ?,
+                    violation_count = violation_count + 1
+                WHERE telegram_id = ?
+            `, [banUntil.toISOString(), subscription.telegram_id], (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+
+        // Записываем нарушение в лог
+        await new Promise((resolve, reject) => {
+            db.db.run(`
+                INSERT INTO subscription_violations 
+                (user_id, channel_id, violation_type, penalty_duration) 
+                VALUES (?, ?, 'early_unsubscribe', ?)
+            `, [subscription.user_id, subscription.channel_id, penaltyHours], (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+
+        console.log(`🚫 Применен штраф пользователю ${subscription.telegram_id}: блокировка на ${penaltyHours} часов`);
+
+        // Отправляем уведомление пользователю
+        try {
+            await bot.sendMessage(subscription.telegram_id, 
+                `⚠️ <b>Внимание!</b>\n\n` +
+                `Вы отписались от канала "${subscription.channel_name}".\n` +
+                `За досрочную отписку применена блокировка заданий на ${penaltyHours} часов.\n\n` +
+                `Блокировка действует до: ${banUntil.toLocaleString('ru-RU')}\n\n` +
+                `Чтобы избежать штрафов в будущем, не отписывайтесь от каналов раньше времени.`,
+                { parse_mode: 'HTML' }
+            );
+        } catch (notificationError) {
+            console.warn(`Не удалось отправить уведомление пользователю ${subscription.telegram_id}:`, notificationError.message);
+        }
+
+    } catch (error) {
+        console.error(`❌ Ошибка применения штрафа для подписки ${subscription.id}:`, error);
+    }
+}
+
+// === API ДЛЯ ПРОВЕРКИ ПОДПИСОК ===
+
+// Проверить все подписки пользователя и выдать награды
+app.post('/api/check-user-subscriptions', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        
+        if (!userId) {
+            return res.status(400).json({ error: 'User ID is required' });
+        }
+
+        console.log(`🔍 Проверка всех подписок для пользователя ${userId}`);
+        
+        // Получаем все активные каналы-партнеры
+        const channels = await new Promise((resolve, reject) => {
+            db.db.all(`
+                SELECT * FROM partner_channels 
+                WHERE is_active = 1 
+                ORDER BY created_date DESC
+            `, (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows || []);
+            });
+        });
+
+        const results = [];
+        let newSubscriptions = 0;
+        let totalReward = 0;
+
+        for (const channel of channels) {
+            try {
+                // Проверяем подписку
+                const subscriptionCheck = await checkUserChannelSubscription(userId, channel.channel_username);
+                
+                // Проверяем, не получал ли пользователь уже награду за этот канал
+                const existingSubscription = await new Promise((resolve, reject) => {
+                    db.db.get(`
+                        SELECT * FROM user_channel_subscriptions 
+                        WHERE user_id = ? AND channel_id = ? AND is_active = 1
+                    `, [userId, channel.id], (err, row) => {
+                        if (err) reject(err);
+                        else resolve(row);
+                    });
+                });
+
+                if (subscriptionCheck.isSubscribed && !existingSubscription) {
+                    // Новая подписка! Выдаем награду
+                    await new Promise((resolve, reject) => {
+                        db.db.run(`
+                            INSERT INTO user_channel_subscriptions 
+                            (user_id, channel_id, stars_earned, is_verified) 
+                            VALUES (?, ?, ?, 1)
+                        `, [userId, channel.id, channel.reward_stars], (err) => {
+                            if (err) reject(err);
+                            else resolve();
+                        });
+                    });
+
+                    // Добавляем звезды пользователю
+                    await new Promise((resolve, reject) => {
+                        db.db.run(`
+                            UPDATE users SET stars = stars + ? WHERE telegram_id = ?
+                        `, [channel.reward_stars, userId], (err) => {
+                            if (err) reject(err);
+                            else resolve();
+                        });
+                    });
+
+                    // Обновляем счетчик подписчиков канала
+                    await new Promise((resolve, reject) => {
+                        db.db.run(`
+                            UPDATE partner_channels SET current_subscribers = current_subscribers + 1 
+                            WHERE id = ?
+                        `, [channel.id], (err) => {
+                            if (err) reject(err);
+                            else resolve();
+                        });
+                    });
+
+                    newSubscriptions++;
+                    totalReward += channel.reward_stars;
+
+                    console.log(`✅ Награда за подписку на ${channel.channel_name}: ${channel.reward_stars} звезд`);
+                }
+
+                results.push({
+                    channel: channel.channel_name,
+                    username: channel.channel_username,
+                    isSubscribed: subscriptionCheck.isSubscribed,
+                    rewardGiven: subscriptionCheck.isSubscribed && !existingSubscription,
+                    reward: subscriptionCheck.isSubscribed && !existingSubscription ? channel.reward_stars : 0
+                });
+
+            } catch (error) {
+                console.error(`❌ Ошибка проверки канала ${channel.channel_username}:`, error);
+                results.push({
+                    channel: channel.channel_name,
+                    username: channel.channel_username,
+                    isSubscribed: false,
+                    rewardGiven: false,
+                    error: error.message
+                });
+            }
+        }
+
+        res.json({
+            success: true,
+            newSubscriptions,
+            totalReward,
+            results
+        });
+
+    } catch (error) {
+        console.error('❌ Ошибка проверки подписок:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Получить информацию о канале (включая аватарку)
+app.get('/api/channel-info/:username', async (req, res) => {
+    try {
+        const { username } = req.params;
+        const channelId = username.startsWith('@') ? username : `@${username}`;
+        
+        const chat = await bot.getChat(channelId);
+        
+        let photoUrl = null;
+        if (chat.photo && chat.photo.big_file_id) {
+            try {
+                const file = await bot.getFile(chat.photo.big_file_id);
+                photoUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${file.file_path}`;
+            } catch (photoError) {
+                console.warn(`Не удалось получить фото канала ${channelId}:`, photoError.message);
+            }
+        }
+
+        res.json({
+            success: true,
+            channel: {
+                id: chat.id,
+                title: chat.title,
+                username: chat.username,
+                description: chat.description,
+                photo_url: photoUrl,
+                member_count: chat.member_count || 0
+            }
+        });
+
+    } catch (error) {
+        console.error(`❌ Ошибка получения информации о канале ${username}:`, error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // === ФУНКЦИИ ДЛЯ СИСТЕМЫ ЗАДАНИЙ ===

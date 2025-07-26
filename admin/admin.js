@@ -96,6 +96,9 @@ class AdminPanel {
             case 'wins-channel':
                 await this.loadWinsChannelTab();
                 break;
+            case 'manual-spins':
+                await this.loadManualSpinsTab();
+                break;
         }
     }
 
@@ -1148,6 +1151,82 @@ class AdminPanel {
             console.error('❌ Ошибка тестирования канала:', error);
             this.showError('Ошибка тестирования канала: ' + (error.message || 'Неизвестная ошибка'));
         }
+    }
+
+    // Методы для ручных подкруток
+    async giveManualSpin() {
+        const userId = document.getElementById('spinUserId').value;
+        const spinType = document.getElementById('spinType').value;
+        const reason = document.getElementById('spinReason').value;
+
+        if (!userId || !reason) {
+            this.showError('Заполните все поля');
+            return;
+        }
+
+        if (!confirm(`Дать прокрутку пользователю ${userId}?`)) return;
+
+        try {
+            const response = await this.apiCall('/api/admin/manual-spin', 'POST', {
+                userId: parseInt(userId),
+                spinType: spinType,
+                reason: reason
+            });
+
+            if (response.success) {
+                this.showSuccess('Прокрутка успешно предоставлена');
+                document.getElementById('manualSpinForm').reset();
+                await this.loadRecentManualSpins();
+            } else {
+                this.showError(response.error || 'Ошибка предоставления прокрутки');
+            }
+        } catch (error) {
+            console.error('❌ Ошибка ручной подкрутки:', error);
+            this.showError('Ошибка предоставления прокрутки');
+        }
+    }
+
+    async loadRecentManualSpins() {
+        try {
+            const response = await this.apiCall('/api/admin/manual-spins/recent');
+            this.renderRecentManualSpins(response.spins || []);
+        } catch (error) {
+            console.error('❌ Ошибка загрузки подкруток:', error);
+        }
+    }
+
+    renderRecentManualSpins(spins) {
+        const container = document.getElementById('recentManualSpins');
+        if (!container) return;
+
+        if (spins.length === 0) {
+            container.innerHTML = '<p class="text-muted">Нет недавних подкруток</p>';
+            return;
+        }
+
+        let html = '';
+        spins.forEach(spin => {
+            const date = new Date(spin.created_at).toLocaleString('ru-RU');
+            const typeIcon = spin.spin_type === 'mega' ? '👑' : spin.spin_type === 'friend' ? '❤️' : '⭐';
+            
+            html += `
+                <div class="manual-spin-item mb-2 p-2 border rounded">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <strong>${typeIcon} ID: ${spin.user_id}</strong>
+                            <small class="text-muted d-block">${spin.reason}</small>
+                        </div>
+                        <small class="text-muted">${date}</small>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    async loadManualSpinsTab() {
+        await this.loadRecentManualSpins();
     }
 }
 

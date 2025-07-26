@@ -218,11 +218,17 @@ export class MainScreen {
 
             const path = `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
 
-            // Текст иконки
+            // Текст иконки и названия
             const textAngle = (startAngle + endAngle) / 2;
-            const textRadius = radius * 0.7;
+            const iconRadius = radius * 0.8;
+            const textRadius = radius * 0.6;
+            const iconX = centerX + iconRadius * Math.cos(textAngle);
+            const iconY = centerY + iconRadius * Math.sin(textAngle);
             const textX = centerX + textRadius * Math.cos(textAngle);
             const textY = centerY + textRadius * Math.sin(textAngle);
+
+            // Сокращенное название приза
+            const shortName = this.getShortPrizeName(prize);
 
             svgContent += `
                 <path 
@@ -234,20 +240,50 @@ export class MainScreen {
                     data-prize-id="${prize.id}"
                 />
                 <text 
-                    x="${textX}" 
-                    y="${textY}" 
+                    x="${iconX}" 
+                    y="${iconY}" 
                     text-anchor="middle" 
                     dominant-baseline="middle" 
-                    font-size="20" 
+                    font-size="18" 
                     fill="white"
                     font-weight="bold"
                     class="segment-icon"
                 >${prize.icon}</text>
+                <text 
+                    x="${textX}" 
+                    y="${textY}" 
+                    text-anchor="middle" 
+                    dominant-baseline="middle" 
+                    font-size="10" 
+                    fill="white"
+                    font-weight="bold"
+                    class="segment-text"
+                >${shortName}</text>
             `;
         });
 
         container.innerHTML = svgContent;
         console.log('✅ SVG рулетки сгенерирован');
+    }
+
+    getShortPrizeName(prize) {
+        // Создаем сокращенные названия для отображения на колесе
+        const shortNames = {
+            'golden-apple-3000': '3000₽',
+            'stars-200': '200⭐',
+            'golden-apple-2000': '2000₽',
+            'dolce-deals': 'Dolce',
+            'stars-100': '100⭐',
+            'golden-apple-1500': '1500₽',
+            'stars-75': '75⭐',
+            'golden-apple-1000': '1000₽',
+            'stars-50': '50⭐',
+            'golden-apple-500': '500₽',
+            'stars-25': '25⭐',
+            'empty': 'Мимо'
+        };
+
+        return shortNames[prize.type] || prize.name.substring(0, 8);
     }
 
     async spinWheel(type) {
@@ -542,7 +578,8 @@ export class MainScreen {
     showReferralLink() {
         // Генерируем реферальную ссылку
         const userId = this.app.tg?.initDataUnsafe?.user?.id || 'demo';
-        const referralLink = `https://t.me/your_bot_username?start=ref_${userId}`;
+        const botUsername = 'kosmetichka_lottery_bot'; // Используем имя бота из telegram-bot-server.js
+        const referralLink = `https://t.me/${botUsername}?start=ref_${userId}`;
         
         // Создаем модальное окно
         const modal = document.createElement('div');
@@ -551,24 +588,47 @@ export class MainScreen {
             <div class="referral-modal-content">
                 <div class="referral-header">
                     <h3>🎁 Пригласи друга и получи прокрутку!</h3>
-                    <button class="close-modal" onclick="this.closest('.referral-modal').remove()">×</button>
+                    <button class="close-modal">×</button>
                 </div>
                 <div class="referral-body">
                     <p>У вас пока нет приглашенных друзей. Поделитесь ссылкой с друзьями, чтобы получить бесплатные прокрутки!</p>
                     <div class="referral-link-container">
                         <input type="text" id="referral-link" value="${referralLink}" readonly>
-                        <button class="copy-btn" onclick="this.copyReferralLink('${referralLink}')">
+                        <button class="copy-btn" id="copy-referral-btn">
                             <i class="fas fa-copy"></i> Копировать
                         </button>
                     </div>
                     <div class="referral-info">
                         <p>💫 За каждого друга вы получаете 1 бесплатную прокрутку колеса!</p>
                     </div>
+                    <button class="share-btn" id="share-referral-btn">
+                        <i class="fas fa-share"></i> Поделиться в Telegram
+                    </button>
                 </div>
             </div>
         `;
         
         document.body.appendChild(modal);
+        
+        // Обработчики событий
+        modal.querySelector('.close-modal').addEventListener('click', () => {
+            modal.remove();
+        });
+        
+        modal.querySelector('#copy-referral-btn').addEventListener('click', () => {
+            this.copyReferralLink(referralLink);
+        });
+        
+        modal.querySelector('#share-referral-btn').addEventListener('click', () => {
+            const shareText = '🎰 Привет! Присоединяйся к Kosmetichka Lottery Bot - крути рулетку и выигрывай призы! 💄✨';
+            const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`;
+            
+            if (this.app.tg && this.app.tg.openTelegramLink) {
+                this.app.tg.openTelegramLink(shareUrl);
+            } else {
+                window.open(shareUrl, '_blank');
+            }
+        });
         
         // Автоматически копируем ссылку
         this.copyReferralLink(referralLink);

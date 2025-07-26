@@ -134,7 +134,8 @@ export class TasksScreen {
                     this.banUntil = data.banUntil;
                 } else {
                     this.userBlocked = false;
-                    this.channels = data.channels || [];
+                    // Загружаем расширенную информацию о каналах с аватарками
+                    this.channels = await this.loadChannelInfo(data.channels || []);
                 }
                 
                 console.log('✅ Задания каналов загружены:', data);
@@ -167,7 +168,59 @@ export class TasksScreen {
             return '<div class="empty-state">Нет доступных каналов для подписки</div>';
         }
 
-        return this.channels.map(channel => this.renderChannelTaskItem(channel)).join('');
+        const channelsList = this.channels.map(channel => this.renderChannelTaskItem(channel)).join('');
+        
+        return `
+            <div class="channels-header">
+                <button class="check-all-subscriptions-btn" onclick="checkAllSubscriptions()">
+                    🔍 Проверить все подписки
+                </button>
+                <div class="channels-info">
+                    Доступно каналов: ${this.channels.length}
+                </div>
+            </div>
+            <div class="channels-list">
+                ${channelsList}
+            </div>
+        `;
+    }
+
+    formatSubscriberCount(count) {
+        if (count < 1000) return count.toString();
+        if (count < 1000000) return (count / 1000).toFixed(1) + 'K';
+        return (count / 1000000).toFixed(1) + 'M';
+    }
+
+    truncateText(text, maxLength) {
+        if (text.length <= maxLength) return text;
+        return text.substring(0, maxLength) + '...';
+    }
+
+    // Загрузка расширенной информации о каналах с аватарками
+    async loadChannelInfo(channels) {
+        const enrichedChannels = [];
+        
+        for (const channel of channels) {
+            try {
+                const response = await fetch(`/api/channel-info/${channel.channel_username}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    enrichedChannels.push({
+                        ...channel,
+                        photo_url: data.channel.photo_url,
+                        member_count: data.channel.member_count,
+                        description: data.channel.description
+                    });
+                } else {
+                    enrichedChannels.push(channel);
+                }
+            } catch (error) {
+                console.warn(`Не удалось загрузить информацию о канале ${channel.channel_username}:`, error);
+                enrichedChannels.push(channel);
+            }
+        }
+        
+        return enrichedChannels;
     }
 
     renderChannelTaskItem(channel) {
@@ -178,10 +231,27 @@ export class TasksScreen {
         return `
             <div class="channel-task-item ${isHot ? 'hot-offer' : ''}" data-channel-id="${channel.id}">
                 ${hotBadge}
+                <div class="channel-avatar">
+                    ${channel.photo_url ? 
+                        `<img src="${channel.photo_url}" 
+                             alt="${channel.channel_name}" 
+                             class="channel-photo"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                         <div class="channel-photo-fallback" style="display: none;">📺</div>` :
+                        `<div class="channel-photo-fallback">📺</div>`
+                    }
+                </div>
                 <div class="channel-info">
-                    <div class="channel-title">${channel.channel_name}</div>
-                    <div class="channel-description">Подпишитесь на канал @${channel.channel_username}</div>
-                    <div class="channel-reward">+${reward} ⭐</div>
+                    <div class="channel-header">
+                        <div class="channel-title">${channel.channel_name}</div>
+                        <div class="channel-subscribers">${this.formatSubscriberCount(channel.member_count || 0)}</div>
+                    </div>
+                    <div class="channel-username">@${channel.channel_username}</div>
+                    ${channel.description ? `<div class="channel-description">${this.truncateText(channel.description, 60)}</div>` : ''}
+                    <div class="channel-reward">
+                        <span class="reward-amount">+${reward}</span>
+                        <span class="reward-icon">⭐</span>
+                    </div>
                     ${channel.target_subscribers ? 
                         `<div class="progress-bar">
                             <div class="progress-fill" style="width: ${Math.min(100, (channel.current_subscribers / channel.target_subscribers) * 100)}%"></div>
@@ -190,9 +260,11 @@ export class TasksScreen {
                         : ''
                     }
                 </div>
-                <button class="subscribe-btn" onclick="handleChannelSubscribe('${channel.id}', '${channel.channel_username}')">
-                    Подписаться
-                </button>
+                <div class="channel-actions">
+                    <button class="subscribe-btn" onclick="handleChannelSubscribe('${channel.id}', '${channel.channel_username}')">
+                        📺 Подписаться
+                    </button>
+                </div>
             </div>
         `;
     }
@@ -641,3 +713,85 @@ export class TasksScreen {
         }
     }
 }
+
+// Глобальные функции для обработки подписок
+window.handleChannelSubscribe = async function(channelId, channelUsername) {
+    try {
+        const channelUrl = `https://t.me/${channelUsername}`;
+        
+        if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.openTelegramLink(channelUrl);
+        } else {
+            window.open(channelUrl, '_blank');
+        }
+        
+        // Показываем уведомление
+        if (window.app) {
+            window.app.showStatusMessage('Перейдите в канал и подпишитесь, затем нажмите "Проверить подписки"', 'info');
+        }
+    } catch (error) {
+        console.error('Ошибка открытия канала:', error);
+    }
+};
+
+window.checkAllSubscriptions = async function() {
+    try {
+        if (!window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+            alert('Ошибка: не удалось получить данные пользователя');
+            return;
+        }
+        
+        const userId = window.Telegram.WebApp.initDataUnsafe.user.id;
+        
+        // Показываем индикатор загрузки
+        const button = document.querySelector('.check-all-subscriptions-btn');
+        const originalText = button.textContent;
+        button.textContent = '⏳ Проверяем...';
+        button.disabled = true;
+        
+        const response = await fetch('/api/check-user-subscriptions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            let message = `Проверка завершена!\n`;
+            message += `Новых подписок: ${data.newSubscriptions}\n`;
+            if (data.totalReward > 0) {
+                message += `Получено звезд: ${data.totalReward} ⭐`;
+            }
+            
+            alert(message);
+            
+            // Обновляем данные игры и интерфейс
+            if (window.app && data.totalReward > 0) {
+                window.app.gameData.stars = (window.app.gameData.stars || 0) + data.totalReward;
+                window.app.saveGameData();
+                window.app.updateUI();
+            }
+            
+            // Перезагружаем задания
+            if (window.app?.currentScreen?.loadTasks) {
+                await window.app.currentScreen.loadTasks();
+            }
+        } else {
+            alert('Ошибка проверки подписок: ' + data.error);
+        }
+        
+    } catch (error) {
+        console.error('Ошибка проверки подписок:', error);
+        alert('Произошла ошибка при проверке подписок');
+    } finally {
+        // Восстанавливаем кнопку
+        const button = document.querySelector('.check-all-subscriptions-btn');
+        if (button) {
+            button.textContent = originalText;
+            button.disabled = false;
+        }
+    }
+};

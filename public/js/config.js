@@ -38,7 +38,7 @@ export const WHEEL_PRIZES = [
         color: '#FFD700',
         icon: '💎',
         rarity: 'legendary',
-        probability: 0.5, // 0.5%
+        probability: 1, // 1%
         value: 3000
     },
     {
@@ -49,7 +49,7 @@ export const WHEEL_PRIZES = [
         color: '#9C27B0',
         icon: '⭐',
         rarity: 'epic',
-        probability: 2, // 2%
+        probability: 3, // 3%
         value: 200
     },
     {
@@ -60,7 +60,7 @@ export const WHEEL_PRIZES = [
         color: '#FF9800',
         icon: '🎁',
         rarity: 'epic',
-        probability: 1, // 1%
+        probability: 2, // 2%
         value: 2000
     },
     {
@@ -71,7 +71,7 @@ export const WHEEL_PRIZES = [
         color: '#E91E63',
         icon: '🍰',
         rarity: 'epic',
-        probability: 1.5, // 1.5%
+        probability: 2.5, // 2.5%
         value: 1500
     },
     {
@@ -82,7 +82,7 @@ export const WHEEL_PRIZES = [
         color: '#3F51B5',
         icon: '💫',
         rarity: 'rare',
-        probability: 5, // 5%
+        probability: 7, // 7%
         value: 100
     },
     {
@@ -93,7 +93,7 @@ export const WHEEL_PRIZES = [
         color: '#FF5722',
         icon: '🎈',
         rarity: 'rare',
-        probability: 3, // 3%
+        probability: 4, // 4%
         value: 1500
     },
     {
@@ -115,7 +115,7 @@ export const WHEEL_PRIZES = [
         color: '#4CAF50',
         icon: '🎀',
         rarity: 'common',
-        probability: 5, // 5%
+        probability: 6, // 6%
         value: 1000
     },
     {
@@ -159,7 +159,7 @@ export const WHEEL_PRIZES = [
         color: '#9E9E9E',
         icon: '🌙',
         rarity: 'empty',
-        probability: 38, // 38%
+        probability: 30, // 30%
         value: 0
     }
 ];

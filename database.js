@@ -257,6 +257,17 @@ class Database {
                     FOREIGN KEY(channel_id) REFERENCES partner_channels(id)
                 )`,
 
+                // Действия администратора (логирование)
+                `CREATE TABLE IF NOT EXISTS admin_actions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    action_type TEXT NOT NULL, -- 'manual_spin', 'add_stars', 'change_settings', etc.
+                    target_user_id INTEGER,
+                    details TEXT, -- JSON с дополнительной информацией
+                    admin_id INTEGER,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(target_user_id) REFERENCES users(id)
+                )`,
+
                 // Достижения убраны - не используются
             ];
 

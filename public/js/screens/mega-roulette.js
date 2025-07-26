@@ -279,15 +279,15 @@ export class MegaRouletteScreen {
     
     getDefaultMegaPrizeChances() {
         return [
-            { id: 'airpods4', chance: 0.1 },
-            { id: 'cert5000', chance: 1.9 },
-            { id: 'cert3000', chance: 5.0 },
-            { id: 'powerbank', chance: 8.0 },
-            { id: 'cert2000', chance: 12.0 },
-            { id: 'charger', chance: 15.0 },
+            { id: 'airpods4', chance: 0.5 },
+            { id: 'cert5000', chance: 2.5 },
+            { id: 'cert3000', chance: 6.0 },
+            { id: 'powerbank', chance: 9.0 },
+            { id: 'cert2000', chance: 13.0 },
+            { id: 'charger', chance: 16.0 },
             { id: 'cert1000', chance: 18.0 },
             { id: 'stars100', chance: 15.0 },
-            { id: 'empty', chance: 25.0 }
+            { id: 'empty', chance: 20.0 }
         ];
     }
     

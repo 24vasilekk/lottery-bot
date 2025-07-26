@@ -68,6 +68,12 @@ export class ProfileScreen {
                         </div>
                     </div>
 
+                    <div class="section">
+                        <h3 class="section-title">🏆 История призов</h3>
+                        <div class="prizes-history">
+                            ${this.renderPrizesHistory()}
+                        </div>
+                    </div>
 
                     <div class="section">
                         <h3 class="section-title">👥 Рефералы</h3>
@@ -300,6 +306,82 @@ export class ProfileScreen {
         `).join('');
     }
 
+    renderPrizesHistory() {
+        const gameData = this.app.gameData;
+        const prizes = gameData.prizes || [];
+
+        if (prizes.length === 0) {
+            return `
+                <div class="empty-prizes">
+                    <div class="empty-icon">🎁</div>
+                    <div class="empty-text">Призов пока нет</div>
+                    <div class="empty-subtitle">Крутите рулетку и выигрывайте подарки!</div>
+                </div>
+            `;
+        }
+
+        // Сортируем призы по дате получения (новые сначала)
+        const sortedPrizes = [...prizes].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+        return sortedPrizes.map(prize => `
+            <div class="prize-item">
+                <div class="prize-icon">${this.getPrizeIcon(prize)}</div>
+                <div class="prize-content">
+                    <div class="prize-name">${prize.name || 'Неизвестный приз'}</div>
+                    <div class="prize-details">
+                        <span class="prize-type">${this.getPrizeTypeLabel(prize)}</span>
+                        ${prize.value ? `<span class="prize-value">${prize.value} ⭐</span>` : ''}
+                    </div>
+                    <div class="prize-date">${this.formatDate(prize.timestamp || Date.now())}</div>
+                </div>
+                <div class="prize-status">
+                    ${prize.claimed ? 
+                        '<span class="status-claimed">✅ Получен</span>' : 
+                        '<span class="status-pending">⏳ Ожидает</span>'
+                    }
+                </div>
+            </div>
+        `).join('');
+    }
+
+    getPrizeIcon(prize) {
+        // Иконки для разных типов призов
+        const prizeIcons = {
+            'golden-apple-3000': '💎',
+            'golden-apple-2000': '🎁',
+            'golden-apple-1500': '🎈',
+            'golden-apple-1000': '🎀',
+            'golden-apple-500': '🎊',
+            'stars-200': '⭐',
+            'stars-100': '💫',
+            'stars-75': '✨',
+            'stars-50': '🌟',
+            'stars-25': '💖',
+            'dolce-deals': '🍰',
+            'empty': '🌙'
+        };
+
+        return prizeIcons[prize.type] || prize.icon || '🎁';
+    }
+
+    getPrizeTypeLabel(prize) {
+        const typeLabels = {
+            'golden-apple-3000': 'Золотое яблоко 3000₽',
+            'golden-apple-2000': 'Золотое яблоко 2000₽',
+            'golden-apple-1500': 'Золотое яблоко 1500₽',
+            'golden-apple-1000': 'Золотое яблоко 1000₽',
+            'golden-apple-500': 'Золотое яблоко 500₽',
+            'stars-200': '200 звезд',
+            'stars-100': '100 звезд',
+            'stars-75': '75 звезд',
+            'stars-50': '50 звезд',
+            'stars-25': '25 звезд',
+            'dolce-deals': 'Dolce Deals',
+            'empty': 'Повезет в следующий раз'
+        };
+
+        return typeLabels[prize.type] || prize.description || 'Приз';
+    }
 
     shareReferralLink() {
         const userId = this.app.tg?.initDataUnsafe?.user?.id;

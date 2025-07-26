@@ -263,6 +263,11 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="pill" href="#manual-spins">
+                    <i class="fas fa-dice-six"></i> Подкрутки
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" data-bs-toggle="pill" href="#settings">
                     <i class="fas fa-cogs"></i> Настройки
                 </a>
@@ -730,6 +735,62 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
                     <button type="button" class="btn btn-primary" onclick="addChannel()">Добавить</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manual Spins Tab -->
+        <div class="tab-pane fade" id="manual-spins">
+            <div class="admin-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-dice-six"></i> Подкрутка пользователям</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Дать прокрутку пользователю</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form id="manualSpinForm">
+                                        <div class="mb-3">
+                                            <label for="spinUserId" class="form-label">Telegram ID пользователя</label>
+                                            <input type="number" class="form-control" id="spinUserId" placeholder="Введите Telegram ID">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="spinType" class="form-label">Тип прокрутки</label>
+                                            <select class="form-select" id="spinType">
+                                                <option value="normal">Обычная рулетка (20 звезд)</option>
+                                                <option value="mega">Мега рулетка (5000 звезд)</option>
+                                                <option value="friend">За друга (бесплатно)</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="spinReason" class="form-label">Причина</label>
+                                            <textarea class="form-control" id="spinReason" rows="2" placeholder="Причина предоставления прокрутки"></textarea>
+                                        </div>
+                                        <button type="button" class="btn btn-primary" onclick="admin.giveManualSpin()">
+                                            <i class="fas fa-dice"></i> Дать прокрутку
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Недавние подкрутки</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="recentManualSpins">
+                                        <!-- Будет заполнено JS -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
