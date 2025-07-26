@@ -1898,3 +1898,13 @@ body {
     border-top-color: #FFD700 !important;
     filter: drop-shadow(0 3px 6px rgba(255, 215, 0, 0.4));
 }
+
+/* ========================================
+   КАСТОМНОЕ ИЗОБРАЖЕНИЕ КОЛЕСА
+   ======================================== */
+
+#wheel-image {
+    border-radius: 50%;
+    transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+    transform-origin: center center;
+}

@@ -37,7 +37,9 @@ export class MainScreen {
                 <div class="wheel-container">
                     <div class="wheel" id="wheel">
                         <div class="wheel-pointer"></div>
-                        <svg id="wheel-svg" width="400" height="400" viewBox="0 0 400 400">
+                        <img id="wheel-image" src="images/custom-wheel.png" alt="Рулетка" width="400" height="400" 
+                             onerror="this.style.display='none'; document.getElementById('wheel-svg').style.display='block';">
+                        <svg id="wheel-svg" width="400" height="400" viewBox="0 0 400 400" style="display: none;">
                             <g id="wheel-segments"></g>
                         </svg>
                         <div class="wheel-center">SPIN</div>
@@ -311,12 +313,20 @@ export class MainScreen {
 
             console.log(`🌀 Поворот на ${finalRotation} градусов (${spins} оборотов + ${360 - targetAngle})`);
 
-            // Анимация
-            const wheel = document.getElementById('wheel-svg');
-            if (wheel) {
-                this.wheelRotation += finalRotation;
-                wheel.style.transform = `rotate(${this.wheelRotation}deg)`;
-                wheel.style.transition = `transform ${APP_CONFIG.animations.wheelSpinDuration}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
+            // Анимация - поддержка и PNG и SVG
+            const wheelImage = document.getElementById('wheel-image');
+            const wheelSvg = document.getElementById('wheel-svg');
+            
+            this.wheelRotation += finalRotation;
+            const transform = `rotate(${this.wheelRotation}deg)`;
+            const transition = `transform ${APP_CONFIG.animations.wheelSpinDuration}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
+            
+            if (wheelImage && wheelImage.style.display !== 'none') {
+                wheelImage.style.transform = transform;
+                wheelImage.style.transition = transition;
+            } else if (wheelSvg) {
+                wheelSvg.style.transform = transform;
+                wheelSvg.style.transition = transition;
             }
 
             // Ожидание завершения анимации
