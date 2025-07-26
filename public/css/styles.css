@@ -1295,14 +1295,14 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(0, 0, 0, 0.85);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 10000;
     padding: 20px;
-    backdrop-filter: blur(10px);
-    animation: fadeIn 0.3s ease;
+    backdrop-filter: blur(15px);
+    animation: fadeIn 0.4s ease;
 }
 
 @keyframes fadeIn {
@@ -1315,14 +1315,16 @@ body {
 }
 
 .referral-modal-content {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    border-radius: 20px;
-    padding: 25px;
-    max-width: 400px;
+    background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3a 100%);
+    border-radius: 25px;
+    padding: 30px;
+    max-width: 420px;
     width: 100%;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    animation: slideUp 0.3s ease;
+    box-shadow: 
+        0 25px 50px rgba(0, 0, 0, 0.6),
+        0 0 0 1px rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @keyframes slideUp {
@@ -1393,7 +1395,7 @@ body {
     flex: 1;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
+    border-radius: 15px;
     padding: 12px;
     color: var(--text-primary);
     font-size: 14px;
@@ -1403,7 +1405,7 @@ body {
 .copy-btn {
     background: linear-gradient(135deg, var(--primary-pink), var(--primary-purple));
     border: none;
-    border-radius: 10px;
+    border-radius: 15px;
     padding: 12px 20px;
     color: white;
     font-weight: 600;
@@ -1426,7 +1428,7 @@ body {
 
 .referral-info {
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
+    border-radius: 18px;
     padding: 15px;
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -1440,8 +1442,8 @@ body {
 .share-btn {
     background: linear-gradient(135deg, #0088cc, #0066aa);
     border: none;
-    border-radius: 12px;
-    padding: 15px;
+    border-radius: 15px;
+    padding: 16px;
     color: white;
     font-weight: 600;
     font-size: 16px;

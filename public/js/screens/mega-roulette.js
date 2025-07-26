@@ -113,15 +113,22 @@ export class MegaRouletteScreen {
     }
 
     setupEventListeners() {
+        // Настройка кнопки выхода с глобальным обработчиком
+        this.globalBackHandler = (e) => {
+            if (e.target.closest('#mega-back-btn')) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('⬅ Нажата кнопка выхода из мега-рулетки (global)');
+                this.app.navigation.navigateTo('main');
+            }
+        };
+        document.addEventListener('click', this.globalBackHandler);
+        
         // Ждем немного для загрузки DOM
         setTimeout(() => {
             const backBtn = document.getElementById('mega-back-btn');
             if (backBtn) {
                 console.log('🔙 Настройка кнопки выхода из мега-рулетки');
-                
-                // Удаляем старые обработчики, если есть
-                backBtn.replaceWith(backBtn.cloneNode(true));
-                const newBackBtn = document.getElementById('mega-back-btn');
                 
                 const handleBackClick = (e) => {
                     e.preventDefault();
@@ -130,20 +137,24 @@ export class MegaRouletteScreen {
                     this.app.navigation.navigateTo('main');
                 };
                 
-                newBackBtn.addEventListener('click', handleBackClick);
-                newBackBtn.addEventListener('touchend', handleBackClick);
-                newBackBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                });
+                // Очищаем все события
+                const newBackBtn = backBtn.cloneNode(true);
+                backBtn.parentNode.replaceChild(newBackBtn, backBtn);
+                
+                newBackBtn.addEventListener('click', handleBackClick, true);
+                newBackBtn.addEventListener('touchstart', handleBackClick, true);
+                newBackBtn.addEventListener('mousedown', handleBackClick, true);
                 
                 // Добавляем стили для лучшей видимости
-                newBackBtn.style.zIndex = '1000';
+                newBackBtn.style.position = 'relative';
+                newBackBtn.style.zIndex = '9999';
                 newBackBtn.style.pointerEvents = 'auto';
+                newBackBtn.style.cursor = 'pointer';
                 
             } else {
                 console.error('❌ Кнопка выхода не найдена!');
             }
-        }, 200);
+        }, 300);
 
         const spinBtn = document.getElementById('mega-spin-btn');
         if (spinBtn && !spinBtn.disabled) {
@@ -169,7 +180,6 @@ export class MegaRouletteScreen {
                      style="transform: rotate(${rotation}deg)">
                     <div class="mega-segment-content">
                         <div class="mega-segment-icon">${prize.icon}</div>
-                        <div class="mega-segment-name">${prize.name}</div>
                     </div>
                 </div>
             `;
@@ -473,5 +483,10 @@ export class MegaRouletteScreen {
         // Удаляем модальные окна если есть
         const modals = document.querySelectorAll('.mega-win-modal');
         modals.forEach(modal => modal.remove());
+        
+        // Удаляем глобальный обработчик кнопки выхода
+        if (this.globalBackHandler) {
+            document.removeEventListener('click', this.globalBackHandler);
+        }
     }
 }
