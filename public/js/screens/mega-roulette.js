@@ -43,17 +43,6 @@ export class MegaRouletteScreen {
                     </div>
                 </div>
 
-                <div class="mega-prizes-info">
-                    <h3>🏆 Призы мега рулетки</h3>
-                    <div class="mega-prizes-list">
-                        <div class="prize-item">🎧 AirPods 4 <span class="prize-chance">(главный приз)</span></div>
-                        <div class="prize-item">💎 Сертификат 5000₽ <span class="prize-chance">(эпик)</span></div>
-                        <div class="prize-item">💰 Сертификат 3000₽ <span class="prize-chance">(редкий)</span></div>
-                        <div class="prize-item">🔋 PowerBank <span class="prize-chance">(редкий)</span></div>
-                        <div class="prize-item">⚡ Беспроводная зарядка <span class="prize-chance">(обычный)</span></div>
-                        <div class="prize-item">⭐ 100 звезд <span class="prize-chance">(обычный)</span></div>
-                    </div>
-                </div>
 
                 <div class="mega-wheel-container">
                     <div class="mega-wheel-wrapper">
@@ -103,7 +92,6 @@ export class MegaRouletteScreen {
                             <div class="prize-item ${prize.rarity}">
                                 <div class="prize-icon">${prize.icon}</div>
                                 <div class="prize-name">${prize.name}</div>
-                                ${prize.value > 0 ? `<div class="prize-value">${prize.value} ₽</div>` : ''}
                             </div>
                         `).join('')}
                     </div>
@@ -135,16 +123,27 @@ export class MegaRouletteScreen {
                 backBtn.replaceWith(backBtn.cloneNode(true));
                 const newBackBtn = document.getElementById('mega-back-btn');
                 
-                newBackBtn.addEventListener('click', (e) => {
+                const handleBackClick = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     console.log('⬅ Нажата кнопка выхода из мега-рулетки');
                     this.app.navigation.navigateTo('main');
+                };
+                
+                newBackBtn.addEventListener('click', handleBackClick);
+                newBackBtn.addEventListener('touchend', handleBackClick);
+                newBackBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
                 });
+                
+                // Добавляем стили для лучшей видимости
+                newBackBtn.style.zIndex = '1000';
+                newBackBtn.style.pointerEvents = 'auto';
+                
             } else {
                 console.error('❌ Кнопка выхода не найдена!');
             }
-        }, 100);
+        }, 200);
 
         const spinBtn = document.getElementById('mega-spin-btn');
         if (spinBtn && !spinBtn.disabled) {

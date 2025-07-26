@@ -593,14 +593,15 @@
 .mega-win-content {
     background: radial-gradient(circle, #2a2a2a 0%, #1a1a1a 100%);
     border-radius: 25px;
-    padding: 40px 30px;
+    padding: 50px 40px;
     text-align: center;
     position: relative;
     border: 2px solid #FFD700;
     box-shadow: 
         0 0 50px rgba(255, 215, 0, 0.6),
         inset 0 2px 4px rgba(255, 255, 255, 0.1);
-    max-width: 90vw;
+    max-width: 95vw;
+    min-height: 400px;
     animation: winContentScale 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 

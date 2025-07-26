@@ -276,7 +276,7 @@ export class MainScreen {
             }
             
             if (friendSpinsUsed >= referralsCount) {
-                this.app.showStatusMessage('Использованы все прокрутки за друга! Пригласите еще друзей', 'error');
+                this.showReferralLink();
                 return;
             }
         }
@@ -473,9 +473,10 @@ export class MainScreen {
             const friendSpinsUsed = this.app.gameData.friendSpinsUsed || 0;
             const availableSpins = Math.max(0, referralsCount - friendSpinsUsed);
             
-            const canSpinFriend = !this.isSpinning && availableSpins > 0;
-            spinFriendBtn.disabled = !canSpinFriend;
-            spinFriendBtn.classList.toggle('disabled', !canSpinFriend);
+            // Кнопка всегда активна - либо для прокрутки, либо для приглашения
+            const canInteract = !this.isSpinning;
+            spinFriendBtn.disabled = !canInteract;
+            spinFriendBtn.classList.toggle('disabled', !canInteract);
             
             // Обновление текста кнопки
             if (this.isSpinning) {
