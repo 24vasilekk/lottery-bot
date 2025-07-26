@@ -721,6 +721,8 @@ window.handleChannelSubscribe = async function(channelId, channelUsername) {
         
         if (window.Telegram?.WebApp) {
             window.Telegram.WebApp.openTelegramLink(channelUrl);
+        } else if (window.app?.tg) {
+            window.app.tg.openTelegramLink(channelUrl);
         } else {
             window.open(channelUrl, '_blank');
         }
@@ -728,20 +730,33 @@ window.handleChannelSubscribe = async function(channelId, channelUsername) {
         // Показываем уведомление
         if (window.app) {
             window.app.showStatusMessage('Перейдите в канал и подпишитесь, затем нажмите "Проверить подписки"', 'info');
+        } else {
+            alert('Перейдите в канал и подпишитесь, затем нажмите "Проверить подписки"');
         }
     } catch (error) {
         console.error('Ошибка открытия канала:', error);
+        alert('Не удалось открыть канал. Попробуйте вручную перейти на @' + channelUsername);
     }
 };
 
 window.checkAllSubscriptions = async function() {
     try {
-        if (!window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+        // Пытаемся получить userId из разных источников
+        let userId = null;
+        
+        if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+            userId = window.Telegram.WebApp.initDataUnsafe.user.id;
+        } else if (window.app?.tg?.initDataUnsafe?.user?.id) {
+            userId = window.app.tg.initDataUnsafe.user.id;
+        } else {
+            // Для тестирования можно использовать демо ID
+            userId = 'demo';
+        }
+        
+        if (!userId) {
             alert('Ошибка: не удалось получить данные пользователя');
             return;
         }
-        
-        const userId = window.Telegram.WebApp.initDataUnsafe.user.id;
         
         // Показываем индикатор загрузки
         const button = document.querySelector('.check-all-subscriptions-btn');
@@ -790,7 +805,7 @@ window.checkAllSubscriptions = async function() {
         // Восстанавливаем кнопку
         const button = document.querySelector('.check-all-subscriptions-btn');
         if (button) {
-            button.textContent = originalText;
+            button.textContent = '🔍 Проверить все подписки';
             button.disabled = false;
         }
     }

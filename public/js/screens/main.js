@@ -218,17 +218,11 @@ export class MainScreen {
 
             const path = `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
 
-            // Текст иконки и названия
+            // Текст иконки
             const textAngle = (startAngle + endAngle) / 2;
-            const iconRadius = radius * 0.8;
-            const textRadius = radius * 0.6;
-            const iconX = centerX + iconRadius * Math.cos(textAngle);
-            const iconY = centerY + iconRadius * Math.sin(textAngle);
+            const textRadius = radius * 0.7;
             const textX = centerX + textRadius * Math.cos(textAngle);
             const textY = centerY + textRadius * Math.sin(textAngle);
-
-            // Сокращенное название приза
-            const shortName = this.getShortPrizeName(prize);
 
             svgContent += `
                 <path 
@@ -240,50 +234,20 @@ export class MainScreen {
                     data-prize-id="${prize.id}"
                 />
                 <text 
-                    x="${iconX}" 
-                    y="${iconY}" 
-                    text-anchor="middle" 
-                    dominant-baseline="middle" 
-                    font-size="18" 
-                    fill="white"
-                    font-weight="bold"
-                    class="segment-icon"
-                >${prize.icon}</text>
-                <text 
                     x="${textX}" 
                     y="${textY}" 
                     text-anchor="middle" 
                     dominant-baseline="middle" 
-                    font-size="10" 
+                    font-size="20" 
                     fill="white"
                     font-weight="bold"
-                    class="segment-text"
-                >${shortName}</text>
+                    class="segment-icon"
+                >${prize.icon}</text>
             `;
         });
 
         container.innerHTML = svgContent;
         console.log('✅ SVG рулетки сгенерирован');
-    }
-
-    getShortPrizeName(prize) {
-        // Создаем сокращенные названия для отображения на колесе
-        const shortNames = {
-            'golden-apple-3000': '3000₽',
-            'stars-200': '200⭐',
-            'golden-apple-2000': '2000₽',
-            'dolce-deals': 'Dolce',
-            'stars-100': '100⭐',
-            'golden-apple-1500': '1500₽',
-            'stars-75': '75⭐',
-            'golden-apple-1000': '1000₽',
-            'stars-50': '50⭐',
-            'golden-apple-500': '500₽',
-            'stars-25': '25⭐',
-            'empty': 'Мимо'
-        };
-
-        return shortNames[prize.type] || prize.name.substring(0, 8);
     }
 
     async spinWheel(type) {

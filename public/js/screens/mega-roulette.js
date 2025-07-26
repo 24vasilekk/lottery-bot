@@ -43,26 +43,15 @@ export class MegaRouletteScreen {
                     </div>
                 </div>
 
-                <div class="mega-prizes-showcase">
-                    <h3>🏆 Призовой фонд</h3>
-                    <div class="mega-prizes-grid">
-                        <div class="mega-prize-item legendary">
-                            <div class="prize-icon">🎧</div>
-                            <div class="prize-name">AirPods 4</div>
-                            <div class="prize-tag">ГЛАВНЫЙ ПРИЗ</div>
-                        </div>
-                        <div class="mega-prize-item epic">
-                            <div class="prize-icon">💎</div>
-                            <div class="prize-name">5000₽</div>
-                        </div>
-                        <div class="mega-prize-item rare">
-                            <div class="prize-icon">🔋</div>
-                            <div class="prize-name">PowerBank</div>
-                        </div>
-                        <div class="mega-prize-item rare">
-                            <div class="prize-icon">⚡</div>
-                            <div class="prize-name">Зарядка</div>
-                        </div>
+                <div class="mega-prizes-info">
+                    <h3>🏆 Призы мега рулетки</h3>
+                    <div class="mega-prizes-list">
+                        <div class="prize-item">🎧 AirPods 4 <span class="prize-chance">(главный приз)</span></div>
+                        <div class="prize-item">💎 Сертификат 5000₽ <span class="prize-chance">(эпик)</span></div>
+                        <div class="prize-item">💰 Сертификат 3000₽ <span class="prize-chance">(редкий)</span></div>
+                        <div class="prize-item">🔋 PowerBank <span class="prize-chance">(редкий)</span></div>
+                        <div class="prize-item">⚡ Беспроводная зарядка <span class="prize-chance">(обычный)</span></div>
+                        <div class="prize-item">⭐ 100 звезд <span class="prize-chance">(обычный)</span></div>
                     </div>
                 </div>
 
@@ -136,18 +125,26 @@ export class MegaRouletteScreen {
     }
 
     setupEventListeners() {
-        const backBtn = document.getElementById('mega-back-btn');
-        if (backBtn) {
-            console.log('🔙 Настройка кнопки выхода из мега-рулетки');
-            backBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('⬅ Нажата кнопка выхода из мега-рулетки');
-                this.app.navigation.navigateTo('main');
-            });
-        } else {
-            console.error('❌ Кнопка выхода не найдена!');
-        }
+        // Ждем немного для загрузки DOM
+        setTimeout(() => {
+            const backBtn = document.getElementById('mega-back-btn');
+            if (backBtn) {
+                console.log('🔙 Настройка кнопки выхода из мега-рулетки');
+                
+                // Удаляем старые обработчики, если есть
+                backBtn.replaceWith(backBtn.cloneNode(true));
+                const newBackBtn = document.getElementById('mega-back-btn');
+                
+                newBackBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('⬅ Нажата кнопка выхода из мега-рулетки');
+                    this.app.navigation.navigateTo('main');
+                });
+            } else {
+                console.error('❌ Кнопка выхода не найдена!');
+            }
+        }, 100);
 
         const spinBtn = document.getElementById('mega-spin-btn');
         if (spinBtn && !spinBtn.disabled) {
