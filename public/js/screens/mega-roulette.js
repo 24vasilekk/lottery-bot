@@ -113,7 +113,17 @@ export class MegaRouletteScreen {
         // Простое решение - используем onclick прямо в HTML
         window.goBackToMain = () => {
             console.log('⬅ Возврат на главную из мега-рулетки');
-            this.app.navigation.navigateTo('main');
+            try {
+                if (this.app && this.app.navigation && this.app.navigation.navigateTo) {
+                    this.app.navigation.navigateTo('main');
+                } else {
+                    console.error('Navigation не найден, перезагружаем страницу');
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.error('Ошибка навигации:', error);
+                window.location.reload();
+            }
         };
 
         const spinBtn = document.getElementById('mega-spin-btn');
@@ -136,7 +146,30 @@ export class MegaRouletteScreen {
         const centerY = 200;
         const anglePerSegment = (2 * Math.PI) / this.megaPrizes.length;
 
-        let svgContent = '';
+        let svgContent = `
+            <defs>
+                <linearGradient id="legendary-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#FFA500;stop-opacity:1" />
+                </linearGradient>
+                <linearGradient id="epic-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#9966CC;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#8A2BE2;stop-opacity:1" />
+                </linearGradient>
+                <linearGradient id="rare-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#1E90FF;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#0066CC;stop-opacity:1" />
+                </linearGradient>
+                <linearGradient id="common-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#32CD32;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#228B22;stop-opacity:1" />
+                </linearGradient>
+                <linearGradient id="empty-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#696969;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#2F4F4F;stop-opacity:1" />
+                </linearGradient>
+            </defs>
+        `;
 
         this.megaPrizes.forEach((prize, index) => {
             const startAngle = index * anglePerSegment - Math.PI / 2;
@@ -189,11 +222,11 @@ export class MegaRouletteScreen {
 
     getPrizeColor(rarity) {
         switch (rarity) {
-            case 'legendary': return '#FFD700';
-            case 'epic': return '#9966CC';
-            case 'rare': return '#1E90FF';
-            case 'common': return '#32CD32';
-            case 'empty': return '#696969';
+            case 'legendary': return 'url(#legendary-gradient)';
+            case 'epic': return 'url(#epic-gradient)';
+            case 'rare': return 'url(#rare-gradient)';
+            case 'common': return 'url(#common-gradient)';
+            case 'empty': return 'url(#empty-gradient)';
             default: return '#666666';
         }
     }

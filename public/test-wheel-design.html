@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест дизайна колеса</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        
+        .wheel-test-container {
+            text-align: center;
+            color: white;
+        }
+        
+        .wheel-preview {
+            position: relative;
+            display: inline-block;
+            margin: 20px;
+        }
+        
+        .wheel-image {
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            border: 3px solid #FFD700;
+            box-shadow: 
+                0 0 40px rgba(255, 215, 0, 0.6),
+                0 0 80px rgba(255, 215, 0, 0.3);
+            animation: glow 3s ease-in-out infinite alternate;
+        }
+        
+        .wheel-pointer {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 30px solid #FFD700;
+            filter: drop-shadow(0 3px 6px rgba(255, 215, 0, 0.4));
+            z-index: 10;
+        }
+        
+        .wheel-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            border: 3px solid #FFF;
+            box-shadow: 
+                0 0 20px rgba(255, 215, 0, 0.8),
+                inset 0 2px 4px rgba(255, 255, 255, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        
+        .center-crown {
+            font-size: 20px;
+            margin-bottom: 2px;
+        }
+        
+        .center-text {
+            font-size: 8px;
+            font-weight: bold;
+            color: #000;
+        }
+        
+        @keyframes glow {
+            0% { 
+                box-shadow: 
+                    0 0 40px rgba(255, 215, 0, 0.6),
+                    0 0 80px rgba(255, 215, 0, 0.3);
+            }
+            100% { 
+                box-shadow: 
+                    0 0 60px rgba(255, 215, 0, 0.8),
+                    0 0 120px rgba(255, 215, 0, 0.5);
+            }
+        }
+        
+        .upload-area {
+            margin: 20px;
+            padding: 20px;
+            border: 2px dashed #FFD700;
+            border-radius: 10px;
+            background: rgba(255, 215, 0, 0.1);
+        }
+        
+        .file-input {
+            margin: 10px;
+            padding: 10px;
+            background: #FFD700;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="wheel-test-container">
+        <h1>🎰 Тест дизайна мега рулетки</h1>
+        
+        <div class="upload-area">
+            <p>Загрузите ваше PNG изображение колеса:</p>
+            <input type="file" id="wheelImage" accept="image/*" class="file-input">
+        </div>
+        
+        <div class="wheel-preview" id="wheelPreview">
+            <div class="wheel-pointer"></div>
+            <img src="placeholder.png" alt="Колесо рулетки" class="wheel-image" id="wheelImg">
+            <div class="wheel-center">
+                <div class="center-crown">👑</div>
+                <div class="center-text">MEGA</div>
+            </div>
+        </div>
+        
+        <div>
+            <h3>Инструкция:</h3>
+            <p>1. Загрузите ваше PNG изображение колеса</p>
+            <p>2. Оцените как оно выглядит с золотыми эффектами</p>
+            <p>3. Сообщите подходит ли дизайн</p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('wheelImage').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('wheelImg').src = e.target.result;
+                    document.getElementById('wheelImg').style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    </script>
+</body>
+</html>
