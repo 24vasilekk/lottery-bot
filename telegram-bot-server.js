@@ -1246,7 +1246,7 @@ app.post('/api/admin/manual-spin', requireAdmin, async (req, res) => {
                     admin_id, 
                     created_at
                 ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-            `, ['manual_spin', userId, JSON.stringify({spinType, reason}), 'admin', (err) => {
+            `, ['manual_spin', userId, JSON.stringify({spinType, reason}), 'admin'], (err) => {
                 if (err) reject(err);
                 else resolve();
             });
