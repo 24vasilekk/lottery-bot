@@ -15,7 +15,8 @@ export class ProfileScreen {
                         ${this.renderUserAvatar()}
                     </div>
                     <div class="profile-info">
-                        <h2 class="profile-name">${this.app.tg?.initDataUnsafe?.user?.first_name || 'Пользователь'}</h2>
+                        <h2 class="profile-name">${this.getUserDisplayName()}</h2>
+                        <div class="profile-telegram-id">ID: ${this.app.tg?.initDataUnsafe?.user?.id || 'Неизвестно'}</div>
                         <div class="profile-stats">
                             <div class="stat-item">
                                 <div class="stat-value">${gameData.stars}</div>
@@ -362,6 +363,16 @@ export class ProfileScreen {
         };
 
         return prizeIcons[prize.type] || prize.icon || '🎁';
+    }
+
+    getUserDisplayName() {
+        const user = this.app.tg?.initDataUnsafe?.user;
+        if (user?.username) {
+            return `@${user.username}`;
+        } else if (user?.first_name) {
+            return user.first_name;
+        }
+        return 'Пользователь';
     }
 
     getPrizeTypeLabel(prize) {
