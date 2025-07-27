@@ -94,6 +94,14 @@
     text-shadow: 0 0 20px rgba(255, 107, 157, 0.5);
 }
 
+.profile-telegram-id {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 15px;
+    opacity: 0.8;
+    font-family: monospace;
+}
+
 .profile-stats {
     display: flex;
     gap: 30px;
