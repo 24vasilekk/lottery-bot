@@ -133,10 +133,10 @@ class TelegramIntegration {
         const userData = window.app.getUserData();
         
         // Обновляем профиль данными из Telegram
-        userData.profile.name = this.user.first_name || 'Пользователь';
+        userData.profile.name = this.user.username ? `@${this.user.username}` : (this.user.first_name || 'Пользователь');
         userData.profile.username = this.user.username || '';
+        userData.profile.first_name = this.user.first_name || '';
         userData.profile.telegramId = this.user.id;
-        userData.profile.avatarUrl = this.user.photo_url || '';
         
         console.log('📋 TelegramIntegration: Обновленные данные пользователя:', userData.profile);
         
