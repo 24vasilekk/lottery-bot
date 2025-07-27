@@ -16,7 +16,7 @@ export class ProfileScreen {
                     </div>
                     <div class="profile-info">
                         <h2 class="profile-name">${this.getUserDisplayName()}</h2>
-                        <div class="profile-telegram-id">ID: ${this.app.tg?.initDataUnsafe?.user?.id || 'Неизвестно'}</div>
+                        <div class="profile-telegram-id">ID: ${this.getTelegramId()}</div>
                         <div class="profile-stats">
                             <div class="stat-item">
                                 <div class="stat-value">${gameData.stars}</div>
@@ -153,7 +153,7 @@ export class ProfileScreen {
                             </div>
                             <div class="info-item">
                                 <span class="info-label">Пользователь ID:</span>
-                                <span class="info-value">${this.app.tg?.initDataUnsafe?.user?.id || 'Неизвестно'}</span>
+                                <span class="info-value">${this.getTelegramId()}</span>
                             </div>
                             <div class="info-item">
                                 <span class="info-label">Дата регистрации:</span>
@@ -366,13 +366,26 @@ export class ProfileScreen {
     }
 
     getUserDisplayName() {
-        const user = this.app.tg?.initDataUnsafe?.user;
-        if (user?.username) {
-            return `@${user.username}`;
-        } else if (user?.first_name) {
-            return user.first_name;
+        // Пробуем получить данные из разных источников
+        const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user || 
+                            this.app.tg?.initDataUnsafe?.user ||
+                            window.telegramIntegration?.user;
+        
+        if (telegramUser?.username) {
+            return `@${telegramUser.username}`;
+        } else if (telegramUser?.first_name) {
+            return telegramUser.first_name;
         }
         return 'Пользователь';
+    }
+
+    getTelegramId() {
+        // Пробуем получить ID из разных источников
+        const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user || 
+                            this.app.tg?.initDataUnsafe?.user ||
+                            window.telegramIntegration?.user;
+        
+        return telegramUser?.id || 'Неизвестно';
     }
 
     getPrizeTypeLabel(prize) {
@@ -395,7 +408,7 @@ export class ProfileScreen {
     }
 
     shareReferralLink() {
-        const userId = this.app.tg?.initDataUnsafe?.user?.id;
+        const userId = this.getTelegramId();
         const botUsername = 'kosmetichka_bot'; // Замените на реальное имя бота
         const referralLink = `https://t.me/${botUsername}?start=ref_${userId}`;
         
