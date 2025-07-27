@@ -155,7 +155,8 @@ class Navigation {
                 <div class="profile-header">
                     <div class="profile-avatar">👤</div>
                     <div class="profile-info">
-                        <h3 id="profile-username">Пользователь</h3>
+                        <h3 id="profile-username">${this.getUserDisplayName()}</h3>
+                        <div class="profile-telegram-id">ID: ${this.getUserTelegramId()}</div>
                         <p class="profile-level">Уровень 1</p>
                     </div>
                 </div>
@@ -181,9 +182,9 @@ class Navigation {
             `;
 
             // Обновляем имя пользователя
-            if (window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name) {
-                document.getElementById('profile-username').textContent = window.Telegram.WebApp.initDataUnsafe.user.first_name;
-            }
+            //if (window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name) {
+                //document.getElementById('profile-username').textContent = window.Telegram.WebApp.initDataUnsafe.user.first_name;
+            //}
         }
 
         // Загружаем лидерборд
@@ -326,6 +327,21 @@ class Navigation {
                 currentScreenElement.style.animation = '';
             }, 300);
         }
+    }
+
+    getUserDisplayName() {
+        const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+        if (user?.username) {
+            return `@${user.username}`;
+        } else if (user?.first_name) {
+            return user.first_name;
+        }
+        return 'Пользователь';
+    }
+
+    getUserTelegramId() {
+        const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+        return user?.id || 'Неизвестно';
     }
 
     getUserData() {
