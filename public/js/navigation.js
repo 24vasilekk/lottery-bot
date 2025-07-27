@@ -180,11 +180,6 @@ class Navigation {
                     </div>
                 </div>
             `;
-
-            // Обновляем имя пользователя
-            //if (window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name) {
-                //document.getElementById('profile-username').textContent = window.Telegram.WebApp.initDataUnsafe.user.first_name;
-            //}
         }
 
         // Загружаем лидерборд
@@ -330,18 +325,24 @@ class Navigation {
     }
 
     getUserDisplayName() {
-        const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
-        if (user?.username) {
-            return `@${user.username}`;
-        } else if (user?.first_name) {
-            return user.first_name;
+        // Пробуем получить данные из разных источников
+        const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user || 
+                            window.telegramIntegration?.user;
+        
+        if (telegramUser?.username) {
+            return `@${telegramUser.username}`;
+        } else if (telegramUser?.first_name) {
+            return telegramUser.first_name;
         }
         return 'Пользователь';
     }
 
     getUserTelegramId() {
-        const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
-        return user?.id || 'Неизвестно';
+        // Пробуем получить ID из разных источников
+        const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user || 
+                            window.telegramIntegration?.user;
+        
+        return telegramUser?.id || 'Неизвестно';
     }
 
     getUserData() {
@@ -495,6 +496,14 @@ const navigationStyles = `
     .profile-level {
         color: #CCD537;
         font-size: 14px;
+    }
+
+    .profile-telegram-id {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin-bottom: 15px;
+        opacity: 0.8;
+        font-family: monospace;
     }
 
     .leaderboard-item {
