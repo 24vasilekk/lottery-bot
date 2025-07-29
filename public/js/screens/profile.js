@@ -279,6 +279,9 @@ export class ProfileScreen {
     }
 
     // ИСПРАВЛЕННЫЙ МЕТОД: Загрузка данных лидерборда
+    // Для файла public/js/screens/profile.js
+    // Исправленный метод загрузки лидерборда
+
     async loadLeaderboardData(type = 'global') {
         console.log(`🏆 Загрузка лидерборда типа: ${type}`);
         
@@ -306,15 +309,20 @@ export class ProfileScreen {
             let limitParam = '?limit=20';
             
             if (type === 'referrals' && userId && userId !== 'Неизвестно') {
+                // Лидерборд приглашенных друзей конкретного пользователя
                 endpoint = `/api/referrals-leaderboard/${userId}${limitParam}`;
             } else {
+                // Глобальный лидерборд по рефералам
                 endpoint = `/api/leaderboard-referrals${limitParam}`;
             }
             
             console.log(`🔗 Запрос к: ${endpoint}`);
             
             const response = await fetch(endpoint);
+            
             if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`❌ HTTP ${response.status}: ${response.statusText}`, errorText);
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
@@ -326,37 +334,40 @@ export class ProfileScreen {
             if (leaderboard.length === 0) {
                 const emptyMessage = type === 'referrals' ? 
                     'У вас пока нет приглашенных друзей' : 
-                    'Пока нет данных лидерборда';
+                    'Пока нет игроков с рефералами';
                     
                 contentContainer.innerHTML = `
                     <div class="empty-state">
                         <i class="fas fa-users" style="font-size: 48px; margin-bottom: 15px; opacity: 0.3;"></i>
                         <p>${emptyMessage}</p>
-                        ${type === 'referrals' ? '<p>Пригласите друзей и они появятся здесь!</p>' : '<p>Будь первым!</p>'}
+                        ${type === 'referrals' ? 
+                            '<p style="margin-top: 10px; font-size: 14px; opacity: 0.7;">Пригласите друзей, чтобы попасть в рейтинг!</p>' : 
+                            '<p style="margin-top: 10px; font-size: 14px; opacity: 0.7;">Станьте первым!</p>'
+                        }
                     </div>
                 `;
                 return;
             }
 
+            // Генерируем HTML для лидерборда
             let leaderboardHTML = '<div class="leaderboard-list">';
             
             leaderboard.forEach((player, index) => {
                 const position = index + 1;
-                const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : `${position}.`;
+                const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : position;
+                const name = player.first_name || player.username || 'Игрок';
                 const referralsCount = player.referrals_count || 0;
-                const isCurrentUser = player.user_id?.toString() === userId?.toString();
+                const stars = player.total_stars_earned || 0;
                 
                 leaderboardHTML += `
-                    <div class="leaderboard-item ${position <= 3 ? 'top-player' : ''} ${isCurrentUser ? 'user-item' : ''}">
-                        <div class="player-rank">${medal}</div>
+                    <div class="leaderboard-item ${position <= 3 ? 'top-three' : ''}">
+                        <div class="position">${medal}</div>
                         <div class="player-info">
-                            <div class="player-name">
-                                ${player.first_name || 'Игрок'}
-                                ${isCurrentUser ? '<span class="user-badge">Вы</span>' : ''}
+                            <div class="player-name">${name}</div>
+                            <div class="player-stats">
+                                👥 ${referralsCount} рефералов • ⭐ ${stars}
                             </div>
-                            <div class="player-stats">${referralsCount} 👥 рефералов</div>
                         </div>
-                        <div class="player-score">${referralsCount}</div>
                     </div>
                 `;
             });
@@ -364,16 +375,18 @@ export class ProfileScreen {
             leaderboardHTML += '</div>';
             contentContainer.innerHTML = leaderboardHTML;
             
-            console.log('✅ Лидерборд успешно загружен');
-
+            console.log('✅ Лидерборд отрендерен успешно');
+            
         } catch (error) {
             console.error('❌ Ошибка загрузки лидерборда:', error);
+            
             contentContainer.innerHTML = `
                 <div class="error-state">
                     <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 15px; color: #ff6b6b;"></i>
-                    <p>Ошибка загрузки лидерборда</p>
-                    <p style="font-size: 14px; opacity: 0.7;">${error.message}</p>
-                    <button onclick="window.profileScreen.loadLeaderboardData('${type}')" class="retry-btn">
+                    <h3>Ошибка загрузки лидерборда</h3>
+                    <p style="margin: 10px 0; opacity: 0.7;">${error.message}</p>
+                    <button onclick="profile.loadLeaderboardData('${type}')" 
+                            style="background: linear-gradient(45deg, #FF6B9D, #C44569); border: none; color: white; padding: 10px 20px; border-radius: 25px; cursor: pointer; margin-top: 15px;">
                         Попробовать снова
                     </button>
                 </div>
@@ -382,43 +395,40 @@ export class ProfileScreen {
     }
 
     // Загрузка позиции пользователя
+    // Метод для загрузки позиции пользователя
     async loadUserRank(userId) {
         try {
-            console.log(`👤 Загрузка ранга пользователя: ${userId}`);
+            console.log(`📊 Загрузка позиции пользователя ${userId} в рейтинге рефералов`);
             
             const response = await fetch(`/api/user-referral-rank/${userId}`);
-            if (!response.ok) throw new Error('Ошибка загрузки ранга');
+            
+            if (!response.ok) {
+                console.warn(`⚠️ Не удалось получить ранг: HTTP ${response.status}`);
+                return;
+            }
             
             const data = await response.json();
-            const rankContainer = document.getElementById('current-user-rank');
+            const rank = data.rank;
             
-            if (rankContainer && data.rank) {
-                rankContainer.innerHTML = `
-                    <div class="user-rank-card">
-                        <div class="rank-info">
-                            <div class="rank-position">Ваша позиция: #${data.rank.position}</div>
-                            <div class="rank-referrals">${data.rank.referrals_count || 0} рефералов</div>
-                        </div>
-                        <div class="rank-icon">
-                            <i class="fas fa-medal"></i>
-                        </div>
+            console.log('📊 Данные ранга пользователя:', rank);
+            
+            // Обновляем отображение позиции
+            const positionContainer = document.querySelector('.user-position');
+            if (positionContainer && rank) {
+                const position = rank.position || 'Не определена';
+                const referralsCount = rank.referrals_count || 0;
+                
+                positionContainer.innerHTML = `
+                    <div class="position-card">
+                        <div class="position-title">Ваша позиция в рейтинге</div>
+                        <div class="position-number">${position === 'Не определена' ? '—' : `#${position}`}</div>
+                        <div class="position-details">Рефералов: ${referralsCount}</div>
                     </div>
                 `;
-                console.log('✅ Ранг пользователя загружен');
             }
+            
         } catch (error) {
-            console.error('❌ Ошибка загрузки ранга пользователя:', error);
-            const rankContainer = document.getElementById('current-user-rank');
-            if (rankContainer) {
-                rankContainer.innerHTML = `
-                    <div class="user-rank-card">
-                        <div class="rank-info">
-                            <div class="rank-position">Позиция не определена</div>
-                            <div class="rank-referrals">Попробуйте позже</div>
-                        </div>
-                    </div>
-                `;
-            }
+            console.error('❌ Ошибка загрузки позиции пользователя:', error);
         }
     }
 
