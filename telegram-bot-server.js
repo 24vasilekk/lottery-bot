@@ -144,18 +144,23 @@ const generalLimiter = rateLimit({
     }
 });
 
+// Также смягчите общий лимитер:
 const apiLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 минута
-    max: 30, // максимум 30 API запросов в минуту
+    max: 50, // УВЕЛИЧЕНО с 30 до 50 API запросов в минуту
     message: {
         error: 'Превышен лимит API запросов, попробуйте через минуту',
         retryAfter: 60
+    },
+    // Добавляем более детальное логирование
+    onLimitReached: (req, res, options) => {
+        console.log(`⚠️ Rate limit достигнут для ${req.ip}, URL: ${req.url}, User: ${req.body?.userId || 'unknown'}`);
     }
 });
 
 const spinLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 минута
-    max: 5, // максимум 5 прокруток в минуту
+    max: 10, // УВЕЛИЧЕНО с 5 до 10 прокруток в минуту
     message: {
         error: 'Слишком частые прокрутки, подождите немного',
         retryAfter: 60
@@ -163,6 +168,11 @@ const spinLimiter = rateLimit({
     keyGenerator: (req) => {
         // Ограничиваем по user_id для прокруток
         return req.body?.userId?.toString() || req.ip;
+    },
+    // Добавляем пропуск для определенных случаев
+    skip: (req) => {
+        // Пропускаем ограничение для sync запросов
+        return req.url.includes('/sync') || req.url.includes('/health');
     }
 });
 
