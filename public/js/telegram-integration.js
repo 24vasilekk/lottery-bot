@@ -231,14 +231,17 @@ class TelegramIntegration {
     }
 
     // Отправка данных на сервер с retry логикой
+// Замените функцию sendToServer в public/js/telegram-integration.js:
+
     async sendToServer(action, data, maxRetries = 3) {
         if (!this.user) {
             console.error('❌ sendToServer: нет пользователя');
             return { success: false, error: 'No user data' };
         }
         
-        console.log(`📡 sendToServer: ${action}`, data);
-        console.log('👤 sendToServer: user data:', this.user);
+        console.log(`📡 sendToServer: ${action}`);
+        console.log('📋 Исходные данные:', data);
+        console.log('👤 Пользователь:', this.user);
         
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
@@ -248,40 +251,125 @@ class TelegramIntegration {
                     user: this.user
                 };
                 
-                console.log(`📤 Попытка ${attempt}/${maxRetries}:`, payload);
+                console.log(`📤 Попытка ${attempt}/${maxRetries} - отправка payload:`, payload);
+                
+                // ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА перед отправкой
+                if (action === 'wheel_spin') {
+                    if (!data.spinType) {
+                        console.warn('⚠️ spinType отсутствует, устанавливаем normal');
+                        data.spinType = 'normal';
+                    }
+                    
+                    if (!data.prize) {
+                        console.error('❌ Приз отсутствует в данных!');
+                        return { success: false, error: 'Prize data missing' };
+                    }
+                    
+                    if (!data.prize.id) {
+                        console.warn('⚠️ ID приза отсутствует, генерируем новый');
+                        data.prize.id = Math.floor(Math.random() * 1000000);
+                    }
+                    
+                    console.log('✅ Валидация wheel_spin данных прошла успешно');
+                }
                 
                 const response = await fetch('/api/telegram-webhook', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-Telegram-Init-Data': this.tg.initData || ''
+                        'X-Telegram-Init-Data': this.tg.initData || '',
+                        'X-Telegram-User-ID': this.user.id.toString()
                     },
                     body: JSON.stringify(payload)
                 });
                 
+                console.log(`📡 HTTP статус: ${response.status} ${response.statusText}`);
+                
+                // Получаем текст ответа для отладки
+                const responseText = await response.text();
+                console.log('📄 Сырой ответ сервера:', responseText);
+                
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    console.error(`❌ HTTP ошибка: ${response.status}`);
+                    
+                    // Пытаемся распарсить ошибку как JSON
+                    let errorData;
+                    try {
+                        errorData = JSON.parse(responseText);
+                    } catch (e) {
+                        errorData = { error: responseText };
+                    }
+                    
+                    // Логируем детали ошибки
+                    console.error('📋 Детали ошибки:', errorData);
+                    
+                    // Для 429 ошибки пытаемся еще раз с задержкой
+                    if (response.status === 429) {
+                        console.warn(`⚠️ Rate limit (попытка ${attempt}/${maxRetries})`);
+                        
+                        if (attempt < maxRetries) {
+                            const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+                            console.log(`⏳ Ожидание ${delay}ms перед повтором...`);
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            continue;
+                        }
+                    }
+                    
+                    // Для других ошибок тоже пытаемся повторить
+                    if (attempt < maxRetries && response.status >= 500) {
+                        const delay = Math.pow(2, attempt) * 500; // 1s, 2s, 4s
+                        console.log(`🔄 Повтор через ${delay}ms для ошибки ${response.status}...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
+                    
+                    return { 
+                        success: false, 
+                        error: errorData.error || `HTTP ${response.status}`,
+                        details: errorData.details || errorData,
+                        status: response.status
+                    };
                 }
                 
-                const result = await response.json();
-                console.log('✅ Ответ сервера:', result);
+                // Парсим успешный ответ
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (e) {
+                    console.warn('⚠️ Не удалось распарсить JSON ответ, используем как есть');
+                    result = { success: true, data: responseText };
+                }
+                
+                console.log(`✅ sendToServer успешно (попытка ${attempt}):`, result);
                 return result;
                 
             } catch (error) {
-                console.error(`❌ Попытка ${attempt} неудачна:`, error);
+                console.error(`❌ sendToServer ошибка (попытка ${attempt}/${maxRetries}):`, error);
                 
-                // Если это последняя попытка - возвращаем ошибку
-                if (attempt === maxRetries) {
-                    console.error('❌ Все попытки исчерпаны');
-                    return { success: false, error: error.message };
+                if (attempt < maxRetries) {
+                    const delay = Math.pow(2, attempt) * 1000;
+                    console.log(`🔄 Повтор через ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                } else {
+                    return { 
+                        success: false, 
+                        error: error.message || 'Network error',
+                        details: error
+                    };
                 }
-                
-                // Ждем перед следующей попыткой (экспоненциальная задержка)
-                const delay = Math.pow(2, attempt - 1) * 1000; // 1s, 2s, 4s
-                console.log(`⏳ Ожидание ${delay}ms перед следующей попыткой...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
+    }
+
+    // ДОБАВЬТЕ метод для отладки:
+    debugConnection() {
+        console.log('🔍 === ОТЛАДКА TELEGRAM INTEGRATION ===');
+        console.log('User ID:', this.user?.id);
+        console.log('User data:', this.user);
+        console.log('Telegram WebApp ready:', !!this.tg);
+        console.log('Init data:', this.tg?.initData?.slice(0, 50) + '...');
+        console.log('sendToServer function:', typeof this.sendToServer);
+        console.log('=== КОНЕЦ ОТЛАДКИ ===');
     }
 
     // Синхронизация с сервером
