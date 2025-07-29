@@ -567,6 +567,88 @@ app.get('/api/user-rank/:userId', async (req, res) => {
     }
 });
 
+// API для получения данных пользователя с рефералами - УЛУЧШЕННЫЙ
+app.get('/api/user/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        console.log(`👤 Запрос данных пользователя: ${userId}`);
+        
+        const user = await db.getUser(parseInt(userId));
+        
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        // Получаем количество рефералов
+        let referralsCount = 0;
+        try {
+            referralsCount = await new Promise((resolve, reject) => {
+                const query = `
+                    SELECT COUNT(*) as count 
+                    FROM referrals 
+                    WHERE referrer_id = ?
+                `;
+                
+                if (db.pool) {
+                    db.pool.query(query, [parseInt(userId)], (error, results) => {
+                        if (error) reject(error);
+                        else resolve(results[0]?.count || 0);
+                    });
+                } else if (db.db) {
+                    db.db.get(query, [parseInt(userId)], (error, result) => {
+                        if (error) reject(error);
+                        else resolve(result?.count || 0);
+                    });
+                } else {
+                    resolve(0);
+                }
+            });
+        } catch (error) {
+            console.warn('⚠️ Ошибка получения количества рефералов:', error);
+            referralsCount = 0;
+        }
+        
+        // Формируем ответ с полной статистикой
+        const userData = {
+            id: user.telegram_id,
+            username: user.username,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            stars: user.stars || 0,
+            total_stars_earned: user.total_stars_earned || 0,
+            join_date: user.join_date,
+            stats: {
+                stars: user.stars || 0,
+                totalStars: user.total_stars_earned || 0,
+                totalStarsEarned: user.total_stars_earned || 0,
+                totalSpins: user.total_spins || 0,
+                prizesWon: user.prizes_won || 0,
+                referrals: referralsCount,
+                referralsCount: referralsCount,
+                starsFromReferrals: referralsCount * 100, // 100 звезд за каждого реферала
+                level: Math.floor((user.total_stars_earned || 0) / 1000) + 1
+            },
+            referrals: referralsCount,
+            achievements: user.achievements ? JSON.parse(user.achievements) : [],
+            settings: user.settings ? JSON.parse(user.settings) : {},
+            is_active: user.is_active
+        };
+        
+        console.log(`✅ Данные пользователя ${userId} загружены:`, {
+            stars: userData.stars,
+            referrals: userData.stats.referrals,
+            totalEarned: userData.total_stars_earned
+        });
+        
+        res.json(userData);
+        
+    } catch (error) {
+        console.error(`❌ Ошибка получения данных пользователя ${req.params.userId}:`, error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // API для отладки - получение всех данных пользователя
 app.get('/api/debug-user/:userId', async (req, res) => {
     try {
