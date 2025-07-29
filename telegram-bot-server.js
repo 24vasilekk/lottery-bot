@@ -39,7 +39,7 @@ if (!WEBAPP_URL) {
     }
 }
 
-const BOT_USERNAME = process.env.BOT_USERNAME || 'kosmetichka_lottery_bot';
+const BOT_USERNAME = process.env.BOT_USERNAME || 'kosmetichkalottery_bot';
 const PORT = process.env.PORT || 3000;
 
 console.log('🚀 ИНИЦИАЛИЗАЦИЯ KOSMETICHKA LOTTERY BOT');
@@ -281,6 +281,112 @@ async function startPolling() {
         setTimeout(startPolling, 5000);
     }
 }
+
+// API для получения персональной реферальной ссылки
+// API для получения персональной реферальной ссылки
+app.get('/api/referral-link/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        const userIdValidation = validateTelegramId(userId);
+        if (!userIdValidation.isValid) {
+            return res.status(400).json({ error: 'Invalid user ID' });
+        }
+        
+        const telegramId = userIdValidation.value;
+        const user = await db.getUser(telegramId);
+        
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const referralLink = `https://t.me/${BOT_USERNAME}?start=ref_${telegramId}`;
+        const referralsCount = await db.getUserReferralsCount(telegramId);
+        
+        res.json({
+            success: true,
+            referralLink: referralLink,
+            statistics: {
+                totalReferrals: referralsCount,
+                potentialEarnings: {
+                    totalEarned: referralsCount * 120 // 100 + 20 за активацию
+                }
+            },
+            shareText: '🎰 Привет! Присоединяйся к Kosmetichka Lottery Bot - крути рулетку и выигрывай призы! 💄✨'
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения реферальной ссылки:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// API для обработки реферальной активации (дополнительно)
+app.post('/api/activate-referral', async (req, res) => {
+    try {
+        const { userId, referrerId } = req.body;
+        
+        if (!userId || !referrerId) {
+            return res.status(400).json({ 
+                error: 'Требуются userId и referrerId' 
+            });
+        }
+        
+        // Проверяем, что пользователи существуют
+        const user = await db.getUser(userId);
+        const referrer = await db.getUser(referrerId);
+        
+        if (!user || !referrer) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        // Проверяем, не был ли уже добавлен этот реферал
+        const existingReferral = await db.getReferral(referrerId, userId);
+        if (existingReferral) {
+            return res.json({ 
+                success: false, 
+                message: 'Реферал уже активирован' 
+            });
+        }
+        
+        // Добавляем реферал
+        const added = await db.addReferral(referrerId, userId);
+        
+        if (added) {
+            // Начисляем звезды рефереру
+            await db.updateUserStars(referrerId, 100);
+            
+            // Отправляем уведомления
+            try {
+                await bot.sendMessage(referrerId, 
+                    `🎉 Поздравляем! Ваш друг ${user.first_name} присоединился к боту!\n` +
+                    `💫 Вы получили 100 звезд за приглашение!`
+                );
+                
+                await bot.sendMessage(userId,
+                    `👋 Добро пожаловать! Вы присоединились по приглашению от ${referrer.first_name}!\n` +
+                    `🎁 Выполните задания, чтобы ваш друг получил дополнительные бонусы!`
+                );
+            } catch (notifyError) {
+                console.warn('⚠️ Не удалось отправить уведомления:', notifyError.message);
+            }
+            
+            res.json({
+                success: true,
+                message: 'Реферал успешно активирован',
+                starsEarned: 100
+            });
+        } else {
+            res.json({
+                success: false,
+                message: 'Не удалось активировать реферал'
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка активации реферала:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 // Добавить в telegram-bot-server.js
 
@@ -2255,33 +2361,92 @@ ${lastSpins.length > 0 ? lastSpins.map((spin, i) =>
                 });
                 break;
                 
+            // В файле telegram-bot-server.js
+// Заменить случай 'invite' в обработчике callback_query
+
+            // В обработчике callback_query, случай 'invite':
             case 'invite':
+                // ИСПРАВЛЕНО: Создаем персональную реферальную ссылку
+                const referralLink = `https://t.me/${BOT_USERNAME}?start=ref_${userId}`;
                 const shareText = '🎰 Привет! Присоединяйся к Kosmetichka Lottery Bot - крути рулетку и выигрывай призы! 💄✨';
-                const botUrl = `https://t.me/${BOT_USERNAME}`;
-                const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botUrl)}&text=${encodeURIComponent(shareText)}`;
+                const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`;
                 
                 const inviteKeyboard = {
                     inline_keyboard: [
                         [
                             {
-                                text: '👥 Пригласить друзей',
+                                text: '👥 Поделиться ссылкой',
                                 url: shareUrl
+                            }
+                        ],
+                        [
+                            {
+                                text: '📋 Скопировать ссылку',
+                                callback_data: `copy_link_${userId}`
                             }
                         ]
                     ]
                 };
                 
-                bot.sendMessage(chatId, '👥 **Приглашайте друзей и получайте бонусы!**\n\nЗа каждого приглашенного друга вы получите:\n• 50 ⭐ звезд\n• Дополнительные бонусы\n\nНажмите кнопку ниже, чтобы поделиться ботом:', {
+                const inviteMessage = `👥 **Приглашайте друзей и получайте бонусы!**
+
+🎁 **Ваши награды:**
+• 100 ⭐ звезд за каждого приглашенного
+• 20 ⭐ звезд за активного реферала (после 2 подписок)
+• Дополнительные бонусы и призы
+
+🔗 **Ваша персональная ссылка:**
+\`${referralLink}\`
+
+💡 **Как работает:**
+1. Поделитесь ссылкой с друзьями
+2. Друг переходит по ссылке и запускает бота
+3. Вы автоматически получаете звезды
+4. Когда друг выполнит 2 подписки - получите еще больше!
+
+📱 Нажмите кнопку ниже, чтобы поделиться:`;
+                
+                bot.sendMessage(chatId, inviteMessage, {
                     reply_markup: inviteKeyboard,
                     parse_mode: 'Markdown'
                 });
                 break;
-            }
-        } catch (error) {
-            console.error('❌ Ошибка callback query:', error);
-            bot.sendMessage(chatId, '❌ Произошла ошибка');
+                
+            // НОВОЕ: Обработчик копирования реферальной ссылки
+            default:
+                if (data.startsWith('copy_link_')) {
+                    const linkUserId = data.split('_')[2];
+                    const referralLink = `https://t.me/${BOT_USERNAME}?start=ref_${linkUserId}`;
+                    
+                    const copyMessage = `📋 **Ваша реферальная ссылка:**
+
+\`${referralLink}\`
+
+👆 Нажмите на ссылку для копирования
+
+💡 Поделитесь этой ссылкой с друзьями и получайте звезды за каждого приглашенного!`;
+
+                    bot.sendMessage(chatId, copyMessage, {
+                        parse_mode: 'Markdown',
+                        reply_markup: {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text: '🔙 Назад к приглашениям',
+                                        callback_data: 'invite'
+                                    }
+                                ]
+                            ]
+                        }
+                    });
+                }
+                break;
         }
-    });
+    } catch (error) {
+        console.error('❌ Ошибка callback query:', error);
+        bot.sendMessage(chatId, '❌ Произошла ошибка');
+    }
+});
 
     // Обработка ошибок бота
     bot.on('error', (error) => {
