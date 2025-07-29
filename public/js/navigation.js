@@ -479,30 +479,120 @@ class Navigation {
     }
 
     // Загрузка информации о рефералах
+    // Загрузка информации о рефералах
     async loadReferralsInfo(userId) {
         const container = document.getElementById('referrals-section');
         if (!container) return;
         
-        container.innerHTML = `
-            <div class="referrals-stats">
-                <div class="referral-link-container">
-                    <label>Ваша реферальная ссылка:</label>
-                    <div class="referral-link">
-                        <input type="text" id="referral-link" value="https://t.me/kosmetichka_lottery_bot?start=ref_${userId}" readonly>
-                        <button onclick="navigation.copyReferralLink()" class="copy-btn">
-                            <i class="fas fa-copy"></i>
+        try {
+            // Загружаем данные пользователя для получения актуальной статистики рефералов
+            const response = await fetch(`/api/user/${userId}`);
+            const userData = response.ok ? await response.json() : null;
+            
+            const referralsCount = userData?.stats?.referrals || 0;
+            const starsFromReferrals = referralsCount * 100; // 100 звезд за каждого реферала
+            
+            container.innerHTML = `
+                <div class="referrals-stats">
+                    <!-- Основная статистика рефералов -->
+                    <div class="referrals-overview">
+                        <div class="referral-stat-card">
+                            <div class="referral-stat-value">${referralsCount}</div>
+                            <div class="referral-stat-label">👥 Приглашено друзей</div>
+                        </div>
+                        <div class="referral-stat-card">
+                            <div class="referral-stat-value">${starsFromReferrals}</div>
+                            <div class="referral-stat-label">⭐ Получено звезд</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Реферальная ссылка -->
+                    <div class="referral-link-container">
+                        <label>Ваша реферальная ссылка:</label>
+                        <div class="referral-link">
+                            <input type="text" id="referral-link" value="https://t.me/kosmetichka_lottery_bot?start=ref_${userId}" readonly>
+                            <button onclick="navigation.copyReferralLink()" class="copy-btn">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Действия с рефералами -->
+                    <div class="referral-actions">
+                        <button onclick="navigation.shareReferralLink()" class="share-btn">
+                            <i class="fas fa-share"></i>
+                            Поделиться ссылкой
                         </button>
                     </div>
+                    
+                    <!-- Информация о бонусах -->
+                    <div class="referral-info">
+                        <div class="referral-description">
+                            <h4>💡 Как это работает:</h4>
+                            <ul>
+                                <li>Пригласите друга по вашей ссылке</li>
+                                <li>Друг должен выполнить 2 подписки на каналы</li>
+                                <li>Вы получите 20 звезд за активного реферала</li>
+                                <li>Дополнительно 100 звезд за каждого приглашенного</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="referral-actions">
-                    <button onclick="navigation.shareReferralLink()" class="share-btn">
-                        <i class="fas fa-share"></i>
-                        Поделиться ссылкой
+            `;
+            
+            // Загружаем список рефералов если есть
+            if (referralsCount > 0) {
+                this.loadReferralsList(userId);
+            }
+            
+        } catch (error) {
+            console.error('Ошибка загрузки информации о рефералах:', error);
+            container.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Ошибка загрузки информации о рефералах</p>
+                    <button onclick="navigation.loadReferralsInfo(${userId})" class="retry-btn">
+                        Попробовать снова
                     </button>
                 </div>
-            </div>
-        `;
+            `;
+        }
+    }
+
+    // НОВЫЙ метод для загрузки списка рефералов
+    async loadReferralsList(userId) {
+        try {
+            const response = await fetch(`/api/referrals-leaderboard/${userId}?limit=50`);
+            if (!response.ok) return;
+            
+            const data = await response.json();
+            const referrals = data.leaderboard || [];
+            
+            if (referrals.length > 0) {
+                const container = document.getElementById('referrals-section');
+                const referralsListHTML = `
+                    <div class="section" style="margin-top: 20px;">
+                        <h4>👥 Ваши рефералы:</h4>
+                        <div class="referrals-list">
+                            ${referrals.map((referral, index) => `
+                                <div class="referral-item">
+                                    <div class="referral-avatar">👤</div>
+                                    <div class="referral-info">
+                                        <div class="referral-name">${referral.first_name || 'Пользователь'}</div>
+                                        <div class="referral-date">Присоединился: ${new Date(referral.join_date).toLocaleDateString('ru-RU')}</div>
+                                    </div>
+                                    <div class="referral-bonus">+100 ⭐</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                
+                container.insertAdjacentHTML('beforeend', referralsListHTML);
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки списка рефералов:', error);
+        }
     }
 
     // Загрузка истории призов
@@ -576,15 +666,27 @@ class Navigation {
         return '🎁';
     }
 
-    // Методы для работы с реферальной ссылкой
     copyReferralLink() {
         const linkInput = document.getElementById('referral-link');
         if (linkInput) {
             linkInput.select();
-            document.execCommand('copy');
+            linkInput.setSelectionRange(0, 99999); // Для мобильных устройств
             
-            // Показываем уведомление
-            this.showNotification('Ссылка скопирована!', 'success');
+            try {
+                // Используем современный API если доступен
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(linkInput.value).then(() => {
+                        this.showNotification('Ссылка скопирована! 📋', 'success');
+                    });
+                } else {
+                    // Fallback для старых браузеров
+                    document.execCommand('copy');
+                    this.showNotification('Ссылка скопирована! 📋', 'success');
+                }
+            } catch (err) {
+                console.error('Ошибка копирования:', err);
+                this.showNotification('Ошибка копирования. Скопируйте вручную', 'error');
+            }
         }
     }
 
