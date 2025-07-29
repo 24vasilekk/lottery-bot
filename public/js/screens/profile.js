@@ -486,9 +486,10 @@ export class ProfileScreen {
         `;
     }
 
+    // Улучшенный метод копирования
     copyReferralLink() {
         const linkInput = document.getElementById('referral-link');
-        if (linkInput) {
+        if (linkInput && linkInput.value !== 'Загрузка...') {
             linkInput.select();
             linkInput.setSelectionRange(0, 99999);
             
@@ -505,18 +506,36 @@ export class ProfileScreen {
                 console.error('Ошибка копирования:', err);
                 this.showNotification('Ошибка копирования. Скопируйте вручную', 'error');
             }
+        } else {
+            this.showNotification('Ссылка еще загружается...', 'warning');
         }
     }
 
-    shareReferralLink() {
-        const userId = this.getTelegramId();
-        const referralLink = `https://t.me/kosmetichka_lottery_bot?start=ref_${userId}`;
-        const message = `🎰 Присоединяйся к Kosmetichka Lottery!\n\n💎 Играй в рулетку красоты\n🎁 Выигрывай крутые призы\n👥 Приглашай друзей и получай бонусы\n\n${referralLink}`;
+    // Улучшенный метод поделиться ссылкой
+    shareReferralLink(referralLink, shareText) {
+        if (!referralLink) {
+            const userId = this.getTelegramId();
+            referralLink = `https://t.me/kosmetichka_lottery_bot?start=ref_${userId}`;
+        }
+        
+        if (!shareText) {
+            shareText = '🎰 Присоединяйся к Kosmetichka Lottery!\n\n💎 Играй в рулетку красоты\n🎁 Выигрывай крутые призы\n👥 Приглашай друзей и получай бонусы';
+        }
+        
+        const message = `${shareText}\n\n${referralLink}`;
         
         if (this.app.tg?.isVersionAtLeast?.('6.1')) {
-            this.app.tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(message)}`);
+            // Используем новый API для шаринга
+            this.app.tg.shareUrl(referralLink, shareText);
         } else {
-            this.copyReferralLink();
+            // Fallback для старых версий
+            const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`;
+            
+            if (this.app.tg && this.app.tg.openTelegramLink) {
+                this.app.tg.openTelegramLink(shareUrl);
+            } else {
+                window.open(shareUrl, '_blank');
+            }
         }
     }
 
@@ -631,7 +650,141 @@ export class ProfileScreen {
             year: 'numeric'
         });
     }
+    // Обновленный метод generateReferralSection
 
+    // Обновленный метод для загрузки реферальной информации
+    async loadReferralInfo() {
+        const userId = this.getTelegramId();
+        
+        if (!userId || userId === 'Неизвестно') {
+            console.warn('⚠️ Не удалось получить ID пользователя для реферальной ссылки');
+            return;
+        }
+        
+        try {
+            console.log(`🔗 Загрузка реферальной информации для пользователя ${userId}`);
+            
+            // Получаем реферальную ссылку и статистику
+            const response = await fetch(`/api/referral-link/${userId}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Обновляем ссылку
+                const linkInput = document.getElementById('referral-link');
+                if (linkInput) {
+                    linkInput.value = data.referralLink;
+                }
+                
+                // Обновляем статистику
+                const referralsCount = document.getElementById('referrals-count');
+                const earnedFromReferrals = document.getElementById('earned-from-referrals');
+                
+                if (referralsCount) {
+                    referralsCount.textContent = data.statistics.totalReferrals || 0;
+                }
+                
+                if (earnedFromReferrals) {
+                    earnedFromReferrals.textContent = `${data.statistics.potentialEarnings.totalEarned || 0} ⭐`;
+                }
+                
+                // Обновляем обработчик кнопки "Поделиться"
+                const shareButton = document.getElementById('share-referral');
+                if (shareButton) {
+                    shareButton.onclick = () => {
+                        this.shareReferralLink(data.referralLink, data.shareText);
+                    };
+                }
+                
+                console.log('✅ Реферальная информация загружена успешно');
+            } else {
+                throw new Error('Не удалось получить реферальную ссылку');
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки реферальной информации:', error);
+            
+            // Fallback - генерируем ссылку локально
+            const fallbackLink = `https://t.me/kosmetichka_lottery_bot?start=ref_${userId}`;
+            const linkInput = document.getElementById('referral-link');
+            if (linkInput) {
+                linkInput.value = fallbackLink;
+            }
+            
+            // Показываем базовую статистику из профиля
+            const userData = this.app.userData;
+            if (userData) {
+                const referralsCount = document.getElementById('referrals-count');
+                const earnedFromReferrals = document.getElementById('earned-from-referrals');
+                
+                if (referralsCount) {
+                    referralsCount.textContent = userData.stats?.referrals || 0;
+                }
+                
+                if (earnedFromReferrals) {
+                    const estimated = (userData.stats?.referrals || 0) * 120; // 100 + 20 за активацию
+                    earnedFromReferrals.textContent = `~${estimated} ⭐`;
+                }
+            }
+        }
+    }
+
+
+    generateReferralSection() {
+        const userId = this.getTelegramId();
+        
+        return `
+            <div class="referral-section">
+                <h3>👥 Пригласите друзей</h3>
+                
+                <div class="referral-stats" id="referral-stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="referrals-count">...</div>
+                        <div class="stat-label">Рефералов</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="earned-from-referrals">...</div>
+                        <div class="stat-label">Заработано</div>
+                    </div>
+                </div>
+                
+                <div class="referral-link-container">
+                    <label>Ваша реферальная ссылка:</label>
+                    <div class="referral-link">
+                        <input type="text" id="referral-link" value="Загрузка..." readonly>
+                        <button onclick="window.profileScreen.copyReferralLink()" class="copy-btn">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Действия с рефералами -->
+                <div class="referral-actions">
+                    <button id="share-referral" class="share-btn">
+                        <i class="fas fa-share"></i>
+                        Поделиться ссылкой
+                    </button>
+                </div>
+                
+                <!-- Информация о бонусах -->
+                <div class="referral-info">
+                    <div class="referral-description">
+                        <h4>💡 Как это работает:</h4>
+                        <ul>
+                            <li>Пригласите друга по вашей ссылке</li>
+                            <li>Получите 100 звезд сразу при регистрации</li>
+                            <li>Друг должен выполнить 2 подписки на каналы</li>
+                            <li>Вы получите дополнительно 20 звезд за активного реферала</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
     renderUserAvatar() {
         const user = this.app.tg?.initDataUnsafe?.user;
         
