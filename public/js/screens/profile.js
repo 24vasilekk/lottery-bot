@@ -54,13 +54,6 @@ export class ProfileScreen {
                     </div>
 
                     <div class="section">
-                        <h3 class="section-title">🏆 История призов</h3>
-                        <div class="prizes-history">
-                            ${this.renderPrizesHistory()}
-                        </div>
-                    </div>
-
-                    <div class="section">
                         <h3 class="section-title">👥 Рефералы</h3>
                         <div class="referral-section">
                             <div class="referral-info">
@@ -87,6 +80,13 @@ export class ProfileScreen {
                                     <li>🏆 Прогресс к достижениям</li>
                                 </ul>
                             </div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h3 class="section-title">🏆 История сертификатов</h3>
+                        <div class="prizes-history">
+                            ${this.renderPrizesHistory()}
                         </div>
                     </div>
 
@@ -120,20 +120,28 @@ export class ProfileScreen {
 
     renderPrizesHistory() {
         const gameData = this.app.gameData;
-        const prizes = gameData.prizes || [];
+        const allPrizes = gameData.prizes || [];
 
-        if (prizes.length === 0) {
+        // Фильтруем только сертификаты (исключаем звезды и пустые призы)
+        const certificatePrizes = allPrizes.filter(prize => {
+            const prizeType = prize.type || '';
+            return prizeType.startsWith('golden-apple-') || prizeType === 'dolce-deals';
+        });
+
+        if (certificatePrizes.length === 0) {
             return `
                 <div class="empty-prizes">
-                    <div class="empty-icon">🎁</div>
-                    <div class="empty-text">Призов пока нет</div>
-                    <div class="empty-subtitle">Крутите рулетку и выигрывайте подарки!</div>
+                    <div class="empty-icon">🏆</div>
+                    <div class="empty-text">Сертификатов пока нет</div>
+                    <div class="empty-subtitle">Крутите рулетку и выигрывайте сертификаты!</div>
                 </div>
             `;
         }
 
-        // Сортируем призы по дате получения (новые сначала)
-        const sortedPrizes = [...prizes].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        // Сортируем призы по дате получения (новые сначала) и берем максимум 5
+        const sortedPrizes = [...certificatePrizes]
+            .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+            .slice(0, 5);
 
         return sortedPrizes.map(prize => `
             <div class="prize-item">
