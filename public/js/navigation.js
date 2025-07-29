@@ -1,4 +1,4 @@
-// navigation.js - Навигация между экранами
+// navigation.js - УПРОЩЕННАЯ ВЕРСИЯ БЕЗ ДУБЛИРОВАНИЯ ЛИДЕРБОРДА
 
 class Navigation {
     constructor() {
@@ -73,7 +73,8 @@ class Navigation {
                 this.loadTasksScreen();
                 break;
             case 'profile-screen':
-                this.showProfileScreen();
+                // ПРОФИЛЬ ОБРАБАТЫВАЕТСЯ ЧЕРЕЗ ProfileScreen - ничего не делаем здесь
+                console.log('🔄 Профиль будет загружен через ProfileScreen');
                 break;
             case 'mega-roulette-screen':
                 this.loadMegaRouletteScreen();
@@ -142,530 +143,63 @@ class Navigation {
         }
     }
 
-    // ОБНОВЛЕННЫЙ МЕТОД ДЛЯ ПРОФИЛЯ С ВКЛАДКАМИ
-    showProfileScreen() {
-        this.currentScreen = 'profile-screen';
-        const screen = document.getElementById('profile-screen');
-        
-        if (!screen) return;
-        
-        this.showScreen('profile-screen');
-        this.updateActiveNavItem('profile-screen');
-        
-        // Создаем структуру с вкладками
-        screen.innerHTML = `
-            <div class="screen-header">
-                <h2>Профиль</h2>
-            </div>
-            
-            <!-- Вкладки профиля -->
-            <div class="profile-tabs">
-                <button class="profile-tab active" data-tab="profile-info">
-                    <i class="fas fa-user"></i>
-                    Профиль
-                </button>
-                <button class="profile-tab" data-tab="leaderboard">
-                    <i class="fas fa-trophy"></i>
-                    Лидерборд
-                </button>
-            </div>
-            
-            <!-- Контент вкладки "Профиль" -->
-            <div class="tab-content active" id="profile-info">
-                <div class="profile-header">
-                    <div class="profile-avatar">👤</div>
-                    <div class="profile-info">
-                        <h3 id="profile-username">${this.getUserDisplayName()}</h3>
-                        <div class="profile-telegram-id">ID: ${this.getUserTelegramId()}</div>
-                        <p class="profile-level">Уровень 1</p>
-                    </div>
-                </div>
-                
-                <!-- Статистика -->
-                <div class="section">
-                    <div class="section-title">
-                        <i class="fas fa-chart-bar"></i>
-                        Статистика
-                    </div>
-                    <div class="stats-grid" id="profile-stats-grid">
-                        <!-- Статистика будет загружена -->
-                    </div>
-                </div>
-                
-                <!-- История призов -->
-                <div class="section">
-                    <div class="section-title">
-                        <i class="fas fa-gift"></i>
-                        История призов
-                    </div>
-                    <div class="prize-history" id="prize-history">
-                        <!-- История призов будет загружена -->
-                    </div>
-                </div>
-                
-                <!-- Рефералы -->
-                <div class="section">
-                    <div class="section-title">
-                        <i class="fas fa-users"></i>
-                        Рефералы
-                    </div>
-                    <div class="referrals-section" id="referrals-section">
-                        <!-- Информация о рефералах будет загружена -->
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Контент вкладки "Лидерборд" -->
-            <div class="tab-content" id="leaderboard">
-                <div class="leaderboard-container">
-                    <!-- Лидерборд будет загружен -->
-                </div>
-            </div>
-        `;
-        
-        // Инициализируем переключение вкладок
-        this.initProfileTabs();
-        
-        // Загружаем данные профиля
-        this.loadProfileData();
-        
-        // Загружаем лидерборд (но не показываем пока не переключились на вкладку)
-        this.loadLeaderboard();
-    }
-
-    // Метод для инициализации переключения вкладок
-    initProfileTabs() {
-        const tabs = document.querySelectorAll('.profile-tab');
-        const contents = document.querySelectorAll('.tab-content');
-        
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                const targetTab = tab.dataset.tab;
-                
-                // Убираем активный класс со всех вкладок и контента
-                tabs.forEach(t => t.classList.remove('active'));
-                contents.forEach(c => c.classList.remove('active'));
-                
-                // Добавляем активный класс к выбранной вкладке
-                tab.classList.add('active');
-                document.getElementById(targetTab).classList.add('active');
-                
-                // Если переключились на лидерборд, обновляем его
-                if (targetTab === 'leaderboard') {
-                    this.loadLeaderboard();
-                }
-            });
-        });
-    }
-
-    // Обновленный метод загрузки профиля
-    async loadProfileData() {
-        const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-        
-        if (!userId) {
-            console.error('User ID not found');
-            return;
-        }
-        
-        try {
-            const response = await fetch(`/api/user/${userId}`);
-            if (!response.ok) throw new Error('Failed to load user data');
-            
-            const userData = await response.json();
-            
-            // Обновляем статистику
-            this.updateProfileStats(userData);
-            
-            // Загружаем историю призов
-            this.loadPrizeHistory(userId);
-            
-            // Загружаем информацию о рефералах
-            this.loadReferralsInfo(userId);
-            
-        } catch (error) {
-            console.error('Error loading profile data:', error);
-        }
-    }
-
-    // Метод для обновления статистики в профиле
-    updateProfileStats(userData) {
-        const statsGrid = document.getElementById('profile-stats-grid');
-        if (!statsGrid) return;
-        
-        statsGrid.innerHTML = `
-            <div class="stats-card">
-                <div class="stats-card-icon">⭐</div>
-                <div class="stats-card-value">${userData.stats?.stars || 100}</div>
-                <div class="stats-card-label">Звезд</div>
-            </div>
-            <div class="stats-card">
-                <div class="stats-card-icon">🎰</div>
-                <div class="stats-card-value">${userData.stats?.totalSpins || 0}</div>
-                <div class="stats-card-label">Прокруток</div>
-            </div>
-            <div class="stats-card">
-                <div class="stats-card-icon">🎁</div>
-                <div class="stats-card-value">${userData.stats?.prizesWon || 0}</div>
-                <div class="stats-card-label">Призов</div>
-            </div>
-            <div class="stats-card">
-                <div class="stats-card-icon">👥</div>
-                <div class="stats-card-value">${userData.stats?.referrals || 0}</div>
-                <div class="stats-card-label">Рефералов</div>
-            </div>
-        `;
-    }
-
-    // Обновленный метод загрузки лидерборда для вкладки
-    async loadLeaderboard() {
-        const container = document.getElementById('leaderboard');
+    loadMegaRouletteScreen() {
+        const container = document.querySelector('.mega-roulette-container');
         if (!container) return;
 
-        const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-
-        container.innerHTML = `
-            <div class="leaderboard-header">
-                <h3>
-                    <i class="fas fa-trophy"></i>
-                    Топ игроков по рефералам
-                </h3>
-                <p>Лучшие игроки нашего сообщества</p>
-            </div>
-            
-            <div class="leaderboard-controls">
-                <button class="leaderboard-tab active" onclick="navigation.loadLeaderboardData('global')">
-                    <i class="fas fa-globe"></i> Глобальный топ
-                </button>
-                <button class="leaderboard-tab" onclick="navigation.loadLeaderboardData('referrals')">
-                    <i class="fas fa-users"></i> Мои рефералы
-                </button>
-            </div>
-            
-            <div class="leaderboard-content" id="leaderboard-content">
-                <div class="loading">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <p>Загрузка лидерборда...</p>
+        if (container.children.length === 0) {
+            container.innerHTML = `
+                <div class="mega-roulette-content">
+                    <div class="mega-wheel-container">
+                        <div class="mega-wheel">🎰</div>
+                        <p>Мега рулетка скоро будет доступна!</p>
+                    </div>
+                    <div class="mega-requirements">
+                        <h4>Требования:</h4>
+                        <ul>
+                            <li>Минимум 100 прокруток</li>
+                            <li>5 выигранных призов</li>
+                            <li>Подписка на все каналы</li>
+                        </ul>
+                    </div>
                 </div>
-            </div>
-            
-            <!-- Позиция текущего пользователя -->
-            <div class="current-user-rank" id="current-user-rank">
-                <!-- Ранг пользователя будет загружен -->
-            </div>
-        `;
-
-        // Загружаем глобальный лидерборд по умолчанию
-        this.loadLeaderboardData('global');
-        
-        // Загружаем позицию текущего пользователя
-        if (userId) {
-            this.loadUserRank(userId);
+            `;
         }
     }
 
-    // Новый метод для загрузки данных лидерборда
-    async loadLeaderboardData(type = 'global') {
-        const contentContainer = document.getElementById('leaderboard-content');
-        const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-        
-        if (!contentContainer) return;
-        
-        // Обновляем активную вкладку
-        document.querySelectorAll('.leaderboard-tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        event?.target?.classList.add('active');
-        
-        contentContainer.innerHTML = `
-            <div class="loading">
-                <i class="fas fa-spinner fa-spin"></i>
-                <p>Загрузка...</p>
-            </div>
-        `;
+    addScreenTransition() {
+        const currentScreenElement = document.getElementById(this.currentScreen);
+        if (currentScreenElement) {
+            currentScreenElement.style.animation = 'fadeIn 0.3s ease';
+            setTimeout(() => {
+                currentScreenElement.style.animation = '';
+            }, 300);
+        }
+    }
 
-        try {
-            let endpoint;
-            let limitParam = '?limit=20'; // Топ 20 как требуется
-            
-            if (type === 'referrals' && userId) {
-                endpoint = `/api/referrals-leaderboard/${userId}${limitParam}`;
+    showScreen(screenId) {
+        this.screens.forEach(screen => {
+            if (screen.id === screenId) {
+                screen.classList.add('active');
+                screen.style.display = 'block';
             } else {
-                // Загружаем глобальный лидерборд по рефералам
-                endpoint = `/api/leaderboard-referrals${limitParam}`;
+                screen.classList.remove('active');
+                screen.style.display = 'none';
             }
-            
-            const response = await fetch(endpoint);
-            if (!response.ok) throw new Error('Ошибка загрузки лидерборда');
-
-            const data = await response.json();
-            const leaderboard = data.leaderboard || [];
-
-            if (leaderboard.length === 0) {
-                const emptyMessage = type === 'referrals' ? 
-                    'У вас пока нет приглашенных друзей' : 
-                    'Пока нет данных лидерборда';
-                    
-                contentContainer.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-users" style="font-size: 48px; margin-bottom: 15px; opacity: 0.3;"></i>
-                        <p>${emptyMessage}</p>
-                        ${type === 'referrals' ? '<p>Пригласите друзей и они появятся здесь!</p>' : '<p>Будь первым!</p>'}
-                    </div>
-                `;
-                return;
-            }
-
-            let leaderboardHTML = '<div class="leaderboard-list">';
-            
-            leaderboard.forEach((player, index) => {
-                const position = index + 1;
-                const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : `${position}.`;
-                const referralsCount = player.referrals_count || 0;
-                
-                leaderboardHTML += `
-                    <div class="leaderboard-item ${position <= 3 ? 'top-player' : ''}">
-                        <div class="player-rank">${medal}</div>
-                        <div class="player-info">
-                            <div class="player-name">${player.first_name || 'Игрок'}</div>
-                            <div class="player-stats">${referralsCount} 👥 рефералов</div>
-                        </div>
-                        <div class="player-score">${referralsCount}</div>
-                    </div>
-                `;
-            });
-            
-            leaderboardHTML += '</div>';
-            contentContainer.innerHTML = leaderboardHTML;
-
-        } catch (error) {
-            console.error('Ошибка загрузки лидерборда:', error);
-            contentContainer.innerHTML = `
-                <div class="error-state">
-                    <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 15px; color: #ff6b6b;"></i>
-                    <p>Ошибка загрузки лидерборда</p>
-                    <button onclick="navigation.loadLeaderboardData('${type}')" class="retry-btn">
-                        Попробовать снова
-                    </button>
-                </div>
-            `;
-        }
+        });
     }
 
-    // Метод для загрузки позиции пользователя
-    async loadUserRank(userId) {
-        try {
-            const response = await fetch(`/api/user-referral-rank/${userId}`);
-            if (!response.ok) throw new Error('Ошибка загрузки ранга');
-            
-            const data = await response.json();
-            const rankContainer = document.getElementById('current-user-rank');
-            
-            if (rankContainer && data.rank) {
-                rankContainer.innerHTML = `
-                    <div class="user-rank-card">
-                        <div class="rank-info">
-                            <div class="rank-position">Ваша позиция: #${data.rank.position}</div>
-                            <div class="rank-referrals">${data.rank.referrals_count || 0} рефералов</div>
-                        </div>
-                        <div class="rank-icon">
-                            <i class="fas fa-medal"></i>
-                        </div>
-                    </div>
-                `;
+    updateActiveNav(screenId) {
+        this.navItems.forEach(item => {
+            if (item.getAttribute('data-screen') === screenId) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
             }
-        } catch (error) {
-            console.error('Ошибка загрузки ранга пользователя:', error);
-        }
+        });
     }
 
-    // Загрузка информации о рефералах
-    // Загрузка информации о рефералах
-    async loadReferralsInfo(userId) {
-        const container = document.getElementById('referrals-section');
-        if (!container) return;
-        
-        try {
-            // Загружаем данные пользователя для получения актуальной статистики рефералов
-            const response = await fetch(`/api/user/${userId}`);
-            const userData = response.ok ? await response.json() : null;
-            
-            const referralsCount = userData?.stats?.referrals || 0;
-            const starsFromReferrals = referralsCount * 100; // 100 звезд за каждого реферала
-            
-            container.innerHTML = `
-                <div class="referrals-stats">
-                    <!-- Основная статистика рефералов -->
-                    <div class="referrals-overview">
-                        <div class="referral-stat-card">
-                            <div class="referral-stat-value">${referralsCount}</div>
-                            <div class="referral-stat-label">👥 Приглашено друзей</div>
-                        </div>
-                        <div class="referral-stat-card">
-                            <div class="referral-stat-value">${starsFromReferrals}</div>
-                            <div class="referral-stat-label">⭐ Получено звезд</div>
-                        </div>
-                    </div>
-                    
-                    <!-- Реферальная ссылка -->
-                    <div class="referral-link-container">
-                        <label>Ваша реферальная ссылка:</label>
-                        <div class="referral-link">
-                            <input type="text" id="referral-link" value="https://t.me/kosmetichka_lottery_bot?start=ref_${userId}" readonly>
-                            <button onclick="navigation.copyReferralLink()" class="copy-btn">
-                                <i class="fas fa-copy"></i>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Действия с рефералами -->
-                    <div class="referral-actions">
-                        <button onclick="navigation.shareReferralLink()" class="share-btn">
-                            <i class="fas fa-share"></i>
-                            Поделиться ссылкой
-                        </button>
-                    </div>
-                    
-                    <!-- Информация о бонусах -->
-                    <div class="referral-info">
-                        <div class="referral-description">
-                            <h4>💡 Как это работает:</h4>
-                            <ul>
-                                <li>Пригласите друга по вашей ссылке</li>
-                                <li>Друг должен выполнить 2 подписки на каналы</li>
-                                <li>Вы получите 20 звезд за активного реферала</li>
-                                <li>Дополнительно 100 звезд за каждого приглашенного</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            // Загружаем список рефералов если есть
-            if (referralsCount > 0) {
-                this.loadReferralsList(userId);
-            }
-            
-        } catch (error) {
-            console.error('Ошибка загрузки информации о рефералах:', error);
-            container.innerHTML = `
-                <div class="error-state">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <p>Ошибка загрузки информации о рефералах</p>
-                    <button onclick="navigation.loadReferralsInfo(${userId})" class="retry-btn">
-                        Попробовать снова
-                    </button>
-                </div>
-            `;
-        }
-    }
-
-    // НОВЫЙ метод для загрузки списка рефералов
-    async loadReferralsList(userId) {
-        try {
-            const response = await fetch(`/api/referrals-leaderboard/${userId}?limit=50`);
-            if (!response.ok) return;
-            
-            const data = await response.json();
-            const referrals = data.leaderboard || [];
-            
-            if (referrals.length > 0) {
-                const container = document.getElementById('referrals-section');
-                const referralsListHTML = `
-                    <div class="section" style="margin-top: 20px;">
-                        <h4>👥 Ваши рефералы:</h4>
-                        <div class="referrals-list">
-                            ${referrals.map((referral, index) => `
-                                <div class="referral-item">
-                                    <div class="referral-avatar">👤</div>
-                                    <div class="referral-info">
-                                        <div class="referral-name">${referral.first_name || 'Пользователь'}</div>
-                                        <div class="referral-date">Присоединился: ${new Date(referral.join_date).toLocaleDateString('ru-RU')}</div>
-                                    </div>
-                                    <div class="referral-bonus">+100 ⭐</div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-                
-                container.insertAdjacentHTML('beforeend', referralsListHTML);
-            }
-        } catch (error) {
-            console.error('Ошибка загрузки списка рефералов:', error);
-        }
-    }
-
-    // Загрузка истории призов
-    async loadPrizeHistory(userId) {
-        const container = document.getElementById('prize-history');
-        if (!container) return;
-        
-        try {
-            const response = await fetch(`/api/debug-user/${userId}`);
-            if (!response.ok) throw new Error('Failed to load prizes');
-            
-            const data = await response.json();
-            const prizes = data.prizes || [];
-            
-            if (prizes.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-history">
-                        <i class="fas fa-gift"></i>
-                        <p>У вас пока нет призов</p>
-                        <span>Крутите рулетку, чтобы выиграть призы!</span>
-                    </div>
-                `;
-                return;
-            }
-            
-            let historyHTML = '';
-            prizes.slice(0, 10).forEach(prize => {
-                const date = new Date(prize.won_date).toLocaleDateString('ru-RU');
-                const icon = this.getPrizeIcon(prize.prize_type);
-                
-                historyHTML += `
-                    <div class="prize-history-item">
-                        <div class="prize-icon">${icon}</div>
-                        <div class="prize-info">
-                            <div class="prize-name">${prize.prize_name}</div>
-                            <div class="prize-date">${date}</div>
-                        </div>
-                        ${prize.prize_value ? `<div class="prize-value">${prize.prize_value}</div>` : ''}
-                    </div>
-                `;
-            });
-            
-            container.innerHTML = historyHTML;
-            
-        } catch (error) {
-            console.error('Error loading prize history:', error);
-            container.innerHTML = `
-                <div class="empty-history">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <p>Ошибка загрузки истории</p>
-                </div>
-            `;
-        }
-    }
-
-    // Вспомогательный метод для иконок призов
-    getPrizeIcon(prizeType) {
-        const icons = {
-            'stars': '⭐',
-            'golden-apple': '🍎',
-            'dolce': '🚚',
-            'empty': '❌'
-        };
-        
-        for (const [key, icon] of Object.entries(icons)) {
-            if (prizeType.includes(key)) {
-                return icon;
-            }
-        }
-        
-        return '🎁';
-    }
-
+    // УТИЛИТЫ ДЛЯ РЕФЕРАЛОВ - оставляем для совместимости
     copyReferralLink() {
         const linkInput = document.getElementById('referral-link');
         if (linkInput) {
@@ -725,172 +259,6 @@ class Navigation {
                 }, 300);
             }
         }, 3000);
-    }
-
-    // СТАРЫЕ МЕТОДЫ (для совместимости)
-    loadProfileScreen() {
-        this.showProfileScreen();
-    }
-
-    async loadLeaderboard(showOnlyReferrals = false) {
-        // Оставляем старый метод для совместимости с другими частями кода
-        const container = document.getElementById('leaderboard');
-        if (!container) return;
-
-        const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-
-        container.innerHTML = `
-            <div class="leaderboard-controls">
-                <button class="tab-btn ${!showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(false)">
-                    <i class="fas fa-trophy"></i> Общий
-                </button>
-                <button class="tab-btn ${showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(true)">
-                    <i class="fas fa-users"></i> Мои рефералы
-                </button>
-            </div>
-            <div class="loading">
-                <i class="fas fa-spinner fa-spin"></i>
-                <p>Загрузка лидерборда...</p>
-            </div>
-        `;
-
-        try {
-            const endpoint = showOnlyReferrals && userId ? 
-                `/api/referrals-leaderboard/${userId}?limit=10` : 
-                '/api/leaderboard?limit=10';
-                
-            const response = await fetch(endpoint);
-            if (!response.ok) throw new Error('Ошибка загрузки лидерборда');
-
-            const data = await response.json();
-            const leaderboard = data.leaderboard || [];
-
-            if (leaderboard.length === 0) {
-                const emptyMessage = showOnlyReferrals ? 
-                    'У вас пока нет приглашенных друзей' : 
-                    'Пока нет данных лидерборда';
-                    
-                container.innerHTML = `
-                    <div class="leaderboard-controls">
-                        <button class="tab-btn ${!showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(false)">
-                            <i class="fas fa-trophy"></i> Общий
-                        </button>
-                        <button class="tab-btn ${showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(true)">
-                            <i class="fas fa-users"></i> Мои рефералы
-                        </button>
-                    </div>
-                    <div class="empty-state">
-                        <p>${emptyMessage}</p>
-                        ${showOnlyReferrals ? '<p>Пригласите друзей и они появятся здесь!</p>' : '<p>Будь первым!</p>'}
-                    </div>
-                `;
-                return;
-            }
-
-            let leaderboardHTML = `
-                <div class="leaderboard-controls">
-                    <button class="tab-btn ${!showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(false)">
-                        <i class="fas fa-trophy"></i> Общий
-                    </button>
-                    <button class="tab-btn ${showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(true)">
-                        <i class="fas fa-users"></i> Мои рефералы
-                    </button>
-                </div>
-                <div class="leaderboard-list">
-            `;
-            
-            leaderboard.forEach((player, index) => {
-                const position = index + 1;
-                const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : `${position}.`;
-                
-                let statsContent = '';
-                if (showOnlyReferrals) {
-                    // Для лидерборда рефералов показываем количество их рефералов
-                    statsContent = `${player.referrals_count || 0} 👥`;
-                } else {
-                    // Для общего лидерборда показываем звезды и призы
-                    statsContent = `${player.total_stars || 0} ⭐`;
-                }
-                
-                leaderboardHTML += `
-                    <div class="leaderboard-item ${position <= 3 ? 'top-player' : ''}">
-                        <div class="player-rank">${medal}</div>
-                        <div class="player-info">
-                            <div class="player-name">${player.first_name || 'Игрок'}</div>
-                            <div class="player-stats">${statsContent}</div>
-                        </div>
-                        ${!showOnlyReferrals ? `<div class="player-prizes">${player.total_prizes || 0} 🎁</div>` : ''}
-                    </div>
-                `;
-            });
-            
-            leaderboardHTML += '</div>';
-            container.innerHTML = leaderboardHTML;
-        } catch (error) {
-            console.error('Ошибка загрузки лидерборда:', error);
-            container.innerHTML = `
-                <div class="error-state">
-                    <p>Ошибка загрузки лидерборда</p>
-                    <button onclick="navigation.loadLeaderboard()">Попробовать снова</button>
-                </div>
-            `;
-        }
-    }
-
-    loadMegaRouletteScreen() {
-        const container = document.querySelector('.mega-roulette-container');
-        if (!container) return;
-
-        if (container.children.length === 0) {
-            container.innerHTML = `
-                <div class="mega-roulette-content">
-                    <div class="mega-wheel-container">
-                        <div class="mega-wheel">🎰</div>
-                        <p>Мега рулетка скоро будет доступна!</p>
-                    </div>
-                    <div class="mega-requirements">
-                        <h4>Требования:</h4>
-                        <ul>
-                            <li>Минимум 100 прокруток</li>
-                            <li>5 выигранных призов</li>
-                            <li>Подписка на все каналы</li>
-                        </ul>
-                    </div>
-                </div>
-            `;
-        }
-    }
-
-    addScreenTransition() {
-        const currentScreenElement = document.getElementById(this.currentScreen);
-        if (currentScreenElement) {
-            currentScreenElement.style.animation = 'fadeIn 0.3s ease';
-            setTimeout(() => {
-                currentScreenElement.style.animation = '';
-            }, 300);
-        }
-    }
-
-    showScreen(screenId) {
-        this.screens.forEach(screen => {
-            if (screen.id === screenId) {
-                screen.classList.add('active');
-                screen.style.display = 'block';
-            } else {
-                screen.classList.remove('active');
-                screen.style.display = 'none';
-            }
-        });
-    }
-
-    updateActiveNav(screenId) {
-        this.navItems.forEach(item => {
-            if (item.getAttribute('data-screen') === screenId) {
-                item.classList.add('active');
-            } else {
-                item.classList.remove('active');
-            }
-        });
     }
 
     getUserDisplayName() {
@@ -1025,90 +393,6 @@ const navigationStyles = `
         cursor: default;
     }
 
-    .stats-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 15px;
-        margin-top: 20px;
-    }
-
-    .stat-item {
-        text-align: center;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 15px;
-        padding: 20px 10px;
-    }
-
-    .stat-value {
-        font-size: 24px;
-        font-weight: bold;
-        color: #EF55A5;
-    }
-
-    .stat-label {
-        font-size: 12px;
-        color: #ccc;
-        margin-top: 5px;
-    }
-
-    .profile-header {
-        display: flex;
-        align-items: center;
-        margin-bottom: 20px;
-    }
-
-    .profile-avatar {
-        font-size: 48px;
-        margin-right: 15px;
-    }
-
-    .profile-level {
-        color: #CCD537;
-        font-size: 14px;
-    }
-
-    .profile-telegram-id {
-        font-size: 14px;
-        color: var(--text-secondary);
-        margin-bottom: 15px;
-        opacity: 0.8;
-        font-family: monospace;
-    }
-
-    .leaderboard-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 10px;
-    }
-
-    .leaderboard-item.top-player {
-        background: rgba(239, 85, 165, 0.2);
-    }
-
-    .player-rank {
-        font-size: 18px;
-        font-weight: bold;
-        min-width: 40px;
-    }
-
-    .player-info {
-        flex: 1;
-        margin-left: 15px;
-    }
-
-    .player-name {
-        font-weight: bold;
-    }
-
-    .player-stats {
-        font-size: 12px;
-        color: #ccc;
-    }
-
     .loading, .empty-state, .error-state {
         text-align: center;
         padding: 40px 20px;
@@ -1118,6 +402,53 @@ const navigationStyles = `
     .loading i {
         font-size: 24px;
         margin-bottom: 10px;
+    }
+
+    .notification {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(135deg, #4CAF50, #CCD537);
+        color: white;
+        padding: 15px 25px;
+        border-radius: 15px;
+        font-weight: 600;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+        animation: slideInNotification 0.3s ease-out;
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .notification.success {
+        background: linear-gradient(135deg, #4CAF50, #CCD537);
+    }
+
+    .notification.error {
+        background: linear-gradient(135deg, #f44336, #ff6b6b);
+    }
+
+    @keyframes slideInNotification {
+        from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    }
+
+    @keyframes slideOutNotification {
+        from {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-20px);
+        }
     }
 `;
 
