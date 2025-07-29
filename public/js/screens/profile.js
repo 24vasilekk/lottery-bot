@@ -90,77 +90,6 @@ export class ProfileScreen {
                         </div>
                     </div>
 
-<<<<<<< HEAD
-                    <div class="section">
-                        <h3 class="section-title">⚙️ Настройки</h3>
-                        <div class="settings-list">
-                            <div class="setting-item">
-                                <div class="setting-info">
-                                    <div class="setting-name">🔔 Уведомления</div>
-                                    <div class="setting-desc">Получать уведомления о новых призах</div>
-                                </div>
-                                <div class="setting-toggle">
-                                    <input type="checkbox" id="notifications-toggle" ${gameData.settings?.notifications !== false ? 'checked' : ''}>
-                                    <label for="notifications-toggle" class="toggle-switch"></label>
-                                </div>
-                            </div>
-                            
-                            <div class="setting-item">
-                                <div class="setting-info">
-                                    <div class="setting-name">🎵 Звуки</div>
-                                    <div class="setting-desc">Воспроизводить звуки при выигрыше</div>
-                                </div>
-                                <div class="setting-toggle">
-                                    <input type="checkbox" id="sounds-toggle" ${gameData.settings?.sounds !== false ? 'checked' : ''}>
-                                    <label for="sounds-toggle" class="toggle-switch"></label>
-                                </div>
-                            </div>
-                            
-                            <div class="setting-item">
-                                <div class="setting-info">
-                                    <div class="setting-name">✨ Анимации</div>
-                                    <div class="setting-desc">Показывать анимации и эффекты</div>
-                                </div>
-                                <div class="setting-toggle">
-                                    <input type="checkbox" id="animations-toggle" ${gameData.settings?.animations !== false ? 'checked' : ''}>
-                                    <label for="animations-toggle" class="toggle-switch"></label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="section">
-                        <h3 class="section-title">📱 О приложении</h3>
-                        <div class="app-info">
-                            <div class="info-item">
-                                <span class="info-label">Версия:</span>
-                                <span class="info-value">1.0.0</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Пользователь ID:</span>
-                                <span class="info-value">${this.getTelegramId()}</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Дата регистрации:</span>
-                                <span class="info-value">${this.formatDate(gameData.registrationDate || Date.now())}</span>
-                            </div>
-                        </div>
-                        
-                        <div class="action-buttons">
-                            <button id="reset-progress" class="btn-danger">
-                                <i class="fas fa-trash"></i>
-                                Сброс прогресса
-                            </button>
-                            
-                            <button id="export-data" class="btn-secondary">
-                                <i class="fas fa-download"></i>
-                                Экспорт данных
-                            </button>
-                        </div>
-                    </div>
-=======
->>>>>>> 942b1be (Критические исправления безопасности)
-
                     <!-- ДОПОЛНИТЕЛЬНЫЙ ОТСТУП ДЛЯ ПОЛНОЙ ПРОКРУТКИ -->
                     <div style="height: 60px;"></div>
                 </div>
@@ -182,116 +111,11 @@ export class ProfileScreen {
                 this.shareReferralLink();
             });
         }
-
-        // Переключатели настроек
-        const notificationsToggle = document.getElementById('notifications-toggle');
-        const soundsToggle = document.getElementById('sounds-toggle');
-        const animationsToggle = document.getElementById('animations-toggle');
-
-        if (notificationsToggle) {
-            notificationsToggle.addEventListener('change', (e) => {
-                this.updateSetting('notifications', e.target.checked);
-            });
-        }
-
-        if (soundsToggle) {
-            soundsToggle.addEventListener('change', (e) => {
-                this.updateSetting('sounds', e.target.checked);
-            });
-        }
-
-        if (animationsToggle) {
-            animationsToggle.addEventListener('change', (e) => {
-                this.updateSetting('animations', e.target.checked);
-            });
-        }
-
-        // Кнопка сброса прогресса
-        const resetBtn = document.getElementById('reset-progress');
-        if (resetBtn) {
-            resetBtn.addEventListener('click', () => {
-                this.resetProgress();
-            });
-        }
-
-        // Кнопка экспорта данных
-        const exportBtn = document.getElementById('export-data');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => {
-                this.exportData();
-            });
-        }
     }
 
     calculateLevel() {
         const totalStars = this.app.gameData.totalStarsEarned || this.app.gameData.stars || 0;
         return Math.floor(totalStars / 1000) + 1;
-    }
-
-    renderAchievements() {
-        const gameData = this.app.gameData;
-        const achievements = [];
-        
-        // Достижения за регистрацию
-        achievements.push({
-            icon: '🎉',
-            name: 'Добро пожаловать!',
-            description: 'Зарегистрировался в игре',
-            unlocked: true
-        });
-        
-        // Достижение за друзей
-        if (gameData.referrals >= 1) {
-            achievements.push({
-                icon: '👥',
-                name: 'Друг-помощник',
-                description: 'Пригласил первого друга',
-                unlocked: true
-            });
-        }
-        
-        // Заблокированные достижения (только связанные со звездами и рефералами)
-        const lockedAchievements = [
-            {
-                icon: '🌟',
-                name: 'Звездный игрок',
-                description: 'Собери 10000 звезд',
-                unlocked: false,
-                progress: gameData.totalStarsEarned || 0,
-                target: 10000
-            },
-            {
-                icon: '👑',
-                name: 'Лидер сообщества',
-                description: 'Пригласи 20 друзей',
-                unlocked: false,
-                progress: gameData.referrals || 0,
-                target: 20
-            }
-        ];
-        
-        const allAchievements = [...achievements, ...lockedAchievements];
-        
-        if (allAchievements.length === 0) {
-            return '<div class="empty-achievements">Достижений пока нет. Играйте и получайте награды!</div>';
-        }
-        
-        return allAchievements.map(achievement => `
-            <div class="achievement-item ${achievement.unlocked ? 'unlocked' : 'locked'}">
-                <div class="achievement-icon">${achievement.icon}</div>
-                <div class="achievement-content">
-                    <div class="achievement-name">${achievement.name}</div>
-                    <div class="achievement-description">${achievement.description}</div>
-                    ${!achievement.unlocked && achievement.progress !== undefined ? 
-                        `<div class="achievement-progress">
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${Math.min((achievement.progress / achievement.target) * 100, 100)}%"></div>
-                            </div>
-                            <span class="progress-text">${achievement.progress}/${achievement.target}</span>
-                        </div>` : ''}
-                </div>
-            </div>
-        `).join('');
     }
 
     renderPrizesHistory() {
@@ -411,53 +235,6 @@ export class ProfileScreen {
                 this.app.showStatusMessage('Не удалось скопировать ссылку', 'error');
             });
         }
-    }
-
-    updateSetting(setting, value) {
-        if (!this.app.gameData.settings) {
-            this.app.gameData.settings = {};
-        }
-        
-        this.app.gameData.settings[setting] = value;
-        this.app.saveGameData();
-        
-        this.app.showStatusMessage(`Настройка "${setting}" ${value ? 'включена' : 'отключена'}`, 'success');
-    }
-
-    resetProgress() {
-        if (confirm('Вы уверены, что хотите сбросить весь прогресс? Это действие нельзя отменить!')) {
-            // Сохраняем только базовые данные
-            const newGameData = {
-                stars: 100,
-                availableFriendSpins: 1,
-                referrals: 0,
-                registrationDate: Date.now(),
-                settings: this.app.gameData.settings || {}
-            };
-            
-            this.app.gameData = newGameData;
-            this.app.saveGameData();
-            
-            // Обновляем UI
-            this.app.updateUI();
-            
-            // Переходим на главный экран
-            this.app.navigation.navigateTo('main');
-            
-            this.app.showStatusMessage('Прогресс успешно сброшен!', 'success');
-        }
-    }
-
-    exportData() {
-        const dataStr = JSON.stringify(this.app.gameData, null, 2);
-        const dataBlob = new Blob([dataStr], {type: 'application/json'});
-        
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(dataBlob);
-        link.download = `kosmetichka_data_${Date.now()}.json`;
-        link.click();
-        
-        this.app.showStatusMessage('Данные экспортированы!', 'success');
     }
 
     formatDate(timestamp) {
