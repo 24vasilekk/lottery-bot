@@ -284,29 +284,35 @@ async function startPolling() {
 
 // Добавить в telegram-bot-server.js
 
-// API для получения глобального лидерборда по рефералам
+// Замените эти endpoints в telegram-bot-server.js
+
+// API для получения глобального лидерборда по рефералам (ИСПРАВЛЕННЫЙ)
 app.get('/api/leaderboard-referrals', async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 20;
         
-        // Получаем лидерборд по количеству рефералов
+        console.log(`📊 Запрос глобального лидерборда рефералов, лимит: ${limit}`);
+        
+        // ИСПРАВЛЕННЫЙ запрос с правильными именами полей и синтаксисом SQLite
         const query = `
             SELECT 
                 u.telegram_id,
                 u.first_name,
                 u.username,
-                COUNT(r.referee_id) as referrals_count,
-                u.total_stars,
-                u.created_at
+                COUNT(r.referred_id) as referrals_count,
+                u.total_stars_earned,
+                u.join_date
             FROM users u
             LEFT JOIN referrals r ON u.telegram_id = r.referrer_id
-            GROUP BY u.telegram_id, u.first_name, u.username, u.total_stars, u.created_at
+            WHERE u.is_active = 1
+            GROUP BY u.telegram_id, u.first_name, u.username, u.total_stars_earned, u.join_date
             HAVING referrals_count > 0
-            ORDER BY referrals_count DESC, u.total_stars DESC, u.created_at ASC
+            ORDER BY referrals_count DESC, u.total_stars_earned DESC, u.join_date ASC
             LIMIT ?
         `;
         
-        db.pool.query(query, [limit], (error, results) => {
+        // Используем правильный синтаксис SQLite
+        db.db.all(query, [limit], (error, results) => {
             if (error) {
                 console.error('❌ Ошибка получения лидерборда рефералов:', error);
                 return res.status(500).json({ error: 'Internal server error' });
@@ -315,8 +321,8 @@ app.get('/api/leaderboard-referrals', async (req, res) => {
             console.log(`📊 Лидерборд рефералов загружен: ${results.length} записей`);
             
             res.json({ 
-                leaderboard: results,
-                total: results.length 
+                leaderboard: results || [],
+                total: results ? results.length : 0
             });
         });
         
@@ -326,19 +332,22 @@ app.get('/api/leaderboard-referrals', async (req, res) => {
     }
 });
 
- // Обновленный API endpoint для получения ранга пользователя
-    app.get('/api/user-referral-rank/:userId', async (req, res) => {
-        try {
-            const { userId } = req.params;
-            
-            const rank = await db.getUserReferralRank(parseInt(userId));
-            
-            res.json({ rank });
-        } catch (error) {
-            console.error('❌ Ошибка получения ранга по рефералам:', error);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+// Обновленный API endpoint для получения ранга пользователя (ИСПРАВЛЕННЫЙ)
+app.get('/api/user-referral-rank/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        console.log(`👤 Запрос ранга по рефералам для пользователя: ${userId}`);
+        
+        // Используем исправленный метод из database.js
+        const rank = await db.getUserReferralRank(parseInt(userId));
+        
+        res.json({ rank });
+    } catch (error) {
+        console.error('❌ Ошибка получения ранга по рефералам:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 
 // === МАРШРУТЫ ===
