@@ -345,6 +345,420 @@ class Navigation {
         return telegramUser?.id || 'Неизвестно';
     }
 
+    // Обновление для navigation.js - добавляем систему вкладок в профиль
+
+    // Добавить этот метод в класс Navigation
+    showProfileScreen() {
+        this.currentScreen = 'profile-screen';
+        const screen = document.getElementById('profile-screen');
+        
+        if (!screen) return;
+        
+        this.showScreen('profile-screen');
+        this.updateActiveNav('profile-screen');
+        
+        // Создаем структуру с вкладками
+        screen.innerHTML = `
+            <div class="screen-header">
+                <h2>Профиль</h2>
+            </div>
+            
+            <!-- Вкладки профиля -->
+            <div class="profile-tabs">
+                <button class="profile-tab active" data-tab="profile-info">
+                    <i class="fas fa-user"></i>
+                    Профиль
+                </button>
+                <button class="profile-tab" data-tab="leaderboard">
+                    <i class="fas fa-trophy"></i>
+                    Лидерборд
+                </button>
+            </div>
+            
+            <!-- Контент вкладки "Профиль" -->
+            <div class="tab-content active" id="profile-info">
+                <div class="profile-header">
+                    <div class="profile-avatar">👤</div>
+                    <div class="profile-info">
+                        <h3 id="profile-username">${this.getUserDisplayName()}</h3>
+                        <div class="profile-telegram-id">ID: ${this.getUserTelegramId()}</div>
+                        <p class="profile-level">Уровень 1</p>
+                    </div>
+                </div>
+                
+                <!-- Статистика -->
+                <div class="section">
+                    <div class="section-title">
+                        <i class="fas fa-chart-bar"></i>
+                        Статистика
+                    </div>
+                    <div class="stats-grid" id="profile-stats-grid">
+                        <!-- Статистика будет загружена -->
+                    </div>
+                </div>
+                
+                <!-- История призов -->
+                <div class="section">
+                    <div class="section-title">
+                        <i class="fas fa-gift"></i>
+                        История призов
+                    </div>
+                    <div class="prize-history" id="prize-history">
+                        <!-- История призов будет загружена -->
+                    </div>
+                </div>
+                
+                <!-- Рефералы -->
+                <div class="section">
+                    <div class="section-title">
+                        <i class="fas fa-users"></i>
+                        Рефералы
+                    </div>
+                    <div class="referrals-section" id="referrals-section">
+                        <!-- Информация о рефералах будет загружена -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Контент вкладки "Лидерборд" -->
+            <div class="tab-content" id="leaderboard">
+                <div class="leaderboard-container">
+                    <!-- Лидерборд будет загружен -->
+                </div>
+            </div>
+        `;
+        
+        // Инициализируем переключение вкладок
+        this.initProfileTabs();
+        
+        // Загружаем данные профиля
+        this.loadProfileData();
+        
+        // Загружаем лидерборд (но не показываем пока не переключились на вкладку)
+        this.loadLeaderboard();
+    }
+
+    // Метод для инициализации переключения вкладок
+    initProfileTabs() {
+        const tabs = document.querySelectorAll('.profile-tab');
+        const contents = document.querySelectorAll('.tab-content');
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const targetTab = tab.dataset.tab;
+                
+                // Убираем активный класс со всех вкладок и контента
+                tabs.forEach(t => t.classList.remove('active'));
+                contents.forEach(c => c.classList.remove('active'));
+                
+                // Добавляем активный класс к выбранной вкладке
+                tab.classList.add('active');
+                document.getElementById(targetTab).classList.add('active');
+                
+                // Если переключились на лидерборд, обновляем его
+                if (targetTab === 'leaderboard') {
+                    this.loadLeaderboard();
+                }
+            });
+        });
+    }
+
+    // Обновленный метод загрузки профиля
+    async loadProfileData() {
+        const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+        
+        if (!userId) {
+            console.error('User ID not found');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/user/${userId}`);
+            if (!response.ok) throw new Error('Failed to load user data');
+            
+            const userData = await response.json();
+            
+            // Обновляем статистику
+            this.updateProfileStats(userData);
+            
+            // Загружаем историю призов
+            this.loadPrizeHistory(userId);
+            
+            // Загружаем информацию о рефералах
+            this.loadReferralsInfo(userId);
+            
+        } catch (error) {
+            console.error('Error loading profile data:', error);
+        }
+    }
+
+    // Метод для обновления статистики в профиле
+    updateProfileStats(userData) {
+        const statsGrid = document.getElementById('profile-stats-grid');
+        if (!statsGrid) return;
+        
+        statsGrid.innerHTML = `
+            <div class="stats-card">
+                <div class="stats-card-icon">⭐</div>
+                <div class="stats-card-value">${userData.stats?.stars || 100}</div>
+                <div class="stats-card-label">Звезд</div>
+            </div>
+            <div class="stats-card">
+                <div class="stats-card-icon">🎰</div>
+                <div class="stats-card-value">${userData.stats?.totalSpins || 0}</div>
+                <div class="stats-card-label">Прокруток</div>
+            </div>
+            <div class="stats-card">
+                <div class="stats-card-icon">🎁</div>
+                <div class="stats-card-value">${userData.stats?.prizesWon || 0}</div>
+                <div class="stats-card-label">Призов</div>
+            </div>
+            <div class="stats-card">
+                <div class="stats-card-icon">👥</div>
+                <div class="stats-card-value">${userData.stats?.referrals || 0}</div>
+                <div class="stats-card-label">Рефералов</div>
+            </div>
+        `;
+    }
+
+    // Обновленный метод загрузки лидерборда для вкладки
+    async loadLeaderboard() {
+        const container = document.getElementById('leaderboard');
+        if (!container) return;
+
+        const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+
+        container.innerHTML = `
+            <div class="leaderboard-header">
+                <h3>
+                    <i class="fas fa-trophy"></i>
+                    Топ игроков по рефералам
+                </h3>
+                <p>Лучшие игроки нашего сообщества</p>
+            </div>
+            
+            <div class="leaderboard-controls">
+                <button class="leaderboard-tab active" onclick="navigation.loadLeaderboardData('global')">
+                    <i class="fas fa-globe"></i> Глобальный топ
+                </button>
+                <button class="leaderboard-tab" onclick="navigation.loadLeaderboardData('referrals')">
+                    <i class="fas fa-users"></i> Мои рефералы
+                </button>
+            </div>
+            
+            <div class="leaderboard-content" id="leaderboard-content">
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Загрузка лидерборда...</p>
+                </div>
+            </div>
+            
+            <!-- Позиция текущего пользователя -->
+            <div class="current-user-rank" id="current-user-rank">
+                <!-- Ранг пользователя будет загружен -->
+            </div>
+        `;
+
+        // Загружаем глобальный лидерборд по умолчанию
+        this.loadLeaderboardData('global');
+        
+        // Загружаем позицию текущего пользователя
+        if (userId) {
+            this.loadUserRank(userId);
+        }
+    }
+
+    // Новый метод для загрузки данных лидерборда
+    async loadLeaderboardData(type = 'global') {
+        const contentContainer = document.getElementById('leaderboard-content');
+        const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+        
+        if (!contentContainer) return;
+        
+        // Обновляем активную вкладку
+        document.querySelectorAll('.leaderboard-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        event?.target?.classList.add('active');
+        
+        contentContainer.innerHTML = `
+            <div class="loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Загрузка...</p>
+            </div>
+        `;
+
+        try {
+            let endpoint;
+            let limitParam = '?limit=20'; // Топ 20 как требуется
+            
+            if (type === 'referrals' && userId) {
+                endpoint = `/api/referrals-leaderboard/${userId}${limitParam}`;
+            } else {
+                // Загружаем глобальный лидерборд по рефералам
+                endpoint = `/api/leaderboard-referrals${limitParam}`;
+            }
+            
+            const response = await fetch(endpoint);
+            if (!response.ok) throw new Error('Ошибка загрузки лидерборда');
+
+            const data = await response.json();
+            const leaderboard = data.leaderboard || [];
+
+            if (leaderboard.length === 0) {
+                const emptyMessage = type === 'referrals' ? 
+                    'У вас пока нет приглашенных друзей' : 
+                    'Пока нет данных лидерборда';
+                    
+                contentContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-users" style="font-size: 48px; margin-bottom: 15px; opacity: 0.3;"></i>
+                        <p>${emptyMessage}</p>
+                        ${type === 'referrals' ? '<p>Пригласите друзей и они появятся здесь!</p>' : '<p>Будь первым!</p>'}
+                    </div>
+                `;
+                return;
+            }
+
+            let leaderboardHTML = '<div class="leaderboard-list">';
+            
+            leaderboard.forEach((player, index) => {
+                const position = index + 1;
+                const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : `${position}.`;
+                const referralsCount = player.referrals_count || 0;
+                
+                leaderboardHTML += `
+                    <div class="leaderboard-item ${position <= 3 ? 'top-player' : ''}">
+                        <div class="player-rank">${medal}</div>
+                        <div class="player-info">
+                            <div class="player-name">${player.first_name || 'Игрок'}</div>
+                            <div class="player-stats">${referralsCount} 👥 рефералов</div>
+                        </div>
+                        <div class="player-score">${referralsCount}</div>
+                    </div>
+                `;
+            });
+            
+            leaderboardHTML += '</div>';
+            contentContainer.innerHTML = leaderboardHTML;
+
+        } catch (error) {
+            console.error('Ошибка загрузки лидерборда:', error);
+            contentContainer.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 15px; color: #ff6b6b;"></i>
+                    <p>Ошибка загрузки лидерборда</p>
+                    <button onclick="navigation.loadLeaderboardData('${type}')" class="retry-btn">
+                        Попробовать снова
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+    // Метод для загрузки позиции пользователя
+    async loadUserRank(userId) {
+        try {
+            const response = await fetch(`/api/user-rank/${userId}`);
+            if (!response.ok) throw new Error('Ошибка загрузки ранга');
+            
+            const data = await response.json();
+            const rankContainer = document.getElementById('current-user-rank');
+            
+            if (rankContainer && data.rank) {
+                rankContainer.innerHTML = `
+                    <div class="user-rank-card">
+                        <div class="rank-info">
+                            <div class="rank-position">Ваша позиция: #${data.rank.position}</div>
+                            <div class="rank-referrals">${data.rank.referrals_count || 0} рефералов</div>
+                        </div>
+                        <div class="rank-icon">
+                            <i class="fas fa-medal"></i>
+                        </div>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки ранга пользователя:', error);
+        }
+    }
+
+    // Загрузка информации о рефералах
+    async loadReferralsInfo(userId) {
+        const container = document.getElementById('referrals-section');
+        if (!container) return;
+        
+        container.innerHTML = `
+            <div class="referrals-stats">
+                <div class="referral-link-container">
+                    <label>Ваша реферальная ссылка:</label>
+                    <div class="referral-link">
+                        <input type="text" id="referral-link" value="https://t.me/kosmetichka_lottery_bot?start=ref_${userId}" readonly>
+                        <button onclick="navigation.copyReferralLink()" class="copy-btn">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="referral-actions">
+                    <button onclick="navigation.shareReferralLink()" class="share-btn">
+                        <i class="fas fa-share"></i>
+                        Поделиться ссылкой
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Методы для работы с реферальной ссылкой
+    copyReferralLink() {
+        const linkInput = document.getElementById('referral-link');
+        if (linkInput) {
+            linkInput.select();
+            document.execCommand('copy');
+            
+            // Показываем уведомление
+            this.showNotification('Ссылка скопирована!', 'success');
+        }
+    }
+
+    // Метод для показа уведомлений
+    showNotification(message, type = 'success') {
+        // Удаляем предыдущее уведомление, если есть
+        const existingNotification = document.querySelector('.notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+        
+        // Создаем новое уведомление
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        
+        // Добавляем в DOM
+        document.body.appendChild(notification);
+        
+        // Убираем через 3 секунды
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.style.animation = 'slideOutNotification 0.3s ease-in';
+                setTimeout(() => {
+                    notification.remove();
+                }, 300);
+            }
+        }, 3000);
+    }
+
+    shareReferralLink() {
+        const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+        const referralLink = `https://t.me/kosmetichka_lottery_bot?start=ref_${userId}`;
+        const message = `🎰 Присоединяйся к Kosmetichka Lottery!\n\n💎 Играй в рулетку красоты\n🎁 Выигрывай крутые призы\n👥 Приглашай друзей и получай бонусы\n\n${referralLink}`;
+        
+        if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(message)}`);
+        }
+    }
+
     getUserData() {
         // Получаем данные пользователя из localStorage или возвращаем дефолтные
         try {
