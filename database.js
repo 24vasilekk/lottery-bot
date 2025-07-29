@@ -957,6 +957,81 @@ class Database {
         });
     }
 
+    // Также добавить метод в database.js для получения ранга пользователя по рефералам
+    // Добавить в класс Database
+
+    async getUserReferralRank(userId) {
+        return new Promise((resolve, reject) => {
+            // Сначала получаем количество рефералов пользователя
+            const userQuery = `
+                SELECT 
+                    u.telegram_id,
+                    u.first_name,
+                    COUNT(r.referee_id) as referrals_count
+                FROM users u
+                LEFT JOIN referrals r ON u.telegram_id = r.referrer_id
+                WHERE u.telegram_id = ?
+                GROUP BY u.telegram_id, u.first_name
+            `;
+            
+            this.pool.query(userQuery, [userId], (error, userResults) => {
+                if (error) {
+                    console.error('❌ Ошибка получения данных пользователя:', error);
+                    return reject(error);
+                }
+                
+                if (userResults.length === 0) {
+                    return resolve({ position: null, referrals_count: 0 });
+                }
+                
+                const userReferrals = userResults[0].referrals_count || 0;
+                
+                // Получаем позицию пользователя в общем рейтинге
+                const rankQuery = `
+                    SELECT COUNT(*) + 1 as position
+                    FROM (
+                        SELECT 
+                            u.telegram_id,
+                            COUNT(r.referee_id) as referrals_count,
+                            u.total_stars,
+                            u.created_at
+                        FROM users u
+                        LEFT JOIN referrals r ON u.telegram_id = r.referrer_id
+                        GROUP BY u.telegram_id, u.total_stars, u.created_at
+                        HAVING 
+                            referrals_count > ? OR 
+                            (referrals_count = ? AND u.total_stars > (
+                                SELECT total_stars FROM users WHERE telegram_id = ?
+                            )) OR
+                            (referrals_count = ? AND u.total_stars = (
+                                SELECT total_stars FROM users WHERE telegram_id = ?
+                            ) AND u.created_at < (
+                                SELECT created_at FROM users WHERE telegram_id = ?
+                            ))
+                    ) ranked_users
+                `;
+                
+                this.pool.query(rankQuery, [
+                    userReferrals, userReferrals, userId, 
+                    userReferrals, userId, userId
+                ], (error, rankResults) => {
+                    if (error) {
+                        console.error('❌ Ошибка получения ранга:', error);
+                        return reject(error);
+                    }
+                    
+                    const position = rankResults[0]?.position || null;
+                    
+                    resolve({
+                        position: position,
+                        referrals_count: userReferrals,
+                        first_name: userResults[0].first_name
+                    });
+                });
+            });
+        });
+    }
+
     async getUserChannelSubscriptions(userId) {
         return new Promise((resolve, reject) => {
             this.db.all(
