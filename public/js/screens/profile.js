@@ -43,7 +43,7 @@ export class ProfileScreen {
                             <div class="profile-stats">
                                 <div class="stat-item">
                                     <div class="stat-value">${gameData.stars}</div>
-                                    <div class="stat-label">⭐ Звезды</div>
+                                    <div class="stat-label">⭐ Звезд</div>
                                 </div>
                                 <div class="stat-item">
                                     <div class="stat-value">${gameData.referrals || 0}</div>
@@ -67,31 +67,10 @@ export class ProfileScreen {
                                     <div class="stats-card-label">Звезд</div>
                                 </div>
                                 <div class="stats-card">
-                                    <div class="stats-card-icon">🎰</div>
-                                    <div class="stats-card-value">${gameData.totalSpins || 0}</div>
-                                    <div class="stats-card-label">Прокруток</div>
-                                </div>
-                                <div class="stats-card">
-                                    <div class="stats-card-icon">🎁</div>
-                                    <div class="stats-card-value">${gameData.prizesWon || 0}</div>
-                                    <div class="stats-card-label">Призов</div>
-                                </div>
-                                <div class="stats-card">
                                     <div class="stats-card-icon">👥</div>
                                     <div class="stats-card-value">${gameData.referrals || 0}</div>
                                     <div class="stats-card-label">Рефералов</div>
                                 </div>
-                            </div>
-                        </div>
-
-                        <!-- История призов -->
-                        <div class="section">
-                            <div class="section-title">
-                                <i class="fas fa-gift"></i>
-                                История призов
-                            </div>
-                            <div class="prize-history" id="prize-history">
-                                ${this.renderPrizesHistory()}
                             </div>
                         </div>
 
@@ -103,6 +82,17 @@ export class ProfileScreen {
                             </div>
                             <div class="referrals-section" id="referrals-section">
                                 ${this.renderReferralsSection()}
+                            </div>
+                        </div>
+
+                        <!-- История призов -->
+                        <div class="section">
+                            <div class="section-title">
+                                <i class="fas fa-gift"></i>
+                                История призов
+                            </div>
+                            <div class="prize-history" id="prize-history">
+                                ${this.renderPrizesHistory()}
                             </div>
                         </div>
                     </div>
@@ -265,16 +255,6 @@ export class ProfileScreen {
                 <div class="stats-card-icon">⭐</div>
                 <div class="stats-card-value">${userData.stats?.stars || userData.stars || 0}</div>
                 <div class="stats-card-label">Звезд</div>
-            </div>
-            <div class="stats-card">
-                <div class="stats-card-icon">🎰</div>
-                <div class="stats-card-value">${userData.stats?.totalSpins || 0}</div>
-                <div class="stats-card-label">Прокруток</div>
-            </div>
-            <div class="stats-card">
-                <div class="stats-card-icon">🎁</div>
-                <div class="stats-card-value">${userData.stats?.prizesWon || 0}</div>
-                <div class="stats-card-label">Призов</div>
             </div>
             <div class="stats-card">
                 <div class="stats-card-icon">👥</div>
