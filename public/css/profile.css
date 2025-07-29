@@ -1,4 +1,4 @@
-/* public/css/profile.css - ЯРКАЯ ВЕРСИЯ С КРАСОЧНЫМИ ФОНАМИ */
+/* public/css/profile.css - ИСПРАВЛЕННАЯ ВЕРСИЯ БЕЗ ЛИНИЙ НАД БЛОКАМИ */
 
 /* ========================================
    ПРОФИЛЬ - ОСНОВНЫЕ СТИЛИ
@@ -418,6 +418,10 @@ input[type="checkbox"]:checked + .toggle-switch::after {
     }
 }
 
+/* ========================================
+   СЕКЦИИ БЕЗ ЛИНИЙ - ИСПРАВЛЕНО
+   ======================================== */
+
 .section {
     background: rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(10px);
@@ -425,22 +429,10 @@ input[type="checkbox"]:checked + .toggle-switch::after {
     padding: 20px;
     margin-bottom: 20px;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    /* УБРАНО: position: relative - больше не нужно для ::before */
 }
 
-.section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, 
-        #EF55A5 0%, 
-        #809EFF 50%, 
-        #CCD537 100%);
-    background-size: 200% 100%;
-    animation: gradientMove 3s ease infinite;
-}
+/* ПОЛНОСТЬЮ УДАЛЕН: .section::before - убираем линии над блоками */
 
 .section:hover {
     transform: translateY(-3px);
@@ -1238,17 +1230,7 @@ input[type="checkbox"]:checked + .toggle-switch::after {
     }
 }
 
-@keyframes gradientMove {
-    0% {
-        background-position: 0% 50%;
-    }
-    50% {
-        background-position: 100% 50%;
-    }
-    100% {
-        background-position: 0% 50%;
-    }
-}
+/* УДАЛЕНА анимация gradientMove - больше не используется */
 
 @keyframes shimmer {
     0% {
@@ -1256,6 +1238,37 @@ input[type="checkbox"]:checked + .toggle-switch::after {
     }
     100% {
         transform: translateX(100%) translateY(100%) rotate(45deg);
+    }
+}
+
+@keyframes backgroundShift {
+    0%, 100% { 
+        filter: hue-rotate(0deg) brightness(1); 
+    }
+    50% { 
+        filter: hue-rotate(15deg) brightness(1.1); 
+    }
+}
+
+@keyframes avatarPulse {
+    0%, 100% { 
+        box-shadow: 
+            0 0 30px rgba(255, 107, 157, 0.4),
+            0 8px 25px rgba(0, 0, 0, 0.3); 
+    }
+    50% { 
+        box-shadow: 
+            0 0 45px rgba(255, 107, 157, 0.6),
+            0 12px 35px rgba(0, 0, 0, 0.4); 
+    }
+}
+
+@keyframes cardFloat {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-5px);
     }
 }
 
