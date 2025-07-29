@@ -528,12 +528,35 @@ app.get('/debug', (req, res) => {
 });
 
 // API для взаимодействия с WebApp
-app.post('/api/telegram-webhook', spinLimiter, async (req, res) => {
+// API для взаимодействия с WebApp - ОТКЛЮЧАЕМ ЛИМИТЕР ДЛЯ ДИАГНОСТИКИ
+app.post('/api/telegram-webhook', async (req, res) => {  // Убрали spinLimiter
     try {
         const { action, data, user } = req.body;
         
         console.log(`📡 WebApp API: ${action} от пользователя ${user?.id}`);
         console.log('📋 Полученные данные:', JSON.stringify({ action, data, user }, null, 2));
+        
+        // ДОПОЛНИТЕЛЬНАЯ ОТЛАДКА
+        console.log('🔍 === ДЕТАЛЬНАЯ ОТЛАДКА ЗАПРОСА ===');
+        console.log('Request body keys:', Object.keys(req.body));
+        console.log('Action type:', typeof action, action);
+        console.log('Data type:', typeof data);
+        console.log('User type:', typeof user);
+        if (user) {
+            console.log('User.id type:', typeof user.id, user.id);
+        }
+        if (action === 'wheel_spin' && data) {
+            console.log('Spin data keys:', Object.keys(data));
+            console.log('spinType:', data.spinType, typeof data.spinType);
+            console.log('prize:', data.prize);
+            if (data.prize) {
+                console.log('Prize keys:', Object.keys(data.prize));
+                console.log('Prize.id:', data.prize.id, typeof data.prize.id);
+                console.log('Prize.name:', data.prize.name, typeof data.prize.name);
+                console.log('Prize.type:', data.prize.type, typeof data.prize.type);
+            }
+        }
+        console.log('=== КОНЕЦ ДЕТАЛЬНОЙ ОТЛАДКИ ===');
         
         // Валидация базовых данных запроса
         const requestValidation = validateRequest(req.body, {
@@ -562,7 +585,23 @@ app.post('/api/telegram-webhook', spinLimiter, async (req, res) => {
         switch (action) {
             case 'wheel_spin':
                 try {
-                    // Валидация данных spin
+                    console.log('🎰 Начинаем валидацию wheel_spin...');
+                    
+                    // УПРОЩЕННАЯ ВАЛИДАЦИЯ для диагностики
+                    if (!data.spinType) {
+                        console.log('⚠️ spinType отсутствует, устанавливаем normal');
+                        data.spinType = 'normal';
+                    }
+                    
+                    if (!data.prize) {
+                        console.error('❌ prize отсутствует в данных');
+                        return res.status(400).json({ 
+                            error: 'Prize data missing',
+                            details: 'data.prize is required'
+                        });
+                    }
+                    
+                    // Валидация данных spin - УПРОЩЕННАЯ
                     const spinValidation = validateRequest(data, {
                         spinType: { type: 'spin_type', required: true },
                         prize: { type: 'prize', required: true }
@@ -576,6 +615,8 @@ app.post('/api/telegram-webhook', spinLimiter, async (req, res) => {
                         });
                     }
                     
+                    console.log('✅ Валидация прошла успешно, вызываем handleWheelSpin...');
+                    
                     console.log('🎰 WHEEL_SPIN - Входящие данные:', {
                         userId: userId,
                         data: spinValidation.data,
@@ -588,9 +629,11 @@ app.post('/api/telegram-webhook', spinLimiter, async (req, res) => {
                     return res.json({ success: true, message: 'Prize saved successfully' });
                 } catch (wheelError) {
                     console.error('❌ Ошибка в handleWheelSpin:', wheelError);
+                    console.error('Stack trace:', wheelError.stack);
                     return res.status(500).json({ 
                         success: false, 
-                        error: 'Failed to save prize to database' 
+                        error: 'Failed to save prize to database',
+                        details: wheelError.message
                     });
                 }
             case 'task_completed':
@@ -609,7 +652,48 @@ app.post('/api/telegram-webhook', spinLimiter, async (req, res) => {
         res.json({ success: true });
     } catch (error) {
         console.error('❌ Ошибка webhook:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Stack trace:', error.stack);
+        res.status(500).json({ 
+            error: 'Internal server error',
+            details: error.message
+        });
+    }
+});
+
+// ВРЕМЕННЫЙ ENDPOINT для отладки без лимитеров
+app.post('/api/debug/wheel-spin', async (req, res) => {
+    console.log('🚨 === DEBUG ENDPOINT ВЫЗВАН ===');
+    console.log('Body:', req.body);
+    console.log('Headers:', req.headers);
+    
+    try {
+        const { userId, prize, spinType } = req.body;
+        
+        console.log('Параметры:', { userId, prize, spinType });
+        
+        // Минимальная валидация
+        if (!userId || !prize) {
+            return res.status(400).json({ 
+                error: 'userId и prize обязательны',
+                received: { userId: !!userId, prize: !!prize, spinType }
+            });
+        }
+        
+        // Пытаемся сохранить в БД
+        const result = await handleWheelSpin(userId, { prize, spinType: spinType || 'normal' });
+        
+        res.json({ 
+            success: true, 
+            message: 'Отладочное сохранение успешно',
+            result 
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка в debug endpoint:', error);
+        res.status(500).json({ 
+            error: 'Debug endpoint error',
+            details: error.message 
+        });
     }
 });
 
