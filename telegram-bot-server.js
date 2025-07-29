@@ -282,6 +282,65 @@ async function startPolling() {
     }
 }
 
+// Добавить в telegram-bot-server.js
+
+// API для получения глобального лидерборда по рефералам
+app.get('/api/leaderboard-referrals', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 20;
+        
+        // Получаем лидерборд по количеству рефералов
+        const query = `
+            SELECT 
+                u.telegram_id,
+                u.first_name,
+                u.username,
+                COUNT(r.referee_id) as referrals_count,
+                u.total_stars,
+                u.created_at
+            FROM users u
+            LEFT JOIN referrals r ON u.telegram_id = r.referrer_id
+            GROUP BY u.telegram_id, u.first_name, u.username, u.total_stars, u.created_at
+            HAVING referrals_count > 0
+            ORDER BY referrals_count DESC, u.total_stars DESC, u.created_at ASC
+            LIMIT ?
+        `;
+        
+        db.pool.query(query, [limit], (error, results) => {
+            if (error) {
+                console.error('❌ Ошибка получения лидерборда рефералов:', error);
+                return res.status(500).json({ error: 'Internal server error' });
+            }
+            
+            console.log(`📊 Лидерборд рефералов загружен: ${results.length} записей`);
+            
+            res.json({ 
+                leaderboard: results,
+                total: results.length 
+            });
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения лидерборда рефералов:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+ // Обновленный API endpoint для получения ранга пользователя
+    app.get('/api/user-referral-rank/:userId', async (req, res) => {
+        try {
+            const { userId } = req.params;
+            
+            const rank = await db.getUserReferralRank(parseInt(userId));
+            
+            res.json({ rank });
+        } catch (error) {
+            console.error('❌ Ошибка получения ранга по рефералам:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
+
+
 // === МАРШРУТЫ ===
 
 // Главная страница
