@@ -73,7 +73,7 @@ class Navigation {
                 this.loadTasksScreen();
                 break;
             case 'profile-screen':
-                this.loadProfileScreen();
+                this.showProfileScreen();
                 break;
             case 'mega-roulette-screen':
                 this.loadMegaRouletteScreen();
@@ -142,212 +142,7 @@ class Navigation {
         }
     }
 
-    loadProfileScreen() {
-        const statsContainer = document.getElementById('profile-stats');
-        const leaderboardContainer = document.getElementById('leaderboard');
-        
-        if (!statsContainer || !leaderboardContainer) return;
-
-        // Загружаем статистику профиля
-        if (statsContainer.children.length === 0) {
-            const userData = this.getUserData();
-            statsContainer.innerHTML = `
-                <div class="profile-header">
-                    <div class="profile-avatar">👤</div>
-                    <div class="profile-info">
-                        <h3 id="profile-username">${this.getUserDisplayName()}</h3>
-                        <div class="profile-telegram-id">ID: ${this.getUserTelegramId()}</div>
-                        <p class="profile-level">Уровень 1</p>
-                    </div>
-                </div>
-                
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <div class="stat-value">${userData.stats?.stars || 100}</div>
-                        <div class="stat-label">Звезд</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">${userData.stats?.totalSpins || 0}</div>
-                        <div class="stat-label">Прокруток</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">${userData.stats?.prizesWon || 0}</div>
-                        <div class="stat-label">Призов</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">${userData.stats?.referrals || 0}</div>
-                        <div class="stat-label">Рефералов</div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Загружаем лидерборд
-        this.loadLeaderboard();
-    }
-
-    async loadLeaderboard(showOnlyReferrals = false) {
-        const container = document.getElementById('leaderboard');
-        if (!container) return;
-
-        const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-
-        container.innerHTML = `
-            <div class="leaderboard-controls">
-                <button class="tab-btn ${!showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(false)">
-                    <i class="fas fa-trophy"></i> Общий
-                </button>
-                <button class="tab-btn ${showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(true)">
-                    <i class="fas fa-users"></i> Мои рефералы
-                </button>
-            </div>
-            <div class="loading">
-                <i class="fas fa-spinner fa-spin"></i>
-                <p>Загрузка лидерборда...</p>
-            </div>
-        `;
-
-        try {
-            const endpoint = showOnlyReferrals && userId ? 
-                `/api/referrals-leaderboard/${userId}?limit=10` : 
-                '/api/leaderboard?limit=10';
-                
-            const response = await fetch(endpoint);
-            if (!response.ok) throw new Error('Ошибка загрузки лидерборда');
-
-            const data = await response.json();
-            const leaderboard = data.leaderboard || [];
-
-            if (leaderboard.length === 0) {
-                const emptyMessage = showOnlyReferrals ? 
-                    'У вас пока нет приглашенных друзей' : 
-                    'Пока нет данных лидерборда';
-                    
-                container.innerHTML = `
-                    <div class="leaderboard-controls">
-                        <button class="tab-btn ${!showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(false)">
-                            <i class="fas fa-trophy"></i> Общий
-                        </button>
-                        <button class="tab-btn ${showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(true)">
-                            <i class="fas fa-users"></i> Мои рефералы
-                        </button>
-                    </div>
-                    <div class="empty-state">
-                        <p>${emptyMessage}</p>
-                        ${showOnlyReferrals ? '<p>Пригласите друзей и они появятся здесь!</p>' : '<p>Будь первым!</p>'}
-                    </div>
-                `;
-                return;
-            }
-
-            let leaderboardHTML = `
-                <div class="leaderboard-controls">
-                    <button class="tab-btn ${!showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(false)">
-                        <i class="fas fa-trophy"></i> Общий
-                    </button>
-                    <button class="tab-btn ${showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(true)">
-                        <i class="fas fa-users"></i> Мои рефералы
-                    </button>
-                </div>
-                <div class="leaderboard-list">
-            `;
-            
-            leaderboard.forEach((player, index) => {
-                const position = index + 1;
-                const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : `${position}.`;
-                
-                let statsContent = '';
-                if (showOnlyReferrals) {
-                    // Для лидерборда рефералов показываем количество их рефералов
-                    statsContent = `${player.referrals_count || 0} 👥`;
-                } else {
-                    // Для общего лидерборда показываем звезды и призы
-                    statsContent = `${player.total_stars || 0} ⭐`;
-                }
-                
-                leaderboardHTML += `
-                    <div class="leaderboard-item ${position <= 3 ? 'top-player' : ''}">
-                        <div class="player-rank">${medal}</div>
-                        <div class="player-info">
-                            <div class="player-name">${player.first_name || 'Игрок'}</div>
-                            <div class="player-stats">${statsContent}</div>
-                        </div>
-                        ${!showOnlyReferrals ? `<div class="player-prizes">${player.total_prizes || 0} 🎁</div>` : ''}
-                    </div>
-                `;
-            });
-            
-            leaderboardHTML += '</div>';
-            container.innerHTML = leaderboardHTML;
-        } catch (error) {
-            console.error('Ошибка загрузки лидерборда:', error);
-            container.innerHTML = `
-                <div class="error-state">
-                    <p>Ошибка загрузки лидерборда</p>
-                    <button onclick="navigation.loadLeaderboard()">Попробовать снова</button>
-                </div>
-            `;
-        }
-    }
-
-    loadMegaRouletteScreen() {
-        const container = document.querySelector('.mega-roulette-container');
-        if (!container) return;
-
-        if (container.children.length === 0) {
-            container.innerHTML = `
-                <div class="mega-roulette-content">
-                    <div class="mega-wheel-container">
-                        <div class="mega-wheel">🎰</div>
-                        <p>Мега рулетка скоро будет доступна!</p>
-                    </div>
-                    <div class="mega-requirements">
-                        <h4>Требования:</h4>
-                        <ul>
-                            <li>Минимум 100 прокруток</li>
-                            <li>5 выигранных призов</li>
-                            <li>Подписка на все каналы</li>
-                        </ul>
-                    </div>
-                </div>
-            `;
-        }
-    }
-
-    addScreenTransition() {
-        const currentScreenElement = document.getElementById(this.currentScreen);
-        if (currentScreenElement) {
-            currentScreenElement.style.animation = 'fadeIn 0.3s ease';
-            setTimeout(() => {
-                currentScreenElement.style.animation = '';
-            }, 300);
-        }
-    }
-
-    getUserDisplayName() {
-        // Пробуем получить данные из разных источников
-        const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user || 
-                            window.telegramIntegration?.user;
-        
-        if (telegramUser?.username) {
-            return `@${telegramUser.username}`;
-        } else if (telegramUser?.first_name) {
-            return telegramUser.first_name;
-        }
-        return 'Пользователь';
-    }
-
-    getUserTelegramId() {
-        // Пробуем получить ID из разных источников
-        const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user || 
-                            window.telegramIntegration?.user;
-        
-        return telegramUser?.id || 'Неизвестно';
-    }
-
-    // Обновление для navigation.js - добавляем систему вкладок в профиль
-
-    // Добавить этот метод в класс Navigation
+    // ОБНОВЛЕННЫЙ МЕТОД ДЛЯ ПРОФИЛЯ С ВКЛАДКАМИ
     showProfileScreen() {
         this.currentScreen = 'profile-screen';
         const screen = document.getElementById('profile-screen');
@@ -355,7 +150,7 @@ class Navigation {
         if (!screen) return;
         
         this.showScreen('profile-screen');
-        this.updateActiveNav('profile-screen');
+        this.updateActiveNavItem('profile-screen');
         
         // Создаем структуру с вкладками
         screen.innerHTML = `
@@ -659,7 +454,7 @@ class Navigation {
     // Метод для загрузки позиции пользователя
     async loadUserRank(userId) {
         try {
-            const response = await fetch(`/api/user-rank/${userId}`);
+            const response = await fetch(`/api/user-referral-rank/${userId}`);
             if (!response.ok) throw new Error('Ошибка загрузки ранга');
             
             const data = await response.json();
@@ -710,6 +505,77 @@ class Navigation {
         `;
     }
 
+    // Загрузка истории призов
+    async loadPrizeHistory(userId) {
+        const container = document.getElementById('prize-history');
+        if (!container) return;
+        
+        try {
+            const response = await fetch(`/api/debug-user/${userId}`);
+            if (!response.ok) throw new Error('Failed to load prizes');
+            
+            const data = await response.json();
+            const prizes = data.prizes || [];
+            
+            if (prizes.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-history">
+                        <i class="fas fa-gift"></i>
+                        <p>У вас пока нет призов</p>
+                        <span>Крутите рулетку, чтобы выиграть призы!</span>
+                    </div>
+                `;
+                return;
+            }
+            
+            let historyHTML = '';
+            prizes.slice(0, 10).forEach(prize => {
+                const date = new Date(prize.won_date).toLocaleDateString('ru-RU');
+                const icon = this.getPrizeIcon(prize.prize_type);
+                
+                historyHTML += `
+                    <div class="prize-history-item">
+                        <div class="prize-icon">${icon}</div>
+                        <div class="prize-info">
+                            <div class="prize-name">${prize.prize_name}</div>
+                            <div class="prize-date">${date}</div>
+                        </div>
+                        ${prize.prize_value ? `<div class="prize-value">${prize.prize_value}</div>` : ''}
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = historyHTML;
+            
+        } catch (error) {
+            console.error('Error loading prize history:', error);
+            container.innerHTML = `
+                <div class="empty-history">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Ошибка загрузки истории</p>
+                </div>
+            `;
+        }
+    }
+
+    // Вспомогательный метод для иконок призов
+    getPrizeIcon(prizeType) {
+        const icons = {
+            'stars': '⭐',
+            'golden-apple': '🍎',
+            'dolce': '🚚',
+            'empty': '❌'
+        };
+        
+        for (const [key, icon] of Object.entries(icons)) {
+            if (prizeType.includes(key)) {
+                return icon;
+            }
+        }
+        
+        return '🎁';
+    }
+
     // Методы для работы с реферальной ссылкой
     copyReferralLink() {
         const linkInput = document.getElementById('referral-link');
@@ -719,6 +585,16 @@ class Navigation {
             
             // Показываем уведомление
             this.showNotification('Ссылка скопирована!', 'success');
+        }
+    }
+
+    shareReferralLink() {
+        const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+        const referralLink = `https://t.me/kosmetichka_lottery_bot?start=ref_${userId}`;
+        const message = `🎰 Присоединяйся к Kosmetichka Lottery!\n\n💎 Играй в рулетку красоты\n🎁 Выигрывай крутые призы\n👥 Приглашай друзей и получай бонусы\n\n${referralLink}`;
+        
+        if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(message)}`);
         }
     }
 
@@ -749,14 +625,191 @@ class Navigation {
         }, 3000);
     }
 
-    shareReferralLink() {
+    // СТАРЫЕ МЕТОДЫ (для совместимости)
+    loadProfileScreen() {
+        this.showProfileScreen();
+    }
+
+    async loadLeaderboard(showOnlyReferrals = false) {
+        // Оставляем старый метод для совместимости с другими частями кода
+        const container = document.getElementById('leaderboard');
+        if (!container) return;
+
         const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-        const referralLink = `https://t.me/kosmetichka_lottery_bot?start=ref_${userId}`;
-        const message = `🎰 Присоединяйся к Kosmetichka Lottery!\n\n💎 Играй в рулетку красоты\n🎁 Выигрывай крутые призы\n👥 Приглашай друзей и получай бонусы\n\n${referralLink}`;
-        
-        if (window.Telegram?.WebApp) {
-            window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(message)}`);
+
+        container.innerHTML = `
+            <div class="leaderboard-controls">
+                <button class="tab-btn ${!showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(false)">
+                    <i class="fas fa-trophy"></i> Общий
+                </button>
+                <button class="tab-btn ${showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(true)">
+                    <i class="fas fa-users"></i> Мои рефералы
+                </button>
+            </div>
+            <div class="loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Загрузка лидерборда...</p>
+            </div>
+        `;
+
+        try {
+            const endpoint = showOnlyReferrals && userId ? 
+                `/api/referrals-leaderboard/${userId}?limit=10` : 
+                '/api/leaderboard?limit=10';
+                
+            const response = await fetch(endpoint);
+            if (!response.ok) throw new Error('Ошибка загрузки лидерборда');
+
+            const data = await response.json();
+            const leaderboard = data.leaderboard || [];
+
+            if (leaderboard.length === 0) {
+                const emptyMessage = showOnlyReferrals ? 
+                    'У вас пока нет приглашенных друзей' : 
+                    'Пока нет данных лидерборда';
+                    
+                container.innerHTML = `
+                    <div class="leaderboard-controls">
+                        <button class="tab-btn ${!showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(false)">
+                            <i class="fas fa-trophy"></i> Общий
+                        </button>
+                        <button class="tab-btn ${showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(true)">
+                            <i class="fas fa-users"></i> Мои рефералы
+                        </button>
+                    </div>
+                    <div class="empty-state">
+                        <p>${emptyMessage}</p>
+                        ${showOnlyReferrals ? '<p>Пригласите друзей и они появятся здесь!</p>' : '<p>Будь первым!</p>'}
+                    </div>
+                `;
+                return;
+            }
+
+            let leaderboardHTML = `
+                <div class="leaderboard-controls">
+                    <button class="tab-btn ${!showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(false)">
+                        <i class="fas fa-trophy"></i> Общий
+                    </button>
+                    <button class="tab-btn ${showOnlyReferrals ? 'active' : ''}" onclick="navigation.loadLeaderboard(true)">
+                        <i class="fas fa-users"></i> Мои рефералы
+                    </button>
+                </div>
+                <div class="leaderboard-list">
+            `;
+            
+            leaderboard.forEach((player, index) => {
+                const position = index + 1;
+                const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : `${position}.`;
+                
+                let statsContent = '';
+                if (showOnlyReferrals) {
+                    // Для лидерборда рефералов показываем количество их рефералов
+                    statsContent = `${player.referrals_count || 0} 👥`;
+                } else {
+                    // Для общего лидерборда показываем звезды и призы
+                    statsContent = `${player.total_stars || 0} ⭐`;
+                }
+                
+                leaderboardHTML += `
+                    <div class="leaderboard-item ${position <= 3 ? 'top-player' : ''}">
+                        <div class="player-rank">${medal}</div>
+                        <div class="player-info">
+                            <div class="player-name">${player.first_name || 'Игрок'}</div>
+                            <div class="player-stats">${statsContent}</div>
+                        </div>
+                        ${!showOnlyReferrals ? `<div class="player-prizes">${player.total_prizes || 0} 🎁</div>` : ''}
+                    </div>
+                `;
+            });
+            
+            leaderboardHTML += '</div>';
+            container.innerHTML = leaderboardHTML;
+        } catch (error) {
+            console.error('Ошибка загрузки лидерборда:', error);
+            container.innerHTML = `
+                <div class="error-state">
+                    <p>Ошибка загрузки лидерборда</p>
+                    <button onclick="navigation.loadLeaderboard()">Попробовать снова</button>
+                </div>
+            `;
         }
+    }
+
+    loadMegaRouletteScreen() {
+        const container = document.querySelector('.mega-roulette-container');
+        if (!container) return;
+
+        if (container.children.length === 0) {
+            container.innerHTML = `
+                <div class="mega-roulette-content">
+                    <div class="mega-wheel-container">
+                        <div class="mega-wheel">🎰</div>
+                        <p>Мега рулетка скоро будет доступна!</p>
+                    </div>
+                    <div class="mega-requirements">
+                        <h4>Требования:</h4>
+                        <ul>
+                            <li>Минимум 100 прокруток</li>
+                            <li>5 выигранных призов</li>
+                            <li>Подписка на все каналы</li>
+                        </ul>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    addScreenTransition() {
+        const currentScreenElement = document.getElementById(this.currentScreen);
+        if (currentScreenElement) {
+            currentScreenElement.style.animation = 'fadeIn 0.3s ease';
+            setTimeout(() => {
+                currentScreenElement.style.animation = '';
+            }, 300);
+        }
+    }
+
+    showScreen(screenId) {
+        this.screens.forEach(screen => {
+            if (screen.id === screenId) {
+                screen.classList.add('active');
+                screen.style.display = 'block';
+            } else {
+                screen.classList.remove('active');
+                screen.style.display = 'none';
+            }
+        });
+    }
+
+    updateActiveNav(screenId) {
+        this.navItems.forEach(item => {
+            if (item.getAttribute('data-screen') === screenId) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+    }
+
+    getUserDisplayName() {
+        // Пробуем получить данные из разных источников
+        const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user || 
+                            window.telegramIntegration?.user;
+        
+        if (telegramUser?.username) {
+            return `@${telegramUser.username}`;
+        } else if (telegramUser?.first_name) {
+            return telegramUser.first_name;
+        }
+        return 'Пользователь';
+    }
+
+    getUserTelegramId() {
+        // Пробуем получить ID из разных источников
+        const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user || 
+                            window.telegramIntegration?.user;
+        
+        return telegramUser?.id || 'Неизвестно';
     }
 
     getUserData() {
