@@ -390,76 +390,104 @@ export class MainScreen {
         console.log('✅ Выигрыш обработан и сохранен на сервере');
     }
 
+    // Замените функцию savePrizeToServer в public/js/screens/main.js:
+
     async savePrizeToServer(prize) {
-        if (!window.telegramIntegration?.sendToServer) {
-            console.error('❌ telegramIntegration не инициализирован - приз НЕ будет сохранен на сервере!');
-            return false; // НЕ СОХРАНЕНО на сервере!
-        }
-
-        console.log('📡 Отправка приза на сервер...');
+        console.log('🎁 Попытка сохранения приза на сервере:', prize);
         
-        const response = await window.telegramIntegration.sendToServer('wheel_spin', {
-            prize: prize,
-            spinType: this.lastSpinType || 'normal',
-            timestamp: new Date().toISOString()
-        });
-
-        // Проверяем ответ сервера
-        if (response && response.success === true) {
-            console.log('✅ Приз успешно сохранен на сервере');
-            return true;
-        } else {
-            console.error('❌ Сервер вернул ошибку:', response);
+        if (!window.telegramIntegration?.sendToServer) {
+            console.error('❌ telegramIntegration не инициализирован');
+            return false;
+        }
+        
+        if (!window.telegramIntegration.user?.id) {
+            console.error('❌ Нет данных пользователя Telegram');
+            return false;
+        }
+        
+        try {
+            // ИСПРАВЛЕНИЕ: Убеждаемся что данные корректны
+            const spinData = {
+                spinType: 'normal', // ФИКСИРОВАННОЕ значение вместо this.lastSpinType
+                prize: {
+                    id: prize.id || Math.floor(Math.random() * 1000000), // Генерируем ID если нет
+                    name: prize.name || 'Неизвестный приз',
+                    type: prize.type || 'empty',
+                    value: Number(prize.value) || 0, // Убеждаемся что это число
+                    probability: prize.probability || 0
+                },
+                timestamp: new Date().toISOString()
+            };
             
-            // Показываем пользователю конкретную ошибку
-            const errorMsg = response?.error || 'Ошибка сервера';
-            this.app.showStatusMessage(`❌ ${errorMsg}`, 'error', 4000);
+            console.log('📤 Отправляемые данные на сервер:', spinData);
+            console.log('👤 Пользователь:', window.telegramIntegration.user);
+            
+            const response = await window.telegramIntegration.sendToServer('wheel_spin', spinData);
+            
+            console.log('📥 Ответ сервера:', response);
+            
+            if (response && response.success === true) {
+                console.log('✅ Приз успешно сохранен на сервере');
+                return true;
+            } else {
+                console.error('❌ Сервер вернул ошибку:', response);
+                
+                // Показываем детальную ошибку если есть
+                if (response?.error) {
+                    console.error('📋 Детали ошибки:', response.error);
+                    if (response.details) {
+                        console.error('📋 Подробности:', response.details);
+                    }
+                    
+                    // Показываем понятное сообщение пользователю
+                    if (response.error.includes('Invalid') || response.error.includes('validation')) {
+                        this.app.showStatusMessage('⚠️ Ошибка валидации данных', 'warning', 4000);
+                    } else {
+                        this.app.showStatusMessage(`❌ ${response.error}`, 'error', 4000);
+                    }
+                } else {
+                    this.app.showStatusMessage('❌ Неизвестная ошибка сервера', 'error', 3000);
+                }
+                
+                return false;
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка отправки на сервер:', error);
+            
+            // Проверяем тип ошибки для понятного сообщения
+            if (error.message?.includes('429')) {
+                this.app.showStatusMessage('⏳ Слишком много запросов. Подождите.', 'warning', 4000);
+            } else if (error.message?.includes('400')) {
+                this.app.showStatusMessage('⚠️ Неверные данные запроса', 'warning', 4000);
+            } else if (error.message?.includes('500')) {
+                this.app.showStatusMessage('❌ Ошибка сервера', 'error', 3000);
+            } else {
+                this.app.showStatusMessage('❌ Ошибка подключения', 'error', 3000);
+            }
+            
             return false;
         }
     }
 
-    updateLocalDataAfterPrize(prize) {
-        // Обновляем статистику
-        this.app.gameData.totalSpins = (this.app.gameData.totalSpins || 0) + 1;
-
-        if (prize.type !== 'empty') {
-            // Это выигрыш
-            this.app.gameData.prizesWon = (this.app.gameData.prizesWon || 0) + 1;
-            
-            // Добавляем приз в коллекцию
-            if (!this.app.gameData.prizes) this.app.gameData.prizes = [];
-            this.app.gameData.prizes.push({
-                ...prize,
-                wonAt: Date.now()
-            });
-
-            // Добавляем в последние выигрыши
-            if (!this.app.gameData.recentWins) this.app.gameData.recentWins = [];
-            this.app.gameData.recentWins.unshift({
-                prize: prize,
-                timestamp: Date.now()
-            });
-            
-            // Ограничиваем количество последних выигрышей
-            if (this.app.gameData.recentWins.length > 10) {
-                this.app.gameData.recentWins = this.app.gameData.recentWins.slice(0, 10);
-            }
-
-            // Если приз - звезды, добавляем их
-            if (prize.type.startsWith('stars-')) {
-                const starsAmount = prize.value;
-                this.app.gameData.stars += starsAmount;
-                this.app.gameData.totalStarsEarned = (this.app.gameData.totalStarsEarned || 0) + starsAmount;
-                console.log(`⭐ Добавлено ${starsAmount} звезд`);
-            }
-
-            // Показываем уведомление о выигрыше
-            this.app.showStatusMessage(`🎉 Выиграно: ${prize.name}!`, 'success', 4000);
-            
-        } else {
-            // Пустой приз
-            this.app.showStatusMessage('😔 В этот раз не повезло', 'info', 3000);
-        }
+    // ДОБАВЬТЕ эту функцию для диагностики:
+    async diagnosePrizeData(prize) {
+        console.log('🔍 Диагностика данных приза:');
+        console.log('  Prize object:', prize);
+        console.log('  Prize type:', typeof prize);
+        console.log('  Prize.id:', prize?.id, typeof prize?.id);
+        console.log('  Prize.name:', prize?.name, typeof prize?.name);
+        console.log('  Prize.type:', prize?.type, typeof prize?.type);
+        console.log('  Prize.value:', prize?.value, typeof prize?.value);
+        
+        console.log('🔍 Диагностика Telegram Integration:');
+        console.log('  telegramIntegration exists:', !!window.telegramIntegration);
+        console.log('  sendToServer exists:', !!window.telegramIntegration?.sendToServer);
+        console.log('  User exists:', !!window.telegramIntegration?.user);
+        console.log('  User ID:', window.telegramIntegration?.user?.id);
+        console.log('  User data:', window.telegramIntegration?.user);
+        
+        return true;
     }
 
     updateSpinButtons() {
