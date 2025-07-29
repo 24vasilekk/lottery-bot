@@ -1,4 +1,4 @@
-// public/js/app.js - ИСПРАВЛЕННАЯ ВЕРСИЯ БЕЗ ЦИФРЫ "3" В НАВИГАЦИИ
+// public/js/app.js - ИСПРАВЛЕННАЯ ВЕРСИЯ С РАБОЧИМ ЛИДЕРБОРДОМ
 
 import { APP_CONFIG, WHEEL_PRIZES } from './config.js';
 import { MainScreen } from './screens/main.js';
@@ -19,7 +19,10 @@ const DEFAULT_USER_DATA = {
         avatar: '👤',
         joinDate: Date.now()
     },
-    lastDailyReset: Date.now()
+    lastDailyReset: Date.now(),
+    referrals: 0,
+    prizesWon: 0,
+    totalStarsEarned: 20
 };
 
 export default class App {
@@ -35,8 +38,6 @@ export default class App {
         
         console.log('📱 App создан');
     }
-
-    // Метод удален - инициализация перенесена в telegram-integration.js
 
     async init() {
         try {
@@ -100,6 +101,9 @@ export default class App {
             if (!this.gameData.completedTasks) this.gameData.completedTasks = [];
             if (!this.gameData.availableFriendSpins) this.gameData.availableFriendSpins = 1;
             if (!this.gameData.profile) this.gameData.profile = { name: 'Пользователь', avatar: '👤', joinDate: Date.now() };
+            if (!this.gameData.referrals) this.gameData.referrals = 0;
+            if (!this.gameData.prizesWon) this.gameData.prizesWon = 0;
+            if (!this.gameData.totalStarsEarned) this.gameData.totalStarsEarned = this.gameData.stars || 20;
             
         } catch (error) {
             console.error('❌ Ошибка загрузки данных:', error);
@@ -247,10 +251,11 @@ export default class App {
             console.log('📄 Создание основных экранов...');
             this.screens.main = new MainScreen(this);
             this.screens.tasks = new TasksScreen(this);
-            this.screens.profile = new ProfileScreen(this);
+            this.screens.profile = new ProfileScreen(this); // Глобальная ссылка устанавливается в конструкторе
             this.screens.deposit = new DepositScreen(this);
             
             console.log('✅ Основные экраны созданы');
+            console.log('🔗 Проверяем глобальную ссылку profileScreen:', window.profileScreen);
 
             // ДОПОЛНИТЕЛЬНЫЕ ЭКРАНЫ (необязательные)
             try {
@@ -278,6 +283,12 @@ export default class App {
             // Инициализируем активный экран
             if (this.screens.main) {
                 this.screens.main.init();
+            }
+
+            // ВАЖНО: Дублируем проверку глобальной ссылки после рендера
+            if (!window.profileScreen && this.screens.profile) {
+                window.profileScreen = this.screens.profile;
+                console.log('🔗 Глобальная ссылка profileScreen установлена после рендера');
             }
 
             console.log('✅ Все экраны загружены и инициализированы');
@@ -448,6 +459,7 @@ export default class App {
     // Дополнительные методы для работы с игрой
     addStars(amount) {
         this.gameData.stars += amount;
+        this.gameData.totalStarsEarned = (this.gameData.totalStarsEarned || 0) + amount;
         this.updateInterface();
         this.saveGameData();
         console.log(`⭐ Добавлено ${amount} звезд. Всего: ${this.gameData.stars}`);
@@ -479,6 +491,7 @@ export default class App {
         }
         
         this.gameData.totalWins++;
+        this.gameData.prizesWon = (this.gameData.prizesWon || 0) + 1;
         this.saveGameData();
         
         console.log(`🎁 Добавлен выигрыш: ${prize.name}`);
@@ -512,10 +525,17 @@ export default class App {
             this.gameData.totalSpins = newData.stats.totalSpins || this.gameData.totalSpins;
             this.gameData.prizesWon = newData.stats.prizesWon || this.gameData.prizesWon;
             this.gameData.totalStarsEarned = newData.stats.totalStarsEarned || this.gameData.totalStarsEarned;
+            this.gameData.referrals = newData.stats.referrals || this.gameData.referrals;
         }
         
         this.saveGameData();
         this.updateInterface();
+        
+        // Обновляем профиль если он активен
+        if (this.navigation.currentScreen === 'profile' && this.screens.profile) {
+            this.screens.profile.loadProfileData();
+        }
+        
         console.log('✅ Данные обновлены:', this.gameData);
     }
 
@@ -590,6 +610,25 @@ export default class App {
             }
         }
     }
+
+    // Метод для навигации к экрану (для использования из других модулей)
+    navigateToScreen(screenName) {
+        if (this.navigation) {
+            this.navigation.navigateTo(screenName);
+        }
+    }
+
+    // Метод для обновления статистики рефералов
+    updateReferrals(count) {
+        this.gameData.referrals = count;
+        this.saveGameData();
+        this.updateInterface();
+        
+        // Обновляем профиль если он активен
+        if (this.navigation.currentScreen === 'profile' && this.screens.profile) {
+            this.screens.profile.loadProfileData();
+        }
+    }
 }
 
 // Глобальные функции для навигации
@@ -597,4 +636,9 @@ window.navigateToDeposit = () => {
     if (window.app && window.app.navigation) {
         window.app.navigation.navigateTo('deposit');
     }
+};
+
+// Глобальная функция для доступа к приложению
+window.getApp = () => {
+    return window.app;
 };
