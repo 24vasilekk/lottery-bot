@@ -50,22 +50,6 @@ export class ProfileScreen {
                                     <div class="stats-desc">Друзей приглашено</div>
                                 </div>
                             </div>
-                            
-                            
-                            <div class="stats-card">
-                                <div class="stats-icon">💎</div>
-                                <div class="stats-content">
-                                    <div class="stats-value">${this.calculateLevel()}</div>
-                                    <div class="stats-desc">Текущий уровень</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="section">
-                        <h3 class="section-title">🏆 Достижения</h3>
-                        <div class="achievements-grid">
-                            ${this.renderAchievements()}
                         </div>
                     </div>
 
@@ -106,6 +90,7 @@ export class ProfileScreen {
                         </div>
                     </div>
 
+<<<<<<< HEAD
                     <div class="section">
                         <h3 class="section-title">⚙️ Настройки</h3>
                         <div class="settings-list">
@@ -173,6 +158,8 @@ export class ProfileScreen {
                             </button>
                         </div>
                     </div>
+=======
+>>>>>>> 942b1be (Критические исправления безопасности)
 
                     <!-- ДОПОЛНИТЕЛЬНЫЙ ОТСТУП ДЛЯ ПОЛНОЙ ПРОКРУТКИ -->
                     <div style="height: 60px;"></div>

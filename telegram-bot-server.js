@@ -6,7 +6,9 @@ const crypto = require('crypto');
 const path = require('path');
 const cors = require('cors');
 const fs = require('fs');
+const rateLimit = require('express-rate-limit');
 const Database = require('./database');
+const { validateRequest, validateTelegramId, validateSpinType, validateStarsAmount } = require('./utils/validation');
 
 // Загружаем переменные окружения
 if (fs.existsSync('.env')) {
@@ -65,11 +67,108 @@ if (!process.env.BOT_TOKEN || !process.env.ADMIN_IDS) {
 const app = express();
 
 // Middleware
+// Безопасная CORS конфигурация
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+    ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+    : [
+        'https://lottery-bot.railway.app',
+        'https://*.railway.app',
+        ...(process.env.NODE_ENV === 'development' ? ['http://localhost:3000', 'http://127.0.0.1:3000'] : [])
+    ];
+
 app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Telegram-Init-Data']
+    origin: function (origin, callback) {
+        // Разрешаем запросы без origin (например, мобильные приложения)
+        if (!origin) return callback(null, true);
+        
+        // Проверяем, разрешен ли origin
+        const isAllowed = allowedOrigins.some(allowedOrigin => {
+            if (allowedOrigin.includes('*')) {
+                const pattern = allowedOrigin.replace('*', '.*');
+                return new RegExp(`^${pattern}$`).test(origin);
+            }
+            return allowedOrigin === origin;
+        });
+        
+        if (isAllowed) {
+            callback(null, true);
+        } else {
+            console.warn(`🚫 CORS: Blocked origin ${origin}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Telegram-Init-Data'],
+    credentials: true,
+    maxAge: 86400 // 24 часа кеширования preflight запросов
 }));
+
+// Content Security Policy и заголовки безопасности
+app.use((req, res, next) => {
+    res.setHeader('Content-Security-Policy', 
+        "default-src 'self'; " +
+        "script-src 'self' 'unsafe-inline' https://telegram.org https://*.telegram.org; " +
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; " +
+        "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; " +
+        "img-src 'self' data: https: blob:; " +
+        "connect-src 'self' https://api.telegram.org wss: ws:; " +
+        "media-src 'self' data: blob:; " +
+        "object-src 'none'; " +
+        "base-uri 'self'; " +
+        "form-action 'self'; " +
+        "frame-ancestors 'none';"
+    );
+    
+    // Дополнительные заголовки безопасности
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    
+    next();
+});
+
+// Rate limiting конфигурация
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 минут
+    max: 100, // максимум 100 запросов с одного IP за 15 минут
+    message: {
+        error: 'Слишком много запросов с вашего IP, попробуйте позже',
+        retryAfter: 900
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    // Кастомный генератор ключей для учета user_id из Telegram
+    keyGenerator: (req) => {
+        return req.headers['x-telegram-user-id'] || req.ip;
+    }
+});
+
+const apiLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 минута
+    max: 30, // максимум 30 API запросов в минуту
+    message: {
+        error: 'Превышен лимит API запросов, попробуйте через минуту',
+        retryAfter: 60
+    }
+});
+
+const spinLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 минута
+    max: 5, // максимум 5 прокруток в минуту
+    message: {
+        error: 'Слишком частые прокрутки, подождите немного',
+        retryAfter: 60
+    },
+    keyGenerator: (req) => {
+        // Ограничиваем по user_id для прокруток
+        return req.body?.userId?.toString() || req.ip;
+    }
+});
+
+// Применяем ограничения
+app.use(generalLimiter);
+app.use('/api/', apiLimiter);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -245,32 +344,62 @@ app.get('/debug', (req, res) => {
 });
 
 // API для взаимодействия с WebApp
-app.post('/api/telegram-webhook', async (req, res) => {
+app.post('/api/telegram-webhook', spinLimiter, async (req, res) => {
     try {
         const { action, data, user } = req.body;
         
         console.log(`📡 WebApp API: ${action} от пользователя ${user?.id}`);
         console.log('📋 Полученные данные:', JSON.stringify({ action, data, user }, null, 2));
         
-        if (!user || !user.id) {
-            console.error('❌ Нет данных пользователя в запросе');
-            return res.status(400).json({ error: 'User data required' });
+        // Валидация базовых данных запроса
+        const requestValidation = validateRequest(req.body, {
+            action: { type: 'string', required: true, minLength: 1, maxLength: 50 },
+            user: { type: 'object', required: true },
+            data: { type: 'object', required: false }
+        });
+        
+        if (!requestValidation.isValid) {
+            console.error('❌ Валидация запроса не прошла:', requestValidation.errors);
+            return res.status(400).json({ 
+                error: 'Invalid request data',
+                details: requestValidation.errors
+            });
         }
         
-        const userId = user.id;
+        // Валидация пользователя
+        const userIdValidation = validateTelegramId(user.id);
+        if (!userIdValidation.isValid) {
+            console.error('❌ Неверный ID пользователя:', userIdValidation.error);
+            return res.status(400).json({ error: 'Invalid user ID' });
+        }
+        
+        const userId = userIdValidation.value;
         
         switch (action) {
             case 'wheel_spin':
                 try {
-                    console.log('🎰 WHEEL_SPIN - Входящие данные:', {
-                        userId: userId,
-                        data: data,
-                        prize: data?.prize,
-                        spinType: data?.spinType,
-                        user: data?.user
+                    // Валидация данных spin
+                    const spinValidation = validateRequest(data, {
+                        spinType: { type: 'spin_type', required: true },
+                        prize: { type: 'prize', required: true }
                     });
                     
-                    await handleWheelSpin(userId, data);
+                    if (!spinValidation.isValid) {
+                        console.error('❌ Валидация данных spin не прошла:', spinValidation.errors);
+                        return res.status(400).json({ 
+                            error: 'Invalid spin data',
+                            details: spinValidation.errors
+                        });
+                    }
+                    
+                    console.log('🎰 WHEEL_SPIN - Входящие данные:', {
+                        userId: userId,
+                        data: spinValidation.data,
+                        prize: spinValidation.data.prize,
+                        spinType: spinValidation.data.spinType
+                    });
+                    
+                    await handleWheelSpin(userId, spinValidation.data);
                     console.log('✅ wheel_spin обработан успешно');
                     return res.json({ success: true, message: 'Prize saved successfully' });
                 } catch (wheelError) {
@@ -305,11 +434,16 @@ app.post('/api/check-subscriptions', async (req, res) => {
     try {
         const { userId } = req.body;
         
-        if (!userId) {
-            return res.status(400).json({ error: 'User ID required' });
+        // Валидация userId
+        const userIdValidation = validateTelegramId(userId);
+        if (!userIdValidation.isValid) {
+            return res.status(400).json({ 
+                error: 'Invalid user ID',
+                details: userIdValidation.error
+            });
         }
         
-        const subscriptions = await db.getUserSubscriptions(userId);
+        const subscriptions = await db.getUserSubscriptions(userIdValidation.value);
         
         res.json({ 
             subscriptions: {
@@ -1137,23 +1271,28 @@ app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
 app.post('/api/admin/users/stars', requireAdmin, async (req, res) => {
     const { telegramId, operation, amount, reason } = req.body;
     
-    if (!telegramId || !operation || amount === undefined || !reason) {
+    // Валидация входных данных
+    const validation = validateRequest(req.body, {
+        telegramId: { type: 'telegram_id', required: true },
+        operation: { type: 'stars_operation', required: true },
+        amount: { type: 'stars_amount', required: true },
+        reason: { type: 'string', required: true, minLength: 1, maxLength: 500 }
+    });
+    
+    if (!validation.isValid) {
         return res.status(400).json({ 
             success: false, 
-            error: 'Необходимо указать все параметры' 
-        });
-    }
-
-    if (amount < 0) {
-        return res.status(400).json({ 
-            success: false, 
-            error: 'Количество должно быть положительным' 
+            error: 'Неверные данные запроса',
+            details: validation.errors
         });
     }
 
     try {
+        // Используем валидированные данные
+        const validatedData = validation.data;
+        
         // Получаем текущего пользователя
-        const user = await db.getUser(telegramId);
+        const user = await db.getUser(validatedData.telegramId);
         if (!user) {
             return res.status(404).json({ 
                 success: false, 
@@ -1165,18 +1304,18 @@ app.post('/api/admin/users/stars', requireAdmin, async (req, res) => {
         let newStars = 0;
         let starsChange = 0;
 
-        switch (operation) {
+        switch (validatedData.operation) {
             case 'add':
-                starsChange = amount;
-                newStars = currentStars + amount;
+                starsChange = validatedData.amount;
+                newStars = currentStars + validatedData.amount;
                 break;
             case 'subtract':
-                starsChange = -amount;
-                newStars = Math.max(0, currentStars - amount);
+                starsChange = -validatedData.amount;
+                newStars = Math.max(0, currentStars - validatedData.amount);
                 break;
             case 'set':
-                starsChange = amount - currentStars;
-                newStars = amount;
+                starsChange = validatedData.amount - currentStars;
+                newStars = validatedData.amount;
                 break;
             default:
                 return res.status(400).json({ 
@@ -1186,17 +1325,17 @@ app.post('/api/admin/users/stars', requireAdmin, async (req, res) => {
         }
 
         // Обновляем баланс звезд
-        await db.updateUserStars(telegramId, starsChange);
+        await db.updateUserStars(validatedData.telegramId, starsChange);
 
         // Добавляем запись в историю транзакций
         await db.addStarsTransaction({
-            user_id: telegramId,
+            user_id: validatedData.telegramId,
             amount: starsChange,
             transaction_type: 'admin_adjustment',
-            description: `Администратор: ${reason}`
+            description: `Администратор: ${validatedData.reason}`
         });
 
-        console.log(`✅ Админ обновил звезды пользователя ${telegramId}: ${currentStars} -> ${newStars} (${operation} ${amount})`);
+        console.log(`✅ Админ обновил звезды пользователя ${validatedData.telegramId}: ${currentStars} -> ${newStars} (${validatedData.operation} ${validatedData.amount})`);
 
         res.json({ 
             success: true, 
@@ -1217,16 +1356,27 @@ app.post('/api/admin/users/stars', requireAdmin, async (req, res) => {
 app.post('/api/admin/manual-spin', requireAdmin, async (req, res) => {
     const { userId, spinType, reason } = req.body;
     
-    if (!userId || !spinType || !reason) {
+    // Валидация входных данных
+    const validation = validateRequest(req.body, {
+        userId: { type: 'telegram_id', required: true },
+        spinType: { type: 'spin_type', required: true },
+        reason: { type: 'string', required: true, minLength: 1, maxLength: 500 }
+    });
+    
+    if (!validation.isValid) {
         return res.status(400).json({ 
             success: false, 
-            error: 'Необходимо указать все параметры' 
+            error: 'Неверные данные запроса',
+            details: validation.errors
         });
     }
 
     try {
+        // Используем валидированные данные
+        const validatedData = validation.data;
+        
         // Проверяем существование пользователя
-        const user = await db.getUser(userId);
+        const user = await db.getUser(validatedData.userId);
         if (!user) {
             return res.status(404).json({ 
                 success: false, 
@@ -1234,7 +1384,7 @@ app.post('/api/admin/manual-spin', requireAdmin, async (req, res) => {
             });
         }
 
-        console.log(`🎲 Админ выдает прокрутку ${spinType} пользователю ${userId}: ${reason}`);
+        console.log(`🎲 Админ выдает прокрутку ${validatedData.spinType} пользователю ${validatedData.userId}: ${validatedData.reason}`);
 
         // Добавляем запись о ручной подкрутке в таблицу логов
         await new Promise((resolve, reject) => {
@@ -1246,7 +1396,7 @@ app.post('/api/admin/manual-spin', requireAdmin, async (req, res) => {
                     admin_id, 
                     created_at
                 ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-            `, ['manual_spin', userId, JSON.stringify({spinType, reason}), 'admin'], (err) => {
+            `, ['manual_spin', validatedData.userId, JSON.stringify({spinType: validatedData.spinType, reason: validatedData.reason}), 'admin'], (err) => {
                 if (err) reject(err);
                 else resolve();
             });
@@ -2777,6 +2927,35 @@ app.use((error, req, res, next) => {
     });
 });
 
+// Глобальный обработчик ошибок - должен быть перед 404 handler
+app.use((err, req, res, next) => {
+    // Логируем полную ошибку только в консоль (для дебага)
+    console.error('❌ Глобальная ошибка:', {
+        message: err.message,
+        stack: err.stack,
+        url: req.url,
+        method: req.method,
+        timestamp: new Date().toISOString()
+    });
+    
+    // Определяем статус код
+    const statusCode = err.statusCode || err.status || 500;
+    
+    // Безопасный ответ клиенту (без stack trace)
+    const errorResponse = {
+        error: 'Внутренняя ошибка сервера',
+        timestamp: new Date().toISOString()
+    };
+    
+    // В режиме разработки добавляем больше деталей
+    if (process.env.NODE_ENV === 'development') {
+        errorResponse.message = err.message;
+        errorResponse.details = 'Проверьте логи сервера для подробностей';
+    }
+    
+    res.status(statusCode).json(errorResponse);
+});
+
 // 404 handler
 app.use((req, res) => {
     console.log(`❌ 404: ${req.method} ${req.url}`);
@@ -2879,14 +3058,16 @@ process.on('unhandledRejection', (reason, promise) => {
 async function startSubscriptionMonitoring() {
     console.log('🔍 Запуск системы мониторинга подписок...');
     
-    // Проверяем каждые 6 часов
+    // Проверяем каждые 12 часов (4 раза за 48 часов)
     setInterval(async () => {
         await checkAllUsersSubscriptions();
-    }, 6 * 60 * 60 * 1000);
+        await checkAndRewardActiveSubscriptions();
+    }, 12 * 60 * 60 * 1000);
 
     // Первый запуск через 5 минут после старта сервера
     setTimeout(() => {
         checkAllUsersSubscriptions();
+        checkAndRewardActiveSubscriptions();
     }, 5 * 60 * 1000);
 }
 
@@ -2938,6 +3119,136 @@ async function checkAllUsersSubscriptions() {
 
     } catch (error) {
         console.error('❌ Ошибка системы мониторинга подписок:', error);
+    }
+}
+
+// Функция проверки и начисления звезд за подписку на канал (каждые 12 часов)
+async function checkAndRewardActiveSubscriptions() {
+    try {
+        console.log('🎁 Проверка и начисление звезд за активные подписки...');
+        
+        // Получаем канал из заданий для проверки
+        const taskChannel = await new Promise((resolve, reject) => {
+            db.db.get(`
+                SELECT * FROM partner_channels 
+                WHERE channel_username = 'kosmetichka_spin' 
+                AND is_active = 1
+                LIMIT 1
+            `, (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+
+        if (!taskChannel) {
+            console.log('❌ Канал для задания не найден');
+            return;
+        }
+
+        // Получаем всех пользователей
+        const users = await new Promise((resolve, reject) => {
+            db.db.all(`
+                SELECT id, telegram_id FROM users 
+                WHERE is_active = 1
+            `, (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows || []);
+            });
+        });
+
+        let rewardedCount = 0;
+        let checkCount = 0;
+
+        for (const user of users) {
+            try {
+                // Проверяем подписку на канал
+                const subscriptionCheck = await checkUserChannelSubscription(
+                    user.telegram_id, 
+                    taskChannel.channel_username
+                );
+
+                if (subscriptionCheck.isSubscribed) {
+                    // Проверяем, получал ли пользователь награду в последние 12 часов
+                    const lastReward = await new Promise((resolve, reject) => {
+                        db.db.get(`
+                            SELECT * FROM subscription_rewards 
+                            WHERE user_id = ? 
+                            AND channel_id = ?
+                            AND created_at > datetime('now', '-12 hours')
+                            ORDER BY created_at DESC
+                            LIMIT 1
+                        `, [user.id, taskChannel.id], (err, row) => {
+                            if (err) reject(err);
+                            else resolve(row);
+                        });
+                    });
+
+                    // Если не получал награду в последние 12 часов и подписан
+                    if (!lastReward) {
+                        // Начисляем 20 звезд
+                        await new Promise((resolve, reject) => {
+                            db.db.run(`
+                                UPDATE users 
+                                SET stars = stars + 20,
+                                    total_stars_earned = total_stars_earned + 20
+                                WHERE id = ?
+                            `, [user.id], (err) => {
+                                if (err) reject(err);
+                                else resolve();
+                            });
+                        });
+
+                        // Записываем информацию о награде
+                        await new Promise((resolve, reject) => {
+                            db.db.run(`
+                                INSERT INTO subscription_rewards (user_id, channel_id, stars_earned, created_at)
+                                VALUES (?, ?, 20, datetime('now'))
+                            `, [user.id, taskChannel.id], (err) => {
+                                if (err) reject(err);
+                                else resolve();
+                            });
+                        });
+
+                        rewardedCount++;
+                        console.log(`✅ Пользователь ${user.telegram_id} получил 20 звезд за подписку`);
+
+                        // Проверяем количество начислений за последние 48 часов
+                        const rewardCount = await new Promise((resolve, reject) => {
+                            db.db.get(`
+                                SELECT COUNT(*) as count 
+                                FROM subscription_rewards 
+                                WHERE user_id = ? 
+                                AND channel_id = ?
+                                AND created_at > datetime('now', '-48 hours')
+                            `, [user.id, taskChannel.id], (err, row) => {
+                                if (err) reject(err);
+                                else resolve(row ? row.count : 0);
+                            });
+                        });
+
+                        // Если получил 4 награды за 48 часов, уведомляем
+                        if (rewardCount >= 4) {
+                            try {
+                                await bot.sendMessage(user.telegram_id, 
+                                    '🎉 Поздравляем! Вы получили максимум звезд за подписку на канал за последние 48 часов!\n\n' +
+                                    'Продолжайте играть и выигрывать призы! 🎰'
+                                );
+                            } catch (e) {
+                                console.warn(`Не удалось отправить уведомление пользователю ${user.telegram_id}`);
+                            }
+                        }
+                    }
+                    checkCount++;
+                }
+            } catch (error) {
+                console.warn(`Ошибка проверки подписки для пользователя ${user.id}:`, error.message);
+            }
+        }
+
+        console.log(`✅ Проверка завершена. Проверено: ${checkCount}, Награждено: ${rewardedCount}`);
+
+    } catch (error) {
+        console.error('❌ Ошибка начисления звезд за подписки:', error);
     }
 }
 

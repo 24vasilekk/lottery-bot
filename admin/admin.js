@@ -63,14 +63,15 @@ class AdminPanel {
     }
 
     updateDashboardStats(stats) {
-        document.getElementById('totalUsers').textContent = stats.totalUsers || 0;
-        document.getElementById('activeUsers').textContent = stats.activeUsers || 0;
-        document.getElementById('totalChannels').textContent = stats.totalChannels || 0;
-        document.getElementById('hotChannels').textContent = stats.hotChannels || 0;
-        document.getElementById('totalSubscriptions').textContent = stats.totalSubscriptions || 0;
-        document.getElementById('todaySubscriptions').textContent = stats.todaySubscriptions || 0;
-        document.getElementById('pendingPrizes').textContent = stats.pendingPrizes || 0;
-        document.getElementById('pendingCertificates').textContent = stats.pendingCertificates || 0;
+        // Используем безопасное обновление статистики
+        updateStatSafely('totalUsers', stats.totalUsers);
+        updateStatSafely('activeUsers', stats.activeUsers);
+        updateStatSafely('totalChannels', stats.totalChannels);
+        updateStatSafely('hotChannels', stats.hotChannels);
+        updateStatSafely('totalSubscriptions', stats.totalSubscriptions);
+        updateStatSafely('todaySubscriptions', stats.todaySubscriptions);
+        updateStatSafely('pendingPrizes', stats.pendingPrizes);
+        updateStatSafely('pendingCertificates', stats.pendingCertificates);
     }
 
     async loadTabData(tabId) {
@@ -482,18 +483,15 @@ class AdminPanel {
     }
 
     showAlert(message, type) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
+        const alertDiv = createSafeAlert(message, type, true);
 
         document.body.insertBefore(alertDiv, document.body.firstChild);
 
         // Автоматическое скрытие через 5 секунд
         setTimeout(() => {
-            alertDiv.remove();
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
         }, 5000);
     }
 

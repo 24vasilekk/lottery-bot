@@ -233,6 +233,12 @@ class WheelManager {
             return;
         }
 
+        // Проверяем, выигрыш больше 100 звезд
+        if (prize.type.includes('stars') && prize.value > 100) {
+            this.showBigStarsWinModal(prize);
+            return;
+        }
+
         const modal = document.getElementById('prize-modal');
         const title = document.getElementById('prize-title');
         const description = document.getElementById('prize-description');
@@ -249,6 +255,80 @@ class WheelManager {
         }
         
         modal.classList.add('active');
+    }
+
+    showBigStarsWinModal(prize) {
+        // Создаем специальное модальное окно для больших выигрышей звезд
+        const existingModal = document.getElementById('big-stars-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        const modal = document.createElement('div');
+        modal.id = 'big-stars-modal';
+        modal.className = 'modal active';
+        
+        // Используем безопасную функцию создания модального окна
+        window.createSafeModal(modal, {
+            style: {
+                background: 'linear-gradient(135deg, #9C27B0 0%, #E91E63 100%)'
+            },
+            icon: {
+                class: 'fas fa-star',
+                style: { color: '#FFD700' }
+            },
+            title: '🎉 ОГРОМНЫЙ ВЫИГРЫШ!',
+            titleStyle: {
+                color: 'white',
+                marginBottom: '20px'
+            },
+            description: `${prize.value} ЗВЕЗД!\n\nПоздравляем с крупным выигрышем!`,
+            descriptionStyle: {
+                color: 'white',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                marginBottom: '25px',
+                whiteSpace: 'pre-line'
+            },
+            buttons: [
+                {
+                    text: '💬 Написать менеджеру',
+                    class: 'admin-contact-button',
+                    style: {
+                        background: 'white',
+                        color: '#9C27B0',
+                        marginBottom: '15px'
+                    },
+                    onclick: () => {
+                        try {
+                            window.open('https://t.me/kosmetichka_manager', '_blank');
+                        } catch (e) {
+                            console.warn('Не удалось открыть ссылку:', e);
+                        }
+                    }
+                },
+                {
+                    text: 'Продолжить игру',
+                    class: 'admin-contact-button',
+                    onclick: () => {
+                        const modalElement = document.getElementById('big-stars-modal');
+                        if (modalElement) {
+                            modalElement.classList.remove('active');
+                            setTimeout(() => modalElement.remove(), 300);
+                        }
+                    }
+                }
+            ],
+            onClose: () => {
+                const modalElement = document.getElementById('big-stars-modal');
+                if (modalElement) {
+                    modalElement.classList.remove('active');
+                    setTimeout(() => modalElement.remove(), 300);
+                }
+            }
+        });
+        
+        document.body.appendChild(modal);
     }
 
     showCertificateModal(prize) {

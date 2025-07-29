@@ -11,12 +11,14 @@ console.log('ADMIN_BOT_TOKEN:', process.env.ADMIN_BOT_TOKEN ? '✅ Устано�
 console.log('ADMIN_IDS:', process.env.ADMIN_IDS || '❌ НЕ установлен');
 console.log('ADMIN_PORT:', process.env.ADMIN_PORT || '3001 (по умолчанию)');
 
-console.log('\n=== СОДЕРЖИМОЕ .env (первые символы токенов) ===');
+console.log('\n=== ПРОВЕРКА ТОКЕНОВ ===');
 if (process.env.BOT_TOKEN) {
-    console.log('BOT_TOKEN начинается с:', process.env.BOT_TOKEN.substring(0, 15) + '...');
+    console.log('BOT_TOKEN: ✅ Установлен (длина:', process.env.BOT_TOKEN.length, 'символов)');
+    // БЕЗОПАСНОСТЬ: Не логируем содержимое токена
 }
 if (process.env.ADMIN_BOT_TOKEN) {
-    console.log('ADMIN_BOT_TOKEN начинается с:', process.env.ADMIN_BOT_TOKEN.substring(0, 15) + '...');
+    console.log('ADMIN_BOT_TOKEN: ✅ Установлен (длина:', process.env.ADMIN_BOT_TOKEN.length, 'символов)');
+    // БЕЗОПАСНОСТЬ: Не логируем содержимое токена
 }
 
 console.log('\n💡 Подсказка: Убедитесь, что в .env файле нет пробелов вокруг знака =');

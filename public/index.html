@@ -367,6 +367,22 @@
             
             // WebApp будет инициализирован в telegram-integration.js
             
+            // Load security utilities first
+            const domSafeScript = document.createElement('script');
+            domSafeScript.src = './js/utils/dom-safe.js';
+            document.head.appendChild(domSafeScript);
+            
+            // Load storage utilities
+            const storageScript = document.createElement('script');
+            storageScript.src = './js/utils/storage.js';
+            document.head.appendChild(storageScript);
+            
+            // Wait for scripts to load
+            await Promise.all([
+                new Promise(resolve => domSafeScript.onload = resolve),
+                new Promise(resolve => storageScript.onload = resolve)
+            ]);
+            
             // Load telegram integration first (not as module)
             try {
                 // Создаем скрипт для загрузки telegram-integration.js

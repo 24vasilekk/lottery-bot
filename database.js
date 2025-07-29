@@ -257,6 +257,17 @@ class Database {
                     FOREIGN KEY(channel_id) REFERENCES partner_channels(id)
                 )`,
 
+                // Награды за подписки (для проверки каждые 12 часов)
+                `CREATE TABLE IF NOT EXISTS subscription_rewards (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    channel_id INTEGER NOT NULL,
+                    stars_earned INTEGER NOT NULL DEFAULT 20,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(user_id) REFERENCES users(id),
+                    FOREIGN KEY(channel_id) REFERENCES partner_channels(id)
+                )`,
+
                 // Действия администратора (логирование)
                 `CREATE TABLE IF NOT EXISTS admin_actions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
