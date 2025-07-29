@@ -760,6 +760,7 @@ class Database {
 
     // === МЕТОДЫ ДЛЯ ЛИДЕРБОРДА ===
 
+    // ИСПРАВЛЕННЫЙ МЕТОД для лидерборда рефералов пользователя
     async getReferralsLeaderboard(telegramId, limit = 10) {
         return new Promise((resolve, reject) => {
             this.db.all(`
@@ -767,12 +768,12 @@ class Database {
                     u.id,
                     u.username,
                     u.first_name,
-                    COUNT(r2.id) as referrals_count,
-                    ROW_NUMBER() OVER (ORDER BY COUNT(r2.id) DESC, u.join_date ASC) as rank_position
+                    COUNT(r2.referred_id) as referrals_count,
+                    ROW_NUMBER() OVER (ORDER BY COUNT(r2.referred_id) DESC, u.join_date ASC) as rank_position
                 FROM users u
-                JOIN referrals r ON u.id = r.referred_id
-                LEFT JOIN referrals r2 ON u.id = r2.referrer_id
-                WHERE r.referrer_id = (SELECT id FROM users WHERE telegram_id = ?)
+                JOIN referrals r ON u.telegram_id = r.referred_id
+                LEFT JOIN referrals r2 ON u.telegram_id = r2.referrer_id
+                WHERE r.referrer_id = ?
                 AND u.is_active = 1
                 GROUP BY u.id, u.username, u.first_name, u.join_date
                 ORDER BY referrals_count DESC, u.join_date ASC
@@ -784,7 +785,7 @@ class Database {
         });
     }
 
-    // НОВЫЙ МЕТОД ДЛЯ ГЛОБАЛЬНОГО ЛИДЕРБОРДА ПО РЕФЕРАЛАМ
+    // ИСПРАВЛЕННЫЙ МЕТОД ДЛЯ ГЛОБАЛЬНОГО ЛИДЕРБОРДА ПО РЕФЕРАЛАМ
     async getGlobalReferralsLeaderboard(limit = 20) {
         return new Promise((resolve, reject) => {
             this.db.all(`
@@ -792,7 +793,7 @@ class Database {
                     u.telegram_id,
                     u.first_name,
                     u.username,
-                    COUNT(r.referee_id) as referrals_count,
+                    COUNT(r.referred_id) as referrals_count,
                     u.total_stars_earned,
                     u.join_date
                 FROM users u
@@ -810,6 +811,7 @@ class Database {
     }
 
     // НОВЫЙ МЕТОД ДЛЯ ПОЛУЧЕНИЯ ПОЗИЦИИ ПОЛЬЗОВАТЕЛЯ ПО РЕФЕРАЛАМ
+    // ИСПРАВЛЕННЫЙ МЕТОД ДЛЯ ПОЛУЧЕНИЯ ПОЗИЦИИ ПОЛЬЗОВАТЕЛЯ ПО РЕФЕРАЛАМ
     async getUserReferralRank(userId) {
         return new Promise((resolve, reject) => {
             // Сначала получаем количество рефералов пользователя
@@ -817,7 +819,7 @@ class Database {
                 SELECT 
                     u.telegram_id,
                     u.first_name,
-                    COUNT(r.referee_id) as referrals_count
+                    COUNT(r.referred_id) as referrals_count
                 FROM users u
                 LEFT JOIN referrals r ON u.telegram_id = r.referrer_id
                 WHERE u.telegram_id = ?
@@ -842,7 +844,7 @@ class Database {
                     FROM (
                         SELECT 
                             u.telegram_id,
-                            COUNT(r.referee_id) as referrals_count,
+                            COUNT(r.referred_id) as referrals_count,
                             u.total_stars_earned,
                             u.join_date
                         FROM users u
