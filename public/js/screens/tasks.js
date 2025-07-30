@@ -1,15 +1,19 @@
-// public/js/screens/tasks.js - Tasks Screen Module (FINAL UPDATE)
+// public/js/screens/tasks.js - Tasks Screen Module (FIXED COPY FUNCTION)
 
 import { TASKS_CONFIG } from '../config.js';
 
 export class TasksScreen {
     constructor(app) {
         this.app = app;
-        this.currentTab = 'referral'; // Меняем начальную вкладку на "Рефералы"
+        this.currentTab = 'referral';
         this.channels = [];
         this.dailyTasks = [];
         this.hotOffers = [];
         this.userBlocked = false;
+        
+        // Устанавливаем глобальную ссылку для доступа к методам
+        window.tasksScreen = this;
+        console.log('✅ Глобальная ссылка window.tasksScreen установлена');
     }
 
     render() {
@@ -50,6 +54,9 @@ export class TasksScreen {
     }
 
     async init() {
+        // Устанавливаем глобальную ссылку еще раз на всякий случай
+        window.tasksScreen = this;
+        
         this.setupEventListeners();
         await this.loadTasks();
         this.checkDailyReset();
@@ -132,7 +139,7 @@ export class TasksScreen {
                     <h4>Твоя реферальная ссылка:</h4>
                     <div class="link-input-group">
                         <input type="text" id="referral-link" value="${referralLink}" readonly>
-                        <button class="copy-btn" onclick="window.tasksScreen?.copyReferralLink()">
+                        <button class="copy-btn" onclick="window.tasksScreen.copyReferralLink()">
                             📋 Копировать
                         </button>
                     </div>
@@ -196,7 +203,7 @@ export class TasksScreen {
                                 `<div class="task-completed-status">
                                     ✅ Выполнено
                                 </div>` :
-                                `<button class="task-complete-btn" onclick="window.tasksScreen?.completeTask('${task.id}', 'active')">
+                                `<button class="task-complete-btn" onclick="window.tasksScreen.completeTask('${task.id}', 'active')">
                                     Выполнить
                                 </button>`
                             }
@@ -207,9 +214,95 @@ export class TasksScreen {
         `;
     }
 
+    // ===================== ИСПРАВЛЕННАЯ ФУНКЦИЯ КОПИРОВАНИЯ =====================
+
+    copyReferralLink() {
+        console.log('🔗 Попытка копирования реферальной ссылки');
+        
+        const linkInput = document.getElementById('referral-link');
+        if (!linkInput) {
+            console.error('❌ Поле ссылки не найдено');
+            this.showMessage('Ошибка: поле ссылки не найдено', 'error');
+            return;
+        }
+
+        // Получаем актуальную ссылку
+        const actualLink = this.getReferralLink();
+        console.log('🔗 Копируем ссылку:', actualLink);
+        
+        // Обновляем значение в поле
+        linkInput.value = actualLink;
+
+        // Выбираем весь текст
+        linkInput.focus();
+        linkInput.select();
+        linkInput.setSelectionRange(0, 99999); // Для мобильных устройств
+
+        try {
+            // Пробуем современный API
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(actualLink).then(() => {
+                    console.log('✅ Ссылка скопирована через Clipboard API');
+                    this.showMessage('✅ Ссылка скопирована!', 'success');
+                }).catch(err => {
+                    console.warn('⚠️ Clipboard API не сработал, используем fallback:', err);
+                    this.fallbackCopy(actualLink);
+                });
+            } else {
+                // Fallback для старых браузеров
+                console.log('ℹ️ Используем fallback метод копирования');
+                this.fallbackCopy(actualLink);
+            }
+        } catch (err) {
+            console.error('❌ Ошибка копирования:', err);
+            this.showMessage('❌ Ошибка копирования', 'error');
+        }
+    }
+
+    fallbackCopy(text) {
+        try {
+            // Создаем временный элемент
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            textArea.style.top = "-999999px";
+            document.body.appendChild(textArea);
+            
+            textArea.focus();
+            textArea.select();
+            
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            if (successful) {
+                console.log('✅ Ссылка скопирована через execCommand');
+                this.showMessage('✅ Ссылка скопирована!', 'success');
+            } else {
+                console.error('❌ execCommand не сработал');
+                this.showMessage('❌ Не удалось скопировать', 'error');
+            }
+        } catch (err) {
+            console.error('❌ Ошибка fallback копирования:', err);
+            this.showMessage('❌ Ошибка копирования', 'error');
+        }
+    }
+
+    showMessage(message, type = 'info') {
+        if (this.app && this.app.showStatusMessage) {
+            this.app.showStatusMessage(message, type);
+        } else {
+            // Fallback - простой alert
+            alert(message);
+        }
+    }
+
     // ===================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ =====================
 
     attachTaskEventListeners() {
+        // Убеждаемся что глобальная ссылка установлена
+        window.tasksScreen = this;
+        
         // Глобальные функции для работы с заданиями
         window.handleChannelSubscribe = (channelId, channelUsername) => {
             this.handleChannelSubscribe(channelId, channelUsername);
@@ -264,50 +357,29 @@ export class TasksScreen {
         }));
     }
 
-    formatSubscriberCount(count) {
-        if (count >= 1000000) {
-            return `${(count / 1000000).toFixed(1)}M`;
-        } else if (count >= 1000) {
-            return `${(count / 1000).toFixed(1)}K`;
-        }
-        return count.toString();
-    }
-
-    truncateText(text, maxLength) {
-        if (text.length <= maxLength) return text;
-        return text.substring(0, maxLength) + '...';
-    }
-
     getReferralLink() {
         if (!this.app.tg?.initDataUnsafe?.user?.id) {
-            return 'https://t.me/kosmetichkalottery_bot';
+            return 'https://t.me/kosmetichkalottery_bot?start=ref_demo';
         }
 
         const userId = this.app.tg.initDataUnsafe.user.id;
         return `https://t.me/kosmetichkalottery_bot?start=ref_${userId}`;
     }
 
-    copyReferralLink() {
-        const linkInput = document.getElementById('referral-link');
-        if (linkInput) {
-            linkInput.select();
-            document.execCommand('copy');
-            this.app.showStatusMessage('Ссылка скопирована!', 'success');
-        }
-    }
-
     // ===================== ЛОГИКА ВЫПОЛНЕНИЯ ЗАДАНИЙ =====================
 
     completeTask(taskId, category) {
+        console.log(`🎯 Выполнение задания: ${taskId} (${category})`);
+        
         // Проверяем не выполнено ли уже
         if (this.isTaskCompleted(taskId)) {
-            this.app.showStatusMessage('Задание уже выполнено', 'info');
+            this.showMessage('Задание уже выполнено', 'info');
             return;
         }
 
         const task = this.findTask(taskId, category);
         if (!task) {
-            console.error('Задание не найдено:', taskId);
+            console.error('❌ Задание не найдено:', taskId);
             return;
         }
 
@@ -321,7 +393,7 @@ export class TasksScreen {
         if (task.reward) {
             if (task.reward.type === 'stars') {
                 this.app.gameData.stars += task.reward.amount;
-                this.app.showStatusMessage(`Получено ${task.reward.amount} ⭐!`, 'success');
+                this.showMessage(`Получено ${task.reward.amount} ⭐!`, 'success');
             }
         }
 
@@ -396,7 +468,65 @@ export class TasksScreen {
                 window.open(task.url, '_blank');
             }
         } else if (taskId === 'rate_app') {
-            this.app.showStatusMessage('Спасибо за оценку! 🌟', 'success');
+            this.showMessage('Спасибо за оценку! 🌟', 'success');
+        }
+    }
+
+    async checkChannelSubscription(channelId, channelUsername) {
+        try {
+            const userId = this.app.tg?.initDataUnsafe?.user?.id;
+            if (!userId) {
+                this.showMessage('Ошибка: данные пользователя недоступны', 'error');
+                return;
+            }
+
+            this.showMessage('Проверяем подписку...', 'info');
+
+            // Проверяем подписку на канал
+            const response = await fetch('/api/subscription/check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, channelUsername })
+            });
+
+            const result = await response.json();
+
+            if (!result.isSubscribed) {
+                this.showMessage('Подписка не найдена. Проверьте, что вы подписались на канал', 'error');
+                return;
+            }
+
+            // Выполняем задание подписки
+            const completeResponse = await fetch('/api/subscription/complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    userId, 
+                    channelId, 
+                    userData: this.app.getUserData() 
+                })
+            });
+
+            const completeResult = await completeResponse.json();
+
+            if (completeResult.success) {
+                this.app.addStars(completeResult.reward);
+                this.showMessage(`Получено ${completeResult.reward} ⭐!`, 'success');
+                
+                // Обновляем интерфейс
+                await this.loadTasks();
+                
+                // Haptic feedback
+                if (this.app.tg?.HapticFeedback) {
+                    this.app.tg.HapticFeedback.notificationOccurred('success');
+                }
+            } else {
+                this.showMessage(completeResult.error || 'Ошибка выполнения задания', 'error');
+            }
+
+        } catch (error) {
+            console.error('❌ Ошибка проверки подписки:', error);
+            this.showMessage('Ошибка проверки подписки', 'error');
         }
     }
 
@@ -417,20 +547,6 @@ export class TasksScreen {
         } catch (error) {
             console.error('Ошибка поиска задания:', error);
             return null;
-        }
-    }
-
-    getCompletedTasksList() {
-        try {
-            const allTasks = [
-                ...(TASKS_CONFIG.friends || []),
-                ...(TASKS_CONFIG.active || [])
-            ];
-            
-            return allTasks.filter(task => this.isTaskCompleted(task.id));
-        } catch (error) {
-            console.error('Ошибка получения выполненных заданий:', error);
-            return [];
         }
     }
 
