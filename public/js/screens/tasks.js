@@ -127,23 +127,57 @@ export class TasksScreen {
         const friendsInvited = this.app.gameData.friendsInvited || 0;
 
         return `
+            <!-- ПОЛНОШИРИННЫЙ БЛОК РЕФЕРАЛЬНОЙ ССЫЛКИ -->
+            <div class="referral-full-width-block">
+                <h3 class="referral-center-title">Твоя реферальная ссылка:</h3>
+                
+                <div class="referral-link-wrapper">
+                    <input type="text" 
+                           id="referral-link" 
+                           class="referral-input-full" 
+                           value="${referralLink}" 
+                           readonly>
+                    <button class="copy-btn-referral" onclick="window.tasksScreen.copyReferralLink()">
+                        📋 Копировать
+                    </button>
+                </div>
+
+                <div class="friends-counter">
+                    <span class="friends-number">${friendsInvited}</span>
+                    <span class="friends-text">Приглашено друзей</span>
+                </div>
+            </div>
+
+            <!-- Дополнительная информация -->
             <div class="task-section-header">
                 <div class="section-info">
                     <h3>👥 Приглашай друзей</h3>
-                    <p>Поделитесь ссылкой и получайте 20 ⭐ за каждого друга</p>
+                    <p>Поделитесь ссылкой и получайте 100 ⭐ за каждого друга</p>
                 </div>
             </div>
             
-            <div class="referral-link-container">
-                <div class="referral-info">
-                    <h4>Твоя реферальная ссылка:</h4>
-                    <div class="link-input-group">
-                        <input type="text" id="referral-link" value="${referralLink}" readonly>
-                        <button class="copy-btn-full" onclick="window.tasksScreen.copyReferralLink()">
-                            📋 Копировать
-                        </button>
+            <!-- Блок преимуществ -->
+            <div class="referral-benefits">
+                <div class="benefit-card">
+                    <div class="benefit-icon">⭐</div>
+                    <div class="benefit-content">
+                        <div class="benefit-title">100 звезд за друга</div>
+                        <div class="benefit-desc">Получайте награду за каждого приглашенного</div>
                     </div>
-                    <p class="referral-stats">Приглашено друзей: <strong>${friendsInvited}</strong></p>
+                </div>
+                <div class="benefit-card">
+                    <div class="benefit-icon">🎁</div>
+                    <div class="benefit-content">
+                        <div class="benefit-title">Бонусы для друзей</div>
+                        <div class="benefit-desc">Ваши друзья получают стартовый бонус</div>
+                    </div>
+                </div>
+                <div class="benefit-card">
+                    <div class="benefit-icon">🚀</div>
+                    <div class="benefit-content">
+                        <div class="benefit-title">Растущие награды</div>
+                        <div class="benefit-desc">Чем больше друзей, тем больше бонусов</div>
+                    </div>
                 </div>
             </div>
         `;
@@ -244,6 +278,7 @@ export class TasksScreen {
                 navigator.clipboard.writeText(actualLink).then(() => {
                     console.log('✅ Ссылка скопирована через Clipboard API');
                     this.showMessage('✅ Ссылка скопирована!', 'success');
+                    this.updateCopyButtonSuccess();
                 }).catch(err => {
                     console.warn('⚠️ Clipboard API не сработал, используем fallback:', err);
                     this.fallbackCopy(actualLink);
@@ -278,6 +313,7 @@ export class TasksScreen {
             if (successful) {
                 console.log('✅ Ссылка скопирована через execCommand');
                 this.showMessage('✅ Ссылка скопирована!', 'success');
+                this.updateCopyButtonSuccess();
             } else {
                 console.error('❌ execCommand не сработал');
                 this.showMessage('❌ Не удалось скопировать', 'error');
@@ -286,6 +322,22 @@ export class TasksScreen {
             console.error('❌ Ошибка fallback копирования:', err);
             this.showMessage('❌ Ошибка копирования', 'error');
         }
+    }
+
+    updateCopyButtonSuccess() {
+        const btn = document.querySelector('.copy-btn-referral');
+        if (!btn) return;
+
+        const originalText = btn.innerHTML;
+        const originalStyle = btn.style.background;
+
+        btn.innerHTML = '✅ Скопировано!';
+        btn.style.background = 'linear-gradient(135deg, #4CAF50, #45a049)';
+
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.style.background = originalStyle;
+        }, 2000);
     }
 
     showMessage(message, type = 'info') {
