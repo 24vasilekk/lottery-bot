@@ -247,21 +247,49 @@ export class ProfileScreen {
 
     // Обновление статистики в профиле
     updateProfileStats(userData) {
-        const statsGrid = document.getElementById('profile-stats-grid');
-        if (!statsGrid) return;
+        console.log('📊 Обновление статистики профиля:', userData);
         
-        statsGrid.innerHTML = `
-            <div class="stats-card">
-                <div class="stats-card-icon">⭐</div>
-                <div class="stats-card-value">${userData.stats?.stars || userData.stars || 0}</div>
-                <div class="stats-card-label">Звезд</div>
-            </div>
-            <div class="stats-card">
-                <div class="stats-card-icon">👥</div>
-                <div class="stats-card-value">${userData.stats?.referrals || 0}</div>
-                <div class="stats-card-label">Рефералов</div>
-            </div>
-        `;
+        // Обновляем основные значения в профиле
+        const starElements = document.querySelectorAll('.stat-value');
+        if (starElements.length >= 3) {
+            starElements[0].textContent = userData.stars || this.app.gameData.stars || 0; // Звезды
+            starElements[1].textContent = userData.stats?.referrals || userData.referrals || 0; // Рефералы
+            starElements[2].textContent = userData.stats?.totalSpins || userData.totalSpins || 0; // Прокрутки
+        }
+        
+        // Обновляем детальную статистику если есть соответствующий элемент
+        const statsGrid = document.getElementById('profile-stats-grid');
+        if (statsGrid) {
+            statsGrid.innerHTML = `
+                <div class="stats-card">
+                    <div class="stats-card-icon">⭐</div>
+                    <div class="stats-card-value">${userData.stars || this.app.gameData.stars || 0}</div>
+                    <div class="stats-card-label">Звезд</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-icon">👥</div>
+                    <div class="stats-card-value">${userData.stats?.referrals || userData.referrals || 0}</div>
+                    <div class="stats-card-label">Рефералов</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-icon">🎰</div>
+                    <div class="stats-card-value">${userData.stats?.totalSpins || userData.totalSpins || 0}</div>
+                    <div class="stats-card-label">Прокруток</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-icon">🏆</div>
+                    <div class="stats-card-value">${userData.stats?.prizesWon || userData.prizesWon || 0}</div>
+                    <div class="stats-card-label">Призов</div>
+                </div>
+            `;
+        }
+        
+        // Обновляем UI всего приложения
+        if (this.app.updateUI) {
+            this.app.updateUI();
+        }
+        
+        console.log('✅ Статистика профиля обновлена');
     }
 
     // ИСПРАВЛЕННЫЙ МЕТОД: Загрузка лидерборда

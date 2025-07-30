@@ -245,16 +245,6 @@ export class MegaRouletteScreen {
         console.log('✅ Красивая SVG мега рулетки сгенерирована в стиле основной');
     }
 
-    getPrizeColor(rarity) {
-        switch (rarity) {
-            case 'legendary': return 'url(#legendary-gradient)';
-            case 'epic': return 'url(#epic-gradient)';
-            case 'rare': return 'url(#rare-gradient)';
-            case 'common': return 'url(#common-gradient)';
-            case 'empty': return 'url(#empty-gradient)';
-            default: return '#666666';
-        }
-    }
 
     async spinMegaWheel() {
         if (this.isSpinning) return;
@@ -313,8 +303,8 @@ export class MegaRouletteScreen {
 
     async calculateMegaPrize() {
         try {
-            // Получаем актуальные настройки шансов из API
-            const response = await fetch('/api/admin/wheel-settings/mega');
+            // Получаем актуальные настройки шансов из публичного API
+            const response = await fetch('/api/wheel-settings/mega');
             let prizeChances = [];
             
             if (response.ok) {

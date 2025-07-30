@@ -421,6 +421,108 @@ export class MainScreen {
         console.log('✅ Выигрыш обработан и сохранен на сервере');
     }
 
+    updateLocalDataAfterPrize(prize) {
+        console.log('📝 Обновление локальных данных после приза:', prize);
+        
+        // Обновляем статистику
+        this.app.gameData.totalSpins = (this.app.gameData.totalSpins || 0) + 1;
+        
+        if (prize.type !== 'empty' && prize.value > 0) {
+            this.app.gameData.prizesWon = (this.app.gameData.prizesWon || 0) + 1;
+            
+            // Если приз - звезды, добавляем их к балансу
+            if (prize.type.includes('stars')) {
+                this.app.gameData.stars = (this.app.gameData.stars || 0) + prize.value;
+                this.app.gameData.totalStarsEarned = (this.app.gameData.totalStarsEarned || 0) + prize.value;
+                console.log(`✨ Добавлено ${prize.value} звезд. Общий баланс: ${this.app.gameData.stars}`);
+            }
+            
+            // Добавляем приз в историю
+            if (!this.app.gameData.prizes) {
+                this.app.gameData.prizes = [];
+            }
+            
+            this.app.gameData.prizes.push({
+                ...prize,
+                timestamp: Date.now(),
+                claimed: prize.type.includes('stars') // Звезды автоматически засчитаны
+            });
+        }
+        
+        // Добавляем в последние выигрыши
+        if (!this.app.gameData.recentWins) {
+            this.app.gameData.recentWins = [];
+        }
+        
+        this.app.gameData.recentWins.unshift({
+            prize: prize,
+            timestamp: Date.now()
+        });
+        
+        // Ограничиваем историю последних выигрышей
+        if (this.app.gameData.recentWins.length > 10) {
+            this.app.gameData.recentWins = this.app.gameData.recentWins.slice(0, 10);
+        }
+        
+        // Показываем результат пользователю
+        this.showPrizeResult(prize);
+        
+        console.log('✅ Локальные данные обновлены');
+    }
+    
+    showPrizeResult(prize) {
+        console.log('🎉 Показываем результат приза:', prize);
+        
+        if (prize.type === 'empty' || prize.value === 0) {
+            // Показываем сообщение о неудаче
+            this.app.showStatusMessage('😔 В этот раз не повезло, попробуйте еще раз!', 'info', 4000);
+            return;
+        }
+        
+        // Создаем модальное окно с результатом
+        const resultModal = document.createElement('div');
+        resultModal.className = 'prize-result-modal';
+        
+        const isStars = prize.type.includes('stars');
+        const resultContent = isStars ? 
+            `<div class="prize-result-content">
+                <div class="prize-icon stars">${prize.icon}</div>
+                <h2>🎉 Поздравляем!</h2>
+                <h3>Вы выиграли ${prize.value} звезд!</h3>
+                <p>Звезды добавлены на ваш баланс</p>
+                <button class="prize-result-close">Отлично!</button>
+            </div>` :
+            `<div class="prize-result-content">
+                <div class="prize-icon certificate">${prize.icon}</div>
+                <h2>🎉 Поздравляем!</h2>
+                <h3>Вы выиграли:</h3>
+                <div class="prize-name">${prize.name}</div>
+                <p>Обратитесь к администратору для получения приза</p>
+                <button class="prize-result-close">Понятно</button>
+            </div>`;
+        
+        resultModal.innerHTML = resultContent;
+        document.body.appendChild(resultModal);
+        
+        // Обработчик закрытия
+        const closeBtn = resultModal.querySelector('.prize-result-close');
+        closeBtn.addEventListener('click', () => {
+            resultModal.remove();
+        });
+        
+        // Автоматически закрываем через 8 секунд
+        setTimeout(() => {
+            if (document.body.contains(resultModal)) {
+                resultModal.remove();
+            }
+        }, 8000);
+        
+        // Вибрация если доступна
+        if (this.app.tg && this.app.tg.HapticFeedback) {
+            this.app.tg.HapticFeedback.notificationOccurred('success');
+        }
+    }
+
     // Замените функцию savePrizeToServer в public/js/screens/main.js:
 
     async savePrizeToServer(prize) {

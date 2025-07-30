@@ -1936,6 +1936,33 @@ app.post('/api/admin/wheel-settings/normal', requireAdmin, async (req, res) => {
     }
 });
 
+// === ПУБЛИЧНЫЕ ENDPOINTS ДЛЯ НАСТРОЕК РУЛЕТКИ ===
+
+// Публичный endpoint для получения настроек мега рулетки (только чтение)
+app.get('/api/wheel-settings/mega', async (req, res) => {
+    try {
+        // Получаем настройки мега рулетки для фронтенда (только prize chances)
+        const settings = await db.getWheelSettings('mega');
+        
+        if (settings && settings.prizes) {
+            // Возвращаем только шансы призов, без админской информации
+            const publicSettings = {
+                prizes: settings.prizes.map(prize => ({
+                    id: prize.id,
+                    chance: prize.chance
+                }))
+            };
+            res.json(publicSettings);
+        } else {
+            // Возвращаем пустые настройки, чтобы фронтенд использовал дефолтные
+            res.json({ prizes: [] });
+        }
+    } catch (error) {
+        console.error('❌ Ошибка получения публичных настроек мега рулетки:', error);
+        res.json({ prizes: [] }); // В случае ошибки возвращаем пустые настройки
+    }
+});
+
 // === КОМАНДЫ БОТА ===
 
 if (bot) {

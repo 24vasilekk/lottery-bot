@@ -1,29 +1,12 @@
 // public/js/app.js - ИСПРАВЛЕННАЯ ВЕРСИЯ С РАБОЧИМ ЛИДЕРБОРДОМ
 
-import { APP_CONFIG, WHEEL_PRIZES } from './config.js';
+import { APP_CONFIG, WHEEL_PRIZES, DEFAULT_USER_DATA } from './config.js';
 import { MainScreen } from './screens/main.js';
 import { TasksScreen } from './screens/tasks.js';
 import { ProfileScreen } from './screens/profile.js';
 import { DepositScreen } from './screens/deposit.js';
 
-// Конфигурация по умолчанию для пользователя
-const DEFAULT_USER_DATA = {
-    stars: 20,
-    totalSpins: 0,
-    totalWins: 0,
-    availableFriendSpins: 1,
-    recentWins: [],
-    completedTasks: [],
-    profile: {
-        name: 'Пользователь',
-        avatar: '👤',
-        joinDate: Date.now()
-    },
-    lastDailyReset: Date.now(),
-    referrals: 0,
-    prizesWon: 0,
-    totalStarsEarned: 20
-};
+// DEFAULT_USER_DATA теперь импортируется из config.js
 
 export default class App {
     constructor() {
@@ -536,6 +519,12 @@ export default class App {
             this.gameData.prizesWon = newData.stats.prizesWon || this.gameData.prizesWon;
             this.gameData.totalStarsEarned = newData.stats.totalStarsEarned || this.gameData.totalStarsEarned;
             this.gameData.referrals = newData.stats.referrals || this.gameData.referrals;
+        }
+
+        // Если есть задания от сервера, используем их
+        if (newData.tasks) {
+            this.gameData.completedTasks = newData.tasks.completed || this.gameData.completedTasks || [];
+            console.log('✅ Обновлены выполненные задания:', this.gameData.completedTasks);
         }
         
         this.saveGameData();

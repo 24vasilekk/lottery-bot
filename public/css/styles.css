@@ -1349,7 +1349,7 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 20px 30px;
-    margin: -30px -30px 25px -30px;
+    margin: 0;
     background: linear-gradient(135deg, #ff6b9d 0%, #c44569 50%, #764ba2 100%);
     border-radius: 25px 25px 0 0;
     box-shadow: 
@@ -1879,11 +1879,11 @@ body {
    МЕГА РУЛЕТКА УНИКАЛЬНЫЕ СТИЛИ
    ======================================== */
 
-/* Золотое свечение для мега рулетки */
+/* Свечение мега рулетки в стиле профиля */
 #mega-roulette-screen .wheel {
     box-shadow: 
-        0 0 40px rgba(255, 215, 0, 0.6),
-        0 0 80px rgba(255, 215, 0, 0.3),
+        0 0 40px rgba(255, 107, 157, 0.6),
+        0 0 80px rgba(255, 107, 157, 0.3),
         0 10px 30px rgba(0, 0, 0, 0.5);
     animation: megaGlow 3s ease-in-out infinite alternate;
 }
@@ -1891,14 +1891,14 @@ body {
 @keyframes megaGlow {
     0% { 
         box-shadow: 
-            0 0 40px rgba(255, 215, 0, 0.6),
-            0 0 80px rgba(255, 215, 0, 0.3),
+            0 0 40px rgba(255, 107, 157, 0.6),
+            0 0 80px rgba(255, 107, 157, 0.3),
             0 10px 30px rgba(0, 0, 0, 0.5);
     }
     100% { 
         box-shadow: 
-            0 0 60px rgba(255, 215, 0, 0.8),
-            0 0 120px rgba(255, 215, 0, 0.5),
+            0 0 60px rgba(255, 107, 157, 0.8),
+            0 0 120px rgba(255, 107, 157, 0.5),
             0 15px 40px rgba(0, 0, 0, 0.6);
     }
 }
@@ -1935,6 +1935,127 @@ body {
 #mega-roulette-screen .wheel-pointer {
     border-top-color: #ff6b9d !important;
     filter: drop-shadow(0 3px 6px rgba(255, 107, 157, 0.4));
+}
+
+/* ========================================
+   МОДАЛЬНОЕ ОКНО РЕЗУЛЬТАТА ПРИЗА
+   ======================================== */
+.prize-result-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    backdrop-filter: blur(10px);
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+.prize-result-content {
+    background: 
+        radial-gradient(ellipse at 30% 20%, rgba(255, 107, 157, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse at 70% 60%, rgba(196, 69, 105, 0.1) 0%, transparent 60%),
+        linear-gradient(135deg, #1a1a1a 0%, #1a0f15 30%, #1a1a1a 70%, #0f0f0f 100%);
+    border-radius: 25px;
+    padding: 40px 30px;
+    max-width: 380px;
+    width: 90%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+        0 0 50px rgba(255, 107, 157, 0.3),
+        0 20px 40px rgba(0, 0, 0, 0.8);
+    text-align: center;
+    animation: modalSlideIn 0.4s ease-out;
+}
+
+.prize-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    display: block;
+    animation: prizeIconBounce 0.6s ease-out;
+}
+
+.prize-icon.stars {
+    filter: drop-shadow(0 0 10px #FFD700);
+}
+
+.prize-icon.certificate {
+    filter: drop-shadow(0 0 10px #ff6b9d);
+}
+
+.prize-result-content h2 {
+    color: #ff6b9d;
+    font-size: 28px;
+    margin: 0 0 15px 0;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.prize-result-content h3 {
+    color: white;
+    font-size: 20px;
+    margin: 0 0 10px 0;
+}
+
+.prize-name {
+    color: #ff6b9d;
+    font-size: 18px;
+    font-weight: bold;
+    margin: 15px 0;
+    padding: 10px;
+    background: rgba(255, 107, 157, 0.1);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 107, 157, 0.3);
+}
+
+.prize-result-content p {
+    color: #ccc;
+    margin: 20px 0;
+    line-height: 1.4;
+}
+
+.prize-result-close {
+    background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 25px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(255, 107, 157, 0.4);
+}
+
+.prize-result-close:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 107, 157, 0.6);
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modalSlideIn {
+    from { 
+        opacity: 0;
+        transform: translateY(-50px) scale(0.8);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes prizeIconBounce {
+    0% { transform: scale(0.5) rotate(-180deg); opacity: 0; }
+    50% { transform: scale(1.2) rotate(-90deg); opacity: 0.8; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
 
 /* ========================================

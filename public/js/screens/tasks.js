@@ -15,34 +15,66 @@ export class TasksScreen {
     render() {
         return `
             <div id="tasks-screen" class="screen">
-                <div class="header">
-                    <h2>📋 Задания</h2>
-                    <div class="task-counter">
-                        <span id="completed-tasks-count">${this.getCompletedTasksCount()}</span>/<span id="total-tasks-count">${this.getTotalTasksCount()}</span>
+                <!-- Header в стиле профиля -->
+                <div class="tasks-header-profile">
+                    <div class="tasks-avatar">
+                        📋
+                    </div>
+                    <div class="tasks-info">
+                        <h2 class="tasks-title">Задания</h2>
+                        <div class="tasks-progress">
+                            <span id="completed-tasks-count">${this.getCompletedTasksCount()}</span>/<span id="total-tasks-count">${this.getTotalTasksCount()}</span> выполнено
+                        </div>
+                        <div class="tasks-stats">
+                            <div class="task-stat-item">
+                                <div class="task-stat-value">${this.app.gameData.stars || 0}</div>
+                                <div class="task-stat-label">⭐ Звезд</div>
+                            </div>
+                            <div class="task-stat-item">
+                                <div class="task-stat-value">${this.getAvailableTasksCount()}</div>
+                                <div class="task-stat-label">🎯 Доступно</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="task-tabs">
-                    <button class="task-tab active" data-tab="channels">📺 Каналы</button>
-                    <button class="task-tab" data-tab="daily">📅 Ежедневные</button>
-                    <button class="task-tab" data-tab="referral">👥 Рефералы</button>
-                    <button class="task-tab" data-tab="hot">🔥 Активные</button>
+                <!-- Tabs в новом стиле -->
+                <div class="task-tabs-profile">
+                    <button class="task-tab-profile active" data-tab="channels">
+                        <div class="tab-icon">📺</div>
+                        <div class="tab-text">Каналы</div>
+                    </button>
+                    <button class="task-tab-profile" data-tab="daily">
+                        <div class="tab-icon">📅</div>
+                        <div class="tab-text">Ежедневные</div>
+                    </button>
+                    <button class="task-tab-profile" data-tab="referral">
+                        <div class="tab-icon">👥</div>
+                        <div class="tab-text">Рефералы</div>
+                    </button>
+                    <button class="task-tab-profile" data-tab="hot">
+                        <div class="tab-icon">🔥</div>
+                        <div class="tab-text">Активные</div>
+                    </button>
                 </div>
 
-                <div id="channels-tasks" class="task-section active">
-                    ${this.renderChannelTasks()}
-                </div>
+                <!-- Content sections -->
+                <div class="task-content">
+                    <div id="channels-tasks" class="task-section active">
+                        ${this.renderChannelTasks()}
+                    </div>
 
-                <div id="daily-tasks" class="task-section">
-                    ${this.renderDailyTasks()}
-                </div>
+                    <div id="daily-tasks" class="task-section">
+                        ${this.renderDailyTasks()}
+                    </div>
 
-                <div id="referral-tasks" class="task-section">
-                    ${this.renderReferralTasks()}
-                </div>
+                    <div id="referral-tasks" class="task-section">
+                        ${this.renderReferralTasks()}
+                    </div>
 
-                <div id="hot-tasks" class="task-section">
-                    ${this.renderHotOffers()}
+                    <div id="hot-tasks" class="task-section">
+                        ${this.renderHotOffers()}
+                    </div>
                 </div>
             </div>
         `;
@@ -58,7 +90,7 @@ export class TasksScreen {
 
     setupEventListeners() {
         // Task tabs
-        const taskTabs = document.querySelectorAll('.task-tab');
+        const taskTabs = document.querySelectorAll('.task-tab-profile');
         taskTabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 this.switchTab(tab.dataset.tab);
@@ -70,7 +102,7 @@ export class TasksScreen {
         this.currentTab = tabName;
         
         // Update tabs
-        document.querySelectorAll('.task-tab').forEach(tab => {
+        document.querySelectorAll('.task-tab-profile').forEach(tab => {
             tab.classList.remove('active');
         });
         
@@ -155,7 +187,7 @@ export class TasksScreen {
     renderChannelTasks() {
         if (this.userBlocked) {
             return `
-                <div class="blocked-state">
+                <div class="task-section-blocked">
                     <div class="blocked-icon">🚫</div>
                     <h3>Временная блокировка</h3>
                     <p>${this.blockMessage}</p>
@@ -165,22 +197,70 @@ export class TasksScreen {
         }
 
         if (!this.channels || this.channels.length === 0) {
-            return '<div class="empty-state">Нет доступных каналов для подписки</div>';
+            return `
+                <div class="task-section-empty">
+                    <div class="empty-icon">📺</div>
+                    <h3>Нет доступных каналов</h3>
+                    <p>В данный момент нет каналов для подписки</p>
+                </div>
+            `;
         }
 
-        const channelsList = this.channels.map(channel => this.renderChannelTaskItem(channel)).join('');
+        return `
+            <div class="task-section-header">
+                <div class="section-info">
+                    <h3>📺 Подпишись на каналы</h3>
+                    <p>Подписывайтесь на наши каналы и получайте звезды</p>
+                </div>
+                <button class="check-all-btn" onclick="checkAllSubscriptions()">
+                    🔍 Проверить все
+                </button>
+            </div>
+            
+            <div class="task-cards-grid">
+                ${this.channels.map(channel => this.renderChannelCard(channel)).join('')}
+            </div>
+        `;
+    }
+
+    renderChannelCard(channel) {
+        const isHot = channel.is_hot_offer;
+        const avatarUrl = channel.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.channel_name)}&background=ff6b9d&color=fff&size=60&rounded=true`;
         
         return `
-            <div class="channels-header">
-                <button class="check-all-subscriptions-btn" onclick="checkAllSubscriptions()">
-                    🔍 Проверить все подписки
-                </button>
-                <div class="channels-info">
-                    Доступно каналов: ${this.channels.length}
+            <div class="task-card channel-card ${isHot ? 'hot-offer' : ''}">
+                ${isHot ? '<div class="hot-badge">🔥 ГОРЯЧЕЕ</div>' : ''}
+                
+                <div class="channel-header">
+                    <div class="channel-avatar">
+                        <img src="${avatarUrl}" alt="${channel.channel_name}" 
+                             onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMzAiIGZpbGw9IiNmZjZiOWQiLz4KPHR3eHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7wn5OqPC90ZXh0Pgo8L3N2Zz4K'" />
+                    </div>
+                    <div class="channel-info">
+                        <h4 class="channel-name">${channel.channel_name}</h4>
+                        <div class="channel-username">@${channel.channel_username}</div>
+                        ${channel.subscriber_count ? `<div class="channel-subscribers">${this.formatSubscriberCount(channel.subscriber_count)} подписчиков</div>` : ''}
+                    </div>
                 </div>
-            </div>
-            <div class="channels-list">
-                ${channelsList}
+
+                <div class="channel-description">
+                    ${channel.description || 'Подпишитесь на наш канал и получайте актуальные новости'}
+                </div>
+
+                <div class="task-reward">
+                    <div class="reward-info">
+                        <span class="reward-amount">+${channel.reward_stars} ⭐</span>
+                        ${isHot ? `<span class="hot-multiplier">x${channel.hot_multiplier || 2}</span>` : ''}
+                    </div>
+                    ${isHot ? `<div class="hot-timer">Еще ${this.getHotOfferTimeLeft(channel.hot_offer_end)}</div>` : ''}
+                </div>
+
+                <button class="task-action-btn channel-subscribe-btn" 
+                        onclick="handleChannelSubscribe('${channel.id}', '${channel.channel_username}')"
+                        data-channel-id="${channel.id}">
+                    <span class="btn-icon">📺</span>
+                    <span class="btn-text">Подписаться</span>
+                </button>
             </div>
         `;
     }
@@ -189,6 +269,108 @@ export class TasksScreen {
         if (count < 1000) return count.toString();
         if (count < 1000000) return (count / 1000).toFixed(1) + 'K';
         return (count / 1000000).toFixed(1) + 'M';
+    }
+
+    getHotOfferTimeLeft(endTime) {
+        if (!endTime) return 'скоро';
+        
+        const now = new Date();
+        const end = new Date(endTime);
+        const diff = end - now;
+        
+        if (diff <= 0) return 'истекло';
+        
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        
+        if (hours > 0) {
+            return `${hours}ч ${minutes}м`;
+        }
+        return `${minutes}м`;
+    }
+
+    renderTaskCard(task, category) {
+        const isCompleted = this.isTaskCompleted(task.id);
+        const taskIcon = this.getTaskIcon(task, category);
+        
+        return `
+            <div class="task-card ${category}-task ${isCompleted ? 'completed' : ''}">
+                <div class="task-header">
+                    <div class="task-icon">${taskIcon}</div>
+                    <div class="task-info">
+                        <h4 class="task-name">${task.name}</h4>
+                        <div class="task-description">${task.description}</div>
+                    </div>
+                </div>
+
+                <div class="task-reward">
+                    <div class="reward-info">
+                        <span class="reward-amount">+${task.reward.amount} ⭐</span>
+                    </div>
+                </div>
+
+                <button class="task-action-btn ${isCompleted ? 'completed' : ''}" 
+                        onclick="${isCompleted ? '' : `handleTaskComplete('${task.id}', '${category}')`}"
+                        ${isCompleted ? 'disabled' : ''}>
+                    <span class="btn-icon">${isCompleted ? '✅' : '🎯'}</span>
+                    <span class="btn-text">${isCompleted ? 'Выполнено' : 'Выполнить'}</span>
+                </button>
+            </div>
+        `;
+    }
+
+    getTaskIcon(task, category) {
+        if (task.icon) return task.icon;
+        
+        switch (category) {
+            case 'daily': return '📅';
+            case 'friends': return '👥';
+            case 'active': return '⭐';
+            default: return '🎯';
+        }
+    }
+
+    renderReferralCard(task) {
+        const isCompleted = this.isTaskCompleted(task.id);
+        const referrals = this.app.gameData.referrals || 0;
+        const required = task.required || 0;
+        const canComplete = referrals >= required;
+        
+        return `
+            <div class="task-card referral-task ${isCompleted ? 'completed' : ''} ${canComplete ? 'available' : 'locked'}">
+                <div class="task-header">
+                    <div class="task-icon">${task.icon || '👥'}</div>
+                    <div class="task-info">
+                        <h4 class="task-name">${task.name}</h4>
+                        <div class="task-description">${task.description}</div>
+                    </div>
+                </div>
+
+                <div class="task-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${Math.min(100, (referrals / required) * 100)}%"></div>
+                    </div>
+                    <div class="progress-text">
+                        ${referrals} / ${required} друзей
+                    </div>
+                </div>
+
+                <div class="task-reward">
+                    <div class="reward-info">
+                        <span class="reward-amount">+${task.reward.amount} ⭐</span>
+                    </div>
+                </div>
+
+                <button class="task-action-btn ${isCompleted ? 'completed' : canComplete ? 'available' : 'locked'}" 
+                        onclick="${isCompleted || !canComplete ? '' : `handleTaskComplete('${task.id}', 'friends')`}"
+                        ${isCompleted || !canComplete ? 'disabled' : ''}>
+                    <span class="btn-icon">${isCompleted ? '✅' : canComplete ? '🎯' : '🔒'}</span>
+                    <span class="btn-text">
+                        ${isCompleted ? 'Выполнено' : canComplete ? 'Получить награду' : 'Недоступно'}
+                    </span>
+                </button>
+            </div>
+        `;
     }
 
     truncateText(text, maxLength) {
@@ -271,62 +453,100 @@ export class TasksScreen {
 
     renderDailyTasks() {
         if (!TASKS_CONFIG.daily) {
-            return '<div class="empty-state">Ежедневные задания загружаются...</div>';
+            return `
+                <div class="task-section-empty">
+                    <div class="empty-icon">📅</div>
+                    <h3>Загрузка заданий...</h3>
+                    <p>Ежедневные задания загружаются</p>
+                </div>
+            `;
         }
 
         const todayTasks = TASKS_CONFIG.daily.filter(task => !this.isTaskCompleted(task.id));
         
         if (todayTasks.length === 0) {
-            return '<div class="empty-state">Все ежедневные задания выполнены! 🎉</div>';
+            return `
+                <div class="task-section-empty">
+                    <div class="empty-icon">🎉</div>
+                    <h3>Все задания выполнены!</h3>
+                    <p>Возвращайтесь завтра за новыми заданиями</p>
+                </div>
+            `;
         }
         
-        return todayTasks.map(task => this.renderTaskItem(task, 'daily')).join('');
+        return `
+            <div class="task-section-header">
+                <div class="section-info">
+                    <h3>📅 Ежедневные задания</h3>
+                    <p>Выполняйте задания каждый день и получайте звезды</p>
+                </div>
+            </div>
+            
+            <div class="task-cards-grid">
+                ${todayTasks.map(task => this.renderTaskCard(task, 'daily')).join('')}
+            </div>
+        `;
     }
 
 
     renderReferralTasks() {
         if (!TASKS_CONFIG.friends) {
-            return '<div class="empty-state">Задания с друзьями загружаются...</div>';
+            return `
+                <div class="task-section-empty">
+                    <div class="empty-icon">👥</div>
+                    <h3>Загрузка заданий...</h3>
+                    <p>Реферальные задания загружаются</p>
+                </div>
+            `;
         }
 
         const referrals = this.app.gameData.referrals || 0;
-        const availableTasks = TASKS_CONFIG.friends.filter(task => {
-            const isCompleted = this.isTaskCompleted(task.id);
-            const hasEnoughReferrals = referrals >= (task.required || 1);
-            return !isCompleted;
+        const availableFriendTasks = TASKS_CONFIG.friends.filter(task => {
+            const requiredFriends = task.required || 0;
+            return referrals >= requiredFriends && !this.isTaskCompleted(task.id);
         });
-
-        let content = `
-            <div class="referral-section">
-                <div class="referral-stats">
-                    <div class="stat-item">
-                        <div class="stat-value">${referrals}</div>
-                        <div class="stat-label">👥 Приглашено друзей</div>
-                    </div>
+        
+        return `
+            <div class="task-section-header">
+                <div class="section-info">
+                    <h3>👥 Приглашение друзей</h3>
+                    <p>Приглашайте друзей и получайте награды за активность</p>
                 </div>
-                
-                <div class="referral-link-container">
-                    <h4>🔗 Ваша реферальная ссылка:</h4>
-                    <div class="referral-link">
-                        <input type="text" id="referral-link" value="${this.getReferralLink()}" readonly>
-                        <button onclick="copyReferralLink()">📋 Копировать</button>
-                    </div>
-                </div>
-                
-                <div class="referral-description">
-                    <p>💡 Приглашайте друзей и получайте звезды!</p>
-                    <p>⭐ За каждого друга вы получите 100 звезд</p>
+                <div class="friends-counter">
+                    <span class="friends-count">${referrals}</span>
+                    <span class="friends-label">друзей</span>
                 </div>
             </div>
+
+            <div class="referral-link-card task-card">
+                <div class="referral-header">
+                    <div class="referral-icon">🔗</div>
+                    <div class="referral-info">
+                        <h4>Пригласите друзей</h4>
+                        <p>Поделитесь ссылкой и получайте 100 ⭐ за каждого друга</p>
+                    </div>
+                </div>
+                
+                <div class="referral-link-input">
+                    <input type="text" id="referral-link" value="${this.getReferralLink()}" readonly>
+                    <button class="copy-link-btn" onclick="copyReferralLink()">
+                        <span class="btn-icon">📋</span>
+                    </button>
+                </div>
+            </div>
+            
+            ${availableFriendTasks.length > 0 ? `
+                <div class="task-cards-grid">
+                    ${availableFriendTasks.map(task => this.renderReferralCard(task)).join('')}
+                </div>
+            ` : `
+                <div class="task-section-empty">
+                    <div class="empty-icon">🎯</div>
+                    <h3>Продолжайте приглашать!</h3>
+                    <p>Пригласите больше друзей для новых заданий</p>
+                </div>
+            `}
         `;
-
-        if (availableTasks.length > 0) {
-            content += '<div class="referral-tasks">';
-            content += availableTasks.map(task => this.renderTaskItem(task, 'friends')).join('');
-            content += '</div>';
-        }
-
-        return content;
     }
 
     renderHotOffers() {
@@ -412,9 +632,12 @@ export class TasksScreen {
             }
         }
 
-        // Сохраняем данные
+        // Сохраняем данные локально
         this.app.saveGameData();
         this.app.updateStarsDisplay();
+
+        // Отправляем задание на сервер
+        this.syncTaskWithServer(taskId, task);
 
         // Обновляем интерфейс
         this.updateTaskCounter();
@@ -436,6 +659,42 @@ export class TasksScreen {
         }
 
         console.log('✅ Задание выполнено:', taskId);
+    }
+
+    // Синхронизация задания с сервером
+    async syncTaskWithServer(taskId, task) {
+        try {
+            const userId = this.app.tg?.initDataUnsafe?.user?.id;
+            if (!userId) {
+                console.warn('Нет ID пользователя для синхронизации задания');
+                return;
+            }
+
+            const response = await fetch('/api/action', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'task_completed',
+                    userId: userId,
+                    data: {
+                        taskId: taskId,
+                        id: taskId,
+                        type: this.currentTab || 'active',
+                        reward: task.reward || { type: 'stars', amount: 0 }
+                    }
+                })
+            });
+
+            if (response.ok) {
+                console.log(`✅ Задание ${taskId} синхронизировано с сервером`);
+            } else {
+                console.error(`❌ Ошибка синхронизации задания ${taskId}:`, response.status);
+            }
+        } catch (error) {
+            console.error('❌ Ошибка синхронизации задания с сервером:', error);
+        }
     }
 
     // ===================== НОВЫЕ ОБРАБОТЧИКИ ЗАДАНИЙ =====================
@@ -613,6 +872,47 @@ export class TasksScreen {
 
     getCompletedTasksCount() {
         return (this.app.gameData.completedTasks || []).length;
+    }
+
+    getAvailableTasksCount() {
+        try {
+            const completedTasks = this.app.gameData.completedTasks || [];
+            
+            // Ежедневные задания
+            const lastDailyReset = this.app.gameData.lastDailyReset || 0;
+            const today = new Date().toDateString();
+            const lastResetDate = new Date(lastDailyReset).toDateString();
+            let count = 0;
+            
+            if (today !== lastResetDate) {
+                count += (TASKS_CONFIG.daily || []).filter(task => !completedTasks.includes(task.id)).length;
+            }
+            
+            // Задания с друзьями
+            const referrals = this.app.gameData.referrals || 0;
+            const friendTasks = TASKS_CONFIG.friends || [];
+            friendTasks.forEach(task => {
+                const requiredFriends = task.required || 0;
+                if (referrals >= requiredFriends && !completedTasks.includes(task.id)) {
+                    count++;
+                }
+            });
+            
+            // Активные задания
+            (TASKS_CONFIG.active || []).forEach(task => {
+                if (!completedTasks.includes(task.id)) {
+                    count++;
+                }
+            });
+
+            // Каналы (примерно)
+            count += Math.max(0, 5 - completedTasks.filter(id => id.includes('channel')).length);
+            
+            return count;
+        } catch (error) {
+            console.error('Ошибка подсчета доступных заданий:', error);
+            return 0;
+        }
     }
 
     getTotalTasksCount() {
