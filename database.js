@@ -431,6 +431,27 @@ class Database {
         });
     }
 
+    async debugReferrals() {
+        return new Promise((resolve, reject) => {
+            this.db.all(`
+                SELECT 
+                    u.telegram_id,
+                    u.first_name,
+                    u.username,
+                    u.referrals as referrals_field,
+                    COUNT(r.referred_id) as actual_referrals_count
+                FROM users u
+                LEFT JOIN referrals r ON u.telegram_id = r.referrer_id
+                WHERE u.is_active = 1
+                GROUP BY u.telegram_id, u.first_name, u.username, u.referrals
+                ORDER BY actual_referrals_count DESC
+            `, (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows || []);
+            });
+        });
+    }
+
     // === МЕТОДЫ ДЛЯ ПРОКРУТОК ===
 
     async addSpinHistory(telegramId, prizeData, spinType = 'normal') {
@@ -644,23 +665,26 @@ class Database {
         return new Promise((resolve, reject) => {
             this.db.run(
                 `INSERT OR IGNORE INTO referrals (referrer_id, referred_id)
-                 SELECT r.id, rf.id FROM users r, users rf
-                 WHERE r.telegram_id = ? AND rf.telegram_id = ?`,
+                SELECT r.id, rf.id FROM users r, users rf
+                WHERE r.telegram_id = ? AND rf.telegram_id = ?`,
                 [referrerTelegramId, referredTelegramId],
                 async (err) => {
                     if (err) {
                         reject(err);
                     } else {
                         if (this.changes > 0) {
+                            console.log(`✅ Добавлен реферал: ${referrerTelegramId} -> ${referredTelegramId}`);
+                            
                             // Обновляем счетчик рефералов у пригласившего
                             try {
                                 await this.updateReferralCount(referrerTelegramId);
                                 resolve(true);
                             } catch (updateErr) {
-                                console.error('Ошибка обновления счетчика рефералов:', updateErr);
+                                console.error('❌ Ошибка обновления счетчика рефералов:', updateErr);
                                 resolve(true); // Реферал все равно добавлен
                             }
                         } else {
+                            console.log(`⚠️ Реферал уже существует: ${referrerTelegramId} -> ${referredTelegramId}`);
                             resolve(false);
                         }
                     }
@@ -669,16 +693,38 @@ class Database {
         });
     }
 
+    // 3. Проверьте, что поле referrals обновляется правильно:
+
     async updateReferralCount(telegramId) {
         return new Promise((resolve, reject) => {
-            this.db.run(
-                'UPDATE users SET referrals = referrals + 1 WHERE telegram_id = ?',
-                [telegramId],
-                (err) => {
-                    if (err) reject(err);
-                    else resolve();
+            // Сначала получаем фактическое количество рефералов
+            this.db.get(`
+                SELECT COUNT(*) as count 
+                FROM referrals r
+                JOIN users u ON r.referrer_id = u.id
+                WHERE u.telegram_id = ?
+            `, [telegramId], (err, result) => {
+                if (err) {
+                    reject(err);
+                    return;
                 }
-            );
+                
+                const actualCount = result?.count || 0;
+                
+                // Обновляем поле referrals фактическим значением
+                this.db.run(
+                    'UPDATE users SET referrals = ? WHERE telegram_id = ?',
+                    [actualCount, telegramId],
+                    (err) => {
+                        if (err) {
+                            reject(err);
+                        } else {
+                            console.log(`📊 Обновлен счетчик рефералов для ${telegramId}: ${actualCount}`);
+                            resolve();
+                        }
+                    }
+                );
+            });
         });
     }
 
