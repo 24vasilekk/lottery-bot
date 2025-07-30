@@ -155,31 +155,6 @@ export class TasksScreen {
                     <p>Поделитесь ссылкой и получайте 100 ⭐ за каждого друга</p>
                 </div>
             </div>
-            
-            <!-- Блок преимуществ -->
-            <div class="referral-benefits">
-                <div class="benefit-card">
-                    <div class="benefit-icon">⭐</div>
-                    <div class="benefit-content">
-                        <div class="benefit-title">100 звезд за друга</div>
-                        <div class="benefit-desc">Получайте награду за каждого приглашенного</div>
-                    </div>
-                </div>
-                <div class="benefit-card">
-                    <div class="benefit-icon">🎁</div>
-                    <div class="benefit-content">
-                        <div class="benefit-title">Бонусы для друзей</div>
-                        <div class="benefit-desc">Ваши друзья получают стартовый бонус</div>
-                    </div>
-                </div>
-                <div class="benefit-card">
-                    <div class="benefit-icon">🚀</div>
-                    <div class="benefit-content">
-                        <div class="benefit-title">Растущие награды</div>
-                        <div class="benefit-desc">Чем больше друзей, тем больше бонусов</div>
-                    </div>
-                </div>
-            </div>
         `;
     }
 
