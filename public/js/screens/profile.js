@@ -132,6 +132,11 @@ export class ProfileScreen {
         // Загружаем данные профиля
         this.loadProfileData();
         
+        // Обновляем реферальную ссылку после небольшой задержки
+        setTimeout(() => {
+            this.updateReferralLink();
+        }, 100);
+        
         console.log('✅ ProfileScreen инициализирован');
     }
 
@@ -234,12 +239,26 @@ export class ProfileScreen {
             `;
         }
         
+        // Обновляем реферальную ссылку
+        this.updateReferralLink();
+        
         // Обновляем UI всего приложения
         if (this.app.updateUI) {
             this.app.updateUI();
         }
         
         console.log('✅ Статистика профиля обновлена');
+    }
+
+    // Метод для обновления реферальной ссылки
+    updateReferralLink() {
+        const linkInput = document.getElementById('referral-link');
+        if (linkInput) {
+            const userId = this.getTelegramId();
+            const correctLink = `https://t.me/kosmetichkalottery_bot?start=ref_${userId}`;
+            linkInput.value = correctLink;
+            console.log('🔗 Реферальная ссылка обновлена:', correctLink);
+        }
     }
 
     // ИСПРАВЛЕННЫЙ МЕТОД: Загрузка лидерборда
@@ -447,20 +466,31 @@ export class ProfileScreen {
     copyReferralLink() {
         const linkInput = document.getElementById('referral-link');
         if (linkInput) {
+            // Генерируем актуальную ссылку на момент копирования
+            const userId = this.getTelegramId();
+            const correctLink = `https://t.me/kosmetichkalottery_bot?start=ref_${userId}`;
+            
+            // Обновляем значение в поле ввода
+            linkInput.value = correctLink;
+            
+            // Копируем ссылку
             linkInput.select();
             linkInput.setSelectionRange(0, 99999); // Для мобильных устройств
             
             try {
                 if (navigator.clipboard) {
-                    navigator.clipboard.writeText(linkInput.value).then(() => {
+                    navigator.clipboard.writeText(correctLink).then(() => {
                         this.showBasicNotification('✅ Ссылка скопирована!');
+                        console.log('Скопирована ссылка:', correctLink);
                     }).catch(() => {
                         document.execCommand('copy');
                         this.showBasicNotification('✅ Ссылка скопирована!');
+                        console.log('Скопирована ссылка (fallback):', correctLink);
                     });
                 } else {
                     document.execCommand('copy');
                     this.showBasicNotification('✅ Ссылка скопирована!');
+                    console.log('Скопирована ссылка (execCommand):', correctLink);
                 }
             } catch (err) {
                 console.error('Ошибка копирования:', err);
