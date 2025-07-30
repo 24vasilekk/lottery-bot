@@ -1,4 +1,4 @@
-// public/js/screens/tasks.js - Tasks Screen Module (UPDATED)
+// public/js/screens/tasks.js - Tasks Screen Module (FINAL UPDATE)
 
 import { TASKS_CONFIG } from '../config.js';
 
@@ -116,16 +116,6 @@ export class TasksScreen {
     // ===================== МЕТОДЫ РЕНДЕРИНГА =====================
 
     renderReferralTasks() {
-        if (!TASKS_CONFIG.friends) {
-            return `
-                <div class="task-section-empty">
-                    <div class="empty-icon">👥</div>
-                    <h3>Загрузка заданий...</h3>
-                    <p>Задания с друзьями загружаются</p>
-                </div>
-            `;
-        }
-
         const referralLink = this.getReferralLink();
         const friendsInvited = this.app.gameData.friendsInvited || 0;
 
@@ -148,10 +138,6 @@ export class TasksScreen {
                     </div>
                     <p class="referral-stats">Приглашено друзей: <strong>${friendsInvited}</strong></p>
                 </div>
-            </div>
-            
-            <div class="task-cards-grid">
-                ${TASKS_CONFIG.friends.map(task => this.renderFriendsTaskCard(task)).join('')}
             </div>
         `;
     }
@@ -193,82 +179,29 @@ export class TasksScreen {
         `;
     }
 
-    renderFriendsTaskCard(task) {
-        const isCompleted = this.isTaskCompleted(task.id);
-        const currentProgress = this.app.gameData.friendsInvited || 0;
-        const requiredCount = task.requirement;
-        const progressPercentage = Math.min(100, (currentProgress / requiredCount) * 100);
-        
-        return `
-            <div class="task-card friends-task ${isCompleted ? 'completed' : ''}">
-                <div class="task-header">
-                    <div class="task-icon">${task.icon}</div>
-                    <div class="task-info">
-                        <div class="task-name">${task.name}</div>
-                        <div class="task-description">${task.description}</div>
-                    </div>
-                </div>
-                
-                <div class="task-progress">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${progressPercentage}%"></div>
-                    </div>
-                    <div class="progress-text">${currentProgress}/${requiredCount}</div>
-                </div>
-                
-                <div class="task-reward">
-                    <span class="reward-amount">+${task.reward.amount}</span>
-                    <span class="reward-icon">⭐</span>
-                </div>
-                
-                <div class="task-actions">
-                    ${isCompleted ? 
-                        `<div class="task-status">
-                            <i class="fas fa-check"></i>
-                            Выполнено
-                        </div>` :
-                        currentProgress >= requiredCount ?
-                        `<button class="task-button" onclick="window.tasksScreen?.completeTask('${task.id}', 'friends')">
-                            Получить награду
-                        </button>` :
-                        `<div class="task-pending">
-                            Пригласите еще ${requiredCount - currentProgress} друзей
-                        </div>`
-                    }
-                </div>
-            </div>
-        `;
-    }
-
     renderActiveTaskCard(task) {
         const isCompleted = this.isTaskCompleted(task.id);
         
         return `
-            <div class="task-card active-task ${isCompleted ? 'completed' : ''}">
-                <div class="hot-badge">🔥 Активное</div>
-                <div class="task-header">
-                    <div class="task-icon">${task.icon}</div>
-                    <div class="task-info">
-                        <div class="task-name">${task.name}</div>
-                        <div class="task-description">${task.description}</div>
+            <div class="task-card active-task-new ${isCompleted ? 'completed' : ''}">
+                <div class="task-content-grid">
+                    <div class="task-left">
+                        <div class="task-title">${task.name}</div>
+                        <div class="task-reward-info">+${task.reward.amount} ⭐</div>
                     </div>
-                </div>
-                
-                <div class="task-reward">
-                    <span class="reward-amount">+${task.reward.amount}</span>
-                    <span class="reward-icon">⭐</span>
-                </div>
-                
-                <div class="task-actions">
-                    ${isCompleted ? 
-                        `<div class="task-status">
-                            <i class="fas fa-check"></i>
-                            Выполнено
-                        </div>` :
-                        `<button class="task-button" onclick="window.tasksScreen?.completeTask('${task.id}', 'active')">
-                            ${task.action || 'Выполнить'}
-                        </button>`
-                    }
+                    <div class="task-right">
+                        <div class="task-desc">${task.description}</div>
+                        <div class="task-action">
+                            ${isCompleted ? 
+                                `<div class="task-completed-status">
+                                    ✅ Выполнено
+                                </div>` :
+                                `<button class="task-complete-btn" onclick="window.tasksScreen?.completeTask('${task.id}', 'active')">
+                                    Выполнить
+                                </button>`
+                            }
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
