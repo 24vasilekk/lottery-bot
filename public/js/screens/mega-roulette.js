@@ -112,14 +112,23 @@ export class MegaRouletteScreen {
     setupEventListeners() {
         // Обработчик кнопки возврата
         const backBtn = document.getElementById('mega-back-btn');
+        console.log('🔍 Поиск кнопки возврата...', backBtn);
+        
         if (backBtn) {
+            console.log('✅ Кнопка найдена, добавляем обработчик');
             backBtn.addEventListener('click', () => {
-                console.log('⬅ Возврат на главную из мега-рулетки');
+                console.log('⬅ Клик по кнопке возврата');
+                console.log('📱 App:', this.app);
+                console.log('🧭 Navigation:', this.app?.navigation);
+                console.log('📍 NavigateTo:', this.app?.navigation?.navigateTo);
+                
                 try {
                     if (this.app && this.app.navigation && this.app.navigation.navigateTo) {
+                        console.log('🔄 Вызываем navigateTo("main")');
                         this.app.navigation.navigateTo('main');
                     } else {
                         console.error('Navigation не найден, перезагружаем страницу');
+                        console.error('App:', this.app);
                         window.location.reload();
                     }
                 } catch (error) {
@@ -127,6 +136,8 @@ export class MegaRouletteScreen {
                     window.location.reload();
                 }
             });
+        } else {
+            console.error('❌ Кнопка mega-back-btn не найдена!');
         }
 
         // Обработчик кнопки спина
