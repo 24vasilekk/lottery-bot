@@ -203,7 +203,39 @@ export class MainScreen {
         const centerY = 200;
         const anglePerSegment = (2 * Math.PI) / WHEEL_PRIZES.length;
 
+        // Красивые градиентные цвета в стиле профиля
+        const segmentColors = [
+            'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)', // Розово-малиновый
+            'linear-gradient(135deg, #764ba2 0%, #667eea 100%)', // Фиолетово-синий  
+            'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', // Розово-красный
+            'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', // Сине-голубой
+            'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', // Зелено-мятный
+            'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', // Розово-желтый
+            'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', // Мятно-розовый
+            'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)', // Коралловый
+            'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', // Синий-фиолетовый
+            'linear-gradient(135deg, #f6d365 0%, #fda085 100%)', // Желто-персиковый
+            'linear-gradient(135deg, #96fbc4 0%, #f9f586 100%)', // Зелено-желтый
+            'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)'  // Кремово-персиковый
+        ];
+
         let svgContent = '';
+        
+        // Создаем определения градиентов
+        let defsContent = '<defs>';
+        segmentColors.forEach((gradient, index) => {
+            const gradientMatch = gradient.match(/linear-gradient\(135deg,\s*([^,]+)\s*0%,\s*([^)]+)\s*100%\)/);
+            if (gradientMatch) {
+                const [, color1, color2] = gradientMatch;
+                defsContent += `
+                    <linearGradient id="gradient${index}" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:${color1.trim()};stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:${color2.trim()};stop-opacity:1" />
+                    </linearGradient>
+                `;
+            }
+        });
+        defsContent += '</defs>';
 
         WHEEL_PRIZES.forEach((prize, index) => {
             const startAngle = index * anglePerSegment - Math.PI / 2;
@@ -224,30 +256,35 @@ export class MainScreen {
             const textX = centerX + textRadius * Math.cos(textAngle);
             const textY = centerY + textRadius * Math.sin(textAngle);
 
+            // Используем циклический выбор градиента
+            const gradientIndex = index % segmentColors.length;
+
             svgContent += `
                 <path 
                     d="${path}" 
-                    fill="${prize.color}" 
-                    stroke="rgba(255,255,255,0.2)" 
-                    stroke-width="1"
+                    fill="url(#gradient${gradientIndex})" 
+                    stroke="rgba(255,255,255,0.3)" 
+                    stroke-width="2"
                     class="wheel-segment-path"
                     data-prize-id="${prize.id}"
+                    filter="drop-shadow(0 4px 8px rgba(0,0,0,0.3))"
                 />
                 <text 
                     x="${textX}" 
                     y="${textY}" 
                     text-anchor="middle" 
                     dominant-baseline="middle" 
-                    font-size="20" 
+                    font-size="24" 
                     fill="white"
                     font-weight="bold"
                     class="segment-icon"
+                    filter="drop-shadow(0 2px 4px rgba(0,0,0,0.5))"
                 >${prize.icon}</text>
             `;
         });
 
-        container.innerHTML = svgContent;
-        console.log('✅ SVG рулетки сгенерирован');
+        container.innerHTML = defsContent + svgContent;
+        console.log('✅ Красивая SVG рулетка сгенерирована');
     }
 
     async spinWheel(type) {
