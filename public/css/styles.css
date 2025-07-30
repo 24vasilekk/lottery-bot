@@ -1315,14 +1315,20 @@ body {
 }
 
 .referral-modal-content {
-    background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3a 100%);
+    background: 
+        radial-gradient(ellipse at 30% 20%, rgba(255, 107, 157, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse at 70% 60%, rgba(196, 69, 105, 0.1) 0%, transparent 60%),
+        radial-gradient(ellipse at 10% 80%, rgba(118, 75, 162, 0.12) 0%, transparent 60%),
+        linear-gradient(135deg, #1a1a1a 0%, #1a0f15 30%, #1a1a1a 70%, #0f0f0f 100%);
     border-radius: 25px;
     padding: 30px;
     max-width: 420px;
     width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 
         0 25px 50px rgba(0, 0, 0, 0.6),
-        0 0 0 1px rgba(255, 255, 255, 0.1);
+        0 0 30px rgba(255, 107, 157, 0.2),
+        inset 0 1px 2px rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(20px);
     animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -1403,7 +1409,7 @@ body {
 }
 
 .copy-btn {
-    background: linear-gradient(135deg, var(--primary-pink), var(--primary-purple));
+    background: linear-gradient(135deg, #ff6b9d 0%, #c44569 50%, #764ba2 100%);
     border: none;
     border-radius: 15px;
     padding: 12px 20px;
@@ -1415,11 +1421,17 @@ body {
     gap: 8px;
     transition: all 0.3s ease;
     white-space: nowrap;
+    box-shadow: 
+        0 0 20px rgba(255, 107, 157, 0.3),
+        0 4px 15px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .copy-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(239, 85, 165, 0.3);
+    box-shadow: 
+        0 0 30px rgba(255, 107, 157, 0.5),
+        0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
 .copy-btn:active {

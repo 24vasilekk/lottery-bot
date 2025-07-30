@@ -622,21 +622,25 @@ export class MainScreen {
             <div class="referral-modal-content">
                 <div class="referral-header">
                     <h3>🎁 Пригласи друга и получи прокрутку!</h3>
-                    <button class="close-modal">×</button>
+                    <button class="close-modal" type="button">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
                 <div class="referral-body">
                     <p>У вас пока нет приглашенных друзей. Поделитесь ссылкой с друзьями, чтобы получить бесплатные прокрутки!</p>
                     <div class="referral-link-container">
                         <input type="text" id="referral-link" value="${referralLink}" readonly>
-                        <button class="copy-btn" id="copy-referral-btn">
-                            <i class="fas fa-copy"></i> Копировать
+                        <button class="copy-btn" type="button" id="copy-referral-btn">
+                            <i class="fas fa-copy"></i>
+                            <span>Копировать</span>
                         </button>
                     </div>
                     <div class="referral-info">
                         <p>💫 За каждого друга вы получаете 1 бесплатную прокрутку колеса!</p>
                     </div>
-                    <button class="share-btn" id="share-referral-btn">
-                        <i class="fas fa-share"></i> Поделиться в Telegram
+                    <button class="share-btn" type="button" id="share-referral-btn">
+                        <i class="fas fa-share"></i>
+                        <span>Поделиться в Telegram</span>
                     </button>
                 </div>
             </div>
@@ -649,7 +653,10 @@ export class MainScreen {
             modal.remove();
         });
         
-        modal.querySelector('#copy-referral-btn').addEventListener('click', () => {
+        modal.querySelector('#copy-referral-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🔗 Клик по кнопке копирования');
             this.copyReferralLink(referralLink);
         });
         
