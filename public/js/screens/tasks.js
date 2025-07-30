@@ -139,7 +139,7 @@ export class TasksScreen {
                     <h4>Твоя реферальная ссылка:</h4>
                     <div class="link-input-group">
                         <input type="text" id="referral-link" value="${referralLink}" readonly>
-                        <button class="copy-btn" onclick="window.tasksScreen.copyReferralLink()">
+                        <button class="copy-btn-full" onclick="window.tasksScreen.copyReferralLink()">
                             📋 Копировать
                         </button>
                     </div>
