@@ -40,7 +40,7 @@
 }
 
 /* ========================================
-   HEADER ЗАДАНИЙ В СТИЛЕ ПРОФИЛЯ
+   УПРОЩЕННЫЙ HEADER ЗАДАНИЙ
    ======================================== */
 
 .tasks-header-profile {
@@ -80,10 +80,12 @@
 
 .tasks-info {
     flex: 1;
+    display: flex;
+    align-items: center; /* Центрируем заголовок по вертикали */
 }
 
 .tasks-title {
-    margin: 0 0 15px 0;
+    margin: 0; /* Убираем все отступы */
     font-size: 28px;
     font-weight: bold;
     background: linear-gradient(135deg, #ff6b9d, #c44569, #764ba2);
@@ -93,37 +95,8 @@
     text-shadow: 0 0 20px rgba(255, 107, 157, 0.5);
 }
 
-.tasks-progress {
-    font-size: 14px;
-    color: var(--text-secondary);
-    margin-bottom: 15px;
-    opacity: 0.9;
-}
-
-.tasks-stats {
-    display: flex;
-    gap: 20px;
-}
-
-.task-stat-item {
-    text-align: center;
-}
-
-.task-stat-value {
-    font-size: 18px;
-    font-weight: bold;
-    background: linear-gradient(135deg, #ff6b9d, #c44569);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 5px;
-}
-
-.task-stat-label {
-    font-size: 12px;
-    color: var(--text-secondary);
-    opacity: 0.8;
-}
+/* УДАЛЕНЫ СТИЛИ ДЛЯ .tasks-progress И .tasks-stats */
+/* Эти блоки больше не используются в упрощенной версии */
 
 /* ========================================
    ТАБЫ В СТИЛЕ ПРОФИЛЯ
@@ -290,180 +263,41 @@
     opacity: 1;
 }
 
-/* ========================================
-   ДОПОЛНИТЕЛЬНЫЕ ЭЛЕМЕНТЫ
-   ======================================== */
-
-.friends-counter {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
+/* Стили для разных типов карточек */
+.task-card.hot-offer {
+    border-color: rgba(255, 107, 157, 0.5);
+    background: 
+        linear-gradient(135deg, rgba(255, 107, 157, 0.1) 0%, rgba(42, 42, 42, 0.8) 50%);
 }
 
-.friends-count {
-    font-size: 24px;
-    font-weight: bold;
-    background: linear-gradient(135deg, #ff6b9d, #c44569);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 4px;
-}
-
-.friends-label {
-    font-size: 12px;
-    color: var(--text-secondary);
-    opacity: 0.8;
-}
-
-/* Карточка реферальной ссылки */
-.referral-link-card {
-    margin-bottom: 25px;
-}
-
-.referral-header {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    margin-bottom: 20px;
-}
-
-.referral-icon {
-    font-size: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 50px;
-    height: 50px;
-    background: linear-gradient(135deg, #ff6b9d, #c44569);
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.referral-info h4 {
-    margin: 0 0 8px 0;
-    font-size: 18px;
-    color: var(--text-primary);
-}
-
-.referral-info p {
-    margin: 0;
-    font-size: 14px;
-    color: var(--text-secondary);
-    opacity: 0.9;
-}
-
-.referral-link-input {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-}
-
-.referral-link-input input {
-    flex: 1;
-    background: rgba(42, 42, 42, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 12px 16px;
-    color: var(--text-primary);
-    font-size: 14px;
-    font-family: monospace;
-}
-
-.copy-link-btn {
-    background: linear-gradient(135deg, #ff6b9d, #c44569);
-    border: none;
-    border-radius: 12px;
-    padding: 12px;
-    color: white;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-}
-
-.copy-link-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(255, 107, 157, 0.4);
-}
-
-/* Прогресс бар для реферальных заданий */
-.task-progress {
-    margin-bottom: 20px;
-}
-
-.progress-bar {
-    width: 100%;
-    height: 8px;
-    background: rgba(42, 42, 42, 0.6);
-    border-radius: 4px;
-    overflow: hidden;
-    margin-bottom: 8px;
-}
-
-.progress-fill {
-    height: 100%;
-    background: linear-gradient(135deg, #ff6b9d, #c44569);
-    border-radius: 4px;
-    transition: width 0.3s ease;
-}
-
-.progress-text {
-    text-align: center;
-    font-size: 12px;
-    color: var(--text-secondary);
-    opacity: 0.8;
-}
-
-/* Состояния заданий */
 .task-card.completed {
     opacity: 0.7;
-    border-color: rgba(76, 175, 80, 0.3);
+    border-color: rgba(76, 175, 80, 0.5);
 }
 
-.task-card.completed::before {
-    background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, transparent 50%);
-    opacity: 1;
+.task-card.friends-task {
+    border-color: rgba(128, 158, 255, 0.3);
 }
 
-.task-card.locked {
-    opacity: 0.5;
+.task-card.active-task {
+    border-color: rgba(204, 213, 55, 0.3);
 }
 
-.task-card.locked .task-action-btn {
-    background: rgba(42, 42, 42, 0.6);
-    color: var(--text-secondary);
-    cursor: not-allowed;
-}
+/* ========================================
+   ЭЛЕМЕНТЫ КАРТОЧЕК ЗАДАНИЙ
+   ======================================== */
 
-.task-card.locked .task-action-btn:hover {
-    transform: none;
-    box-shadow: none;
-}
-
-/* Заголовки заданий */
 .task-header {
     display: flex;
-    align-items: center;
-    gap: 20px;
-    margin-bottom: 20px;
+    align-items: flex-start;
+    gap: 15px;
+    margin-bottom: 15px;
 }
 
 .task-icon {
     font-size: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 50px;
-    height: 50px;
-    background: linear-gradient(135deg, rgba(255, 107, 157, 0.2), rgba(196, 69, 105, 0.15));
-    border-radius: 50%;
-    border: 1px solid rgba(255, 107, 157, 0.3);
-    flex-shrink: 0;
+    min-width: 40px;
+    text-align: center;
 }
 
 .task-info {
@@ -471,54 +305,119 @@
 }
 
 .task-name {
-    margin: 0 0 8px 0;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: bold;
     color: var(--text-primary);
-    line-height: 1.2;
+    margin-bottom: 5px;
 }
 
 .task-description {
     font-size: 14px;
     color: var(--text-secondary);
+    opacity: 0.8;
     line-height: 1.4;
-    opacity: 0.9;
+}
+
+.task-reward {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 15px;
+    font-weight: bold;
+}
+
+.reward-amount {
+    color: var(--primary-color);
+    font-size: 16px;
+}
+
+.reward-icon {
+    font-size: 14px;
+}
+
+.task-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.task-button {
+    background: linear-gradient(135deg, var(--lime-color), #d4ed47);
+    border: none;
+    color: #000;
+    padding: 12px 20px;
+    border-radius: 15px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    min-width: 100px;
+}
+
+.task-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(204, 213, 55, 0.4);
+}
+
+.task-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #4CAF50;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 12px 20px;
+    background: rgba(76, 175, 80, 0.1);
+    border-radius: 15px;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.task-pending {
+    color: var(--text-secondary);
+    font-size: 14px;
+    padding: 12px 20px;
+    text-align: center;
+    opacity: 0.7;
+}
+
+/* ========================================
+   ПРОГРЕСС БАР ДЛЯ ЗАДАНИЙ С ДРУЗЬЯМИ
+   ======================================== */
+
+.task-progress {
+    margin: 15px 0;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--lime-color), #d4ed47);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
 }
 
 /* ========================================
    КАРТОЧКИ КАНАЛОВ
    ======================================== */
 
-.channel-card {
-    position: relative;
-}
-
-.channel-card.hot-offer {
-    border-color: #ff6b9d;
-    box-shadow: 0 0 30px rgba(255, 107, 157, 0.3);
-}
-
-.hot-badge {
-    position: absolute;
-    top: -1px;
-    right: 20px;
-    background: linear-gradient(135deg, #ff6b9d, #ff4757);
-    color: white;
-    padding: 8px 15px;
-    border-radius: 0 0 15px 15px;
-    font-size: 12px;
-    font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    box-shadow: 0 4px 15px rgba(255, 107, 157, 0.4);
-    animation: hotBadgePulse 2s ease-in-out infinite;
-}
-
 .channel-header {
     display: flex;
     align-items: center;
-    gap: 20px;
-    margin-bottom: 20px;
+    gap: 15px;
+    margin-bottom: 15px;
 }
 
 .channel-avatar {
@@ -527,8 +426,6 @@
     border-radius: 50%;
     overflow: hidden;
     flex-shrink: 0;
-    border: 2px solid rgba(255, 107, 157, 0.3);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
 .channel-avatar img {
@@ -537,113 +434,169 @@
     object-fit: cover;
 }
 
-.channel-info {
-    flex: 1;
-}
-
 .channel-name {
-    margin: 0 0 8px 0;
     font-size: 18px;
     font-weight: bold;
     color: var(--text-primary);
-    line-height: 1.2;
+    margin-bottom: 5px;
 }
 
 .channel-username {
     font-size: 14px;
-    color: #ff6b9d;
-    margin-bottom: 5px;
-    font-weight: 500;
-}
-
-.channel-subscribers {
-    font-size: 12px;
     color: var(--text-secondary);
     opacity: 0.8;
+    margin-bottom: 5px;
 }
 
 .channel-description {
-    font-size: 14px;
+    font-size: 13px;
     color: var(--text-secondary);
-    line-height: 1.5;
-    margin-bottom: 20px;
-    opacity: 0.9;
+    opacity: 0.7;
+    line-height: 1.3;
 }
 
-.task-reward {
+.channel-stats {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    padding: 15px;
-    background: rgba(255, 107, 157, 0.1);
-    border-radius: 12px;
-    border: 1px solid rgba(255, 107, 157, 0.2);
+    margin: 15px 0;
 }
 
-.reward-info {
+.stat-item {
     display: flex;
     align-items: center;
+    gap: 5px;
+    font-size: 14px;
+}
+
+.stat-item.reward {
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+.channel-actions {
+    display: flex;
     gap: 10px;
 }
 
-.reward-amount {
-    font-size: 16px;
-    font-weight: bold;
-    color: #ff6b9d;
-}
-
-.hot-multiplier {
-    background: linear-gradient(135deg, #ff6b9d, #ff4757);
-    color: white;
-    padding: 4px 8px;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: bold;
-}
-
-.hot-timer {
-    font-size: 12px;
-    color: #ff6b9d;
-    font-weight: 500;
-}
-
-.task-action-btn {
-    width: 100%;
-    background: linear-gradient(135deg, #ff6b9d, #c44569);
+.subscribe-btn {
+    flex: 1;
+    background: linear-gradient(135deg, var(--primary-color), #c44569);
     border: none;
-    border-radius: 15px;
-    padding: 15px 20px;
     color: white;
-    font-weight: 600;
-    font-size: 16px;
+    padding: 12px 20px;
+    border-radius: 15px;
     cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
     transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
 }
 
-.task-action-btn:hover {
+.subscribe-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(255, 107, 157, 0.4);
+    box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4);
 }
 
-.task-action-btn:active {
-    transform: translateY(0);
+.check-btn {
+    background: linear-gradient(135deg, var(--purple-color), #9bb5ff);
+    border: none;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 15px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
 }
 
-.btn-icon {
-    font-size: 18px;
-}
-
-.btn-text {
-    font-weight: 600;
+.check-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(128, 158, 255, 0.4);
 }
 
 /* ========================================
-   СОСТОЯНИЯ СЕКЦИЙ
+   HOT BADGES
+   ======================================== */
+
+.hot-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: linear-gradient(135deg, #ff6b9d, #ff8a00);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 12px;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(255, 107, 157, 0.4);
+    animation: hotBadgePulse 2s ease-in-out infinite;
+    z-index: 5;
+}
+
+/* ========================================
+   РЕФЕРАЛЬНЫЕ ССЫЛКИ
+   ======================================== */
+
+.referral-link-container {
+    margin-bottom: 25px;
+    padding: 20px;
+    background: rgba(42, 42, 42, 0.4);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.referral-info h4 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    color: var(--text-primary);
+}
+
+.link-input-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.link-input-group input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 12px 15px;
+    color: var(--text-primary);
+    font-size: 14px;
+    outline: none;
+}
+
+.copy-btn {
+    background: linear-gradient(135deg, var(--lime-color), #d4ed47);
+    border: none;
+    color: #000;
+    padding: 12px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.copy-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(204, 213, 55, 0.4);
+}
+
+.referral-stats {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.referral-stats strong {
+    color: var(--primary-color);
+}
+
+/* ========================================
+   ПУСТЫЕ СОСТОЯНИЯ
    ======================================== */
 
 .task-section-empty,
@@ -757,5 +710,13 @@
     
     .channel-name {
         font-size: 16px;
+    }
+    
+    .channel-actions {
+        flex-direction: column;
+    }
+    
+    .link-input-group {
+        flex-direction: column;
     }
 }
