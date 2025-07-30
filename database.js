@@ -415,14 +415,12 @@ class Database {
         });
     }
 
-    async updateUserStars(telegramId, starsChange) {
+    // 3. Убедитесь, что метод updateUserStars работает правильно:
+    async updateUserStars(telegramId, amount) {
         return new Promise((resolve, reject) => {
             this.db.run(
-                `UPDATE users SET 
-                 stars = stars + ?, 
-                 total_stars_earned = total_stars_earned + ?
-                 WHERE telegram_id = ?`,
-                [starsChange, Math.max(0, starsChange), telegramId],
+                'UPDATE users SET stars = stars + ? WHERE telegram_id = ?',
+                [amount, telegramId],
                 (err) => {
                     if (err) reject(err);
                     else resolve();
@@ -695,9 +693,10 @@ class Database {
 
     // 3. Проверьте, что поле referrals обновляется правильно:
 
+    // 2. ЗАМЕНИТЕ метод updateReferralCount на эту версию:
     async updateReferralCount(telegramId) {
         return new Promise((resolve, reject) => {
-            // Сначала получаем фактическое количество рефералов
+            // Сначала получаем фактическое количество рефералов из таблицы referrals
             this.db.get(`
                 SELECT COUNT(*) as count 
                 FROM referrals r
@@ -711,7 +710,7 @@ class Database {
                 
                 const actualCount = result?.count || 0;
                 
-                // Обновляем поле referrals фактическим значением
+                // Обновляем поле referrals точным фактическим значением
                 this.db.run(
                     'UPDATE users SET referrals = ? WHERE telegram_id = ?',
                     [actualCount, telegramId],
@@ -1257,6 +1256,23 @@ class Database {
                         resolve(true);
                     } else {
                         resolve(false);
+                    }
+                }
+            );
+        });
+    }
+
+    // 1. Метод для обновления total_stars_earned
+    async incrementTotalStarsEarned(telegramId, amount) {
+        return new Promise((resolve, reject) => {
+            this.db.run(
+                'UPDATE users SET total_stars_earned = total_stars_earned + ? WHERE telegram_id = ?',
+                [amount, telegramId],
+                (err) => {
+                    if (err) reject(err);
+                    else {
+                        console.log(`⭐ Обновлено total_stars_earned для ${telegramId}: +${amount}`);
+                        resolve();
                     }
                 }
             );
