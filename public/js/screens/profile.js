@@ -510,16 +510,22 @@ export class ProfileScreen {
 
     // Вспомогательные методы
     getTelegramId() {
-        return this.app.tg?.initDataUnsafe?.user?.id || 
-               this.app.gameData.telegramId || 
-               'Неизвестно';
+        const telegramUser = this.app.tg?.initDataUnsafe?.user || 
+                            window.Telegram?.WebApp?.initDataUnsafe?.user;
+        
+        return telegramUser?.id || 'Неизвестно';
     }
 
     getUserDisplayName() {
-        const user = this.app.tg?.initDataUnsafe?.user;
-        return user?.username 
-            ? `@${user.username}` 
-            : (user?.first_name || 'Пользователь');
+        const telegramUser = this.app.tg?.initDataUnsafe?.user || 
+                            window.Telegram?.WebApp?.initDataUnsafe?.user;
+        
+        if (telegramUser?.username) {
+            return `@${telegramUser.username}`;
+        } else if (telegramUser?.first_name) {
+            return telegramUser.first_name;
+        }
+        return 'Пользователь';
     }
 
     getPlayerDisplayName(player) {
