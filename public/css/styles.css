@@ -1348,9 +1348,8 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    padding: 20px;
-    margin: -30px -30px 20px -30px;
+    padding: 20px 25px;
+    margin: -30px -30px 25px -30px;
     background: linear-gradient(135deg, #ff6b9d 0%, #c44569 50%, #764ba2 100%);
     border-radius: 25px 25px 0 0;
     box-shadow: 

@@ -161,30 +161,36 @@ export class MegaRouletteScreen {
         const centerY = 200;
         const anglePerSegment = (2 * Math.PI) / this.megaPrizes.length;
 
-        let svgContent = `
-            <defs>
-                <linearGradient id="legendary-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#FFA500;stop-opacity:1" />
-                </linearGradient>
-                <linearGradient id="epic-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:#9966CC;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#8A2BE2;stop-opacity:1" />
-                </linearGradient>
-                <linearGradient id="rare-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:#1E90FF;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#0066CC;stop-opacity:1" />
-                </linearGradient>
-                <linearGradient id="common-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:#32CD32;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#228B22;stop-opacity:1" />
-                </linearGradient>
-                <linearGradient id="empty-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:#696969;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#2F4F4F;stop-opacity:1" />
-                </linearGradient>
-            </defs>
-        `;
+        // Красивые градиентные цвета в стиле профиля для мега рулетки
+        const megaSegmentColors = [
+            'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)', // Розово-малиновый
+            'linear-gradient(135deg, #764ba2 0%, #667eea 100%)', // Фиолетово-синий  
+            'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', // Розово-красный
+            'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', // Сине-голубой
+            'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', // Зелено-мятный
+            'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', // Розово-желтый
+            'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', // Мятно-розовый
+            'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)', // Коралловый
+            'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'  // Синий-фиолетовый
+        ];
+
+        // Создаем определения градиентов
+        let defsContent = '<defs>';
+        megaSegmentColors.forEach((gradient, index) => {
+            const gradientMatch = gradient.match(/linear-gradient\(135deg,\s*([^,]+)\s*0%,\s*([^)]+)\s*100%\)/);
+            if (gradientMatch) {
+                const [, color1, color2] = gradientMatch;
+                defsContent += `
+                    <linearGradient id="mega-gradient${index}" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:${color1.trim()};stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:${color2.trim()};stop-opacity:1" />
+                    </linearGradient>
+                `;
+            }
+        });
+        defsContent += '</defs>';
+
+        let svgContent = '';
 
         this.megaPrizes.forEach((prize, index) => {
             const startAngle = index * anglePerSegment - Math.PI / 2;
@@ -199,8 +205,8 @@ export class MegaRouletteScreen {
 
             const path = `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
 
-            // Получаем цвет по редкости
-            const color = this.getPrizeColor(prize.rarity);
+            // Используем циклический выбор градиента
+            const gradientIndex = index % megaSegmentColors.length;
 
             // Текст иконки
             const textAngle = (startAngle + endAngle) / 2;
@@ -211,11 +217,12 @@ export class MegaRouletteScreen {
             svgContent += `
                 <path 
                     d="${path}" 
-                    fill="${color}" 
+                    fill="url(#mega-gradient${gradientIndex})" 
                     stroke="rgba(255,255,255,0.3)" 
                     stroke-width="2"
                     class="wheel-segment-path mega-segment"
                     data-prize-id="${prize.id}"
+                    filter="drop-shadow(0 4px 8px rgba(0,0,0,0.3))"
                 />
                 <text 
                     x="${textX}" 
@@ -226,13 +233,13 @@ export class MegaRouletteScreen {
                     fill="white"
                     font-weight="bold"
                     class="segment-icon"
-                    filter="drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8))"
+                    filter="drop-shadow(0 2px 4px rgba(0,0,0,0.5))"
                 >${prize.icon}</text>
             `;
         });
 
-        container.innerHTML = svgContent;
-        console.log('✅ SVG мега рулетки сгенерирован');
+        container.innerHTML = defsContent + svgContent;
+        console.log('✅ Красивая SVG мега рулетки сгенерирована');
     }
 
     getPrizeColor(rarity) {
