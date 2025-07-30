@@ -40,16 +40,7 @@ export class ProfileScreen {
                         <div class="profile-info">
                             <h3 class="profile-name">${this.getUserDisplayName()}</h3>
                             <div class="profile-telegram-id">ID: ${this.getTelegramId()}</div>
-                            <div class="profile-stats">
-                                <div class="stat-item">
-                                    <div class="stat-value">${gameData.stars}</div>
-                                    <div class="stat-label">⭐ Звезд</div>
-                                </div>
-                                <div class="stat-item">
-                                    <div class="stat-value">${gameData.referrals || 0}</div>
-                                    <div class="stat-label">👥 Рефералы</div>
-                                </div>
-                            </div>
+                            <!-- Убрали блок profile-stats с количеством звезд и рефералов -->
                         </div>
                     </div>
 
@@ -71,6 +62,7 @@ export class ProfileScreen {
                                     <div class="stats-card-value">${gameData.referrals || 0}</div>
                                     <div class="stats-card-label">Рефералов</div>
                                 </div>
+                                <!-- Убрали карточки с прокрутками и призами -->
                             </div>
                         </div>
 
@@ -91,8 +83,12 @@ export class ProfileScreen {
                                 <i class="fas fa-gift"></i>
                                 История призов
                             </div>
-                            <div class="prize-history" id="prize-history">
-                                ${this.renderPrizesHistory()}
+                            <div class="prizes-section" id="prizes-section">
+                                <div class="empty-state">
+                                    <div class="empty-icon">🎁</div>
+                                    <div class="empty-text">Пока что призов нет</div>
+                                    <div class="empty-subtitle">Крутите рулетку, чтобы выиграть призы!</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -100,101 +96,74 @@ export class ProfileScreen {
                 
                 <!-- Контент вкладки "Лидерборд" -->
                 <div class="tab-content" id="leaderboard">
-                    <div class="leaderboard-container">
-                        <div class="leaderboard-header">
-                            <h3>
-                                <i class="fas fa-trophy"></i>
-                                Топ игроков по рефералам
-                            </h3>
-                            <p>Лучшие игроки нашего сообщества</p>
-                        </div>
-                        
-                        <div class="leaderboard-controls">
-                            <button class="leaderboard-tab active" data-type="global">
-                                <i class="fas fa-globe"></i> Глобальный топ
-                            </button>
-                            <button class="leaderboard-tab" data-type="referrals">
-                                <i class="fas fa-users"></i> Мои рефералы
-                            </button>
-                        </div>
-                        
-                        <div class="leaderboard-content" id="leaderboard-content">
-                            <div class="loading">
-                                <i class="fas fa-spinner fa-spin"></i>
-                                <p>Загрузка лидерборда...</p>
-                            </div>
-                        </div>
-                        
-                        <!-- Позиция текущего пользователя -->
-                        <div class="current-user-rank" id="current-user-rank">
-                            <!-- Ранг пользователя будет загружен -->
+                    <div class="leaderboard-tabs">
+                        <button class="leaderboard-tab active" data-type="global">
+                            <i class="fas fa-globe"></i>
+                            Глобальный
+                        </button>
+                        <button class="leaderboard-tab" data-type="referrals">
+                            <i class="fas fa-users"></i>
+                            Рефералы
+                        </button>
+                    </div>
+                    
+                    <div class="current-position" id="current-position">
+                        <!-- Позиция пользователя будет загружена динамически -->
+                    </div>
+                    
+                    <div class="leaderboard-list" id="leaderboard-list">
+                        <div class="loading-state">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Загрузка лидерборда...</p>
                         </div>
                     </div>
                 </div>
-
-                <!-- ДОПОЛНИТЕЛЬНЫЙ ОТСТУП ДЛЯ ПОЛНОЙ ПРОКРУТКИ -->
-                <div style="height: 80px;"></div>
             </div>
         `;
     }
 
     init() {
-        console.log('👤 Инициализация экрана профиля...');
-        this.setupEventListeners();
+        console.log('🎮 Инициализация ProfileScreen...');
+        
+        // Устанавливаем обработчики событий
+        this.setupTabEventListeners();
+        this.setupLeaderboardTabs();
+        this.setupReferralHandlers();
+        
+        // Загружаем данные профиля
         this.loadProfileData();
-        console.log('✅ Экран профиля инициализирован');
+        
+        console.log('✅ ProfileScreen инициализирован');
     }
 
-    setupEventListeners() {
-        // Переключение вкладок
-        this.initProfileTabs();
-        
-        // Переключение в лидерборде
-        this.initLeaderboardTabs();
-        
-        // Кнопка "Пригласить друга"
-        const shareBtn = document.getElementById('share-referral');
-        if (shareBtn) {
-            shareBtn.addEventListener('click', () => {
-                this.shareReferralLink();
-            });
-        }
-    }
-
-    // Инициализация переключения вкладок
-    initProfileTabs() {
-        const tabs = document.querySelectorAll('.profile-tab');
-        const contents = document.querySelectorAll('.tab-content');
-        
-        tabs.forEach(tab => {
+    setupTabEventListeners() {
+        document.querySelectorAll('.profile-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 const targetTab = tab.dataset.tab;
                 
-                // Убираем активный класс со всех вкладок и контента
-                tabs.forEach(t => t.classList.remove('active'));
-                contents.forEach(c => c.classList.remove('active'));
-                
-                // Добавляем активный класс к выбранной вкладке
+                // Переключаем активную вкладку
+                document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
+                
+                // Переключаем контент
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
                 document.getElementById(targetTab).classList.add('active');
                 
-                this.currentTab = targetTab;
-                
-                // Если переключились на лидерборд, загружаем его
+                // Загружаем данные для соответствующей вкладки
                 if (targetTab === 'leaderboard') {
-                    console.log('🏆 Переключились на лидерборд, загружаем данные...');
                     this.loadLeaderboard();
                 }
+                
+                this.currentTab = targetTab;
             });
         });
     }
 
-    // НОВЫЙ МЕТОД: Инициализация переключения вкладок лидерборда
-    initLeaderboardTabs() {
-        // Используем делегирование событий, так как кнопки могут быть пересозданы
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('.leaderboard-tab')) {
-                const button = e.target.closest('.leaderboard-tab');
+    setupLeaderboardTabs() {
+        document.querySelectorAll('.leaderboard-tab').forEach(button => {
+            button.addEventListener('click', () => {
                 const type = button.dataset.type;
                 
                 console.log(`🏆 Переключение лидерборда на тип: ${type}`);
@@ -207,7 +176,7 @@ export class ProfileScreen {
                 
                 // Загружаем данные
                 this.loadLeaderboardData(type);
-            }
+            });
         });
     }
 
@@ -249,14 +218,6 @@ export class ProfileScreen {
     updateProfileStats(userData) {
         console.log('📊 Обновление статистики профиля:', userData);
         
-        // Обновляем основные значения в профиле
-        const starElements = document.querySelectorAll('.stat-value');
-        if (starElements.length >= 3) {
-            starElements[0].textContent = userData.stars || this.app.gameData.stars || 0; // Звезды
-            starElements[1].textContent = userData.stats?.referrals || userData.referrals || 0; // Рефералы
-            starElements[2].textContent = userData.stats?.totalSpins || userData.totalSpins || 0; // Прокрутки
-        }
-        
         // Обновляем детальную статистику если есть соответствующий элемент
         const statsGrid = document.getElementById('profile-stats-grid');
         if (statsGrid) {
@@ -270,16 +231,6 @@ export class ProfileScreen {
                     <div class="stats-card-icon">👥</div>
                     <div class="stats-card-value">${userData.stats?.referrals || userData.referrals || 0}</div>
                     <div class="stats-card-label">Рефералов</div>
-                </div>
-                <div class="stats-card">
-                    <div class="stats-card-icon">🎰</div>
-                    <div class="stats-card-value">${userData.stats?.totalSpins || userData.totalSpins || 0}</div>
-                    <div class="stats-card-label">Прокруток</div>
-                </div>
-                <div class="stats-card">
-                    <div class="stats-card-icon">🏆</div>
-                    <div class="stats-card-value">${userData.stats?.prizesWon || userData.prizesWon || 0}</div>
-                    <div class="stats-card-label">Призов</div>
                 </div>
             `;
         }
@@ -302,161 +253,149 @@ export class ProfileScreen {
         // Загружаем позицию текущего пользователя
         const userId = this.getTelegramId();
         if (userId && userId !== 'Неизвестно') {
-            await this.loadUserRank(userId);
+            await this.loadUserPosition(userId);
         }
     }
 
     // ИСПРАВЛЕННЫЙ МЕТОД: Загрузка данных лидерборда
-    // Для файла public/js/screens/profile.js
-    // Исправленный метод загрузки лидерборда
-
-    async loadLeaderboardData(type = 'global') {
+    async loadLeaderboardData(type) {
         console.log(`🏆 Загрузка лидерборда типа: ${type}`);
-        
-        const contentContainer = document.getElementById('leaderboard-content');
-        const userId = this.getTelegramId();
-        
-        if (!contentContainer) {
-            console.error('Контейнер лидерборда не найден');
-            return;
-        }
-        
-        // Сохраняем текущий тип
         this.currentLeaderboardType = type;
         
-        // Показываем загрузку
-        contentContainer.innerHTML = `
-            <div class="loading">
+        const leaderboardList = document.getElementById('leaderboard-list');
+        if (!leaderboardList) return;
+        
+        // Показываем состояние загрузки
+        leaderboardList.innerHTML = `
+            <div class="loading-state">
                 <i class="fas fa-spinner fa-spin"></i>
-                <p>Загрузка...</p>
+                <p>Загрузка лидерборда...</p>
             </div>
         `;
-
+        
         try {
-            let endpoint;
-            let limitParam = '?limit=20';
-            
-            if (type === 'referrals' && userId && userId !== 'Неизвестно') {
-                // Лидерборд приглашенных друзей конкретного пользователя
-                endpoint = `/api/referrals-leaderboard/${userId}${limitParam}`;
-            } else {
-                // Глобальный лидерборд по рефералам
-                endpoint = `/api/leaderboard-referrals${limitParam}`;
-            }
-            
-            console.log(`🔗 Запрос к: ${endpoint}`);
-            
+            const endpoint = type === 'referrals' 
+                ? '/api/leaderboard/referrals' 
+                : '/api/leaderboard/global';
+                
             const response = await fetch(endpoint);
             
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`❌ HTTP ${response.status}: ${response.statusText}`, errorText);
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-
+            
             const data = await response.json();
-            const leaderboard = data.leaderboard || [];
+            console.log(`✅ Данные лидерборда (${type}):`, data);
             
-            console.log(`📊 Получено записей лидерборда: ${leaderboard.length}`);
-
-            if (leaderboard.length === 0) {
-                const emptyMessage = type === 'referrals' ? 
-                    'У вас пока нет приглашенных друзей' : 
-                    'Пока нет игроков с рефералами';
-                    
-                contentContainer.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-users" style="font-size: 48px; margin-bottom: 15px; opacity: 0.3;"></i>
-                        <p>${emptyMessage}</p>
-                        ${type === 'referrals' ? 
-                            '<p style="margin-top: 10px; font-size: 14px; opacity: 0.7;">Пригласите друзей, чтобы попасть в рейтинг!</p>' : 
-                            '<p style="margin-top: 10px; font-size: 14px; opacity: 0.7;">Станьте первым!</p>'
-                        }
-                    </div>
-                `;
-                return;
-            }
-
-            // Генерируем HTML для лидерборда
-            let leaderboardHTML = '<div class="leaderboard-list">';
-            
-            leaderboard.forEach((player, index) => {
-                const position = index + 1;
-                const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : position;
-                const name = player.first_name || player.username || 'Игрок';
-                const referralsCount = player.referrals_count || 0;
-                const stars = player.total_stars_earned || 0;
-                
-                leaderboardHTML += `
-                    <div class="leaderboard-item ${position <= 3 ? 'top-three' : ''}">
-                        <div class="position">${medal}</div>
-                        <div class="player-info">
-                            <div class="player-name">${name}</div>
-                            <div class="player-stats">
-                                👥 ${referralsCount} рефералов • ⭐ ${stars}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            leaderboardHTML += '</div>';
-            contentContainer.innerHTML = leaderboardHTML;
-            
-            console.log('✅ Лидерборд отрендерен успешно');
+            this.renderLeaderboard(data, type);
             
         } catch (error) {
-            console.error('❌ Ошибка загрузки лидерборда:', error);
-            
-            contentContainer.innerHTML = `
+            console.error(`❌ Ошибка загрузки лидерборда (${type}):`, error);
+            leaderboardList.innerHTML = `
                 <div class="error-state">
-                    <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 15px; color: #ff6b6b;"></i>
-                    <h3>Ошибка загрузки лидерборда</h3>
-                    <p style="margin: 10px 0; opacity: 0.7;">${error.message}</p>
-                    <button onclick="profile.loadLeaderboardData('${type}')" 
-                            style="background: linear-gradient(45deg, #FF6B9D, #C44569); border: none; color: white; padding: 10px 20px; border-radius: 25px; cursor: pointer; margin-top: 15px;">
-                        Попробовать снова
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Ошибка загрузки лидерборда</p>
+                    <button onclick="window.profileScreen.loadLeaderboardData('${type}')" class="retry-btn">
+                        Повторить попытку
                     </button>
                 </div>
             `;
         }
     }
 
-    // Загрузка позиции пользователя
-    // Метод для загрузки позиции пользователя
-    async loadUserRank(userId) {
-        try {
-            console.log(`📊 Загрузка позиции пользователя ${userId} в рейтинге рефералов`);
+    // ИСПРАВЛЕННЫЙ МЕТОД: Рендер лидерборда
+    renderLeaderboard(data, type) {
+        const leaderboardList = document.getElementById('leaderboard-list');
+        if (!leaderboardList) return;
+        
+        console.log('🎨 Рендер лидерборда:', { type, data });
+        
+        if (!data || !Array.isArray(data) || data.length === 0) {
+            leaderboardList.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">🏆</div>
+                    <div class="empty-text">Лидерборд пуст</div>
+                    <div class="empty-subtitle">Станьте первым!</div>
+                </div>
+            `;
+            return;
+        }
+        
+        const leaderboardHTML = data.map((player, index) => {
+            const position = index + 1;
+            const emoji = this.getPositionEmoji(position);
+            const displayName = this.getPlayerDisplayName(player);
+            const scoreValue = type === 'referrals' 
+                ? (player.referrals_count || 0)
+                : (player.total_stars_earned || player.stars || 0);
+            const scoreLabel = type === 'referrals' ? '👥' : '⭐';
             
-            const response = await fetch(`/api/user-referral-rank/${userId}`);
-            
-            if (!response.ok) {
-                console.warn(`⚠️ Не удалось получить ранг: HTTP ${response.status}`);
-                return;
-            }
-            
-            const data = await response.json();
-            const rank = data.rank;
-            
-            console.log('📊 Данные ранга пользователя:', rank);
-            
-            // Обновляем отображение позиции
-            const positionContainer = document.querySelector('.user-position');
-            if (positionContainer && rank) {
-                const position = rank.position || 'Не определена';
-                const referralsCount = rank.referrals_count || 0;
-                
-                positionContainer.innerHTML = `
-                    <div class="position-card">
-                        <div class="position-title">Ваша позиция в рейтинге</div>
-                        <div class="position-number">${position === 'Не определена' ? '—' : `#${position}`}</div>
-                        <div class="position-details">Рефералов: ${referralsCount}</div>
+            return `
+                <div class="leaderboard-item ${this.isCurrentUser(player) ? 'current-user' : ''}">
+                    <div class="player-rank ${position <= 3 ? 'top-rank' : ''}">${emoji}</div>
+                    <div class="player-info">
+                        <div class="player-name">${displayName}</div>
+                        <div class="player-id">ID: ${player.telegram_id}</div>
                     </div>
-                `;
-            }
+                    <div class="player-score">${scoreLabel} ${scoreValue}</div>
+                </div>
+            `;
+        }).join('');
+        
+        leaderboardList.innerHTML = leaderboardHTML;
+    }
+
+    // Загрузка позиции текущего пользователя
+    async loadUserPosition(userId) {
+        try {
+            const endpoint = this.currentLeaderboardType === 'referrals' 
+                ? `/api/leaderboard/referrals/position/${userId}`
+                : `/api/leaderboard/global/position/${userId}`;
+                
+            const response = await fetch(endpoint);
             
+            if (response.ok) {
+                const positionData = await response.json();
+                this.renderUserPosition(positionData);
+            }
         } catch (error) {
             console.error('❌ Ошибка загрузки позиции пользователя:', error);
+        }
+    }
+
+    // Рендер позиции пользователя
+    renderUserPosition(data) {
+        const currentPositionEl = document.getElementById('current-position');
+        if (!currentPositionEl) return;
+        
+        if (data && data.position) {
+            const { position, score } = data;
+            const scoreLabel = this.currentLeaderboardType === 'referrals' ? 'рефералов' : 'звезд';
+            const emoji = this.getPositionEmoji(position);
+            
+            currentPositionEl.innerHTML = `
+                <div class="user-position-card">
+                    <div class="position-info">
+                        <div class="position-rank">${emoji}</div>
+                        <div class="position-text">
+                            <div class="position-number">${position > 100 ? '100+' : `#${position}`}</div>
+                            <div class="position-details">${scoreLabel}: ${score}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            currentPositionEl.innerHTML = `
+                <div class="user-position-card">
+                    <div class="position-info">
+                        <div class="position-rank">—</div>
+                        <div class="position-text">
+                            <div class="position-number">Не в рейтинге</div>
+                            <div class="position-details">Начните играть!</div>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
     }
 
@@ -504,306 +443,6 @@ export class ProfileScreen {
                         <h4>💡 Как это работает:</h4>
                         <ul>
                             <li>Пригласите друга по вашей ссылке</li>
-                            <li>Друг должен выполнить 2 подписки на каналы</li>
-                            <li>Вы получите 20 звезд за активного реферала</li>
-                            <li>Дополнительно 100 звезд за каждого приглашенного</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    // Улучшенный метод копирования
-    copyReferralLink() {
-        const linkInput = document.getElementById('referral-link');
-        if (linkInput && linkInput.value !== 'Загрузка...') {
-            linkInput.select();
-            linkInput.setSelectionRange(0, 99999);
-            
-            try {
-                if (navigator.clipboard) {
-                    navigator.clipboard.writeText(linkInput.value).then(() => {
-                        this.showNotification('Ссылка скопирована! 📋', 'success');
-                    });
-                } else {
-                    document.execCommand('copy');
-                    this.showNotification('Ссылка скопирована! 📋', 'success');
-                }
-            } catch (err) {
-                console.error('Ошибка копирования:', err);
-                this.showNotification('Ошибка копирования. Скопируйте вручную', 'error');
-            }
-        } else {
-            this.showNotification('Ссылка еще загружается...', 'warning');
-        }
-    }
-
-    // Улучшенный метод поделиться ссылкой
-    shareReferralLink(referralLink, shareText) {
-        if (!referralLink) {
-            const userId = this.getTelegramId();
-            referralLink = `https://t.me/kosmetichka_lottery_bot?start=ref_${userId}`;
-        }
-        
-        if (!shareText) {
-            shareText = '🎰 Присоединяйся к Kosmetichka Lottery!\n\n💎 Играй в рулетку красоты\n🎁 Выигрывай крутые призы\n👥 Приглашай друзей и получай бонусы';
-        }
-        
-        const message = `${shareText}\n\n${referralLink}`;
-        
-        if (this.app.tg?.isVersionAtLeast?.('6.1')) {
-            // Используем новый API для шаринга
-            this.app.tg.shareUrl(referralLink, shareText);
-        } else {
-            // Fallback для старых версий
-            const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`;
-            
-            if (this.app.tg && this.app.tg.openTelegramLink) {
-                this.app.tg.openTelegramLink(shareUrl);
-            } else {
-                window.open(shareUrl, '_blank');
-            }
-        }
-    }
-
-    showNotification(message, type = 'success') {
-        // Удаляем предыдущее уведомление, если есть
-        const existingNotification = document.querySelector('.notification');
-        if (existingNotification) {
-            existingNotification.remove();
-        }
-        
-        // Создаем новое уведомление
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        notification.textContent = message;
-        
-        // Добавляем в DOM
-        document.body.appendChild(notification);
-        
-        // Убираем через 3 секунды
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.style.animation = 'slideOutNotification 0.3s ease-in';
-                setTimeout(() => {
-                    notification.remove();
-                }, 300);
-            }
-        }, 3000);
-    }
-
-    renderPrizesHistory() {
-        const gameData = this.app.gameData;
-        const allPrizes = gameData.prizes || [];
-
-        // Фильтруем только сертификаты (исключаем звезды и пустые призы)
-        const certificatePrizes = allPrizes.filter(prize => {
-            const prizeType = prize.type || '';
-            return prizeType.startsWith('golden-apple-') || prizeType === 'dolce-deals';
-        });
-
-        if (certificatePrizes.length === 0) {
-            return `
-                <div class="empty-history">
-                    <i class="fas fa-gift"></i>
-                    <p>У вас пока нет призов</p>
-                    <span>Крутите рулетку, чтобы выиграть призы!</span>
-                </div>
-            `;
-        }
-
-        // Сортируем призы по дате получения (новые сначала) и берем максимум 10
-        const sortedPrizes = [...certificatePrizes]
-            .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
-            .slice(0, 10);
-
-        return sortedPrizes.map(prize => `
-            <div class="prize-history-item">
-                <div class="prize-icon">${this.getPrizeIcon(prize)}</div>
-                <div class="prize-info">
-                    <div class="prize-name">${prize.name}</div>
-                    <div class="prize-date">${this.formatDate(prize.timestamp || Date.now())}</div>
-                </div>
-                ${prize.value ? `<div class="prize-value">${prize.value}</div>` : ''}
-            </div>
-        `).join('');
-    }
-
-    getPrizeIcon(prize) {
-        const prizeIcons = {
-            'golden-apple-3000': '🍎',
-            'golden-apple-2000': '🍎',
-            'golden-apple-1500': '🍎',
-            'golden-apple-1000': '🍎',
-            'golden-apple-500': '🍎',
-            'dolce-deals': '🚚',
-            'stars': '⭐',
-            'empty': '❌'
-        };
-        
-        for (const [key, icon] of Object.entries(prizeIcons)) {
-            if (prize.type?.includes(key)) {
-                return icon;
-            }
-        }
-        
-        return '🎁';
-    }
-
-    getUserDisplayName() {
-        const telegramUser = this.app.tg?.initDataUnsafe?.user || 
-                            window.Telegram?.WebApp?.initDataUnsafe?.user;
-        
-        if (telegramUser?.username) {
-            return `@${telegramUser.username}`;
-        } else if (telegramUser?.first_name) {
-            return telegramUser.first_name;
-        }
-        return 'Пользователь';
-    }
-
-    getTelegramId() {
-        const telegramUser = this.app.tg?.initDataUnsafe?.user || 
-                            window.Telegram?.WebApp?.initDataUnsafe?.user;
-        
-        return telegramUser?.id || 'Неизвестно';
-    }
-
-    formatDate(timestamp) {
-        const date = new Date(timestamp);
-        return date.toLocaleDateString('ru-RU', {
-            day: '2-digit',
-            month: '2-digit', 
-            year: 'numeric'
-        });
-    }
-    // Обновленный метод generateReferralSection
-
-    // Обновленный метод для загрузки реферальной информации
-    async loadReferralInfo() {
-        const userId = this.getTelegramId();
-        
-        if (!userId || userId === 'Неизвестно') {
-            console.warn('⚠️ Не удалось получить ID пользователя для реферальной ссылки');
-            return;
-        }
-        
-        try {
-            console.log(`🔗 Загрузка реферальной информации для пользователя ${userId}`);
-            
-            // Получаем реферальную ссылку и статистику
-            const response = await fetch(`/api/referral-link/${userId}`);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                // Обновляем ссылку
-                const linkInput = document.getElementById('referral-link');
-                if (linkInput) {
-                    linkInput.value = data.referralLink;
-                }
-                
-                // Обновляем статистику
-                const referralsCount = document.getElementById('referrals-count');
-                const earnedFromReferrals = document.getElementById('earned-from-referrals');
-                
-                if (referralsCount) {
-                    referralsCount.textContent = data.statistics.totalReferrals || 0;
-                }
-                
-                if (earnedFromReferrals) {
-                    earnedFromReferrals.textContent = `${data.statistics.potentialEarnings.totalEarned || 0} ⭐`;
-                }
-                
-                // Обновляем обработчик кнопки "Поделиться"
-                const shareButton = document.getElementById('share-referral');
-                if (shareButton) {
-                    shareButton.onclick = () => {
-                        this.shareReferralLink(data.referralLink, data.shareText);
-                    };
-                }
-                
-                console.log('✅ Реферальная информация загружена успешно');
-            } else {
-                throw new Error('Не удалось получить реферальную ссылку');
-            }
-            
-        } catch (error) {
-            console.error('❌ Ошибка загрузки реферальной информации:', error);
-            
-            // Fallback - генерируем ссылку локально
-            const fallbackLink = `https://t.me/kosmetichka_lottery_bot?start=ref_${userId}`;
-            const linkInput = document.getElementById('referral-link');
-            if (linkInput) {
-                linkInput.value = fallbackLink;
-            }
-            
-            // Показываем базовую статистику из профиля
-            const userData = this.app.userData;
-            if (userData) {
-                const referralsCount = document.getElementById('referrals-count');
-                const earnedFromReferrals = document.getElementById('earned-from-referrals');
-                
-                if (referralsCount) {
-                    referralsCount.textContent = userData.stats?.referrals || 0;
-                }
-                
-                if (earnedFromReferrals) {
-                    const estimated = (userData.stats?.referrals || 0) * 120; // 100 + 20 за активацию
-                    earnedFromReferrals.textContent = `~${estimated} ⭐`;
-                }
-            }
-        }
-    }
-
-
-    generateReferralSection() {
-        const userId = this.getTelegramId();
-        
-        return `
-            <div class="referral-section">
-                <h3>👥 Пригласите друзей</h3>
-                
-                <div class="referral-stats" id="referral-stats">
-                    <div class="stat-item">
-                        <div class="stat-value" id="referrals-count">...</div>
-                        <div class="stat-label">Рефералов</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="earned-from-referrals">...</div>
-                        <div class="stat-label">Заработано</div>
-                    </div>
-                </div>
-                
-                <div class="referral-link-container">
-                    <label>Ваша реферальная ссылка:</label>
-                    <div class="referral-link">
-                        <input type="text" id="referral-link" value="Загрузка..." readonly>
-                        <button onclick="window.profileScreen.copyReferralLink()" class="copy-btn">
-                            <i class="fas fa-copy"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Действия с рефералами -->
-                <div class="referral-actions">
-                    <button id="share-referral" class="share-btn">
-                        <i class="fas fa-share"></i>
-                        Поделиться ссылкой
-                    </button>
-                </div>
-                
-                <!-- Информация о бонусах -->
-                <div class="referral-info">
-                    <div class="referral-description">
-                        <h4>💡 Как это работает:</h4>
-                        <ul>
-                            <li>Пригласите друга по вашей ссылке</li>
                             <li>Получите 100 звезд сразу при регистрации</li>
                             <li>Друг должен выполнить 2 подписки на каналы</li>
                             <li>Вы получите дополнительно 20 звезд за активного реферала</li>
@@ -813,6 +452,100 @@ export class ProfileScreen {
             </div>
         `;
     }
+
+    setupReferralHandlers() {
+        setTimeout(() => {
+            // Обработчик кнопки "Поделиться"
+            const shareBtn = document.getElementById('share-referral');
+            if (shareBtn) {
+                shareBtn.addEventListener('click', () => {
+                    this.shareReferralLink();
+                });
+            }
+        }, 100);
+    }
+
+    // Копирование реферальной ссылки
+    copyReferralLink() {
+        const linkInput = document.getElementById('referral-link');
+        if (linkInput) {
+            linkInput.select();
+            linkInput.setSelectionRange(0, 99999); // Для мобильных устройств
+            
+            try {
+                document.execCommand('copy');
+                this.app.showNotification('✅ Ссылка скопирована!', 'success');
+            } catch (err) {
+                console.error('Ошибка копирования:', err);
+                this.app.showNotification('❌ Ошибка копирования', 'error');
+            }
+        }
+    }
+
+    // Поделиться реферальной ссылкой
+    shareReferralLink() {
+        const userId = this.getTelegramId();
+        const referralLink = `https://t.me/kosmetichka_lottery_bot?start=ref_${userId}`;
+        const shareText = `🎁 Присоединяйся к Kosmetichka Lottery!\n\n💫 Крути рулетку и выигрывай призы!\n⭐ Получи бонусные звезды за регистрацию!\n\n${referralLink}`;
+        
+        if (this.app.tg && this.app.tg.shareMessage) {
+            // Используем Telegram Web App API
+            this.app.tg.shareMessage(shareText);
+        } else if (navigator.share) {
+            // Используем Web Share API
+            navigator.share({
+                title: 'Kosmetichka Lottery',
+                text: shareText,
+                url: referralLink
+            }).catch(err => console.log('Ошибка шаринга:', err));
+        } else {
+            // Fallback - копируем в буфер обмена
+            navigator.clipboard.writeText(shareText).then(() => {
+                this.app.showNotification('✅ Текст для поделиться скопирован!', 'success');
+            }).catch(() => {
+                this.app.showNotification('❌ Ошибка копирования', 'error');
+            });
+        }
+    }
+
+    // Вспомогательные методы
+    getTelegramId() {
+        return this.app.tg?.initDataUnsafe?.user?.id || 
+               this.app.gameData.telegramId || 
+               'Неизвестно';
+    }
+
+    getUserDisplayName() {
+        const user = this.app.tg?.initDataUnsafe?.user;
+        return user?.username 
+            ? `@${user.username}` 
+            : (user?.first_name || 'Пользователь');
+    }
+
+    getPlayerDisplayName(player) {
+        if (player.username) {
+            return `@${player.username}`;
+        } else if (player.first_name) {
+            return player.first_name;
+        } else {
+            return `User${player.telegram_id.toString().slice(-4)}`;
+        }
+    }
+
+    getPositionEmoji(position) {
+        switch (position) {
+            case 1: return '🥇';
+            case 2: return '🥈';
+            case 3: return '🥉';
+            default: return `#${position}`;
+        }
+    }
+
+    isCurrentUser(player) {
+        const currentUserId = this.getTelegramId();
+        return currentUserId && currentUserId.toString() === player.telegram_id.toString();
+    }
+
     renderUserAvatar() {
         const user = this.app.tg?.initDataUnsafe?.user;
         
