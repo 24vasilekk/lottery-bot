@@ -421,10 +421,10 @@ export class ProfileScreen {
                 <!-- Реферальная ссылка -->
                 <div class="referral-link-container">
                     <label>Ваша реферальная ссылка:</label>
-                    <div class="referral-link" style="display: flex; gap: 10px; align-items: center; background: rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 10px; margin-top: 10px;">
-                        <input type="text" id="referral-link" value="https://t.me/kosmetichka_lottery_bot?start=ref_${this.getTelegramId()}" readonly style="flex: 1; background: transparent; border: none; color: var(--text-primary); font-size: 14px; padding: 5px; min-width: 0;">
-                        <button onclick="window.profileScreen.copyReferralLink()" class="copy-btn" style="background: linear-gradient(135deg, #FF6B9D, #C44569); border: none; color: white; padding: 8px 12px; border-radius: 10px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
-                            <i class="fas fa-copy"></i>
+                    <div class="referral-link" style="display: flex; gap: 8px; align-items: center; background: rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 8px; margin-top: 10px; overflow: hidden;">
+                        <input type="text" id="referral-link" value="https://t.me/kosmetichka_lottery_bot?start=ref_${this.getTelegramId()}" readonly style="flex: 1; background: transparent; border: none; color: var(--text-primary); font-size: 12px; padding: 5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <button onclick="window.profileScreen.copyReferralLink()" class="copy-btn" style="background: linear-gradient(135deg, #FF6B9D, #C44569); border: none; color: white; padding: 6px 10px; border-radius: 8px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; min-width: 32px;">
+                            <i class="fas fa-copy" style="font-size: 12px;"></i>
                         </button>
                     </div>
                 </div>
@@ -457,7 +457,10 @@ export class ProfileScreen {
             // Обработчик кнопки "Поделиться"
             const shareBtn = document.getElementById('share-referral');
             if (shareBtn) {
-                shareBtn.addEventListener('click', () => {
+                shareBtn.onclick = null; // Очищаем предыдущий обработчик
+                shareBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    console.log('🔗 Нажата кнопка "Поделиться ссылкой"');
                     this.shareReferralLink();
                 });
             }
@@ -472,11 +475,20 @@ export class ProfileScreen {
             linkInput.setSelectionRange(0, 99999); // Для мобильных устройств
             
             try {
-                document.execCommand('copy');
-                this.app.showNotification('✅ Ссылка скопирована!', 'success');
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(linkInput.value).then(() => {
+                        this.showBasicNotification('✅ Ссылка скопирована!');
+                    }).catch(() => {
+                        document.execCommand('copy');
+                        this.showBasicNotification('✅ Ссылка скопирована!');
+                    });
+                } else {
+                    document.execCommand('copy');
+                    this.showBasicNotification('✅ Ссылка скопирована!');
+                }
             } catch (err) {
                 console.error('Ошибка копирования:', err);
-                this.app.showNotification('❌ Ошибка копирования', 'error');
+                this.showBasicNotification('❌ Ошибка копирования');
             }
         }
     }
@@ -485,25 +497,63 @@ export class ProfileScreen {
     shareReferralLink() {
         const userId = this.getTelegramId();
         const referralLink = `https://t.me/kosmetichka_lottery_bot?start=ref_${userId}`;
-        const shareText = `🎁 Присоединяйся к Kosmetichka Lottery!\n\n💫 Крути рулетку и выигрывай призы!\n⭐ Получи бонусные звезды за регистрацию!\n\n${referralLink}`;
+        const shareText = `🎁 Присоединяйся к Kosmetichka Lottery!\n\n💫 Крути рулетку и выигрывай призы!\n⭐ Получи бонусные звезды за регистрацию!`;
         
-        if (this.app.tg && this.app.tg.shareMessage) {
-            // Используем Telegram Web App API
-            this.app.tg.shareMessage(shareText);
-        } else if (navigator.share) {
-            // Используем Web Share API
-            navigator.share({
-                title: 'Kosmetichka Lottery',
-                text: shareText,
-                url: referralLink
-            }).catch(err => console.log('Ошибка шаринга:', err));
-        } else {
-            // Fallback - копируем в буфер обмена
-            navigator.clipboard.writeText(shareText).then(() => {
-                this.app.showNotification('✅ Текст для поделиться скопирован!', 'success');
+        try {
+            if (this.app.tg && this.app.tg.shareMessage) {
+                // Используем Telegram Web App API
+                this.app.tg.shareMessage(`${shareText}\n\n${referralLink}`);
+            } else if (navigator.share) {
+                // Используем Web Share API
+                navigator.share({
+                    title: 'Kosmetichka Lottery',
+                    text: shareText,
+                    url: referralLink
+                }).catch(err => {
+                    console.log('Ошибка шаринга:', err);
+                    this.fallbackShare(referralLink, shareText);
+                });
+            } else {
+                this.fallbackShare(referralLink, shareText);
+            }
+        } catch (error) {
+            console.error('Ошибка при попытке поделиться:', error);
+            this.fallbackShare(referralLink, shareText);
+        }
+    }
+
+    // Fallback метод для поделиться
+    fallbackShare(referralLink, shareText) {
+        const fullText = `${shareText}\n\n${referralLink}`;
+        
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(fullText).then(() => {
+                this.showNotification('✅ Текст для поделиться скопирован!', 'success');
             }).catch(() => {
-                this.app.showNotification('❌ Ошибка копирования', 'error');
+                this.showBasicNotification('✅ Скопируйте ссылку вручную');
             });
+        } else {
+            // Совсем старый fallback
+            const textArea = document.createElement('textarea');
+            textArea.value = fullText;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                this.showBasicNotification('✅ Текст скопирован!');
+            } catch (err) {
+                this.showBasicNotification('Скопируйте ссылку вручную');
+            }
+            document.body.removeChild(textArea);
+        }
+    }
+
+    // Простое уведомление без сложной анимации
+    showBasicNotification(message) {
+        if (this.app && this.app.showNotification) {
+            this.app.showNotification(message, 'success');
+        } else {
+            alert(message);
         }
     }
 
