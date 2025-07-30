@@ -800,31 +800,107 @@ app.post('/api/debug/wheel-spin', async (req, res) => {
 });
 
 // API для проверки подписок на каналы
-app.post('/api/check-subscriptions', async (req, res) => {
+// API endpoint для проверки подписки на канал
+app.post('/api/check-subscription', async (req, res) => {
     try {
-        const { userId } = req.body;
+        const { userId, channelUsername } = req.body;
         
-        // Валидация userId
-        const userIdValidation = validateTelegramId(userId);
-        if (!userIdValidation.isValid) {
-            return res.status(400).json({ 
-                error: 'Invalid user ID',
-                details: userIdValidation.error
+        if (!userId || !channelUsername) {
+            return res.status(400).json({
+                success: false,
+                error: 'Не указаны userId или channelUsername'
+            });
+        }
+
+        console.log(`🔍 Проверяем подписку пользователя ${userId} на канал ${channelUsername}`);
+
+        // Убираем @ из начала username если есть
+        const cleanChannelUsername = channelUsername.replace(/^@/, '');
+        
+        try {
+            // Проверяем является ли пользователь участником канала
+            const chatMember = await bot.getChatMember(`@${cleanChannelUsername}`, userId);
+            
+            console.log(`👤 Статус пользователя в канале ${cleanChannelUsername}:`, chatMember.status);
+            
+            // Проверяем статус участника
+            const subscribedStatuses = ['member', 'administrator', 'creator'];
+            const isSubscribed = subscribedStatuses.includes(chatMember.status);
+            
+            if (isSubscribed) {
+                console.log(`✅ Пользователь ${userId} подписан на канал ${cleanChannelUsername}`);
+                
+                // Логируем успешную проверку в базу данных
+                await database.logSubscriptionCheck(userId, cleanChannelUsername, true);
+                
+                res.json({
+                    success: true,
+                    isSubscribed: true,
+                    status: chatMember.status,
+                    message: 'Пользователь подписан на канал'
+                });
+            } else {
+                console.log(`❌ Пользователь ${userId} не подписан на канал ${cleanChannelUsername} (статус: ${chatMember.status})`);
+                
+                // Логируем неуспешную проверку
+                await database.logSubscriptionCheck(userId, cleanChannelUsername, false);
+                
+                res.json({
+                    success: false,
+                    isSubscribed: false,
+                    status: chatMember.status,
+                    error: 'Вы не подписаны на канал. Подпишитесь и попробуйте снова.'
+                });
+            }
+            
+        } catch (telegramError) {
+            console.error(`❌ Ошибка Telegram API при проверке подписки:`, telegramError);
+            
+            // Обрабатываем различные типы ошибок Telegram
+            if (telegramError.response && telegramError.response.body) {
+                const errorBody = telegramError.response.body;
+                
+                if (errorBody.error_code === 400) {
+                    if (errorBody.description.includes('chat not found')) {
+                        return res.json({
+                            success: false,
+                            isSubscribed: false,
+                            error: 'Канал не найден. Проверьте правильность username канала.'
+                        });
+                    }
+                    
+                    if (errorBody.description.includes('user not found')) {
+                        return res.json({
+                            success: false,
+                            isSubscribed: false,
+                            error: 'Пользователь не найден.'
+                        });
+                    }
+                }
+                
+                if (errorBody.error_code === 403) {
+                    return res.json({
+                        success: false,
+                        isSubscribed: false,
+                        error: 'Бот не может проверить подписку. Возможно, бот не добавлен в администраторы канала.'
+                    });
+                }
+            }
+            
+            // Общая ошибка
+            res.json({
+                success: false,
+                isSubscribed: false,
+                error: 'Ошибка проверки подписки. Попробуйте позже.'
             });
         }
         
-        const subscriptions = await db.getUserSubscriptions(userIdValidation.value);
-        
-        res.json({ 
-            subscriptions: {
-                channel1: subscriptions.is_subscribed_channel1 || false,
-                channel2: subscriptions.is_subscribed_channel2 || false,
-                dolcedeals: subscriptions.is_subscribed_dolcedeals || false
-            }
-        });
     } catch (error) {
-        console.error('❌ Ошибка проверки подписок:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('❌ Общая ошибка при проверке подписки:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Внутренняя ошибка сервера'
+        });
     }
 });
 
