@@ -421,9 +421,9 @@ export class ProfileScreen {
                 <!-- Реферальная ссылка -->
                 <div class="referral-link-container">
                     <label>Ваша реферальная ссылка:</label>
-                    <div class="referral-link">
-                        <input type="text" id="referral-link" value="https://t.me/kosmetichka_lottery_bot?start=ref_${this.getTelegramId()}" readonly>
-                        <button onclick="window.profileScreen.copyReferralLink()" class="copy-btn">
+                    <div class="referral-link" style="display: flex; gap: 10px; align-items: center; background: rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 10px; margin-top: 10px;">
+                        <input type="text" id="referral-link" value="https://t.me/kosmetichka_lottery_bot?start=ref_${this.getTelegramId()}" readonly style="flex: 1; background: transparent; border: none; color: var(--text-primary); font-size: 14px; padding: 5px; min-width: 0;">
+                        <button onclick="window.profileScreen.copyReferralLink()" class="copy-btn" style="background: linear-gradient(135deg, #FF6B9D, #C44569); border: none; color: white; padding: 8px 12px; border-radius: 10px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
                             <i class="fas fa-copy"></i>
                         </button>
                     </div>
@@ -443,9 +443,8 @@ export class ProfileScreen {
                         <h4>💡 Как это работает:</h4>
                         <ul>
                             <li>Пригласите друга по вашей ссылке</li>
-                            <li>Получите 100 звезд сразу при регистрации</li>
                             <li>Друг должен выполнить 2 подписки на каналы</li>
-                            <li>Вы получите дополнительно 20 звезд за активного реферала</li>
+                            <li>Вы получите 20 звезд за активного реферала</li>
                         </ul>
                     </div>
                 </div>
