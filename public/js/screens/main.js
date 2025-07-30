@@ -630,9 +630,8 @@ export class MainScreen {
                     <p>У вас пока нет приглашенных друзей. Поделитесь ссылкой с друзьями, чтобы получить бесплатные прокрутки!</p>
                     <div class="referral-link-container">
                         <input type="text" id="referral-link" value="${referralLink}" readonly>
-                        <button class="copy-btn" type="button" id="copy-referral-btn">
+                        <button class="copy-btn" type="button" id="copy-referral-btn" title="Копировать ссылку">
                             <i class="fas fa-copy"></i>
-                            <span>Копировать</span>
                         </button>
                     </div>
                     <div class="referral-info">
