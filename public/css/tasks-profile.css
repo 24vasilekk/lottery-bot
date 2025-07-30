@@ -1,4 +1,4 @@
-/* public/css/tasks-profile.css - СТИЛИ ЗАДАНИЙ В СТИЛЕ ПРОФИЛЯ */
+/* public/css/tasks-profile.css - СТИЛИ ЗАДАНИЙ В СТИЛЕ ПРОФИЛЯ (ОБНОВЛЕНО) */
 
 /* ========================================
    ОСНОВНЫЕ СТИЛИ ЭКРАНА ЗАДАНИЙ
@@ -95,16 +95,13 @@
     text-shadow: 0 0 20px rgba(255, 107, 157, 0.5);
 }
 
-/* УДАЛЕНЫ СТИЛИ ДЛЯ .tasks-progress И .tasks-stats */
-/* Эти блоки больше не используются в упрощенной версии */
-
 /* ========================================
-   ТАБЫ В СТИЛЕ ПРОФИЛЯ
+   ТАБЫ В СТИЛЕ ПРОФИЛЯ (ТОЛЬКО 2 КНОПКИ)
    ======================================== */
 
 .task-tabs-profile {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(2, 1fr); /* Изменено с 4 на 2 колонки */
     gap: 12px;
     margin-bottom: 25px;
     padding: 0 5px;
@@ -114,7 +111,7 @@
     background: rgba(42, 42, 42, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 15px;
-    padding: 15px 8px;
+    padding: 18px 12px; /* Увеличен padding для лучшего вида */
     text-align: center;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -122,7 +119,9 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 8px;
+    min-height: 60px; /* Фиксированная высота */
 }
 
 .task-tab-profile:hover {
@@ -137,14 +136,9 @@
     box-shadow: 0 4px 20px rgba(255, 107, 157, 0.3);
 }
 
-.tab-icon {
-    font-size: 20px;
-    margin-bottom: 2px;
-}
-
 .tab-text {
-    font-size: 11px;
-    font-weight: 500;
+    font-size: 14px; /* Увеличен размер шрифта */
+    font-weight: 600;
     color: var(--text-primary);
     line-height: 1.2;
 }
@@ -218,7 +212,7 @@
 }
 
 /* ========================================
-   СЕТКА КАРТОЧЕК ЗАДАНИЙ
+   СЕТКА КАРТОЧЕК ЗАДАНИЙ (УЛУЧШЕННАЯ)
    ======================================== */
 
 .task-cards-grid {
@@ -230,20 +224,21 @@
 
 .task-card {
     background: 
-        linear-gradient(135deg, rgba(42, 42, 42, 0.8) 0%, rgba(30, 30, 30, 0.9) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+        linear-gradient(135deg, rgba(42, 42, 42, 0.9) 0%, rgba(30, 30, 30, 0.95) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 20px;
     padding: 25px;
     backdrop-filter: blur(15px);
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .task-card:hover {
     transform: translateY(-4px);
-    border-color: rgba(255, 107, 157, 0.3);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    border-color: rgba(255, 107, 157, 0.4);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 }
 
 .task-card::before {
@@ -253,7 +248,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(255, 107, 157, 0.05) 0%, transparent 50%);
+    background: linear-gradient(135deg, rgba(255, 107, 157, 0.08) 0%, transparent 50%);
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.3s ease;
@@ -267,20 +262,26 @@
 .task-card.hot-offer {
     border-color: rgba(255, 107, 157, 0.5);
     background: 
-        linear-gradient(135deg, rgba(255, 107, 157, 0.1) 0%, rgba(42, 42, 42, 0.8) 50%);
+        linear-gradient(135deg, rgba(255, 107, 157, 0.12) 0%, rgba(42, 42, 42, 0.9) 50%);
 }
 
 .task-card.completed {
-    opacity: 0.7;
+    opacity: 0.75;
     border-color: rgba(76, 175, 80, 0.5);
+    background: 
+        linear-gradient(135deg, rgba(76, 175, 80, 0.08) 0%, rgba(42, 42, 42, 0.9) 50%);
 }
 
 .task-card.friends-task {
-    border-color: rgba(128, 158, 255, 0.3);
+    border-color: rgba(128, 158, 255, 0.4);
+    background: 
+        linear-gradient(135deg, rgba(128, 158, 255, 0.08) 0%, rgba(42, 42, 42, 0.9) 50%);
 }
 
 .task-card.active-task {
-    border-color: rgba(204, 213, 55, 0.3);
+    border-color: rgba(204, 213, 55, 0.4);
+    background: 
+        linear-gradient(135deg, rgba(204, 213, 55, 0.08) 0%, rgba(42, 42, 42, 0.9) 50%);
 }
 
 /* ========================================
@@ -298,6 +299,7 @@
     font-size: 24px;
     min-width: 40px;
     text-align: center;
+    margin-top: 3px;
 }
 
 .task-info {
@@ -309,12 +311,13 @@
     font-weight: bold;
     color: var(--text-primary);
     margin-bottom: 5px;
+    line-height: 1.3;
 }
 
 .task-description {
     font-size: 14px;
     color: var(--text-secondary);
-    opacity: 0.8;
+    opacity: 0.85;
     line-height: 1.4;
 }
 
@@ -324,6 +327,7 @@
     gap: 5px;
     margin-bottom: 15px;
     font-weight: bold;
+    justify-content: flex-end;
 }
 
 .reward-amount {
@@ -350,12 +354,13 @@
     font-size: 14px;
     font-weight: bold;
     transition: all 0.3s ease;
-    min-width: 100px;
+    min-width: 120px;
+    box-shadow: 0 4px 15px rgba(204, 213, 55, 0.3);
 }
 
 .task-button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(204, 213, 55, 0.4);
+    box-shadow: 0 6px 20px rgba(204, 213, 55, 0.5);
 }
 
 .task-status {
@@ -366,9 +371,11 @@
     font-weight: bold;
     font-size: 14px;
     padding: 12px 20px;
-    background: rgba(76, 175, 80, 0.1);
+    background: rgba(76, 175, 80, 0.15);
     border-radius: 15px;
     border: 1px solid rgba(76, 175, 80, 0.3);
+    min-width: 120px;
+    justify-content: center;
 }
 
 .task-pending {
@@ -377,6 +384,9 @@
     padding: 12px 20px;
     text-align: center;
     opacity: 0.7;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    min-width: 120px;
 }
 
 /* ========================================
@@ -389,128 +399,27 @@
 
 .progress-bar {
     width: 100%;
-    height: 8px;
+    height: 10px;
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
+    border-radius: 5px;
     overflow: hidden;
     margin-bottom: 8px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .progress-fill {
     height: 100%;
     background: linear-gradient(90deg, var(--lime-color), #d4ed47);
-    border-radius: 4px;
+    border-radius: 5px;
     transition: width 0.3s ease;
+    box-shadow: 0 2px 8px rgba(204, 213, 55, 0.4);
 }
 
 .progress-text {
     font-size: 12px;
     color: var(--text-secondary);
     text-align: center;
-}
-
-/* ========================================
-   КАРТОЧКИ КАНАЛОВ
-   ======================================== */
-
-.channel-header {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    margin-bottom: 15px;
-}
-
-.channel-avatar {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    overflow: hidden;
-    flex-shrink: 0;
-}
-
-.channel-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.channel-name {
-    font-size: 18px;
-    font-weight: bold;
-    color: var(--text-primary);
-    margin-bottom: 5px;
-}
-
-.channel-username {
-    font-size: 14px;
-    color: var(--text-secondary);
-    opacity: 0.8;
-    margin-bottom: 5px;
-}
-
-.channel-description {
-    font-size: 13px;
-    color: var(--text-secondary);
-    opacity: 0.7;
-    line-height: 1.3;
-}
-
-.channel-stats {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin: 15px 0;
-}
-
-.stat-item {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 14px;
-}
-
-.stat-item.reward {
-    color: var(--primary-color);
-    font-weight: bold;
-}
-
-.channel-actions {
-    display: flex;
-    gap: 10px;
-}
-
-.subscribe-btn {
-    flex: 1;
-    background: linear-gradient(135deg, var(--primary-color), #c44569);
-    border: none;
-    color: white;
-    padding: 12px 20px;
-    border-radius: 15px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: bold;
-    transition: all 0.3s ease;
-}
-
-.subscribe-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4);
-}
-
-.check-btn {
-    background: linear-gradient(135deg, var(--purple-color), #9bb5ff);
-    border: none;
-    color: white;
-    padding: 12px 16px;
-    border-radius: 15px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.3s ease;
-}
-
-.check-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(128, 158, 255, 0.4);
+    font-weight: 500;
 }
 
 /* ========================================
@@ -533,66 +442,82 @@
 }
 
 /* ========================================
-   РЕФЕРАЛЬНЫЕ ССЫЛКИ
+   РЕФЕРАЛЬНЫЕ ССЫЛКИ (УЛУЧШЕННЫЕ)
    ======================================== */
 
 .referral-link-container {
     margin-bottom: 25px;
-    padding: 20px;
-    background: rgba(42, 42, 42, 0.4);
+    padding: 25px;
+    background: 
+        linear-gradient(135deg, rgba(42, 42, 42, 0.8) 0%, rgba(30, 30, 30, 0.9) 100%);
     border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(15px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .referral-info h4 {
     margin: 0 0 15px 0;
     font-size: 16px;
     color: var(--text-primary);
+    font-weight: 600;
 }
 
 .link-input-group {
     display: flex;
     gap: 10px;
     margin-bottom: 15px;
+    align-items: stretch;
 }
 
 .link-input-group input {
     flex: 1;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 10px;
-    padding: 12px 15px;
+    border-radius: 12px;
+    padding: 14px 16px;
     color: var(--text-primary);
-    font-size: 14px;
+    font-size: 13px;
     outline: none;
+    transition: all 0.3s ease;
+    font-family: 'Courier New', monospace;
+}
+
+.link-input-group input:focus {
+    border-color: rgba(255, 107, 157, 0.5);
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.1);
 }
 
 .copy-btn {
     background: linear-gradient(135deg, var(--lime-color), #d4ed47);
     border: none;
     color: #000;
-    padding: 12px 20px;
-    border-radius: 10px;
+    padding: 14px 20px;
+    border-radius: 12px;
     cursor: pointer;
     font-size: 14px;
     font-weight: bold;
     transition: all 0.3s ease;
+    min-width: 110px;
+    box-shadow: 0 4px 15px rgba(204, 213, 55, 0.3);
 }
 
 .copy-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(204, 213, 55, 0.4);
+    box-shadow: 0 6px 20px rgba(204, 213, 55, 0.5);
 }
 
 .referral-stats {
     font-size: 14px;
     color: var(--text-secondary);
     margin: 0;
+    text-align: center;
 }
 
 .referral-stats strong {
     color: var(--primary-color);
+    font-weight: 600;
 }
 
 /* ========================================
@@ -688,35 +613,33 @@
     }
     
     .task-tab-profile {
-        padding: 12px 6px;
+        padding: 14px 8px;
+        min-height: 50px;
     }
     
     .tab-text {
-        font-size: 10px;
+        font-size: 12px;
     }
     
     .task-card {
         padding: 20px;
     }
     
-    .channel-header {
-        gap: 15px;
-    }
-    
-    .channel-avatar {
-        width: 50px;
-        height: 50px;
-    }
-    
-    .channel-name {
-        font-size: 16px;
-    }
-    
-    .channel-actions {
-        flex-direction: column;
-    }
-    
     .link-input-group {
         flex-direction: column;
+        gap: 12px;
+    }
+    
+    .copy-btn {
+        min-width: auto;
+        width: 100%;
+    }
+    
+    .task-button,
+    .task-status,
+    .task-pending {
+        min-width: 100px;
+        font-size: 13px;
+        padding: 10px 16px;
     }
 }
