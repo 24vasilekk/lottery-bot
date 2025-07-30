@@ -1,10 +1,9 @@
-// public/js/screens/profile.js - ИСПРАВЛЕННАЯ ВЕРСИЯ С РАБОЧИМ ЛИДЕРБОРДОМ
+// public/js/screens/profile.js - ИСПРАВЛЕННАЯ ВЕРСИЯ С УПРОЩЕННЫМ ЛИДЕРБОРДОМ
 
 export class ProfileScreen {
     constructor(app) {
         this.app = app;
         this.currentTab = 'profile-info';
-        this.currentLeaderboardType = 'global';
         
         // ВАЖНО: Устанавливаем глобальную ссылку сразу при создании
         window.profileScreen = this;
@@ -40,7 +39,6 @@ export class ProfileScreen {
                         <div class="profile-info">
                             <h3 class="profile-name">${this.getUserDisplayName()}</h3>
                             <div class="profile-telegram-id">ID: ${this.getTelegramId()}</div>
-                            <!-- Убрали блок profile-stats с количеством звезд и рефералов -->
                         </div>
                     </div>
 
@@ -62,7 +60,6 @@ export class ProfileScreen {
                                     <div class="stats-card-value">${gameData.referrals || 0}</div>
                                     <div class="stats-card-label">Рефералов</div>
                                 </div>
-                                <!-- Убрали карточки с прокрутками и призами -->
                             </div>
                         </div>
 
@@ -96,15 +93,9 @@ export class ProfileScreen {
                 
                 <!-- Контент вкладки "Лидерборд" -->
                 <div class="tab-content" id="leaderboard">
-                    <div class="leaderboard-tabs">
-                        <button class="leaderboard-tab active" data-type="global">
-                            <i class="fas fa-globe"></i>
-                            Глобальный
-                        </button>
-                        <button class="leaderboard-tab" data-type="referrals">
-                            <i class="fas fa-users"></i>
-                            Рефералы
-                        </button>
+                    <div class="leaderboard-header">
+                        <h3>🏆 Топ по рефералам</h3>
+                        <p>Глобальный рейтинг по количеству приглашенных друзей</p>
                     </div>
                     
                     <div class="current-position" id="current-position">
@@ -127,7 +118,6 @@ export class ProfileScreen {
         
         // Устанавливаем обработчики событий
         this.setupTabEventListeners();
-        this.setupLeaderboardTabs();
         
         // Загружаем данные профиля
         this.loadProfileData();
@@ -161,25 +151,6 @@ export class ProfileScreen {
                 }
                 
                 this.currentTab = targetTab;
-            });
-        });
-    }
-
-    setupLeaderboardTabs() {
-        document.querySelectorAll('.leaderboard-tab').forEach(button => {
-            button.addEventListener('click', () => {
-                const type = button.dataset.type;
-                
-                console.log(`🏆 Переключение лидерборда на тип: ${type}`);
-                
-                // Обновляем активную кнопку
-                document.querySelectorAll('.leaderboard-tab').forEach(tab => {
-                    tab.classList.remove('active');
-                });
-                button.classList.add('active');
-                
-                // Загружаем данные
-                this.loadLeaderboardData(type);
             });
         });
     }
@@ -261,12 +232,12 @@ export class ProfileScreen {
         }
     }
 
-    // ИСПРАВЛЕННЫЙ МЕТОД: Загрузка лидерборда
+    // УПРОЩЕННЫЙ МЕТОД: Загрузка лидерборда (только по рефералам)
     async loadLeaderboard() {
-        console.log('🏆 Начинаем загрузку лидерборда...');
+        console.log('🏆 Начинаем загрузку лидерборда по рефералам...');
         
-        // Загружаем глобальный лидерборд по умолчанию
-        await this.loadLeaderboardData('global');
+        // Загружаем топ по рефералам
+        await this.loadLeaderboardData();
         
         // Загружаем позицию текущего пользователя
         const userId = this.getTelegramId();
@@ -275,10 +246,9 @@ export class ProfileScreen {
         }
     }
 
-    // ИСПРАВЛЕННЫЙ МЕТОД: Загрузка данных лидерборда
-    async loadLeaderboardData(type) {
-        console.log(`🏆 Загрузка лидерборда типа: ${type}`);
-        this.currentLeaderboardType = type;
+    // УПРОЩЕННЫЙ МЕТОД: Загрузка данных лидерборда (только рефералы)
+    async loadLeaderboardData() {
+        console.log('🏆 Загрузка топа по рефералам...');
         
         const leaderboardList = document.getElementById('leaderboard-list');
         if (!leaderboardList) return;
@@ -292,28 +262,24 @@ export class ProfileScreen {
         `;
         
         try {
-            const endpoint = type === 'referrals' 
-                ? '/api/leaderboard/referrals' 
-                : '/api/leaderboard/global';
-                
-            const response = await fetch(endpoint);
+            const response = await fetch('/api/leaderboard/referrals');
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
             const data = await response.json();
-            console.log(`✅ Данные лидерборда (${type}):`, data);
+            console.log('✅ Данные лидерборда по рефералам:', data);
             
-            this.renderLeaderboard(data, type);
+            this.renderLeaderboard(data);
             
         } catch (error) {
-            console.error(`❌ Ошибка загрузки лидерборда (${type}):`, error);
+            console.error('❌ Ошибка загрузки лидерборда по рефералам:', error);
             leaderboardList.innerHTML = `
                 <div class="error-state">
                     <i class="fas fa-exclamation-triangle"></i>
                     <p>Ошибка загрузки лидерборда</p>
-                    <button onclick="window.profileScreen.loadLeaderboardData('${type}')" class="retry-btn">
+                    <button onclick="window.profileScreen.loadLeaderboardData()" class="retry-btn">
                         Повторить попытку
                     </button>
                 </div>
@@ -321,12 +287,12 @@ export class ProfileScreen {
         }
     }
 
-    // ИСПРАВЛЕННЫЙ МЕТОД: Рендер лидерборда
-    renderLeaderboard(data, type) {
+    // УПРОЩЕННЫЙ МЕТОД: Рендер лидерборда (только рефералы)
+    renderLeaderboard(data) {
         const leaderboardList = document.getElementById('leaderboard-list');
         if (!leaderboardList) return;
         
-        console.log('🎨 Рендер лидерборда:', { type, data });
+        console.log('🎨 Рендер лидерборда по рефералам:', data);
         
         if (!data || !Array.isArray(data) || data.length === 0) {
             leaderboardList.innerHTML = `
@@ -343,10 +309,7 @@ export class ProfileScreen {
             const position = index + 1;
             const emoji = this.getPositionEmoji(position);
             const displayName = this.getPlayerDisplayName(player);
-            const scoreValue = type === 'referrals' 
-                ? (player.referrals_count || 0)
-                : (player.total_stars_earned || player.stars || 0);
-            const scoreLabel = type === 'referrals' ? '👥' : '⭐';
+            const referralsCount = player.referrals_count || 0;
             
             return `
                 <div class="leaderboard-item ${this.isCurrentUser(player) ? 'current-user' : ''}">
@@ -355,7 +318,7 @@ export class ProfileScreen {
                         <div class="player-name">${displayName}</div>
                         <div class="player-id">ID: ${player.telegram_id}</div>
                     </div>
-                    <div class="player-score">${scoreLabel} ${scoreValue}</div>
+                    <div class="player-score">👥 ${referralsCount}</div>
                 </div>
             `;
         }).join('');
@@ -363,14 +326,10 @@ export class ProfileScreen {
         leaderboardList.innerHTML = leaderboardHTML;
     }
 
-    // Загрузка позиции текущего пользователя
+    // Загрузка позиции текущего пользователя по рефералам
     async loadUserPosition(userId) {
         try {
-            const endpoint = this.currentLeaderboardType === 'referrals' 
-                ? `/api/leaderboard/referrals/position/${userId}`
-                : `/api/leaderboard/global/position/${userId}`;
-                
-            const response = await fetch(endpoint);
+            const response = await fetch(`/api/leaderboard/referrals/position/${userId}`);
             
             if (response.ok) {
                 const positionData = await response.json();
@@ -388,7 +347,6 @@ export class ProfileScreen {
         
         if (data && data.position) {
             const { position, score } = data;
-            const scoreLabel = this.currentLeaderboardType === 'referrals' ? 'рефералов' : 'звезд';
             const emoji = this.getPositionEmoji(position);
             
             currentPositionEl.innerHTML = `
@@ -397,7 +355,7 @@ export class ProfileScreen {
                         <div class="position-rank">${emoji}</div>
                         <div class="position-text">
                             <div class="position-number">${position > 100 ? '100+' : `#${position}`}</div>
-                            <div class="position-details">${scoreLabel}: ${score}</div>
+                            <div class="position-details">рефералов: ${score}</div>
                         </div>
                     </div>
                 </div>
@@ -409,7 +367,7 @@ export class ProfileScreen {
                         <div class="position-rank">—</div>
                         <div class="position-text">
                             <div class="position-number">Не в рейтинге</div>
-                            <div class="position-details">Начните играть!</div>
+                            <div class="position-details">Пригласите друзей!</div>
                         </div>
                     </div>
                 </div>
