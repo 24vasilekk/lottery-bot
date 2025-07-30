@@ -188,122 +188,81 @@ export const DEFAULT_USER_DATA = {
     }
 };
 
-// Конфигурация заданий (ПОЛНАЯ)
+// public/js/config.js - Обновленная конфигурация заданий
+
 export const TASKS_CONFIG = {
-    daily: [
+    // Активные задания (в основном подписки на каналы)
+    active: [
         {
-            id: 'daily_spin',
-            name: 'Первая прокрутка',
-            description: 'Сделай первую прокрутку сегодня',
-            reward: { type: 'stars', amount: 20 },
-            icon: '🎯',
-            completed: false
+            id: 'subscribe_main_channel',
+            name: 'Подпишись на канал',
+            description: 'Наш основной новостной канал',
+            type: 'channel_subscription', // Тип задания - подписка на канал
+            channelUsername: 'kosmetichka_spin', // Username канала без @
+            url: 'https://t.me/kosmetichka_spin', // Ссылка для перехода к каналу
+            reward: { type: 'stars', amount: 20 }
         },
         {
-            id: 'daily_login',
-            name: 'Ежедневный вход',
-            description: 'Заходи в приложение каждый день',
-            reward: { type: 'stars', amount: 10 },
-            icon: '📅',
-            completed: false
+            id: 'subscribe_promo_channel',
+            name: 'Подпишись на канал',
+            description: 'Подпишись на наш канал с лайв выигрышами',
+            type: 'channel_subscription',
+            channelUsername: 'kosmetichkolive', // Username канала
+            url: 'https://t.me/kosmetichkolive',
+            reward: { type: 'stars', amount: 20 }
         },
         {
-            id: 'daily_share',
-            name: 'Поделись с друзьями',
-            description: 'Поделись приложением в социальных сетях',
-            reward: { type: 'stars', amount: 15 },
-            icon: '📱',
-            completed: false
-        }
+            id: 'subscribe_beauty_tips',
+            name: 'Подпишись на канал',
+            description: 'Подпишись на dolce deals',
+            type: 'channel_subscription',
+            channelUsername: 'dolcedeals',
+            url: 'https://t.me/dolcedeals',
+            reward: { type: 'stars', amount: 20 }
+        },
     ],
+
+    // Задания с друзьями (реферальная программа)
     friends: [
         {
             id: 'invite_1_friend',
             name: 'Пригласи 1 друга',
-            description: 'Пригласи одного друга в приложение',
-            reward: { type: 'stars', amount: 100 },
-            icon: '👤',
-            completed: false,
-            required: 1
+            description: 'Поделись ссылкой и пригласи одного друга',
+            required_friends: 1,
+            reward: { type: 'stars', amount: 20 }
         },
         {
             id: 'invite_5_friends',
             name: 'Пригласи 5 друзей',
-            description: 'Пригласи 5 друзей в приложение',
-            reward: { type: 'stars', amount: 300 },
-            icon: '👥',
-            completed: false,
-            required: 5
+            description: 'Приводи друзей и получай больше звезд!',
+            required_friends: 5,
+            reward: { type: 'stars', amount: 100 }
         },
         {
             id: 'invite_10_friends',
             name: 'Пригласи 10 друзей',
-            description: 'Пригласи 10 друзей в приложение',
-            reward: { type: 'stars', amount: 700 },
-            icon: '👨‍👩‍👧‍👦',
-            completed: false,
-            required: 10
-        },
-        {
-            id: 'invite_20_friends',
-            name: 'Пригласи 20 друзей',
-            description: 'Пригласи 20 друзей в приложение',
-            reward: { type: 'stars', amount: 1500 },
-            icon: '🎉',
-            completed: false,
-            required: 20
-        },
-        {
-            id: 'invite_40_friends',
-            name: 'Пригласи 40 друзей',
-            description: 'Пригласи 40 друзей в приложение',
-            reward: { type: 'stars', amount: 3500 },
-            icon: '🏆',
-            completed: false,
-            required: 40
+            description: 'Стань лидером по приглашениям',
+            required_friends: 10,
+            reward: { type: 'stars', amount: 200 }
         }
-    ],
-    active: [
-        {
-            id: 'subscribe_channel1',
-            name: 'Подпишись на канал',
-            description: 'Подпишись на наш Telegram канал',
-            reward: { type: 'stars', amount: 50 },
-            icon: '📺',
-            completed: false,
-            url: 'https://t.me/kosmetichka_channel'
-        },
-        {
-            id: 'subscribe_channel2',
-            name: 'Подпишись на Instagram',
-            description: 'Подпишись на наш Instagram канал',
-            reward: { type: 'stars', amount: 50 },
-            icon: '📸',
-            completed: false,
-            url: 'https://instagram.com/kosmetichka'
-        },
-        {
-            id: 'subscribe_dolcedeals',
-            name: 'Подпишись на Dolce Deals',
-            description: 'Подпишись на канал Dolce Deals для скидок',
-            reward: { type: 'stars', amount: 75 },
-            icon: '🍰',
-            completed: false,
-            url: 'https://t.me/dolcedeals'
-        },
-        {
-            id: 'rate_app',
-            name: 'Оцени приложение',
-            description: 'Поставь оценку приложению в магазине',
-            reward: { type: 'stars', amount: 100 },
-            icon: '⭐',
-            completed: false,
-            url: '#'
-        }
-    ],
-    completed: []
+    ]
 };
 
+// Типы заданий:
+// - 'channel_subscription': требует проверки подписки на канал через Telegram API
+// - 'external_action': внешние действия (подписка в соцсетях, оценка приложения)
+// - 'referral': задания связанные с приглашением друзей
+
+// Для заданий типа 'channel_subscription' обязательны поля:
+// - channelUsername: username канала без символа @
+// - url: ссылка на канал для удобства пользователя
+
+// Для заданий типа 'external_action':
+// - url: ссылка на внешний ресурс
+// - проверка выполнения не производится автоматически
+
+// Для заданий типа 'referral':
+// - required_friends: количество приглашенных друзей для выполнения
 // Уровни игрока
 export const PLAYER_LEVELS = [
     { level: 1, requiredStars: 0, title: 'Новичок', icon: '🌱', reward: 0 },
