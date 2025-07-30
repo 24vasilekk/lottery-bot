@@ -161,8 +161,8 @@ export class MegaRouletteScreen {
         const centerY = 200;
         const anglePerSegment = (2 * Math.PI) / this.megaPrizes.length;
 
-        // Красивые градиентные цвета в стиле профиля для мега рулетки
-        const megaSegmentColors = [
+        // Красивые градиентные цвета в стиле профиля (точно как в основной рулетке)
+        const segmentColors = [
             'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)', // Розово-малиновый
             'linear-gradient(135deg, #764ba2 0%, #667eea 100%)', // Фиолетово-синий  
             'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', // Розово-красный
@@ -171,17 +171,22 @@ export class MegaRouletteScreen {
             'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', // Розово-желтый
             'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', // Мятно-розовый
             'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)', // Коралловый
-            'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'  // Синий-фиолетовый
+            'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', // Синий-фиолетовый
+            'linear-gradient(135deg, #f6d365 0%, #fda085 100%)', // Желто-персиковый
+            'linear-gradient(135deg, #96fbc4 0%, #f9f586 100%)', // Зелено-желтый
+            'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)'  // Кремово-персиковый
         ];
 
-        // Создаем определения градиентов
+        let svgContent = '';
+        
+        // Создаем определения градиентов (точно как в основной рулетке)
         let defsContent = '<defs>';
-        megaSegmentColors.forEach((gradient, index) => {
+        segmentColors.forEach((gradient, index) => {
             const gradientMatch = gradient.match(/linear-gradient\(135deg,\s*([^,]+)\s*0%,\s*([^)]+)\s*100%\)/);
             if (gradientMatch) {
                 const [, color1, color2] = gradientMatch;
                 defsContent += `
-                    <linearGradient id="mega-gradient${index}" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <linearGradient id="megagradient${index}" x1="0%" y1="0%" x2="100%" y2="100%">
                         <stop offset="0%" style="stop-color:${color1.trim()};stop-opacity:1" />
                         <stop offset="100%" style="stop-color:${color2.trim()};stop-opacity:1" />
                     </linearGradient>
@@ -189,8 +194,6 @@ export class MegaRouletteScreen {
             }
         });
         defsContent += '</defs>';
-
-        let svgContent = '';
 
         this.megaPrizes.forEach((prize, index) => {
             const startAngle = index * anglePerSegment - Math.PI / 2;
@@ -205,22 +208,22 @@ export class MegaRouletteScreen {
 
             const path = `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
 
-            // Используем циклический выбор градиента
-            const gradientIndex = index % megaSegmentColors.length;
-
             // Текст иконки
             const textAngle = (startAngle + endAngle) / 2;
             const textRadius = radius * 0.7;
             const textX = centerX + textRadius * Math.cos(textAngle);
             const textY = centerY + textRadius * Math.sin(textAngle);
 
+            // Используем циклический выбор градиента
+            const gradientIndex = index % segmentColors.length;
+
             svgContent += `
                 <path 
                     d="${path}" 
-                    fill="url(#mega-gradient${gradientIndex})" 
+                    fill="url(#megagradient${gradientIndex})" 
                     stroke="rgba(255,255,255,0.3)" 
                     stroke-width="2"
-                    class="wheel-segment-path mega-segment"
+                    class="wheel-segment-path"
                     data-prize-id="${prize.id}"
                     filter="drop-shadow(0 4px 8px rgba(0,0,0,0.3))"
                 />
@@ -239,7 +242,7 @@ export class MegaRouletteScreen {
         });
 
         container.innerHTML = defsContent + svgContent;
-        console.log('✅ Красивая SVG мега рулетки сгенерирована');
+        console.log('✅ Красивая SVG мега рулетки сгенерирована в стиле основной');
     }
 
     getPrizeColor(rarity) {
