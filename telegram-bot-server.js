@@ -3154,7 +3154,11 @@ async function handleWheelSpin(userId, data) {
                         
                         // Уведомляем админов о крупных призах (сертификаты)
                         if (data.prize.type.includes('golden-apple') || data.prize.type.includes('dolce')) {
-                            notifyAdmins(`🎉 Пользователь ${user.first_name} (${userId}) выиграл: ${data.prize.name}`);
+                            // Используем красиво оформленное уведомление
+                            notifyAdmins(`Пользователь ${user.first_name} (${userId}) выиграл: ${data.prize.name}`);
+                            
+                            // Или простое уведомление (если хотите оставить старый формат):
+                            // notifyAdmins(`Пользователь ${user.first_name} (${userId}) выиграл: ${data.prize.name}`);
                         }
                     } catch (error) {
                         console.error('Ошибка отправки уведомления:', error);
@@ -3314,17 +3318,85 @@ async function syncUserData(userId, webAppData) {
     }
 }
 
-// Уведомления администратора
-function notifyAdmins(message) {
-    ADMIN_IDS.forEach(adminId => {
-        if (bot) {
+// Функция для отправки красиво оформленного уведомления о выигрыше
+async function notifyWinToChannel(user, prize) {
+    try {
+        // Эмодзи для разных типов призов
+        const prizeEmojis = {
+            'golden-apple-3000': '💎',
+            'golden-apple-2000': '🎁', 
+            'golden-apple-1500': '🎈',
+            'golden-apple-1000': '🎀',
+            'golden-apple-500': '🎊',
+            'dolce-deals': '🍰'
+        };
+        
+        const emoji = prizeEmojis[prize.type] || '🎁';
+        const userName = user.first_name || 'Пользователь';
+        const userHandle = user.username ? `@${user.username}` : '';
+        
+        const winTime = new Date().toLocaleString('ru-RU', {
+            timeZone: 'Europe/Moscow',
+            day: '2-digit',
+            month: '2-digit', 
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        const message = `🎉 <b>НОВЫЙ ВЫИГРЫШ!</b> 🎉
+
+${emoji} <b>${prize.name}</b>
+💸 Стоимость: <b>${prize.value || 0}₽</b>
+
+👤 Победитель: <b>${userName}</b> ${userHandle ? `(${userHandle})` : `(${user.telegram_id})`}
+🕐 Время: ${winTime}
+
+🎰 Хочешь тоже выиграть? Попробуй свою удачу!
+🎮 @kosmetichka_lottery_bot`;
+
+        await bot.sendMessage(NOTIFICATION_CHANNEL, message, {
+            parse_mode: 'HTML',
+            disable_web_page_preview: true
+        });
+        
+        console.log(`🏆 Выигрыш опубликован в канал: ${prize.name} для ${userName}`);
+    } catch (error) {
+        console.error('❌ Ошибка отправки выигрыша в канал:', error);
+    }
+}
+
+// ID канала для уведомлений (без символа @)
+const NOTIFICATION_CHANNEL = '-1002637779020'; // или -100XXXXXXXXXX если есть числовой ID
+
+// Функция отправки уведомлений в канал
+async function notifyAdmins(message) {
+    try {
+        // Форматируем сообщение для канала
+        const channelMessage = `🔔 🎉 ${message}`;
+        
+        // Отправляем в канал
+        await bot.sendMessage(NOTIFICATION_CHANNEL, channelMessage, {
+            parse_mode: 'HTML',
+            disable_web_page_preview: true
+        });
+        
+        console.log(`✅ Уведомление отправлено в канал: ${message}`);
+    } catch (error) {
+        console.error('❌ Ошибка отправки уведомления в канал:', error);
+        
+        // Fallback: отправляем админам как раньше, если канал недоступен
+        const ADMIN_IDS = process.env.ADMIN_IDS ? 
+            process.env.ADMIN_IDS.split(',').map(id => parseInt(id.trim())) : 
+            [];
+            
+        ADMIN_IDS.forEach(async (adminId) => {
             try {
-                bot.sendMessage(adminId, `🔔 ${message}`);
-            } catch (error) {
-                console.error(`Ошибка отправки админу ${adminId}:`, error);
+                await bot.sendMessage(adminId, `🔔 ${message}`);
+            } catch (adminError) {
+                console.error(`❌ Ошибка отправки админу ${adminId}:`, adminError);
             }
-        }
-    });
+        });
+    }
 }
 
 // Обработка ошибок Express
