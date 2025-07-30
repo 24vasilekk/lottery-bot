@@ -286,22 +286,9 @@ export default class App {
             if (this.screens.tasks) screensHTML.push(this.screens.tasks.render());
             if (this.screens.profile) screensHTML.push(this.screens.profile.render());
             if (this.screens.deposit) screensHTML.push(this.screens.deposit.render());
-            // Мегарулетка рендерится отдельно, так как её контейнер уже есть в index.html
+            if (this.screens.megaRoulette) screensHTML.push(this.screens.megaRoulette.render());
             
             container.innerHTML = screensHTML.join('');
-            
-            // Рендерим мегарулетку в её существующий контейнер
-            if (this.screens.megaRoulette) {
-                const megaContainer = document.querySelector('#mega-roulette-screen .mega-roulette-container');
-                if (megaContainer) {
-                    const megaContent = this.screens.megaRoulette.render();
-                    // Извлекаем только внутреннее содержимое
-                    const tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = megaContent;
-                    const innerContent = tempDiv.querySelector('#mega-roulette-screen')?.innerHTML || megaContent;
-                    megaContainer.innerHTML = innerContent;
-                }
-            }
 
             // Инициализируем активный экран
             if (this.screens.main) {
