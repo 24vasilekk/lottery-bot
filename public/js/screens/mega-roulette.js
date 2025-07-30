@@ -30,7 +30,7 @@ export class MegaRouletteScreen {
         return `
             <div id="mega-roulette-screen" class="screen">
                 <div class="mega-header">
-                    <button class="back-btn" id="mega-back-btn" onclick="goBackToMain()">
+                    <button class="back-btn" id="mega-back-btn">
                         <i class="fas fa-arrow-left"></i>
                     </button>
                     <div class="mega-title">
@@ -110,22 +110,26 @@ export class MegaRouletteScreen {
     }
 
     setupEventListeners() {
-        // Простое решение - используем onclick прямо в HTML
-        window.goBackToMain = () => {
-            console.log('⬅ Возврат на главную из мега-рулетки');
-            try {
-                if (this.app && this.app.navigation && this.app.navigation.navigateTo) {
-                    this.app.navigation.navigateTo('main');
-                } else {
-                    console.error('Navigation не найден, перезагружаем страницу');
+        // Обработчик кнопки возврата
+        const backBtn = document.getElementById('mega-back-btn');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                console.log('⬅ Возврат на главную из мега-рулетки');
+                try {
+                    if (this.app && this.app.navigation && this.app.navigation.navigateTo) {
+                        this.app.navigation.navigateTo('main');
+                    } else {
+                        console.error('Navigation не найден, перезагружаем страницу');
+                        window.location.reload();
+                    }
+                } catch (error) {
+                    console.error('Ошибка навигации:', error);
                     window.location.reload();
                 }
-            } catch (error) {
-                console.error('Ошибка навигации:', error);
-                window.location.reload();
-            }
-        };
+            });
+        }
 
+        // Обработчик кнопки спина
         const spinBtn = document.getElementById('mega-spin-btn');
         if (spinBtn && !spinBtn.disabled) {
             spinBtn.addEventListener('click', () => {
@@ -528,9 +532,5 @@ export class MegaRouletteScreen {
         const modals = document.querySelectorAll('.mega-win-modal');
         modals.forEach(modal => modal.remove());
         
-        // Удаляем глобальную функцию
-        if (window.goBackToMain) {
-            delete window.goBackToMain;
-        }
     }
 }
