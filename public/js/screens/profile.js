@@ -128,7 +128,6 @@ export class ProfileScreen {
         // Устанавливаем обработчики событий
         this.setupTabEventListeners();
         this.setupLeaderboardTabs();
-        this.setupReferralHandlers();
         
         // Загружаем данные профиля
         this.loadProfileData();
@@ -422,19 +421,11 @@ export class ProfileScreen {
                 <div class="referral-link-container">
                     <label>Ваша реферальная ссылка:</label>
                     <div class="referral-link" style="display: flex; gap: 8px; align-items: center; background: rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 8px; margin-top: 10px; overflow: hidden;">
-                        <input type="text" id="referral-link" value="https://t.me/kosmetichka_lottery_bot?start=ref_${this.getTelegramId()}" readonly style="flex: 1; background: transparent; border: none; color: var(--text-primary); font-size: 12px; padding: 5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <input type="text" id="referral-link" value="https://t.me/kosmetichkalottery_bot?start=ref_${this.getTelegramId()}" readonly style="flex: 1; background: transparent; border: none; color: var(--text-primary); font-size: 12px; padding: 5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                         <button onclick="window.profileScreen.copyReferralLink()" class="copy-btn" style="background: linear-gradient(135deg, #FF6B9D, #C44569); border: none; color: white; padding: 6px 10px; border-radius: 8px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; min-width: 32px;">
                             <i class="fas fa-copy" style="font-size: 12px;"></i>
                         </button>
                     </div>
-                </div>
-                
-                <!-- Действия с рефералами -->
-                <div class="referral-actions">
-                    <button id="share-referral" class="share-btn">
-                        <i class="fas fa-share"></i>
-                        Поделиться ссылкой
-                    </button>
                 </div>
                 
                 <!-- Информация о бонусах -->
@@ -450,21 +441,6 @@ export class ProfileScreen {
                 </div>
             </div>
         `;
-    }
-
-    setupReferralHandlers() {
-        setTimeout(() => {
-            // Обработчик кнопки "Поделиться"
-            const shareBtn = document.getElementById('share-referral');
-            if (shareBtn) {
-                shareBtn.onclick = null; // Очищаем предыдущий обработчик
-                shareBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    console.log('🔗 Нажата кнопка "Поделиться ссылкой"');
-                    this.shareReferralLink();
-                });
-            }
-        }, 100);
     }
 
     // Копирование реферальной ссылки
@@ -490,61 +466,6 @@ export class ProfileScreen {
                 console.error('Ошибка копирования:', err);
                 this.showBasicNotification('❌ Ошибка копирования');
             }
-        }
-    }
-
-    // Поделиться реферальной ссылкой
-    shareReferralLink() {
-        const userId = this.getTelegramId();
-        const referralLink = `https://t.me/kosmetichka_lottery_bot?start=ref_${userId}`;
-        const shareText = `🎁 Присоединяйся к Kosmetichka Lottery!\n\n💫 Крути рулетку и выигрывай призы!\n⭐ Получи бонусные звезды за регистрацию!`;
-        
-        try {
-            if (this.app.tg && this.app.tg.shareMessage) {
-                // Используем Telegram Web App API
-                this.app.tg.shareMessage(`${shareText}\n\n${referralLink}`);
-            } else if (navigator.share) {
-                // Используем Web Share API
-                navigator.share({
-                    title: 'Kosmetichka Lottery',
-                    text: shareText,
-                    url: referralLink
-                }).catch(err => {
-                    console.log('Ошибка шаринга:', err);
-                    this.fallbackShare(referralLink, shareText);
-                });
-            } else {
-                this.fallbackShare(referralLink, shareText);
-            }
-        } catch (error) {
-            console.error('Ошибка при попытке поделиться:', error);
-            this.fallbackShare(referralLink, shareText);
-        }
-    }
-
-    // Fallback метод для поделиться
-    fallbackShare(referralLink, shareText) {
-        const fullText = `${shareText}\n\n${referralLink}`;
-        
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(fullText).then(() => {
-                this.showNotification('✅ Текст для поделиться скопирован!', 'success');
-            }).catch(() => {
-                this.showBasicNotification('✅ Скопируйте ссылку вручную');
-            });
-        } else {
-            // Совсем старый fallback
-            const textArea = document.createElement('textarea');
-            textArea.value = fullText;
-            document.body.appendChild(textArea);
-            textArea.select();
-            try {
-                document.execCommand('copy');
-                this.showBasicNotification('✅ Текст скопирован!');
-            } catch (err) {
-                this.showBasicNotification('Скопируйте ссылку вручную');
-            }
-            document.body.removeChild(textArea);
         }
     }
 
