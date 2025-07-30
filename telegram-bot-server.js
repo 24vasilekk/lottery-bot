@@ -128,6 +128,88 @@ app.use((req, res, next) => {
     next();
 });
 
+// Добавить эти endpoints в telegram-bot-server.js для исправления лидерборда
+
+// ИСПРАВЛЕННЫЙ API для получения лидерборда по рефералам
+app.get('/api/leaderboard/referrals', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 20;
+        
+        console.log(`📊 Запрос лидерборда по рефералам, лимит: ${limit}`);
+        
+        // Используем метод из database.js
+        const leaderboard = await db.getGlobalReferralsLeaderboard(limit);
+        
+        console.log(`✅ Лидерборд по рефералам загружен: ${leaderboard.length} записей`);
+        
+        res.json(leaderboard);
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения лидерборда рефералов:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// ИСПРАВЛЕННЫЙ API для получения позиции пользователя по рефералам
+app.get('/api/leaderboard/referrals/position/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        console.log(`👤 Запрос позиции по рефералам для пользователя: ${userId}`);
+        
+        // Используем метод из database.js
+        const rank = await db.getUserReferralRank(parseInt(userId));
+        
+        res.json({ 
+            position: rank?.position,
+            score: rank?.referrals_count || 0
+        });
+    } catch (error) {
+        console.error('❌ Ошибка получения позиции по рефералам:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Дублируем для совместимости - endpoint с дефисом
+app.get('/api/leaderboard-referrals', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 20;
+        
+        console.log(`📊 Запрос лидерборда по рефералам (дефис), лимит: ${limit}`);
+        
+        // Используем метод из database.js
+        const leaderboard = await db.getGlobalReferralsLeaderboard(limit);
+        
+        console.log(`✅ Лидерборд по рефералам загружен: ${leaderboard.length} записей`);
+        
+        res.json({ 
+            leaderboard: leaderboard,
+            total: leaderboard.length
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения лидерборда рефералов:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Дублируем для совместимости - endpoint для ранга
+app.get('/api/user-referral-rank/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        console.log(`👤 Запрос ранга по рефералам для пользователя: ${userId}`);
+        
+        // Используем метод из database.js
+        const rank = await db.getUserReferralRank(parseInt(userId));
+        
+        res.json({ rank });
+    } catch (error) {
+        console.error('❌ Ошибка получения ранга по рефералам:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Rate limiting конфигурация
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 минут
