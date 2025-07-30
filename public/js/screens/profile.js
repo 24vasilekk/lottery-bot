@@ -271,6 +271,7 @@ export class ProfileScreen {
             const data = await response.json();
             console.log('✅ Данные лидерборда по рефералам:', data);
             
+            // Данные приходят напрямую как массив
             this.renderLeaderboard(data);
             
         } catch (error) {
@@ -333,7 +334,11 @@ export class ProfileScreen {
             
             if (response.ok) {
                 const positionData = await response.json();
+                console.log('✅ Данные позиции пользователя:', positionData);
+                
                 this.renderUserPosition(positionData);
+            } else {
+                console.warn('⚠️ Не удалось получить позицию пользователя');
             }
         } catch (error) {
             console.error('❌ Ошибка загрузки позиции пользователя:', error);
