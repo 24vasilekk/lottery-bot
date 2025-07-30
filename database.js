@@ -415,6 +415,108 @@ class Database {
         });
     }
 
+    // 🆕 ДОБАВИТЬ ЭТОТ МЕТОД ДЛЯ ЛОГИРОВАНИЯ ПРОВЕРОК ПОДПИСКИ
+    async logSubscriptionCheck(userId, channelUsername, isSubscribed) {
+        return new Promise((resolve, reject) => {
+            const timestamp = new Date().toISOString();
+            
+            this.db.run(
+                `INSERT INTO subscription_checks 
+                 (user_id, channel_username, is_subscribed, check_date) 
+                 VALUES (?, ?, ?, ?)`,
+                [userId, channelUsername, isSubscribed ? 1 : 0, timestamp],
+                function(err) {
+                    if (err) {
+                        console.error('❌ Ошибка записи проверки подписки:', err);
+                        // Не прерываем выполнение из-за ошибки логирования
+                        resolve();
+                    } else {
+                        console.log(`📝 Записана проверка подписки: ${userId} -> ${channelUsername} = ${isSubscribed}`);
+                        resolve();
+                    }
+                }
+            );
+        });
+    }
+
+    // 🆕 ДОБАВИТЬ ЭТОТ МЕТОД ДЛЯ ПОЛУЧЕНИЯ ИСТОРИИ ПРОВЕРОК
+    async getSubscriptionHistory(userId, channelUsername = null) {
+        return new Promise((resolve, reject) => {
+            let query = 'SELECT * FROM subscription_checks WHERE user_id = ?';
+            let params = [userId];
+            
+            if (channelUsername) {
+                query += ' AND channel_username = ?';
+                params.push(channelUsername);
+            }
+            
+            query += ' ORDER BY check_date DESC LIMIT 50';
+            
+            this.db.all(query, params, (err, rows) => {
+                if (err) {
+                    console.error('❌ Ошибка получения истории проверок:', err);
+                    reject(err);
+                } else {
+                    resolve(rows || []);
+                }
+            });
+        });
+    }
+
+    // 🆕 ДОБАВИТЬ ЭТОТ МЕТОД ДЛЯ СТАТИСТИКИ ПРОВЕРОК
+    async getSubscriptionStats(channelUsername = null) {
+        return new Promise((resolve, reject) => {
+            let query = `
+                SELECT 
+                    channel_username,
+                    COUNT(*) as total_checks,
+                    SUM(is_subscribed) as successful_checks,
+                    COUNT(DISTINCT user_id) as unique_users,
+                    DATE(check_date) as check_date
+                FROM subscription_checks
+            `;
+            let params = [];
+
+            if (channelUsername) {
+                query += ' WHERE channel_username = ?';
+                params.push(channelUsername);
+            }
+
+            query += ' GROUP BY channel_username, DATE(check_date) ORDER BY check_date DESC LIMIT 100';
+
+            this.db.all(query, params, (err, rows) => {
+                if (err) {
+                    console.error('❌ Ошибка получения статистики проверок:', err);
+                    reject(err);
+                } else {
+                    resolve(rows || []);
+                }
+            });
+        });
+    }
+
+    // 🆕 ДОБАВИТЬ ЭТОТ МЕТОД ДЛЯ ОЧИСТКИ СТАРЫХ ЗАПИСЕЙ
+    async cleanOldSubscriptionChecks(daysToKeep = 30) {
+        return new Promise((resolve, reject) => {
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+            const cutoffDateString = cutoffDate.toISOString();
+
+            this.db.run(
+                'DELETE FROM subscription_checks WHERE check_date < ?',
+                [cutoffDateString],
+                function(err) {
+                    if (err) {
+                        console.error('❌ Ошибка очистки старых записей проверок:', err);
+                        reject(err);
+                    } else {
+                        console.log(`🧹 Удалено ${this.changes} старых записей проверок (старше ${daysToKeep} дней)`);
+                        resolve(this.changes);
+                    }
+                }
+            );
+        });
+    }
     // 3. Убедитесь, что метод updateUserStars работает правильно:
     async updateUserStars(telegramId, amount) {
         return new Promise((resolve, reject) => {
