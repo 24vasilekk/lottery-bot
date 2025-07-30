@@ -2038,6 +2038,69 @@ app.post('/api/admin/wheel-settings/normal', requireAdmin, async (req, res) => {
     }
 });
 
+// ДОБАВЬТЕ этот endpoint в telegram-bot-server.js для быстрой проверки:
+
+app.get('/api/debug/referrals', async (req, res) => {
+    try {
+        // Получаем все рефералы из таблицы
+        const referrals = await new Promise((resolve, reject) => {
+            db.db.all(`
+                SELECT 
+                    r.id,
+                    ref.telegram_id as referrer_id,
+                    ref.first_name as referrer_name,
+                    rfd.telegram_id as referred_id,
+                    rfd.first_name as referred_name,
+                    r.referral_date
+                FROM referrals r
+                JOIN users ref ON r.referrer_id = ref.id
+                JOIN users rfd ON r.referred_id = rfd.id
+                ORDER BY r.referral_date DESC
+                LIMIT 10
+            `, (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows || []);
+            });
+        });
+
+        // Получаем счетчики пользователей
+        const userCounts = await new Promise((resolve, reject) => {
+            db.db.all(`
+                SELECT 
+                    u.telegram_id,
+                    u.first_name,
+                    u.referrals as referrals_field,
+                    u.stars,
+                    u.total_stars_earned,
+                    COUNT(r.referred_id) as actual_referrals_count
+                FROM users u
+                LEFT JOIN referrals r ON u.telegram_id = r.referrer_id
+                WHERE u.is_active = 1
+                GROUP BY u.telegram_id, u.first_name, u.referrals, u.stars, u.total_stars_earned
+                HAVING actual_referrals_count > 0 OR u.referrals > 0
+                ORDER BY actual_referrals_count DESC
+            `, (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows || []);
+            });
+        });
+        
+        console.log('🔍 Отладка рефералов:');
+        userCounts.forEach(user => {
+            console.log(`👤 ${user.first_name} (${user.telegram_id}): поле=${user.referrals_field}, фактически=${user.actual_referrals_count}, звезд=${user.stars}, всего заработано=${user.total_stars_earned}`);
+        });
+        
+        res.json({
+            referrals: referrals,
+            userCounts: userCounts,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('❌ Ошибка отладки рефералов:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // === ПУБЛИЧНЫЕ ENDPOINTS ДЛЯ НАСТРОЕК РУЛЕТКИ ===
 
 // Публичный endpoint для получения настроек мега рулетки (только чтение)
@@ -2117,7 +2180,9 @@ if (bot) {
                 await db.updateUserActivity(userId);
             }
             
-            // Обработка реферальной ссылки
+            // НАЙДИТЕ этот блок в telegram-bot-server.js в команде /start и ЗАМЕНИТЕ его:
+
+            // Обработка реферальной ссылки - ИСПРАВЛЕННАЯ ВЕРСИЯ
             if (startParam && startParam.startsWith('ref_')) {
                 const referrerId = parseInt(startParam.substring(4));
                 if (referrerId && referrerId !== userId) {
@@ -2129,18 +2194,41 @@ if (bot) {
                             const existingReferral = await db.getReferral(referrerId, userId);
                             if (!existingReferral) {
                                 // Добавляем реферал
-                                await db.addReferral(referrerId, userId);
-                                console.log(`🤝 Пользователь ${userId} приглашен пользователем ${referrerId}`);
+                                const added = await db.addReferral(referrerId, userId);
                                 
-                                // Уведомляем пригласившего
-                                try {
-                                    await bot.sendMessage(referrerId, 
-                                        `🎉 Поздравляем! Ваш друг ${msg.from.first_name} присоединился к боту!\n` +
-                                        `💫 Вы получили дополнительную прокрутку колеса!`
-                                    );
-                                } catch (notifyError) {
-                                    console.log('⚠️ Не удалось уведомить реферера:', notifyError.message);
+                                if (added) {
+                                    console.log(`🤝 Пользователь ${userId} приглашен пользователем ${referrerId}`);
+                                    
+                                    // ВАЖНО: Сразу начисляем звезды рефереру
+                                    await db.updateUserStars(referrerId, 100);
+                                    
+                                    // Обновляем общее количество заработанных звезд
+                                    await db.incrementTotalStarsEarned(referrerId, 100);
+                                    
+                                    console.log(`⭐ Рефереру ${referrerId} начислено 100 звезд за приглашение`);
+                                    
+                                    // Уведомляем пригласившего
+                                    try {
+                                        await bot.sendMessage(referrerId, 
+                                            `🎉 Поздравляем! Ваш друг ${msg.from.first_name} присоединился к боту!\n` +
+                                            `⭐ Вы получили 100 звезд за приглашение!`
+                                        );
+                                    } catch (notifyError) {
+                                        console.log('⚠️ Не удалось уведомить реферера:', notifyError.message);
+                                    }
+                                    
+                                    // Уведомляем приглашенного
+                                    try {
+                                        await bot.sendMessage(userId,
+                                            `👋 Добро пожаловать! Вы присоединились по приглашению от ${referrer.first_name}!\n` +
+                                            `🎁 Начните играть и выигрывайте призы!`
+                                        );
+                                    } catch (notifyError) {
+                                        console.log('⚠️ Не удалось уведомить приглашенного:', notifyError.message);
+                                    }
                                 }
+                            } else {
+                                console.log(`⚠️ Реферал ${userId} уже был добавлен пользователем ${referrerId}`);
                             }
                         }
                     } catch (refError) {
