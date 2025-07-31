@@ -141,7 +141,7 @@ export class TasksScreen {
 
     renderReferralTasks() {
         const referralLink = this.getReferralLink();
-        const friendsInvited = this.app.gameData.referrals || 0;
+        const friendsInvited = this.getActualReferralsCount();
 
         return `
             <!-- ПОЛНОШИРИННЫЙ БЛОК РЕФЕРАЛЬНОЙ ССЫЛКИ -->
@@ -936,6 +936,31 @@ export class TasksScreen {
         } catch (error) {
             console.error('Ошибка подсчета доступных заданий:', error);
             return 0;
+        }
+    }
+
+    // ДОБАВИТЬ в класс TasksScreen:
+    getActualReferralsCount() {
+        // Пытаемся получить самые актуальные данные
+        const referrals = this.app.gameData.referrals || 0;
+        console.log('📊 Актуальное количество рефералов в заданиях:', referrals);
+        return referrals;
+    }
+
+    // Метод для принудительного обновления данных
+    async forceUpdateData() {
+        const userId = this.app.tg?.initDataUnsafe?.user?.id;
+        if (!userId) return;
+        
+        try {
+            const response = await fetch(`/api/user/${userId}`);
+            if (response.ok) {
+                const userData = await response.json();
+                this.app.updateUserData(userData);
+                console.log('✅ Данные заданий принудительно обновлены');
+            }
+        } catch (error) {
+            console.warn('⚠️ Ошибка принудительного обновления:', error);
         }
     }
 
