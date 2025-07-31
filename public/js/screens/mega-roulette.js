@@ -184,93 +184,124 @@ export class MegaRouletteScreen {
             return;
         }
 
-        const radius = 140;
+        // ИДЕАЛЬНЫЙ КРУГ - точные параметры
+        const radius = 150;
         const centerX = 160;
         const centerY = 160;
-        const anglePerSegment = (2 * Math.PI) / this.megaPrizes.length;
+        const segmentCount = this.megaPrizes.length;
+        const anglePerSegment = (2 * Math.PI) / segmentCount;
+        
+        console.log(`🎯 Генерируем ${segmentCount} сегментов, угол каждого: ${(anglePerSegment * 180 / Math.PI).toFixed(2)}°`);
 
-        // Золотые и премиальные градиенты для мега-рулетки
+        // Золотые и премиальные градиенты - точно подобранные цвета
         const segmentColors = [
-            'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)', // Золотой
-            'linear-gradient(135deg, #FF8C00 0%, #FF6347 100%)', // Оранжево-красный
-            'linear-gradient(135deg, #9966CC 0%, #8A2BE2 100%)', // Фиолетовый (эпик)
-            'linear-gradient(135deg, #00BFFF 0%, #0066CC 100%)', // Голубой (рейр)
-            'linear-gradient(135deg, #32CD32 0%, #228B22 100%)', // Зеленый
-            'linear-gradient(135deg, #FF69B4 0%, #C71585 100%)', // Розовый
-            'linear-gradient(135deg, #FF4500 0%, #DC143C 100%)', // Красный
-            'linear-gradient(135deg, #DDA0DD 0%, #9370DB 100%)', // Фиолетово-сиреневый
-            'linear-gradient(135deg, #F0E68C 0%, #DAA520 100%)', // Золотисто-желтый
-            'linear-gradient(135deg, #FFB6C1 0%, #FF1493 100%)', // Светло-розовый
-            'linear-gradient(135deg, #20B2AA 0%, #008B8B 100%)', // Бирюзовый
-            'linear-gradient(135deg, #696969 0%, #2F4F4F 100%)'  // Серый (пустой)
+            { from: '#FFD700', to: '#FFA500', name: 'Золотой' },
+            { from: '#FF6347', to: '#FF4500', name: 'Красно-оранжевый' },
+            { from: '#9370DB', to: '#8A2BE2', name: 'Фиолетовый' },
+            { from: '#00BFFF', to: '#1E90FF', name: 'Голубой' },
+            { from: '#32CD32', to: '#228B22', name: 'Зеленый' },
+            { from: '#FF1493', to: '#DC143C', name: 'Розово-красный' },
+            { from: '#FF8C00', to: '#FF7F50', name: 'Оранжевый' },
+            { from: '#DA70D6', to: '#BA55D3', name: 'Орхидея' },
+            { from: '#20B2AA', to: '#008B8B', name: 'Бирюзовый' }
         ];
 
         let svgContent = '';
         
-        // Создаем определения градиентов (точно как в основной рулетке)
+        // Создаем определения градиентов для каждого сегмента
         let defsContent = '<defs>';
-        segmentColors.forEach((gradient, index) => {
-            const gradientMatch = gradient.match(/linear-gradient\(135deg,\s*([^,]+)\s*0%,\s*([^)]+)\s*100%\)/);
-            if (gradientMatch) {
-                const [, color1, color2] = gradientMatch;
-                defsContent += `
-                    <linearGradient id="megagradient${index}" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" style="stop-color:${color1.trim()};stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:${color2.trim()};stop-opacity:1" />
-                    </linearGradient>
-                `;
-            }
-        });
+        
+        // Добавляем градиенты
+        for (let i = 0; i < segmentCount; i++) {
+            const colorIndex = i % segmentColors.length;
+            const color = segmentColors[colorIndex];
+            
+            defsContent += `
+                <linearGradient id="megaGrad${i}" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:${color.from};stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:${color.to};stop-opacity:1" />
+                </linearGradient>
+            `;
+        }
+        
+        // Добавляем фильтры для теней
+        defsContent += `
+            <filter id="segmentShadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="rgba(0,0,0,0.4)"/>
+            </filter>
+            <filter id="textShadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.7)"/>
+            </filter>
+        `;
+        
         defsContent += '</defs>';
 
-        this.megaPrizes.forEach((prize, index) => {
-            const startAngle = index * anglePerSegment - Math.PI / 2;
-            const endAngle = (index + 1) * anglePerSegment - Math.PI / 2;
-
+        // Генерируем идеально ровные сегменты
+        for (let i = 0; i < segmentCount; i++) {
+            const prize = this.megaPrizes[i];
+            
+            // ТОЧНЫЙ РАСЧЕТ УГЛОВ - начинаем с верха (12 часов)
+            const startAngle = (i * anglePerSegment) - (Math.PI / 2);
+            const endAngle = ((i + 1) * anglePerSegment) - (Math.PI / 2);
+            
+            // Точки на окружности
             const x1 = centerX + radius * Math.cos(startAngle);
             const y1 = centerY + radius * Math.sin(startAngle);
             const x2 = centerX + radius * Math.cos(endAngle);
             const y2 = centerY + radius * Math.sin(endAngle);
 
-            const largeArc = anglePerSegment > Math.PI ? 1 : 0;
+            // Определяем, нужна ли большая дуга
+            const largeArcFlag = anglePerSegment > Math.PI ? 1 : 0;
 
-            const path = `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+            // Создаем идеальный путь сегмента
+            const pathData = [
+                `M ${centerX} ${centerY}`,           // Начинаем из центра
+                `L ${x1.toFixed(2)} ${y1.toFixed(2)}`,     // Линия к первой точке
+                `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`, // Дуга
+                'Z'                                   // Закрываем путь
+            ].join(' ');
 
-            // Текст иконки
-            const textAngle = (startAngle + endAngle) / 2;
-            const textRadius = radius * 0.7;
-            const textX = centerX + textRadius * Math.cos(textAngle);
-            const textY = centerY + textRadius * Math.sin(textAngle);
+            // Позиция иконки - центр сегмента
+            const middleAngle = startAngle + (anglePerSegment / 2);
+            const iconRadius = radius * 0.65; // Размещаем иконки ближе к краю
+            const iconX = centerX + iconRadius * Math.cos(middleAngle);
+            const iconY = centerY + iconRadius * Math.sin(middleAngle);
 
-            // Используем циклический выбор градиента
-            const gradientIndex = index % segmentColors.length;
-
+            // Создаем сегмент
             svgContent += `
                 <path 
-                    d="${path}" 
-                    fill="url(#megagradient${gradientIndex})" 
-                    stroke="rgba(255,255,255,0.3)" 
-                    stroke-width="2"
-                    class="wheel-segment-path"
+                    d="${pathData}" 
+                    fill="url(#megaGrad${i})" 
+                    stroke="rgba(255,255,255,0.5)" 
+                    stroke-width="1.5"
+                    class="mega-segment-path"
                     data-prize-id="${prize.id}"
-                    filter="drop-shadow(0 4px 8px rgba(0,0,0,0.3))"
+                    data-segment-index="${i}"
+                    filter="url(#segmentShadow)"
                 />
+            `;
+            
+            // Создаем иконку
+            svgContent += `
                 <text 
-                    x="${textX}" 
-                    y="${textY}" 
+                    x="${iconX.toFixed(2)}" 
+                    y="${iconY.toFixed(2)}" 
                     text-anchor="middle" 
-                    dominant-baseline="middle" 
-                    font-size="24" 
+                    dominant-baseline="central" 
+                    font-size="22" 
                     fill="white"
                     font-weight="bold"
-                    class="segment-icon"
-                    filter="drop-shadow(0 2px 4px rgba(0,0,0,0.5))"
+                    class="mega-segment-icon"
+                    filter="url(#textShadow)"
+                    style="user-select: none; pointer-events: none;"
                 >${prize.icon}</text>
             `;
-        });
+        }
 
+        // Собираем финальный SVG
         container.innerHTML = defsContent + svgContent;
-        console.log('✅ Красивая SVG мега рулетки сгенерирована в стиле основной');
+        
+        console.log('✅ Идеальная мега рулетка сгенерирована с точными сегментами');
     }
 
 
@@ -445,10 +476,8 @@ export class MegaRouletteScreen {
                 </div>
             `;
             
-            // Добавляем 100 звезд на баланс
-            this.app.gameData.stars = (this.app.gameData.stars || 0) + 100;
-            this.app.saveGameData();
-            this.app.updateStarsDisplay();
+            // ИСПРАВЛЕНО: НЕ добавляем звезды локально - сервер сделает это сам!
+            console.log('⭐ Выиграно 100 звезд в мега-рулетке. Ожидаем обновления от сервера...');
         } else {
             // Для всех остальных призов (сертификаты, товары)
             const isCertificate = prize.id.includes('cert');

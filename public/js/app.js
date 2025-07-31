@@ -69,24 +69,36 @@ export default class App {
         console.log('💾 Загрузка данных пользователя...');
 
         try {
-            // Попытка загрузки из localStorage
+            // ИСПРАВЛЕНО: Сначала инициализируем минимальные данные
+            this.gameData = { ...DEFAULT_USER_DATA };
+            console.log('🆕 Временные данные пользователя созданы');
+            
+            // Попытка загрузки из localStorage (только для fallback)
             const saved = localStorage.getItem('kosmetichkaGameData');
             if (saved) {
-                this.gameData = { ...DEFAULT_USER_DATA, ...JSON.parse(saved) };
-                console.log('💾 Данные загружены из localStorage');
-            } else {
-                this.gameData = { ...DEFAULT_USER_DATA };
-                console.log('🆕 Созданы новые данные пользователя');
+                const savedData = JSON.parse(saved);
+                // Объединяем только некритичные данные, звезды берем из БД
+                this.gameData = {
+                    ...this.gameData,
+                    recentWins: savedData.recentWins || [],
+                    completedTasks: savedData.completedTasks || [],
+                    profile: savedData.profile || this.gameData.profile,
+                    settings: savedData.settings || this.gameData.settings
+                    // НЕ берем stars из localStorage - только из БД!
+                };
+                console.log('💾 Некритичные данные восстановлены из localStorage');
             }
             
-            // Инициализация необходимых полей
+            // Инициализация необходимых полей (без звезд)
             if (!this.gameData.recentWins) this.gameData.recentWins = [];
             if (!this.gameData.completedTasks) this.gameData.completedTasks = [];
             if (!this.gameData.availableFriendSpins) this.gameData.availableFriendSpins = 1;
             if (!this.gameData.profile) this.gameData.profile = { name: 'Пользователь', avatar: '👤', joinDate: Date.now() };
             if (!this.gameData.referrals) this.gameData.referrals = 0;
             if (!this.gameData.prizesWon) this.gameData.prizesWon = 0;
-            if (!this.gameData.totalStarsEarned) this.gameData.totalStarsEarned = this.gameData.stars || 20;
+            
+            // ВАЖНО: НЕ инициализируем totalStarsEarned здесь - только из БД
+            console.log('⚠️ Инициализация завершена. Ожидаем данные из БД для баланса...');
             
         } catch (error) {
             console.error('❌ Ошибка загрузки данных:', error);
@@ -490,57 +502,67 @@ export default class App {
         console.log(`🎁 Добавлен выигрыш: ${prize.name}`);
     }
 
-    // Обновление данных пользователя (для синхронизации с сервером)
+    // ИСПРАВЛЕННОЕ обновление данных пользователя (БД - единственный источник истины)
     updateUserData(newData) {
-        console.log('🔄 Обновление данных пользователя от сервера...');
+        if (!newData) return;
         
-        // Сохраняем текущие локальные данные призов если они новее
-        const localPrizes = this.gameData.prizes || [];
-        const serverPrizes = newData.prizes || [];
+        console.log('🔄 КРИТИЧЕСКОЕ обновление данных из БД:', {
+            starsFromServer: newData.stars,
+            currentLocal: this.gameData.stars
+        });
         
-        // Объединяем данные с приоритетом серверных данных
-        this.gameData = {
-            ...this.gameData,
-            ...newData,
-            // Но сохраняем более полный список призов
-            prizes: [...new Set([...serverPrizes, ...localPrizes])],
-            // Исправляем счетчик призов на основе реального количества
-            prizesWon: Math.max(
-                newData.prizesWon || 0,
-                newData.prizes?.length || 0,
-                this.gameData.prizes?.length || 0
-            )
-        };
+        // ИСПРАВЛЕНО: БД имеет абсолютный приоритет для критичных данных
         
-        // ИСПРАВЛЕНО: Правильно синхронизируем баланс звезд (приоритет данным из БД)
+        // 1. Баланс звезд - ТОЛЬКО из БД
         if (newData.stars !== undefined) {
+            console.log(`💰 Обновляем баланс: ${this.gameData.stars} → ${newData.stars}`);
             this.gameData.stars = newData.stars;
         }
         
-        // Если есть статистика от сервера, используем её
-        if (newData.stats) {
-            this.gameData.totalSpins = newData.stats.totalSpins || this.gameData.totalSpins;
-            this.gameData.prizesWon = newData.stats.prizesWon || this.gameData.prizesWon;
-            this.gameData.totalStarsEarned = newData.stats.totalStarsEarned || this.gameData.totalStarsEarned;
-            this.gameData.referrals = newData.stats.referrals || this.gameData.referrals;
-        }
-        
-        // Дополнительная синхронизация для совместимости
+        // 2. Статистика - ТОЛЬКО из БД  
         if (newData.total_stars_earned !== undefined) {
             this.gameData.totalStarsEarned = newData.total_stars_earned;
         }
         if (newData.referrals !== undefined) {
             this.gameData.referrals = newData.referrals;
         }
-
-        // Если есть задания от сервера, используем их
-        if (newData.tasks) {
-            this.gameData.completedTasks = newData.tasks.completed || this.gameData.completedTasks || [];
+        if (newData.total_spins !== undefined) {
+            this.gameData.totalSpins = newData.total_spins;
+        }
+        if (newData.prizes_won !== undefined) {
+            this.gameData.prizesWon = newData.prizes_won;
+        }
+        
+        // 3. Поддержка разных форматов статистики
+        if (newData.stats) {
+            this.gameData.stars = newData.stats.stars !== undefined ? newData.stats.stars : this.gameData.stars;
+            this.gameData.totalSpins = newData.stats.totalSpins !== undefined ? newData.stats.totalSpins : this.gameData.totalSpins;
+            this.gameData.prizesWon = newData.stats.prizesWon !== undefined ? newData.stats.prizesWon : this.gameData.prizesWon;  
+            this.gameData.totalStarsEarned = newData.stats.totalStarsEarned !== undefined ? newData.stats.totalStarsEarned : this.gameData.totalStarsEarned;
+            this.gameData.referrals = newData.stats.referrals !== undefined ? newData.stats.referrals : this.gameData.referrals;
+        }
+        
+        // 4. Некритичные данные можем объединять
+        if (newData.prizes) {
+            this.gameData.prizes = newData.prizes;
+        }
+        if (newData.recentWins) {
+            this.gameData.recentWins = newData.recentWins;
+        }
+        if (newData.completedTasks || newData.tasks?.completed) {
+            this.gameData.completedTasks = newData.completedTasks || newData.tasks.completed;
             console.log('✅ Обновлены выполненные задания:', this.gameData.completedTasks);
         }
         
-        this.saveGameData();
+        // КРИТИЧНО: Немедленно обновляем интерфейс с данными из БД
         this.updateInterface();
+        this.saveGameData(); // Сохраняем после обновления UI
+        
+        console.log('✅ Данные синхронизированы с БД:', {
+            stars: this.gameData.stars,
+            totalStarsEarned: this.gameData.totalStarsEarned,
+            referrals: this.gameData.referrals
+        });
         
         // Обновляем профиль если он активен
         if (this.navigation.currentScreen === 'profile' && this.screens.profile) {

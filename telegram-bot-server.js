@@ -3856,13 +3856,13 @@ async function syncUserData(userId, webAppData) {
         const subscriptions = await db.getUserSubscriptions(userId);
         const actualReferralsCount = await db.getUserReferralsCount(userId);
         
-        // ИСПРАВЛЕНО: Правильная синхронизация баланса (20 звезд - начальный баланс)
+        // ИСПРАВЛЕНО: Точная синхронизация баланса БЕЗ принудительных фолбэков
         const syncedData = {
             ...webAppData,
-            // Данные напрямую из базы (для правильной синхронизации)
-            stars: user.stars || 20,
+            // Данные ТОЧНО из базы (никаких фолбэков!!!)
+            stars: user.stars, // Берем именно то что в БД, даже если 0
             referrals: actualReferralsCount,
-            total_stars_earned: user.total_stars_earned || 20,
+            total_stars_earned: user.total_stars_earned, // Точное значение из БД
             profile: {
                 ...webAppData.profile,
                 telegramId: userId,

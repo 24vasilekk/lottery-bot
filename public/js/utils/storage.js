@@ -47,6 +47,11 @@ window.updateUserData = function(userData) {
         app.gameData.achievements = userData.stats.achievements;
     }
     
+    // ИСПРАВЛЕНИЕ: Поддерживаем также прямой формат userData.stars для совместимости
+    if (userData.stars !== undefined) {
+        app.gameData.stars = userData.stars;
+    }
+    
     if (userData.prizes) {
         app.gameData.recentWins = userData.prizes;
     }

@@ -685,14 +685,10 @@ export class TasksScreen {
         
         console.log(`💰 Начисление звезд: ${currentStars} + ${rewardAmount} = ${newStars}`);
         
-        // Обновляем локальные данные
-        this.app.gameData.stars = newStars;
+        // ИСПРАВЛЕНО: НЕ обновляем баланс локально - только сервер!
+        console.log(`⭐ Награда за задание: ${rewardAmount} звезд. Ожидаем подтверждения сервера...`);
         
-        // Увеличиваем общее количество заработанных звезд
-        if (!this.app.gameData.total_stars_earned) {
-            this.app.gameData.total_stars_earned = 20; // Начальные звезды
-        }
-        this.app.gameData.total_stars_earned += rewardAmount;
+        // Локальное начисление удалено - сервер сам обновит баланс через updateUserData
         
         console.log(`📊 Общие статистики: баланс=${newStars}, всего заработано=${this.app.gameData.total_stars_earned}`);
         
@@ -862,7 +858,8 @@ export class TasksScreen {
             const completeResult = await completeResponse.json();
 
             if (completeResult.success) {
-                this.app.addStars(completeResult.reward);
+                // ИСПРАВЛЕНО: НЕ добавляем звезды локально - сервер уже начислил!
+                console.log(`⭐ Сервер подтвердил награду: ${completeResult.reward} звезд`);
                 this.showMessage(`Получено ${completeResult.reward} ⭐!`, 'success');
                 
                 // Обновляем интерфейс

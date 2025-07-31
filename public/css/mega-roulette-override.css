@@ -29,10 +29,32 @@
     display: block !important;
 }
 
-/* Исправляем позиционирование колеса */
+/* ИДЕАЛЬНЫЙ КРУГ - исправляем позиционирование колеса */
 #mega-roulette-screen .mega-wheel {
     position: relative;
     margin: 0 auto;
+    width: 320px !important;
+    height: 320px !important;
+    border-radius: 50% !important;
+    overflow: hidden;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* SVG должен быть точно по размеру контейнера */
+#mega-roulette-screen #mega-wheel-svg {
+    width: 320px !important;
+    height: 320px !important;
+    border-radius: 50%;
+    transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+    transform-origin: center center;
+}
+
+/* Убираем любые искажения сегментов */
+#mega-roulette-screen .mega-segment-path {
+    vector-effect: non-scaling-stroke;
 }
 
 #mega-roulette-screen .mega-wheel-center {
@@ -81,7 +103,7 @@
     z-index: 10001 !important;
 }
 
-/* Адаптивные исправления */
+/* ИСПРАВЛЕННЫЕ адаптивные правила для идеального круга */
 @media (max-width: 400px) {
     #mega-roulette-screen .mega-wheel {
         width: 280px !important;
@@ -91,6 +113,8 @@
     #mega-roulette-screen #mega-wheel-svg {
         width: 280px !important;
         height: 280px !important;
+        /* Адаптируем viewBox для правильных пропорций */
+        viewBox: 0 0 320 320;
     }
     
     #mega-roulette-screen .mega-wheel-container {
@@ -107,5 +131,60 @@
     #mega-roulette-screen #mega-wheel-svg {
         width: 240px !important;
         height: 240px !important;
+        viewBox: 0 0 320 320;
     }
+}
+
+/* ДОПОЛНИТЕЛЬНЫЕ ИСПРАВЛЕНИЯ для идеального круга */
+#mega-roulette-screen .mega-wheel-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 320px;
+    height: 320px;
+    margin: 0 auto;
+}
+
+#mega-roulette-screen .mega-wheel-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 20px;
+    padding: 30px 20px;
+}
+
+/* Исправляем позиционирование указателя */
+#mega-roulette-screen .mega-wheel-pointer {
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    width: 0;
+    height: 0;
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;
+    border-top: 20px solid #FFD700;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+}
+
+/* Исправляем центр колеса */
+#mega-roulette-screen .mega-wheel-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 25;
+    width: 60px;
+    height: 60px;
+    background: radial-gradient(circle, #FFD700 0%, #FFA500 100%);
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }

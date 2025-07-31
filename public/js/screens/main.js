@@ -430,11 +430,10 @@ export class MainScreen {
         if (prize.type !== 'empty' && prize.value > 0) {
             this.app.gameData.prizesWon = (this.app.gameData.prizesWon || 0) + 1;
             
-            // Если приз - звезды, добавляем их к балансу
+            // ИСПРАВЛЕНО: НЕ добавляем звезды локально - только сервер!
             if (prize.type.includes('stars')) {
-                this.app.gameData.stars = (this.app.gameData.stars || 0) + prize.value;
-                this.app.gameData.totalStarsEarned = (this.app.gameData.totalStarsEarned || 0) + prize.value;
-                console.log(`✨ Добавлено ${prize.value} звезд. Общий баланс: ${this.app.gameData.stars}`);
+                console.log(`⭐ Выигран приз: ${prize.value} звезд. Ожидаем подтверждения от сервера...`);
+                // Звезды будут начислены сервером после успешного savePrizeToServer
             }
             
             // Добавляем приз в историю
