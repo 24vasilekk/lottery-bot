@@ -8,6 +8,9 @@ export class MegaRouletteScreen {
         this.countdownInterval = null;
         this.lastCanSpinStatus = null;
         
+        // Устанавливаем глобальную ссылку для onclick обработчиков
+        window.megaRouletteScreen = this;
+        
         this.megaPrizes = [
             { id: 'airpods4', name: 'AirPods 4', icon: '🎧', rarity: 'legendary', value: 25000 },
             { id: 'cert5000', name: 'Сертификат 5000₽', icon: '💎', rarity: 'epic', value: 5000 },
@@ -43,16 +46,44 @@ export class MegaRouletteScreen {
                     </div>
                 </div>
 
+                <div class="mega-prizes-showcase">
+                    <h3>💎 Призовой фонд</h3>
+                    <div class="mega-prizes-grid">
+                        <div class="mega-prize-card legendary">
+                            <div class="prize-icon">🎧</div>
+                            <div class="prize-name">AirPods 4</div>
+                            <div class="prize-tag">25.000₽</div>
+                        </div>
+                        <div class="mega-prize-card epic">
+                            <div class="prize-icon">💎</div>
+                            <div class="prize-name">Сертификат 5000₽</div>
+                            <div class="prize-tag">Эпик</div>
+                        </div>
+                        <div class="mega-prize-card rare">
+                            <div class="prize-icon">🔋</div>
+                            <div class="prize-name">Повербанк</div>
+                            <div class="prize-tag">2.000₽</div>
+                        </div>
+                        <div class="mega-prize-card rare">
+                            <div class="prize-icon">⚡</div>
+                            <div class="prize-name">Беспроводная зарядка</div>
+                            <div class="prize-tag">1.500₽</div>
+                        </div>
+                    </div>
+                </div>
 
-                <div class="wheel-container">
-                    <div class="wheel" id="mega-wheel">
-                        <div class="wheel-pointer"></div>
-                        <svg id="mega-wheel-svg" width="400" height="400" viewBox="0 0 400 400">
-                            <g id="mega-wheel-segments"></g>
-                        </svg>
-                        <div class="wheel-center mega-center">
-                            <div class="mega-center-crown">👑</div>
-                            <span class="mega-center-text">MEGA</span>
+                <div class="mega-wheel-container">
+                    <div class="mega-wheel-wrapper">
+                        <div class="mega-wheel-glow"></div>
+                        <div class="mega-wheel" id="mega-wheel">
+                            <div class="mega-wheel-pointer"></div>
+                            <svg id="mega-wheel-svg" width="320" height="320" viewBox="0 0 320 320">
+                                <g id="mega-wheel-segments"></g>
+                            </svg>
+                            <div class="mega-wheel-center">
+                                <div class="mega-center-crown">👑</div>
+                                <span class="mega-center-text">MEGA</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -76,25 +107,22 @@ export class MegaRouletteScreen {
                         <div class="mega-btn-bg"></div>
                         <div class="mega-btn-content">
                             ${!canSpin ? '<i class="fas fa-clock"></i> Недоступно' : 
-                              !hasEnoughStars ? '<i class="fas fa-star"></i> 5000 звезд' :
+                              !hasEnoughStars ? '<i class="fas fa-star"></i> Нужно 5000 звезд' :
                               '<i class="fas fa-crown"></i> КРУТИТЬ МЕГА РУЛЕТКУ'}
                         </div>
                     </button>
                 </div>
 
-                <div class="mega-prizes-list">
-                    <h3 class="prizes-title">🎁 Список призов</h3>
-                    <div class="prizes-grid">
-                        ${this.megaPrizes.map(prize => `
-                            <div class="prize-item ${prize.rarity}">
-                                <div class="prize-icon">${prize.icon}</div>
-                                <div class="prize-name">${prize.name}</div>
-                            </div>
-                        `).join('')}
+                ${canSpin ? '' : `
+                    <div class="mega-next-spin-info">
+                        <div style="text-align: center; padding: 20px;">
+                            <div style="font-size: 48px; margin-bottom: 15px;">⏰</div>
+                            <h4 style="color: #FFD700; margin-bottom: 10px;">Мега рулетка - эксклюзив!</h4>
+                            <p>Доступна раз в месяц для особых игроков.<br>
+                            Следите за уведомлениями в нашем канале!</p>
+                        </div>
                     </div>
-                </div>
-
-                ${canSpin ? '' : '<div class="mega-next-spin-info">Мега рулетка доступна раз в месяц для особых игроков</div>'}
+                `}
             </div>
         `;
     }
@@ -156,25 +184,25 @@ export class MegaRouletteScreen {
             return;
         }
 
-        const radius = 180;
-        const centerX = 200;
-        const centerY = 200;
+        const radius = 140;
+        const centerX = 160;
+        const centerY = 160;
         const anglePerSegment = (2 * Math.PI) / this.megaPrizes.length;
 
-        // Красивые градиентные цвета в стиле профиля (точно как в основной рулетке)
+        // Золотые и премиальные градиенты для мега-рулетки
         const segmentColors = [
-            'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)', // Розово-малиновый
-            'linear-gradient(135deg, #764ba2 0%, #667eea 100%)', // Фиолетово-синий  
-            'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', // Розово-красный
-            'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', // Сине-голубой
-            'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', // Зелено-мятный
-            'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', // Розово-желтый
-            'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', // Мятно-розовый
-            'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)', // Коралловый
-            'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', // Синий-фиолетовый
-            'linear-gradient(135deg, #f6d365 0%, #fda085 100%)', // Желто-персиковый
-            'linear-gradient(135deg, #96fbc4 0%, #f9f586 100%)', // Зелено-желтый
-            'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)'  // Кремово-персиковый
+            'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)', // Золотой
+            'linear-gradient(135deg, #FF8C00 0%, #FF6347 100%)', // Оранжево-красный
+            'linear-gradient(135deg, #9966CC 0%, #8A2BE2 100%)', // Фиолетовый (эпик)
+            'linear-gradient(135deg, #00BFFF 0%, #0066CC 100%)', // Голубой (рейр)
+            'linear-gradient(135deg, #32CD32 0%, #228B22 100%)', // Зеленый
+            'linear-gradient(135deg, #FF69B4 0%, #C71585 100%)', // Розовый
+            'linear-gradient(135deg, #FF4500 0%, #DC143C 100%)', // Красный
+            'linear-gradient(135deg, #DDA0DD 0%, #9370DB 100%)', // Фиолетово-сиреневый
+            'linear-gradient(135deg, #F0E68C 0%, #DAA520 100%)', // Золотисто-желтый
+            'linear-gradient(135deg, #FFB6C1 0%, #FF1493 100%)', // Светло-розовый
+            'linear-gradient(135deg, #20B2AA 0%, #008B8B 100%)', // Бирюзовый
+            'linear-gradient(135deg, #696969 0%, #2F4F4F 100%)'  // Серый (пустой)
         ];
 
         let svgContent = '';
@@ -436,11 +464,14 @@ export class MegaRouletteScreen {
                     <h2>🎉 ПОЗДРАВЛЯЕМ!</h2>
                     <h3>Вы выиграли:</h3>
                     <div class="mega-win-prize">${prize.name}</div>
-                    ${isCertificate ? 
-                        `<p class="mega-win-instruction">📩 Напишите менеджеру для получения сертификата${platform ? ` на ${platform}` : ''}</p>` :
-                        `<p class="mega-win-instruction">📦 Напишите менеджеру для получения приза</p>`
-                    }
-                    <button class="mega-win-close btn-contact">Написать менеджеру</button>
+                    <p class="mega-win-instruction">Для получения приза обратитесь в поддержку</p>
+                    <div class="mega-prize-actions">
+                        <button class="mega-support-btn" onclick="window.megaRouletteScreen?.openSupport()">
+                            <i class="fas fa-headset"></i>
+                            Связаться с поддержкой
+                        </button>
+                        <button class="mega-win-close">Понятно</button>
+                    </div>
                 </div>
             `;
         }
@@ -451,12 +482,6 @@ export class MegaRouletteScreen {
         // Закрытие модального окна
         const closeBtn = winModal.querySelector('.mega-win-close');
         closeBtn.addEventListener('click', () => {
-            if (!isStarsPrize) {
-                // Для призов открываем контакт менеджера
-                if (this.app.tg && this.app.tg.openTelegramLink) {
-                    this.app.tg.openTelegramLink('https://t.me/your_manager_username');
-                }
-            }
             winModal.remove();
         });
 
@@ -528,6 +553,21 @@ export class MegaRouletteScreen {
                 screenContainer.innerHTML = newScreenContent.innerHTML;
                 this.init();
             }
+        }
+    }
+
+    // Метод для открытия поддержки
+    openSupport() {
+        console.log('🎧 Открытие поддержки из мега рулетки');
+        
+        if (this.app.tg?.openTelegramLink) {
+            this.app.tg.openTelegramLink('https://t.me/kosmetichkasupport');
+            this.app.showStatusMessage('Переход в поддержку...', 'info');
+        } else if (window.open) {
+            // Fallback для браузера
+            window.open('https://t.me/kosmetichkasupport', '_blank');
+        } else {
+            this.app.showStatusMessage('Поддержка: @kosmetichkasupport', 'info');
         }
     }
 

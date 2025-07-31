@@ -22,7 +22,7 @@ export const APP_CONFIG = {
         friendSpin: true // Можно крутить за друга
     },
     game: {
-        startingStars: 100, // Начальное количество звезд
+        startingStars: 20, // Начальное количество звезд
         startingFriendSpins: 1, // Начальное количество прокруток за друга
         maxRecentWins: 10 // Максимальное количество последних выигрышей
     }
@@ -164,9 +164,9 @@ export const WHEEL_PRIZES = [
     }
 ];
 
-// Пользователь по умолчанию (ОБНОВЛЕННЫЙ)
+// Пользователь по умолчанию (ИСПРАВЛЕНО: 20 звезд)
 export const DEFAULT_USER_DATA = {
-    stars: APP_CONFIG.game.startingStars, // 100 звезд
+    stars: APP_CONFIG.game.startingStars, // 20 звезд
     referrals: 0,
     totalSpins: 0,
     totalStarsEarned: APP_CONFIG.game.startingStars,

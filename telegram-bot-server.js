@@ -465,7 +465,7 @@ app.post('/api/activate-referral', async (req, res) => {
         
         if (added) {
             // Начисляем звезды рефереру
-            await db.updateUserStars(referrerId, 100);
+            await db.addUserStars(referrerId, 100);
             
             // Отправляем уведомления
             try {
@@ -931,7 +931,7 @@ app.post('/api/update-user-stars', async (req, res) => {
 
         // Обновляем звезды пользователя
         if (stars !== undefined) {
-            await database.updateUserStars(userId, stars);
+            await database.setUserStars(userId, stars);
         }
         
         // Сохраняем выполненные задания если есть
@@ -1128,7 +1128,7 @@ app.post('/api/user/:userId/stars', async (req, res) => {
         }
 
         // Обновляем звезды
-        await database.updateUserStars(userId, newStars);
+        await database.setUserStars(userId, newStars);
 
         console.log(`💰 Звезды пользователя ${userId} изменены: ${userData.stars || 0} → ${newStars} (${operation} ${amount})`);
 
@@ -2129,7 +2129,7 @@ app.post('/api/admin/users/stars', requireAdmin, async (req, res) => {
         }
 
         // Обновляем баланс звезд
-        await db.updateUserStars(validatedData.telegramId, starsChange);
+        await db.addUserStars(validatedData.telegramId, starsChange);
 
         // Добавляем запись в историю транзакций
         await db.addStarsTransaction({
@@ -2210,12 +2210,12 @@ app.post('/api/admin/manual-spin', requireAdmin, async (req, res) => {
         switch (spinType) {
             case 'normal':
                 // Добавляем 20 звезд для обычной прокрутки
-                await db.updateUserStars(userId, 20);
+                await db.addUserStars(userId, 20);
                 break;
                 
             case 'mega':
                 // Добавляем 5000 звезд для мега прокрутки
-                await db.updateUserStars(userId, 5000);
+                await db.addUserStars(userId, 5000);
                 break;
                 
             case 'friend':
@@ -2552,7 +2552,7 @@ if (bot) {
                                     console.log(`🤝 Пользователь ${userId} приглашен пользователем ${referrerId}`);
                                     
                                     // ВАЖНО: Сразу начисляем звезды рефереру
-                                    await db.updateUserStars(referrerId, 100);
+                                    await db.addUserStars(referrerId, 100);
                                     
                                     // Обновляем общее количество заработанных звезд
                                     await db.incrementTotalStarsEarned(referrerId, 100);
@@ -2752,7 +2752,7 @@ if (bot) {
             promo.used.add(userId);
             
             // Обновляем звезды в базе данных
-            await db.updateUserStars(userId, promo.crystals);
+            await db.addUserStars(userId, promo.crystals);
             
             bot.sendMessage(chatId, `✅ Промокод активирован!\n⭐ Получено ${promo.crystals} звезд`);
             
@@ -3524,7 +3524,7 @@ if (bot) {
             const starsAmount = payload.amount;
             
             // Добавляем звезды пользователю
-            await db.updateUserStars(userId, starsAmount);
+            await db.addUserStars(userId, starsAmount);
             
             // Записываем транзакцию в БД
             await db.addStarsTransaction({
@@ -3711,7 +3711,7 @@ async function handleWheelSpin(userId, data) {
                 // Если это звезды - обновляем баланс
                 if (data.prize.type.includes('stars')) {
                     const starsAmount = data.prize.value || 0;
-                    await db.updateUserStars(userId, starsAmount);
+                    await db.addUserStars(userId, starsAmount);
                 }
                 
                 // Отправляем уведомление в телеграм
@@ -3753,7 +3753,7 @@ async function handleTaskCompleted(userId, data) {
             // Обновляем звезды пользователя
             const rewardAmount = data.reward?.amount || 0;
             if (rewardAmount > 0) {
-                await db.updateUserStars(userId, rewardAmount);
+                await db.addUserStars(userId, rewardAmount);
             }
             
             // Отправляем уведомление
@@ -3804,7 +3804,7 @@ async function handleChannelSubscription(userId, data) {
         await db.updateUserSubscription(userId, channelField, true);
         
         // Даем бонус за подписку
-        await db.updateUserStars(userId, bonus);
+        await db.addUserStars(userId, bonus);
         
         if (bot) {
             try {
@@ -3856,8 +3856,13 @@ async function syncUserData(userId, webAppData) {
         const subscriptions = await db.getUserSubscriptions(userId);
         const actualReferralsCount = await db.getUserReferralsCount(userId);
         
+        // ИСПРАВЛЕНО: Правильная синхронизация баланса (20 звезд - начальный баланс)
         const syncedData = {
             ...webAppData,
+            // Данные напрямую из базы (для правильной синхронизации)
+            stars: user.stars || 20,
+            referrals: actualReferralsCount,
+            total_stars_earned: user.total_stars_earned || 20,
             profile: {
                 ...webAppData.profile,
                 telegramId: userId,
@@ -4652,7 +4657,7 @@ async function handleChannelSubscriptionTask(userId, channelId, userData) {
         await db.updatePartnerChannelSubscribers(channelId, 1);
         
         // Начисляем звезды пользователю
-        await db.updateUserStars(userId, rewardStars);
+        await db.addUserStars(userId, rewardStars);
         console.log(`⭐ Начислено ${rewardStars} звезд пользователю ${userId}`);
         
         // Проверяем и разблокируем достижения
@@ -4661,7 +4666,7 @@ async function handleChannelSubscriptionTask(userId, channelId, userData) {
         
         if (unlockedAchievements.length > 0) {
             achievementStars = unlockedAchievements.reduce((sum, ach) => sum + ach.stars, 0);
-            await db.updateUserStars(userId, achievementStars);
+            await db.addUserStars(userId, achievementStars);
             console.log(`🏆 Разблокированы достижения на ${achievementStars} звезд:`, unlockedAchievements.map(a => a.key));
         }
         
@@ -4678,7 +4683,7 @@ async function handleChannelSubscriptionTask(userId, channelId, userData) {
             });
             
             // Награждаем реферера 20 звездами
-            await db.updateUserStars(user.referrer_id, 20);
+            await db.addUserStars(user.referrer_id, 20);
             
             console.log(`👥 Активирован реферер пользователя ${userId} после 2-й подписки, выдано 20 звезд`);
             

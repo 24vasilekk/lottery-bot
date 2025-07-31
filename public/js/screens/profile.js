@@ -52,8 +52,8 @@ export class ProfileScreen {
                             <div class="stats-grid" id="profile-stats-grid">
                                 <div class="stats-card">
                                     <div class="stats-card-icon">⭐</div>
-                                    <div class="stats-card-value">${gameData.totalStarsEarned || gameData.stars}</div>
-                                    <div class="stats-card-label">Звезд</div>
+                                    <div class="stats-card-value">${gameData.stars || 0}</div>
+                                    <div class="stats-card-label">Текущий баланс</div>
                                 </div>
                                 <div class="stats-card">
                                     <div class="stats-card-icon">👥</div>
@@ -71,6 +71,36 @@ export class ProfileScreen {
                             </div>
                             <div class="referrals-section" id="referrals-section">
                                 ${this.renderReferralsSection()}
+                            </div>
+                        </div>
+
+                        <!-- Наши ресурсы -->
+                        <div class="section">
+                            <div class="section-title">
+                                <i class="fas fa-link"></i>
+                                Наши ресурсы
+                            </div>
+                            <div class="resources-section">
+                                <div class="resource-item" onclick="window.profileScreen.openChannel()">
+                                    <div class="resource-icon">📢</div>
+                                    <div class="resource-info">
+                                        <div class="resource-name">Наш канал проекта</div>
+                                        <div class="resource-description">Новости, розыгрыши и обновления</div>
+                                    </div>
+                                    <div class="resource-arrow">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </div>
+                                </div>
+                                <div class="resource-item" onclick="window.profileScreen.openSupport()">
+                                    <div class="resource-icon">🎧</div>
+                                    <div class="resource-info">
+                                        <div class="resource-name">Поддержка</div>
+                                        <div class="resource-description">Помощь с получением призов</div>
+                                    </div>
+                                    <div class="resource-arrow">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -94,8 +124,13 @@ export class ProfileScreen {
                 <!-- Контент вкладки "Лидерборд" -->
                 <div class="tab-content" id="leaderboard">
                     <div class="leaderboard-header">
-                        <h3>🏆 Топ по рефералам</h3>
-                        <p>Глобальный рейтинг по количеству приглашенных друзей</p>
+                        <div class="leaderboard-avatar">
+                            🏆
+                        </div>
+                        <div class="leaderboard-info">
+                            <h3>Топ по рефералам</h3>
+                            <p>Глобальный рейтинг по количеству приглашенных друзей</p>
+                        </div>
                     </div>
                     
                     <div class="current-position" id="current-position">
@@ -200,7 +235,7 @@ export class ProfileScreen {
                 <div class="stats-card">
                     <div class="stats-card-icon">⭐</div>
                     <div class="stats-card-value">${userData.stars || this.app.gameData.stars || 0}</div>
-                    <div class="stats-card-label">Звезд</div>
+                    <div class="stats-card-label">Текущий баланс</div>
                 </div>
                 <div class="stats-card">
                     <div class="stats-card-icon">👥</div>
@@ -532,6 +567,36 @@ export class ProfileScreen {
         }
         
         return '👤';
+    }
+
+    // Методы для открытия ресурсов
+    openChannel() {
+        console.log('📢 Открытие канала проекта');
+        
+        if (this.app.tg?.openTelegramLink) {
+            // Используем ссылку на канал проекта (замените на актуальную)
+            this.app.tg.openTelegramLink('https://t.me/your_project_channel');
+            this.app.showStatusMessage('Переход в канал проекта...', 'info');
+        } else if (window.open) {
+            // Fallback для браузера
+            window.open('https://t.me/your_project_channel', '_blank');
+        } else {
+            this.app.showStatusMessage('Канал: @your_project_channel', 'info');
+        }
+    }
+
+    openSupport() {
+        console.log('🎧 Открытие поддержки');
+        
+        if (this.app.tg?.openTelegramLink) {
+            this.app.tg.openTelegramLink('https://t.me/kosmetichkasupport');
+            this.app.showStatusMessage('Переход в поддержку...', 'info');
+        } else if (window.open) {
+            // Fallback для браузера
+            window.open('https://t.me/kosmetichkasupport', '_blank');
+        } else {
+            this.app.showStatusMessage('Поддержка: @kosmetichkasupport', 'info');
+        }
     }
 
     destroy() {

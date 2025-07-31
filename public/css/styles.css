@@ -2067,3 +2067,95 @@ body {
     transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
     transform-origin: center center;
 }
+
+/* ========================================
+   ПОДДЕРЖКА В МОДАЛЬНЫХ ОКНАХ ПРИЗОВ
+   ======================================== */
+
+/* Контейнер для кнопок в модальных окнах призов */
+.prize-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 20px;
+    width: 100%;
+}
+
+.mega-prize-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 20px;
+    width: 100%;
+}
+
+/* Стили для кнопки поддержки в призовых модалах */
+.prize-support-btn, .mega-support-btn {
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    border: none;
+    color: white;
+    padding: 14px 20px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.prize-support-btn:hover, .mega-support-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+}
+
+.prize-support-btn:active, .mega-support-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 10px rgba(76, 175, 80, 0.3);
+}
+
+.prize-support-btn i, .mega-support-btn i {
+    font-size: 14px;
+}
+
+/* Обновленные стили для кнопки закрытия призовых модалов */
+.prize-result-close, .mega-win-close {
+    background: transparent;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    color: var(--text-secondary);
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.prize-result-close:hover, .mega-win-close:hover {
+    border-color: rgba(255, 255, 255, 0.5);
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Адаптация для мобильных устройств */
+@media (max-width: 480px) {
+    .prize-actions, .mega-prize-actions {
+        gap: 10px;
+        margin-top: 16px;
+    }
+    
+    .prize-support-btn, .mega-support-btn {
+        padding: 12px 16px;
+        font-size: 15px;
+    }
+    
+    .prize-result-close, .mega-win-close {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+}

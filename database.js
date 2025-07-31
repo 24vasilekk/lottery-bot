@@ -490,13 +490,17 @@ class Database {
     async createUser(userData) {
         return new Promise((resolve, reject) => {
             const { telegram_id, username, first_name, last_name } = userData;
+            // ИСПРАВЛЕНО: Правильный начальный баланс - 20 звезд при первой регистрации
             this.db.run(
-                `INSERT INTO users (telegram_id, username, first_name, last_name) 
-                 VALUES (?, ?, ?, ?)`,
+                `INSERT INTO users (telegram_id, username, first_name, last_name, stars, total_stars_earned) 
+                 VALUES (?, ?, ?, ?, 20, 20)`,
                 [telegram_id, username, first_name, last_name],
                 function(err) {
                     if (err) reject(err);
-                    else resolve(this.lastID);
+                    else {
+                        console.log(`✅ Пользователь ${telegram_id} создан с начальным балансом 20 звезд`);
+                        resolve(this.lastID);
+                    }
                 }
             );
         });
@@ -751,18 +755,18 @@ class Database {
         });
     }
 
-    // Метод для обновления звезд пользователя
-    async updateUserStars(userId, stars) {
+    // Метод для установки абсолютного значения звезд пользователя
+    async setUserStars(userId, stars) {
         return new Promise((resolve, reject) => {
             this.db.run(
                 'UPDATE users SET stars = ?, last_activity = CURRENT_TIMESTAMP WHERE telegram_id = ?',
                 [stars, userId],
                 function(err) {
                     if (err) {
-                        console.error('❌ Ошибка обновления звезд:', err);
+                        console.error('❌ Ошибка установки звезд:', err);
                         reject(err);
                     } else {
-                        console.log(`💰 Звезды пользователя ${userId} обновлены: ${stars}`);
+                        console.log(`💰 Звезды пользователя ${userId} установлены: ${stars}`);
                         resolve(this.changes);
                     }
                 }
@@ -770,15 +774,20 @@ class Database {
         });
     }
 
-    // 3. Убедитесь, что метод updateUserStars работает правильно:
-    async updateUserStars(telegramId, amount) {
+    // Метод для добавления звезд к текущему балансу пользователя
+    async addUserStars(telegramId, amount) {
         return new Promise((resolve, reject) => {
             this.db.run(
-                'UPDATE users SET stars = stars + ? WHERE telegram_id = ?',
-                [amount, telegramId],
-                (err) => {
-                    if (err) reject(err);
-                    else resolve();
+                'UPDATE users SET stars = stars + ?, total_stars_earned = total_stars_earned + ?, last_activity = CURRENT_TIMESTAMP WHERE telegram_id = ?',
+                [amount, amount, telegramId],
+                function(err) {
+                    if (err) {
+                        console.error('❌ Ошибка добавления звезд:', err);
+                        reject(err);
+                    } else {
+                        console.log(`⭐ Пользователю ${telegramId} добавлено ${amount} звезд`);
+                        resolve(this.changes);
+                    }
                 }
             );
         });

@@ -1,0 +1,111 @@
+/* ========================================
+   ПЕРЕОПРЕДЕЛЕНИЕ СТАРЫХ СТИЛЕЙ МЕГА-РУЛЕТКИ
+   public/css/mega-roulette-override.css
+   ======================================== */
+
+/* Переопределяем старые стили для совместимости с новым дизайном */
+
+/* Переопределяем старый .wheel-container */
+#mega-roulette-screen .wheel-container {
+    display: none; /* Скрываем старый контейнер */
+}
+
+/* Переопределяем старые стили призов */
+#mega-roulette-screen .mega-prizes-list {
+    display: none; /* Скрываем старый список призов */
+}
+
+/* Переопределяем старое модальное окно */
+#mega-roulette-screen .mega-win-modal.old-style {
+    display: none;
+}
+
+/* Обеспечиваем правильную работу нового дизайна */
+#mega-roulette-screen .mega-wheel-container {
+    display: flex !important;
+}
+
+#mega-roulette-screen .mega-prizes-showcase {
+    display: block !important;
+}
+
+/* Исправляем позиционирование колеса */
+#mega-roulette-screen .mega-wheel {
+    position: relative;
+    margin: 0 auto;
+}
+
+#mega-roulette-screen .mega-wheel-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+#mega-roulette-screen .mega-wheel-pointer {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+}
+
+/* Обеспечиваем правильную работу SVG */
+#mega-roulette-screen #mega-wheel-svg {
+    display: block;
+    margin: 0 auto;
+}
+
+/* Переопределяем кнопку spin */
+#mega-roulette-screen .mega-spin-button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-width: 300px;
+}
+
+/* Фиксы для модального окна */
+.mega-win-modal {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 10000 !important;
+}
+
+.mega-win-content {
+    position: relative !important;
+    z-index: 10001 !important;
+}
+
+/* Адаптивные исправления */
+@media (max-width: 400px) {
+    #mega-roulette-screen .mega-wheel {
+        width: 280px !important;
+        height: 280px !important;
+    }
+    
+    #mega-roulette-screen #mega-wheel-svg {
+        width: 280px !important;
+        height: 280px !important;
+    }
+    
+    #mega-roulette-screen .mega-wheel-container {
+        padding: 20px !important;
+    }
+}
+
+@media (max-width: 320px) {
+    #mega-roulette-screen .mega-wheel {
+        width: 240px !important;
+        height: 240px !important;
+    }
+    
+    #mega-roulette-screen #mega-wheel-svg {
+        width: 240px !important;
+        height: 240px !important;
+    }
+}

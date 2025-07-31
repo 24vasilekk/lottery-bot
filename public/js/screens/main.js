@@ -497,8 +497,14 @@ export class MainScreen {
                 <h2>🎉 Поздравляем!</h2>
                 <h3>Вы выиграли:</h3>
                 <div class="prize-name">${prize.name}</div>
-                <p>Обратитесь к администратору для получения приза</p>
-                <button class="prize-result-close">Понятно</button>
+                <p>Для получения приза обратитесь в поддержку</p>
+                <div class="prize-actions">
+                    <button class="prize-support-btn" onclick="window.mainScreen.openSupport()">
+                        <i class="fas fa-headset"></i>
+                        Связаться с поддержкой
+                    </button>
+                    <button class="prize-result-close">Понятно</button>
+                </div>
             </div>`;
         
         resultModal.innerHTML = resultContent;
@@ -807,5 +813,20 @@ export class MainScreen {
         }
         
         document.body.removeChild(textArea);
+    }
+
+    // Метод для открытия поддержки
+    openSupport() {
+        console.log('🎧 Открытие поддержки из главного экрана');
+        
+        if (this.app.tg?.openTelegramLink) {
+            this.app.tg.openTelegramLink('https://t.me/kosmetichkasupport');
+            this.app.showStatusMessage('Переход в поддержку...', 'info');
+        } else if (window.open) {
+            // Fallback для браузера
+            window.open('https://t.me/kosmetichkasupport', '_blank');
+        } else {
+            this.app.showStatusMessage('Поддержка: @kosmetichkasupport', 'info');
+        }
     }
 }

@@ -512,13 +512,25 @@ export default class App {
             )
         };
         
+        // ИСПРАВЛЕНО: Правильно синхронизируем баланс звезд (приоритет данным из БД)
+        if (newData.stars !== undefined) {
+            this.gameData.stars = newData.stars;
+        }
+        
         // Если есть статистика от сервера, используем её
         if (newData.stats) {
-            this.gameData.stars = newData.stats.stars || this.gameData.stars;
             this.gameData.totalSpins = newData.stats.totalSpins || this.gameData.totalSpins;
             this.gameData.prizesWon = newData.stats.prizesWon || this.gameData.prizesWon;
             this.gameData.totalStarsEarned = newData.stats.totalStarsEarned || this.gameData.totalStarsEarned;
             this.gameData.referrals = newData.stats.referrals || this.gameData.referrals;
+        }
+        
+        // Дополнительная синхронизация для совместимости
+        if (newData.total_stars_earned !== undefined) {
+            this.gameData.totalStarsEarned = newData.total_stars_earned;
+        }
+        if (newData.referrals !== undefined) {
+            this.gameData.referrals = newData.referrals;
         }
 
         // Если есть задания от сервера, используем их
