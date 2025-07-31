@@ -2556,29 +2556,59 @@ if (bot) {
                                     // ВАЖНО: Сразу начисляем звезды рефереру
                                     await db.addUserStars(referrerId, 10);
                                     
+                                    // ДОБАВЛЕНО: Даем одну прокрутку за друга
+                                    await new Promise((resolve, reject) => {
+                                        db.db.run(
+                                            'UPDATE users SET available_friend_spins = available_friend_spins + 1 WHERE telegram_id = ?',
+                                            [referrerId],
+                                            (err) => err ? reject(err) : resolve()
+                                        );
+                                    });
+                                    
                                     // Обновляем общее количество заработанных звезд
                                     await db.incrementTotalStarsEarned(referrerId, 10);
                                     
-                                    console.log(`⭐ Рефереру ${referrerId} начислено 10 звезд за приглашение`);
+                                    console.log(`⭐ Рефереру ${referrerId} начислено 10 звезд + 1 прокрутка за приглашение`);
                                     
-                                    // Уведомляем пригласившего
+                                    // ДОБАВЛЕНО: Принудительная синхронизация данных для отладки
                                     try {
-                                        await bot.sendMessage(referrerId, 
-                                            ` Поздравляем! Ваш друг ${msg.from.first_name} присоединился к боту!\n` +
-                                            ` Вы получили 10 звезд за приглашение!`
-                                        );
-                                    } catch (notifyError) {
-                                        console.log('⚠️ Не удалось уведомить реферера:', notifyError.message);
+                                        const updatedReferrer = await db.getUser(referrerId);
+                                        const referralsCount = await new Promise((resolve, reject) => {
+                                            db.db.get(`
+                                                SELECT COUNT(*) as count 
+                                                FROM referrals r
+                                                JOIN users u ON r.referrer_id = u.id
+                                                WHERE u.telegram_id = ?
+                                            `, [referrerId], (err, result) => {
+                                                if (err) reject(err);
+                                                else resolve(result?.count || 0);
+                                            });
+                                        });
+                                        
+                                        console.log(`📊 Обновленные данные реферера ${referrerId}:`, {
+                                            stars: updatedReferrer.stars,
+                                            referrals: referralsCount,
+                                            available_friend_spins: updatedReferrer.available_friend_spins,
+                                            total_stars_earned: updatedReferrer.total_stars_earned
+                                        });
+                                        
+                                    } catch (error) {
+                                        console.warn('⚠️ Ошибка получения обновленных данных:', error);
                                     }
                                     
-                                    // Уведомляем приглашенного
+                                    // ИСПРАВЛЕНО: Обновленные уведомления
                                     try {
+                                        await bot.sendMessage(referrerId, 
+                                            `🎉 Поздравляем! Ваш друг ${msg.from.first_name} присоединился к боту!\n` +
+                                            `💫 Вы получили 10 звезд + 1 прокрутку за друга!`
+                                        );
+                                        
                                         await bot.sendMessage(userId,
                                             `👋 Добро пожаловать! Вы присоединились по приглашению от ${referrer.first_name}!\n` +
-                                            `🎁 Начните играть и выигрывайте призы!`
+                                            `🎁 Выполните задания, чтобы ваш друг получил дополнительные бонусы!`
                                         );
                                     } catch (notifyError) {
-                                        console.log('⚠️ Не удалось уведомить приглашенного:', notifyError.message);
+                                        console.warn('⚠️ Не удалось отправить уведомления:', notifyError.message);
                                     }
                                 }
                             } else {
@@ -4399,6 +4429,43 @@ async function applyUnsubscriptionPenalty(subscription) {
         console.error(`❌ Ошибка применения штрафа для подписки ${subscription.id}:`, error);
     }
 }
+
+// ДОБАВИТЬ отладочный endpoint:
+app.get('/api/debug/user/:userId', async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId);
+        
+        const user = await db.getUser(userId);
+        
+        const referralsCount = await new Promise((resolve, reject) => {
+            db.db.get(`
+                SELECT COUNT(*) as count 
+                FROM referrals r
+                JOIN users u ON r.referrer_id = u.id
+                WHERE u.telegram_id = ?
+            `, [userId], (err, result) => {
+                if (err) reject(err);
+                else resolve(result?.count || 0);
+            });
+        });
+        
+        res.json({
+            user: user,
+            referrals_from_table: referralsCount,
+            referrals_field: user?.referrals || 0,
+            debug_info: {
+                user_exists: !!user,
+                is_active: user?.is_active,
+                stars: user?.stars,
+                total_stars_earned: user?.total_stars_earned
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка отладки:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // === API ДЛЯ ПРОВЕРКИ ПОДПИСОК ===
 
