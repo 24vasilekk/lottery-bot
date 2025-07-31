@@ -178,6 +178,13 @@ export default class App {
                     if (this.screens[screenKey] && this.screens[screenKey].init) {
                         this.screens[screenKey].init();
                     }
+                    // Специальная обработка для профиля - перезагружаем данные
+                    if (screenName === 'profile' && this.screens.profile && this.screens.profile.loadProfileData) {
+                        setTimeout(() => {
+                            this.screens.profile.loadProfileData();
+                            console.log('🔄 Данные профиля перезагружены при навигации');
+                        }, 200);
+                    }
                     
                     // Прокрутка наверх при переключении экранов
                     targetScreen.scrollTop = 0;
@@ -343,25 +350,131 @@ export default class App {
     }
 
     updateInterface() {
-        // Обновление счетчика звезд
-        const starCount = document.getElementById('star-count');
-        if (starCount) {
-            starCount.textContent = this.gameData.stars || 0;
-        }
-
-        // Обновление имени пользователя
+        console.log('🔄 Обновление интерфейса...');
+        
+        // 1. Обновляем основные счетчики звезд
+        this.updateStarsDisplay();
+        
+        // 2. Обновление имени пользователя
         const userName = document.querySelector('.user-name');
         if (userName && this.tg?.initDataUnsafe?.user?.first_name) {
             userName.textContent = this.tg.initDataUnsafe.user.first_name;
         }
 
-        // Обновление аватарки пользователя
+        // 3. Обновление аватарки пользователя
         this.updateUserAvatar();
 
-        // Обновление бейджа заданий (ИСПРАВЛЕНО - УБИРАЕМ ЦИФРУ)
+        // 4. Обновление бейджа заданий
         this.updateTasksBadge();
+        
+        // 5. Обновляем все экраны
+        try {
+            // Главный экран - обновляем кнопки прокрутки
+            if (this.screens.main && this.screens.main.updateSpinButtons) {
+                this.screens.main.updateSpinButtons();
+                console.log('✅ Главный экран обновлен');
+            }
+            
+            // Профиль - обновляем секцию рефералов
+            if (this.screens.profile && this.screens.profile.updateReferralsSection) {
+                this.screens.profile.updateReferralsSection();
+                console.log('✅ Профиль обновлен');
+            }
+            
+            // Задания - обновляем счетчики
+            if (this.screens.tasks && this.screens.tasks.updateTaskCounter) {
+                this.screens.tasks.updateTaskCounter();
+                console.log('✅ Задания обновлены');
+            }
+            
+            // Мега рулетка - обновляем если активна
+            if (this.screens.megaRoulette && this.screens.megaRoulette.updateInterface) {
+                this.screens.megaRoulette.updateInterface();
+                console.log('✅ Мега рулетка обновлена');
+            }
+            
+        } catch (error) {
+            console.warn('⚠️ Ошибка обновления экранов:', error);
+        }
+        
+        // 6. Обновляем все элементы со звездами на странице
+        try {
+            const starsElements = document.querySelectorAll('[data-stars], .stars-count, .user-stars');
+            starsElements.forEach(el => {
+                if (el && this.gameData.stars !== undefined) {
+                    el.textContent = this.gameData.stars;
+                }
+            });
+            
+            // Обновляем счетчики статистики
+            const statsElements = {
+                'total-spins': this.gameData.totalSpins || 0,
+                'prizes-won': this.gameData.prizesWon || 0,
+                'referrals-count': this.gameData.referrals || 0,
+                'total-earned': this.gameData.totalStarsEarned || 0
+            };
+            
+            Object.entries(statsElements).forEach(([id, value]) => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = value;
+                }
+            });
+            
+        } catch (error) {
+            console.warn('⚠️ Ошибка обновления элементов интерфейса:', error);
+        }
 
-        console.log('🔄 Интерфейс обновлен');
+        console.log('✅ Интерфейс полностью обновлен:', {
+            stars: this.gameData.stars,
+            referrals: this.gameData.referrals,
+            totalSpins: this.gameData.totalSpins,
+            prizesWon: this.gameData.prizesWon
+        });
+    }
+
+    // Вспомогательный метод для обновления отображения звезд
+    updateStarsDisplay() {
+        try {
+            // Основной счетчик звезд
+            const starCount = document.getElementById('star-count');
+            if (starCount) {
+                starCount.textContent = this.gameData.stars || 0;
+            }
+            
+            // Все элементы с классом stars
+            const starsElements = document.querySelectorAll('.stars-value, .current-stars, .star-balance');
+            starsElements.forEach(el => {
+                if (el) {
+                    el.textContent = this.gameData.stars || 0;
+                }
+            });
+            
+            console.log(`💰 Обновлено отображение звезд: ${this.gameData.stars}`);
+            
+        } catch (error) {
+            console.warn('⚠️ Ошибка обновления отображения звезд:', error);
+        }
+    }
+
+    // Вспомогательный метод для обновления бейджа заданий
+    updateTasksBadge() {
+        try {
+            const taskBadge = document.getElementById('tasks-badge');
+            if (taskBadge && this.screens.tasks) {
+                const availableTasks = this.screens.tasks.getAvailableTasksCount ? 
+                    this.screens.tasks.getAvailableTasksCount() : 0;
+                
+                if (availableTasks > 0) {
+                    taskBadge.style.display = 'block';
+                    taskBadge.textContent = availableTasks;
+                } else {
+                    taskBadge.style.display = 'none';
+                }
+            }
+        } catch (error) {
+            console.warn('⚠️ Ошибка обновления бейджа заданий:', error);
+        }
     }
 
     updateUI() {
@@ -569,6 +682,13 @@ export default class App {
             this.screens.profile.loadProfileData();
         }
         
+        // Обновляем профиль если он активен
+        if (this.navigation.currentScreen === 'profile' && this.screens.profile) {
+            setTimeout(() => {
+                this.screens.profile.loadProfileData();
+            }, 500);
+        }
+
         console.log('✅ Данные обновлены:', this.gameData);
     }
 
