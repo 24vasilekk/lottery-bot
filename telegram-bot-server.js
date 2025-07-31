@@ -805,33 +805,39 @@ app.post('/api/check-subscription', async (req, res) => {
     try {
         const { userId, channelUsername } = req.body;
         
+        console.log(`🔍 Получен запрос проверки подписки:`, { userId, channelUsername });
+        
         if (!userId || !channelUsername) {
+            console.error('❌ Отсутствуют обязательные параметры');
             return res.status(400).json({
                 success: false,
                 error: 'Не указаны userId или channelUsername'
             });
         }
 
-        console.log(`🔍 Проверяем подписку пользователя ${userId} на канал ${channelUsername}`);
-
         // Убираем @ из начала username если есть
         const cleanChannelUsername = channelUsername.replace(/^@/, '');
+        console.log(`🔍 Проверяем подписку пользователя ${userId} на канал @${cleanChannelUsername}`);
         
         try {
             // Проверяем является ли пользователь участником канала
             const chatMember = await bot.getChatMember(`@${cleanChannelUsername}`, userId);
             
-            console.log(`👤 Статус пользователя в канале ${cleanChannelUsername}:`, chatMember.status);
+            console.log(`👤 Статус пользователя ${userId} в канале @${cleanChannelUsername}:`, chatMember.status);
             
             // Проверяем статус участника
             const subscribedStatuses = ['member', 'administrator', 'creator'];
             const isSubscribed = subscribedStatuses.includes(chatMember.status);
             
+            // Логируем проверку в базу данных
+            try {
+                await database.logSubscriptionCheck(userId, cleanChannelUsername, isSubscribed);
+            } catch (logError) {
+                console.warn('⚠️ Ошибка логирования проверки подписки (не критично):', logError.message);
+            }
+            
             if (isSubscribed) {
-                console.log(`✅ Пользователь ${userId} подписан на канал ${cleanChannelUsername}`);
-                
-                // Логируем успешную проверку в базу данных
-                await database.logSubscriptionCheck(userId, cleanChannelUsername, true);
+                console.log(`✅ Пользователь ${userId} подписан на канал @${cleanChannelUsername}`);
                 
                 res.json({
                     success: true,
@@ -840,10 +846,7 @@ app.post('/api/check-subscription', async (req, res) => {
                     message: 'Пользователь подписан на канал'
                 });
             } else {
-                console.log(`❌ Пользователь ${userId} не подписан на канал ${cleanChannelUsername} (статус: ${chatMember.status})`);
-                
-                // Логируем неуспешную проверку
-                await database.logSubscriptionCheck(userId, cleanChannelUsername, false);
+                console.log(`❌ Пользователь ${userId} не подписан на канал @${cleanChannelUsername} (статус: ${chatMember.status})`);
                 
                 res.json({
                     success: false,
@@ -854,7 +857,14 @@ app.post('/api/check-subscription', async (req, res) => {
             }
             
         } catch (telegramError) {
-            console.error(`❌ Ошибка Telegram API при проверке подписки:`, telegramError);
+            console.error(`❌ Ошибка Telegram API при проверке подписки:`, telegramError.message);
+            
+            // Логируем неудачную попытку
+            try {
+                await database.logSubscriptionCheck(userId, cleanChannelUsername, false);
+            } catch (logError) {
+                console.warn('⚠️ Ошибка логирования (не критично):', logError.message);
+            }
             
             // Обрабатываем различные типы ошибок Telegram
             if (telegramError.response && telegramError.response.body) {
@@ -904,10 +914,13 @@ app.post('/api/check-subscription', async (req, res) => {
     }
 });
 
+
 // API endpoint для обновления звезд пользователя
 app.post('/api/update-user-stars', async (req, res) => {
     try {
         const { userId, stars, completedTasks, taskStatuses } = req.body;
+        
+        console.log(`💰 Запрос обновления звезд:`, { userId, stars });
         
         if (!userId) {
             return res.status(400).json({
@@ -916,10 +929,10 @@ app.post('/api/update-user-stars', async (req, res) => {
             });
         }
 
-        console.log(`💰 Обновление звезд пользователя ${userId}: ${stars} звезд`);
-
-        // Обновляем данные пользователя в базе
-        await database.updateUserStars(userId, stars);
+        // Обновляем звезды пользователя
+        if (stars !== undefined) {
+            await database.updateUserStars(userId, stars);
+        }
         
         // Сохраняем выполненные задания если есть
         if (completedTasks && Array.isArray(completedTasks)) {
@@ -931,7 +944,7 @@ app.post('/api/update-user-stars', async (req, res) => {
             await database.updateUserTaskStatuses(userId, taskStatuses);
         }
 
-        console.log(`✅ Звезды пользователя ${userId} обновлены: ${stars}`);
+        console.log(`✅ Данные пользователя ${userId} обновлены: ${stars} звезд`);
 
         res.json({
             success: true,
@@ -940,13 +953,14 @@ app.post('/api/update-user-stars', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('❌ Ошибка обновления звезд пользователя:', error);
+        console.error('❌ Ошибка обновления данных пользователя:', error);
         res.status(500).json({
             success: false,
             error: 'Внутренняя ошибка сервера'
         });
     }
 });
+
 
 
 // API для получения лидерборда
@@ -999,12 +1013,40 @@ app.get('/api/user-rank/:userId', async (req, res) => {
     }
 });
 
-// Добавить в telegram-bot-server.js
+// 🔧 ТЕСТОВЫЙ ENDPOINT для проверки работы API
+app.get('/api/test-subscription/:userId/:channel', async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId);
+        const channelUsername = req.params.channel;
+        
+        console.log(`🧪 ТЕСТ: Проверка подписки ${userId} на @${channelUsername}`);
+        
+        const chatMember = await bot.getChatMember(`@${channelUsername}`, userId);
+        
+        res.json({
+            success: true,
+            userId: userId,
+            channel: channelUsername,
+            status: chatMember.status,
+            isSubscribed: ['member', 'administrator', 'creator'].includes(chatMember.status),
+            testMode: true
+        });
+        
+    } catch (error) {
+        res.json({
+            success: false,
+            error: error.message,
+            testMode: true
+        });
+    }
+});
 
 // API endpoint для получения данных пользователя
 app.get('/api/user/:userId', async (req, res) => {
     try {
         const userId = parseInt(req.params.userId);
+        
+        console.log(`📥 Запрос данных пользователя: ${userId}`);
         
         if (!userId) {
             return res.status(400).json({
@@ -1013,25 +1055,25 @@ app.get('/api/user/:userId', async (req, res) => {
             });
         }
 
-        console.log(`📥 Загрузка данных пользователя: ${userId}`);
-
         // Получаем данные пользователя из базы
         const userData = await database.getUserWithTasks(userId);
         
         if (!userData) {
             // Если пользователь не найден, создаем его
+            console.log(`👤 Пользователь ${userId} не найден, создаем нового`);
             await database.createUser(userId, '', '');
-            const newUserData = await database.getUserWithTasks(userId);
             
             return res.json({
                 success: true,
-                stars: 0,
+                stars: 20, // Начальное количество звезд
                 completed_tasks: [],
                 task_statuses: {},
                 referrals: 0,
                 isNewUser: true
             });
         }
+
+        console.log(`✅ Данные пользователя ${userId} загружены`);
 
         res.json({
             success: true,
@@ -1052,6 +1094,7 @@ app.get('/api/user/:userId', async (req, res) => {
         });
     }
 });
+
 
 // Дополнительно: endpoint для обновления отдельно звезд (для совместимости)
 app.post('/api/user/:userId/stars', async (req, res) => {
