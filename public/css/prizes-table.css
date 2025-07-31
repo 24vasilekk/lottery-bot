@@ -1,0 +1,239 @@
+/* ========================================
+   ТАБЛИЦА ПРИЗОВ
+   ======================================== */
+
+.prizes-table-section {
+    margin-top: 30px;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.prizes-table-section h3 {
+    text-align: center;
+    color: #FFD700;
+    margin-bottom: 20px;
+    font-size: 18px;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.prize-group {
+    margin-bottom: 25px;
+}
+
+.prize-group-title {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.prize-items {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.prize-item {
+    display: grid;
+    grid-template-columns: 50px 1fr 80px;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    border-left: 3px solid;
+    transition: all 0.3s ease;
+    align-items: center;
+}
+
+.prize-item.legendary {
+    border-left-color: #FFD700;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 140, 0, 0.05));
+}
+
+.prize-item.epic {
+    border-left-color: #9C27B0;
+    background: linear-gradient(135deg, rgba(156, 39, 176, 0.1), rgba(233, 30, 99, 0.05));
+}
+
+.prize-item.rare {
+    border-left-color: #2196F3;
+    background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(3, 169, 244, 0.05));
+}
+
+.prize-item.common {
+    border-left-color: #4CAF50;
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(139, 195, 74, 0.05));
+}
+
+.prize-item.empty {
+    border-left-color: #9E9E9E;
+    background: rgba(158, 158, 158, 0.1);
+}
+
+.prize-icon-cell {
+    font-size: 28px;
+    text-align: center;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+.prize-info-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.prize-name {
+    font-size: 14px;
+    font-weight: bold;
+    color: white;
+    line-height: 1.2;
+}
+
+.prize-description {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.2;
+}
+
+.prize-chance-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.chance-value {
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+}
+
+.chance-bar {
+    width: 60px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.chance-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.chance-fill.legendary {
+    background: linear-gradient(90deg, #FFD700, #FFA500);
+}
+
+.chance-fill.epic {
+    background: linear-gradient(90deg, #9C27B0, #E91E63);
+}
+
+.chance-fill.rare {
+    background: linear-gradient(90deg, #2196F3, #03A9F4);
+}
+
+.chance-fill.common {
+    background: linear-gradient(90deg, #4CAF50, #8BC34A);
+}
+
+.chance-fill.empty {
+    background: #9E9E9E;
+}
+
+.prizes-table-footer {
+    margin-top: 25px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.prizes-table-footer h4 {
+    color: #FFD700;
+    font-size: 14px;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.rarity-legend {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.rarity-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.rarity-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.rarity-item.legendary .rarity-dot {
+    background: #FFD700;
+}
+
+.rarity-item.epic .rarity-dot {
+    background: #9C27B0;
+}
+
+.rarity-item.rare .rarity-dot {
+    background: #2196F3;
+}
+
+.rarity-item.common .rarity-dot {
+    background: #4CAF50;
+}
+
+.table-note {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.6);
+    text-align: center;
+    margin: 0;
+    line-height: 1.3;
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 380px) {
+    .prize-item {
+        grid-template-columns: 40px 1fr 70px;
+        gap: 8px;
+        padding: 10px;
+    }
+    
+    .prize-icon-cell {
+        font-size: 24px;
+    }
+    
+    .prize-name {
+        font-size: 12px;
+    }
+    
+    .prize-description {
+        font-size: 10px;
+    }
+    
+    .chance-bar {
+        width: 50px;
+    }
+    
+    .rarity-legend {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+}

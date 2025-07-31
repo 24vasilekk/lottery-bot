@@ -36,11 +36,12 @@
     width: 320px !important;
     height: 320px !important;
     border-radius: 50% !important;
-    overflow: hidden;
+    overflow: visible;
     background: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
+    z-index: 1;
 }
 
 /* SVG должен быть точно по размеру контейнера */
@@ -49,7 +50,9 @@
     height: 320px !important;
     border-radius: 50%;
     transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
-    transform-origin: center center;
+    transform-origin: 160px 160px;
+    position: relative;
+    z-index: 2;
 }
 
 /* Убираем любые искажения сегментов */
@@ -57,19 +60,58 @@
     vector-effect: non-scaling-stroke;
 }
 
+/* Убираем наложение эффектов */
+#mega-roulette-screen .mega-wheel-glow {
+    display: none !important;
+}
+
+/* Отключаем дополнительные эффекты из старого CSS */
+#mega-roulette-screen .mega-wheel-wrapper::before,
+#mega-roulette-screen .mega-wheel-wrapper::after {
+    display: none !important;
+}
+
+/* Убираем конфликтующие стили из основного CSS */
+#mega-roulette-screen .mega-wheel {
+    box-shadow: none !important;
+    background: transparent !important;
+}
+
+#mega-roulette-screen .mega-wheel:before,
+#mega-roulette-screen .mega-wheel:after {
+    display: none !important;
+}
+
 #mega-roulette-screen .mega-wheel-center {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    z-index: 25;
+    width: 60px;
+    height: 60px;
+    background: radial-gradient(circle, #FFD700 0%, #FFA500 100%);
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
 #mega-roulette-screen .mega-wheel-pointer {
     position: absolute;
-    top: -20px;
+    top: -15px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 30;
+    width: 0;
+    height: 0;
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;
+    border-top: 20px solid #FFD700;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
 }
 
 /* Обеспечиваем правильную работу SVG */
@@ -144,6 +186,7 @@
     width: 320px;
     height: 320px;
     margin: 0 auto;
+    z-index: 1;
 }
 
 #mega-roulette-screen .mega-wheel-container {
@@ -155,36 +198,19 @@
     padding: 30px 20px;
 }
 
-/* Исправляем позиционирование указателя */
-#mega-roulette-screen .mega-wheel-pointer {
-    position: absolute;
-    top: -15px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 30;
-    width: 0;
-    height: 0;
-    border-left: 12px solid transparent;
-    border-right: 12px solid transparent;
-    border-top: 20px solid #FFD700;
-    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+/* Убираем дублирование указателя - он уже определен выше */
+
+/* Центр колеса уже определен выше */
+
+#mega-roulette-screen .mega-center-crown {
+    font-size: 20px;
+    margin-bottom: 2px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
 
-/* Исправляем центр колеса */
-#mega-roulette-screen .mega-wheel-center {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 25;
-    width: 60px;
-    height: 60px;
-    background: radial-gradient(circle, #FFD700 0%, #FFA500 100%);
-    border-radius: 50%;
-    border: 3px solid rgba(255, 255, 255, 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+#mega-roulette-screen .mega-center-text {
+    font-size: 8px;
+    font-weight: bold;
+    color: #000;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
 }

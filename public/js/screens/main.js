@@ -63,6 +63,14 @@ export class MainScreen {
                         <!-- Recent wins will be shown here -->
                     </div>
                 </div>
+
+                <!-- Таблица призов -->
+                <div class="prizes-table-section">
+                    <h3>🎁 Таблица призов</h3>
+                    <div class="prizes-table" id="prizes-table">
+                        <!-- Prizes table will be populated by JS -->
+                    </div>
+                </div>
             </div>
         `;
     }
@@ -77,6 +85,7 @@ export class MainScreen {
                 this.setupEventListeners();
                 this.updateRecentWins();
                 this.updateSpinButtons();
+                this.generatePrizesTable();
                 this.initialized = true;
                 console.log('✅ Главный экран инициализирован');
             }, 100);
@@ -827,5 +836,99 @@ export class MainScreen {
         } else {
             this.app.showStatusMessage('Поддержка: @kosmetichkasupport', 'info');
         }
+    }
+
+    generatePrizesTable() {
+        const container = document.getElementById('prizes-table');
+        if (!container) {
+            console.error('❌ Контейнер таблицы призов не найден');
+            return;
+        }
+
+        // Группируем призы по типам для удобного отображения
+        const prizesGroups = [
+            {
+                title: '🎁 Сертификаты',
+                prizes: WHEEL_PRIZES.filter(p => p.type.includes('golden-apple') || p.type.includes('dolce')),
+                color: '#FFD700'
+            },
+            {
+                title: '⭐ Звезды',
+                prizes: WHEEL_PRIZES.filter(p => p.type.includes('stars')),
+                color: '#9C27B0'
+            },
+            {
+                title: '🌙 Повезет позже',
+                prizes: WHEEL_PRIZES.filter(p => p.type === 'empty'),
+                color: '#9E9E9E'
+            }
+        ];
+
+        let tableContent = '';
+
+        prizesGroups.forEach(group => {
+            if (group.prizes.length > 0) {
+                tableContent += `
+                    <div class="prize-group">
+                        <h4 class="prize-group-title" style="color: ${group.color}">${group.title}</h4>
+                        <div class="prize-items">
+                `;
+
+                group.prizes.forEach(prize => {
+                    const rarityClass = prize.rarity || 'common';
+                    const probabilityText = prize.probability ? `${prize.probability}%` : '?';
+                    
+                    tableContent += `
+                        <div class="prize-item ${rarityClass}">
+                            <div class="prize-icon-cell">${prize.icon}</div>
+                            <div class="prize-info-cell">
+                                <div class="prize-name">${prize.name}</div>
+                                <div class="prize-description">${prize.description}</div>
+                            </div>
+                            <div class="prize-chance-cell">
+                                <span class="chance-value">${probabilityText}</span>
+                                <div class="chance-bar">
+                                    <div class="chance-fill ${rarityClass}" style="width: ${Math.min(prize.probability * 3, 100)}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                tableContent += `
+                        </div>
+                    </div>
+                `;
+            }
+        });
+
+        // Добавляем пояснение к шансам
+        tableContent += `
+            <div class="prizes-table-footer">
+                <h4>📊 Пояснение к шансам:</h4>
+                <div class="rarity-legend">
+                    <div class="rarity-item legendary">
+                        <span class="rarity-dot"></span>
+                        <span>Легендарный (1-2%)</span>
+                    </div>
+                    <div class="rarity-item epic">
+                        <span class="rarity-dot"></span>
+                        <span>Эпический (2-3%)</span>
+                    </div>
+                    <div class="rarity-item rare">
+                        <span class="rarity-dot"></span>
+                        <span>Редкий (4-8%)</span>
+                    </div>
+                    <div class="rarity-item common">
+                        <span class="rarity-dot"></span>
+                        <span>Обычный (8-15%)</span>
+                    </div>
+                </div>
+                <p class="table-note">💡 Процент показывает вероятность выпадения приза при каждой прокрутке</p>
+            </div>
+        `;
+
+        container.innerHTML = tableContent;
+        console.log('✅ Таблица призов сгенерирована');
     }
 }

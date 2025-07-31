@@ -301,9 +301,14 @@ class WheelManager {
                     },
                     onclick: () => {
                         try {
-                            window.open('https://t.me/kosmetichka_manager', '_blank');
+                            // ИСПРАВЛЕНО: Правильная ссылка на поддержку
+                            if (window.Telegram?.WebApp?.openTelegramLink) {
+                                window.Telegram.WebApp.openTelegramLink('https://t.me/kosmetichkasupport');
+                            } else {
+                                window.open('https://t.me/kosmetichkasupport', '_blank');
+                            }
                         } catch (e) {
-                            console.warn('Не удалось открыть ссылку:', e);
+                            console.warn('Не удалось открыть ссылку поддержки:', e);
                         }
                     }
                 },

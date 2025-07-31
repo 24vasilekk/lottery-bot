@@ -23,6 +23,7 @@
     <link rel="stylesheet" href="css/mega-roulette.css">
     <link rel="stylesheet" href="css/mega-roulette-new.css">
     <link rel="stylesheet" href="css/mega-roulette-override.css">
+    <link rel="stylesheet" href="css/prizes-table.css">
     <!-- navigation.css не найден, удален -->
     <link rel="stylesheet" href="css/button-states.css">
     
@@ -340,18 +341,17 @@
         }
 
         function contactAdmin() {
-            // Get bot username from environment or use default
-            const botUsername = 'kosmetichka_lottery_bot'; // This should be dynamic
+            // ИСПРАВЛЕНО: Правильная ссылка на поддержку вместо бота
             const userTelegramId = document.getElementById('user-telegram-id').textContent;
             const adminMessage = `Здравствуйте! Я выиграл(а) сертификат в Kosmetichka Lottery Bot. Мой Telegram ID: ${userTelegramId}`;
             
-            // Open Telegram chat with admin/support
-            const telegramUrl = `https://t.me/${botUsername}?text=${encodeURIComponent(adminMessage)}`;
+            // Открываем чат с поддержкой
+            const supportUrl = `https://t.me/kosmetichkasupport?text=${encodeURIComponent(adminMessage)}`;
             
             if (window.Telegram?.WebApp) {
-                window.Telegram.WebApp.openTelegramLink(telegramUrl);
+                window.Telegram.WebApp.openTelegramLink(supportUrl);
             } else {
-                window.open(telegramUrl, '_blank');
+                window.open(supportUrl, '_blank');
             }
             
             closeCertificateModal();
