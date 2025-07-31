@@ -26,7 +26,7 @@ class Database {
     createTables() {
         return new Promise((resolve, reject) => {
             const tables = [
-                // Пользователи
+                // Пользователи (ОБНОВЛЕНО: добавлены поля для новой системы заданий)
                 `CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     telegram_id INTEGER UNIQUE NOT NULL,
@@ -51,6 +51,8 @@ class Database {
                     is_subscribed_channel2 BOOLEAN DEFAULT 0,
                     is_subscribed_dolcedeals BOOLEAN DEFAULT 0,
                     is_active BOOLEAN DEFAULT 1,
+                    completed_tasks TEXT DEFAULT '[]', -- 🆕 JSON массив выполненных заданий
+                    task_statuses TEXT DEFAULT '{}', -- 🆕 JSON объект статусов заданий (pending/checking/completed)
                     FOREIGN KEY(referrer_id) REFERENCES users(id)
                 )`,
 
@@ -180,6 +182,18 @@ class Database {
                     FOREIGN KEY(channel_id) REFERENCES partner_channels(id)
                 )`,
 
+                // 🆕 НОВАЯ ТАБЛИЦА: Логирование проверок подписки для новой системы заданий
+                `CREATE TABLE IF NOT EXISTS subscription_checks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    channel_username TEXT NOT NULL,
+                    is_subscribed INTEGER NOT NULL, -- 0 или 1 (булево как INTEGER)
+                    check_date TEXT NOT NULL, -- ISO строка даты
+                    task_id TEXT, -- ID задания которое проверялось (опционально)
+                    check_result TEXT, -- дополнительная информация о проверке
+                    FOREIGN KEY (user_id) REFERENCES users (telegram_id)
+                )`,
+
                 // Ежедневные задания (шаблоны)
                 `CREATE TABLE IF NOT EXISTS daily_tasks_templates (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -277,12 +291,14 @@ class Database {
                     admin_id INTEGER,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY(target_user_id) REFERENCES users(id)
-                )`,
-
-                // Достижения убраны - не используются
+                )`
             ];
 
             let completed = 0;
+            const totalTables = tables.length;
+
+            console.log(`🔨 Создание ${totalTables} таблиц базы данных...`);
+
             tables.forEach((sql, index) => {
                 this.db.run(sql, (err) => {
                     if (err) {
@@ -290,15 +306,29 @@ class Database {
                         reject(err);
                     } else {
                         completed++;
-                        if (completed === tables.length) {
-                            console.log('✅ Все таблицы созданы');
-                            this.insertDefaultChannels().then(resolve).catch(reject);
+                        console.log(`✅ Таблица ${completed}/${totalTables} создана`);
+                        
+                        if (completed === totalTables) {
+                            console.log('🎉 Все таблицы успешно созданы');
+                            
+                            // После создания таблиц создаем индексы для оптимизации
+                            this.createIndexes()
+                                .then(() => {
+                                    console.log('📊 Индексы созданы');
+                                    return this.insertDefaultChannels();
+                                })
+                                .then(() => {
+                                    console.log('🔧 Начальные данные добавлены');
+                                    resolve();
+                                })
+                                .catch(reject);
                         }
                     }
                 });
             });
         });
     }
+
 
     insertDefaultChannels() {
         return new Promise((resolve, reject) => {
@@ -372,6 +402,34 @@ class Database {
         });
     }
 
+    // Метод для загрузки полных данных пользователя при входе
+    async getUserWithTasks(userId) {
+        return new Promise((resolve, reject) => {
+            this.db.get(
+                'SELECT * FROM users WHERE telegram_id = ?',
+                [userId],
+                (err, row) => {
+                    if (err) {
+                        reject(err);
+                    } else if (row) {
+                        // Парсим JSON поля
+                        try {
+                            row.completed_tasks = JSON.parse(row.completed_tasks || '[]');
+                            row.task_statuses = JSON.parse(row.task_statuses || '{}');
+                        } catch (parseError) {
+                            console.warn('Ошибка парсинга JSON полей пользователя:', parseError);
+                            row.completed_tasks = [];
+                            row.task_statuses = {};
+                        }
+                        resolve(row);
+                    } else {
+                        resolve(null);
+                    }
+                }
+            );
+        });
+    }
+
     // === МЕТОДЫ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ ===
 
     async getUser(telegramId) {
@@ -410,6 +468,69 @@ class Database {
                 (err) => {
                     if (err) reject(err);
                     else resolve();
+                }
+            );
+        });
+    }
+
+    // Также добавить методы в database.js:
+
+    // Метод для обновления звезд пользователя
+    async updateUserStars(userId, stars) {
+        return new Promise((resolve, reject) => {
+            this.db.run(
+                'UPDATE users SET stars = ? WHERE telegram_id = ?',
+                [stars, userId],
+                function(err) {
+                    if (err) {
+                        console.error('❌ Ошибка обновления звезд:', err);
+                        reject(err);
+                    } else {
+                        console.log(`💰 Звезды пользователя ${userId} обновлены: ${stars}`);
+                        resolve();
+                    }
+                }
+            );
+        });
+    }
+
+    // Метод для сохранения выполненных заданий
+    async updateUserCompletedTasks(userId, completedTasks) {
+        return new Promise((resolve, reject) => {
+            const tasksJson = JSON.stringify(completedTasks);
+            
+            this.db.run(
+                'UPDATE users SET completed_tasks = ? WHERE telegram_id = ?',
+                [tasksJson, userId],
+                function(err) {
+                    if (err) {
+                        console.error('❌ Ошибка сохранения выполненных заданий:', err);
+                        reject(err);
+                    } else {
+                        console.log(`📝 Выполненные задания пользователя ${userId} сохранены`);
+                        resolve();
+                    }
+                }
+            );
+        });
+    }
+
+    // Метод для сохранения статусов заданий  
+    async updateUserTaskStatuses(userId, taskStatuses) {
+        return new Promise((resolve, reject) => {
+            const statusesJson = JSON.stringify(taskStatuses);
+            
+            this.db.run(
+                'UPDATE users SET task_statuses = ? WHERE telegram_id = ?',
+                [statusesJson, userId],
+                function(err) {
+                    if (err) {
+                        console.error('❌ Ошибка сохранения статусов заданий:', err);
+                        reject(err);
+                    } else {
+                        console.log(`📊 Статусы заданий пользователя ${userId} сохранены`);
+                        resolve();
+                    }
                 }
             );
         });
