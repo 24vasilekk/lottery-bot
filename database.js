@@ -1221,6 +1221,7 @@ class Database {
 
     // НОВЫЙ МЕТОД ДЛЯ ПОЛУЧЕНИЯ ПОЗИЦИИ ПОЛЬЗОВАТЕЛЯ ПО РЕФЕРАЛАМ
     // ИСПРАВЛЕННЫЙ МЕТОД ДЛЯ ПОЛУЧЕНИЯ ПОЗИЦИИ ПОЛЬЗОВАТЕЛЯ ПО РЕФЕРАЛАМ
+    // УБЕДИТЕСЬ что этот метод есть в database.js:
     async getUserReferralRank(userId) {
         return new Promise((resolve, reject) => {
             // Сначала получаем количество рефералов пользователя
@@ -1231,7 +1232,7 @@ class Database {
                     COUNT(r.referred_id) as referrals_count
                 FROM users u
                 LEFT JOIN referrals r ON u.telegram_id = r.referrer_id
-                WHERE u.telegram_id = ?
+                WHERE u.telegram_id = ? AND u.is_active = 1
                 GROUP BY u.telegram_id, u.first_name
             `;
             
@@ -1241,13 +1242,14 @@ class Database {
                     return reject(error);
                 }
                 
-                if (!userResult) {
-                    return resolve({ position: null, referrals_count: 0 });
+                if (!userResult || userResult.referrals_count === 0) {
+                    // Пользователь не найден или нет рефералов
+                    return resolve(null);
                 }
                 
-                const userReferrals = userResult.referrals_count || 0;
+                const userReferrals = userResult.referrals_count;
                 
-                // Получаем позицию пользователя в общем рейтинге
+                // Теперь получаем позицию пользователя в рейтинге
                 const rankQuery = `
                     SELECT COUNT(*) + 1 as position
                     FROM (
@@ -1260,17 +1262,18 @@ class Database {
                         LEFT JOIN referrals r ON u.telegram_id = r.referrer_id
                         WHERE u.is_active = 1
                         GROUP BY u.telegram_id, u.total_stars_earned, u.join_date
-                        HAVING 
-                            referrals_count > ? OR 
-                            (referrals_count = ? AND u.total_stars_earned > (
-                                SELECT total_stars_earned FROM users WHERE telegram_id = ?
-                            )) OR
-                            (referrals_count = ? AND u.total_stars_earned = (
-                                SELECT total_stars_earned FROM users WHERE telegram_id = ?
-                            ) AND u.join_date < (
-                                SELECT join_date FROM users WHERE telegram_id = ?
-                            ))
+                        HAVING referrals_count > 0
                     ) ranked_users
+                    WHERE 
+                        referrals_count > ? OR 
+                        (referrals_count = ? AND total_stars_earned > (
+                            SELECT total_stars_earned FROM users WHERE telegram_id = ?
+                        )) OR
+                        (referrals_count = ? AND total_stars_earned = (
+                            SELECT total_stars_earned FROM users WHERE telegram_id = ?
+                        ) AND join_date < (
+                            SELECT join_date FROM users WHERE telegram_id = ?
+                        ))
                 `;
                 
                 this.db.get(rankQuery, [
