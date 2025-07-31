@@ -904,6 +904,51 @@ app.post('/api/check-subscription', async (req, res) => {
     }
 });
 
+// API endpoint для обновления звезд пользователя
+app.post('/api/update-user-stars', async (req, res) => {
+    try {
+        const { userId, stars, completedTasks, taskStatuses } = req.body;
+        
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Не указан userId'
+            });
+        }
+
+        console.log(`💰 Обновление звезд пользователя ${userId}: ${stars} звезд`);
+
+        // Обновляем данные пользователя в базе
+        await database.updateUserStars(userId, stars);
+        
+        // Сохраняем выполненные задания если есть
+        if (completedTasks && Array.isArray(completedTasks)) {
+            await database.updateUserCompletedTasks(userId, completedTasks);
+        }
+        
+        // Сохраняем статусы заданий если есть
+        if (taskStatuses && typeof taskStatuses === 'object') {
+            await database.updateUserTaskStatuses(userId, taskStatuses);
+        }
+
+        console.log(`✅ Звезды пользователя ${userId} обновлены: ${stars}`);
+
+        res.json({
+            success: true,
+            stars: stars,
+            message: 'Данные пользователя обновлены'
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка обновления звезд пользователя:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Внутренняя ошибка сервера'
+        });
+    }
+});
+
+
 // API для получения лидерборда
 app.get('/api/leaderboard', async (req, res) => {
     try {
@@ -951,6 +996,194 @@ app.get('/api/user-rank/:userId', async (req, res) => {
     } catch (error) {
         console.error('❌ Ошибка получения ранга:', error);
         res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Добавить в telegram-bot-server.js
+
+// API endpoint для получения данных пользователя
+app.get('/api/user/:userId', async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId);
+        
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Неверный userId'
+            });
+        }
+
+        console.log(`📥 Загрузка данных пользователя: ${userId}`);
+
+        // Получаем данные пользователя из базы
+        const userData = await database.getUserWithTasks(userId);
+        
+        if (!userData) {
+            // Если пользователь не найден, создаем его
+            await database.createUser(userId, '', '');
+            const newUserData = await database.getUserWithTasks(userId);
+            
+            return res.json({
+                success: true,
+                stars: 0,
+                completed_tasks: [],
+                task_statuses: {},
+                referrals: 0,
+                isNewUser: true
+            });
+        }
+
+        res.json({
+            success: true,
+            stars: userData.stars || 0,
+            completed_tasks: userData.completed_tasks || [],
+            task_statuses: userData.task_statuses || {},
+            referrals: userData.referrals || 0,
+            username: userData.username,
+            first_name: userData.first_name,
+            isNewUser: false
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения данных пользователя:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Внутренняя ошибка сервера'
+        });
+    }
+});
+
+// Дополнительно: endpoint для обновления отдельно звезд (для совместимости)
+app.post('/api/user/:userId/stars', async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId);
+        const { amount, operation = 'add' } = req.body;
+        
+        if (!userId || amount === undefined) {
+            return res.status(400).json({
+                success: false,
+                error: 'Не указаны userId или amount'
+            });
+        }
+
+        // Получаем текущие данные пользователя
+        const userData = await database.getUserWithTasks(userId);
+        if (!userData) {
+            return res.status(404).json({
+                success: false,
+                error: 'Пользователь не найден'
+            });
+        }
+
+        let newStars;
+        if (operation === 'add') {
+            newStars = (userData.stars || 0) + amount;
+        } else if (operation === 'subtract') {
+            newStars = Math.max(0, (userData.stars || 0) - amount);
+        } else {
+            newStars = amount; // set
+        }
+
+        // Обновляем звезды
+        await database.updateUserStars(userId, newStars);
+
+        console.log(`💰 Звезды пользователя ${userId} изменены: ${userData.stars || 0} → ${newStars} (${operation} ${amount})`);
+
+        res.json({
+            success: true,
+            stars: newStars,
+            previousStars: userData.stars || 0,
+            operation: operation,
+            amount: amount
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка изменения звезд пользователя:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Внутренняя ошибка сервера'
+        });
+    }
+});
+
+// Endpoint для получения статистики заданий пользователя
+app.get('/api/user/:userId/tasks-stats', async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId);
+        
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Неверный userId'
+            });
+        }
+
+        // Получаем данные пользователя
+        const userData = await database.getUserWithTasks(userId);
+        if (!userData) {
+            return res.json({
+                success: true,
+                completedTasks: [],
+                taskStatuses: {},
+                totalCompleted: 0
+            });
+        }
+
+        // Получаем историю проверок подписок
+        const subscriptionHistory = await database.getSubscriptionHistory(userId);
+
+        res.json({
+            success: true,
+            completedTasks: userData.completed_tasks || [],
+            taskStatuses: userData.task_statuses || {},
+            totalCompleted: (userData.completed_tasks || []).length,
+            subscriptionHistory: subscriptionHistory,
+            totalStars: userData.stars || 0
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения статистики заданий:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Внутренняя ошибка сервера'
+        });
+    }
+});
+
+// Endpoint для сброса прогресса заданий (для админки)
+app.post('/api/user/:userId/reset-tasks', async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId);
+        const { resetType = 'all' } = req.body; // 'all', 'statuses', 'completed'
+        
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Неверный userId'
+            });
+        }
+
+        console.log(`🔄 Сброс заданий пользователя ${userId}, тип: ${resetType}`);
+
+        if (resetType === 'all' || resetType === 'completed') {
+            await database.updateUserCompletedTasks(userId, []);
+        }
+
+        if (resetType === 'all' || resetType === 'statuses') {
+            await database.updateUserTaskStatuses(userId, {});
+        }
+
+        res.json({
+            success: true,
+            message: `Задания пользователя ${userId} сброшены (${resetType})`
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка сброса заданий:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Внутренняя ошибка сервера'
+        });
     }
 });
 
