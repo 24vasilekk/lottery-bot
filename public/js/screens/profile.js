@@ -299,7 +299,7 @@ export class ProfileScreen {
         }
     }
 
-    // УПРОЩЕННЫЙ МЕТОД: Загрузка данных лидерборда (только рефералы)
+    // ЗАМЕНИТЬ ВЕСЬ МЕТОД loadLeaderboardData():
     async loadLeaderboardData() {
         console.log('🏆 Загрузка топа по рефералам...');
         
@@ -315,7 +315,8 @@ export class ProfileScreen {
         `;
         
         try {
-            const response = await fetch('/api/leaderboard/referrals');
+            // ИСПРАВЛЕНО: используем правильный endpoint
+            const response = await fetch('/api/leaderboard-referrals?limit=10');
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -324,8 +325,9 @@ export class ProfileScreen {
             const data = await response.json();
             console.log('✅ Данные лидерборда по рефералам:', data);
             
-            // Данные приходят напрямую как массив
-            this.renderLeaderboard(data);
+            // ИСПРАВЛЕНО: данные приходят в формате { leaderboard: [...] }
+            const leaderboard = data.leaderboard || data;
+            this.renderLeaderboard(leaderboard);
             
         } catch (error) {
             console.error('❌ Ошибка загрузки лидерборда по рефералам:', error);
@@ -381,8 +383,10 @@ export class ProfileScreen {
     }
 
     // Загрузка позиции текущего пользователя по рефералам
+    // ЗАМЕНИТЬ ВЕСЬ МЕТОД loadUserPosition():
     async loadUserPosition(userId) {
         try {
+            // ИСПРАВЛЕНО: используем правильный endpoint
             const response = await fetch(`/api/leaderboard/referrals/position/${userId}`);
             
             if (response.ok) {
@@ -392,9 +396,12 @@ export class ProfileScreen {
                 this.renderUserPosition(positionData);
             } else {
                 console.warn('⚠️ Не удалось получить позицию пользователя');
+                // Показываем что пользователь не в рейтинге
+                this.renderUserPosition(null);
             }
         } catch (error) {
             console.error('❌ Ошибка загрузки позиции пользователя:', error);
+            this.renderUserPosition(null);
         }
     }
 
@@ -625,6 +632,45 @@ export class ProfileScreen {
             tab.replaceWith(tab.cloneNode(true));
         });
     }
+
+    // ДОБАВИТЬ эти методы:
+
+    // Получение отображаемого имени игрока
+    getPlayerDisplayName(player) {
+        if (player.first_name) {
+            return player.first_name;
+        } else if (player.username) {
+            return `@${player.username}`;
+        } else {
+            return `ID: ${player.telegram_id.toString().slice(-4)}`;
+        }
+    }
+
+    // Получение эмодзи для позиции
+    getPositionEmoji(position) {
+        switch (position) {
+            case 1: return '🥇';
+            case 2: return '🥈';
+            case 3: return '🥉';
+            default: return `#${position}`;
+        }
+    }
+
+    // Проверка является ли игрок текущим пользователем
+    isCurrentUser(player) {
+        const currentUserId = this.getTelegramId();
+        return currentUserId && currentUserId.toString() === player.telegram_id.toString();
+    }
+
+    // Обновление секции рефералов (если еще не добавлен)
+    updateReferralsSection() {
+        const referralsContainer = document.getElementById('referrals-section');
+        if (referralsContainer) {
+            referralsContainer.innerHTML = this.renderReferralsSection();
+            console.log('🔄 Секция рефералов обновлена');
+        }
+    }
+
 }
 
 // Глобальная ссылка для использования в onclick - будет установлена в конструкторе
