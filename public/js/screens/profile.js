@@ -243,8 +243,27 @@ export class ProfileScreen {
     }
 
     // Обновление статистики в профиле
+    // ЗАМЕНИТЬ ВЕСЬ МЕТОД updateProfileStats():
     updateProfileStats(userData) {
         console.log('📊 Обновление статистики профиля:', userData);
+        
+        // ИСПРАВЛЕНО: Используем единый источник данных
+        const currentStats = {
+            stars: userData.stars || this.app.gameData.stars || 0,
+            referrals: userData.referrals || userData.stats?.referrals || this.app.gameData.referrals || 0,
+            totalSpins: userData.stats?.totalSpins || this.app.gameData.totalSpins || 0,
+            prizesWon: userData.stats?.prizesWon || this.app.gameData.prizesWon || 0,
+            totalStarsEarned: userData.total_stars_earned || userData.stats?.totalStarsEarned || this.app.gameData.totalStarsEarned || 0
+        };
+        
+        console.log('📊 Актуальная статистика:', currentStats);
+        
+        // Обновляем gameData приложения
+        this.app.gameData.stars = currentStats.stars;
+        this.app.gameData.referrals = currentStats.referrals;
+        this.app.gameData.totalSpins = currentStats.totalSpins;
+        this.app.gameData.prizesWon = currentStats.prizesWon;
+        this.app.gameData.totalStarsEarned = currentStats.totalStarsEarned;
         
         // Обновляем детальную статистику если есть соответствующий элемент
         const statsGrid = document.getElementById('profile-stats-grid');
@@ -252,12 +271,22 @@ export class ProfileScreen {
             statsGrid.innerHTML = `
                 <div class="stats-card">
                     <div class="stats-card-icon">⭐</div>
-                    <div class="stats-card-value">${userData.stars || this.app.gameData.stars || 0}</div>
+                    <div class="stats-card-value">${currentStats.stars}</div>
                     <div class="stats-card-label">Текущий баланс</div>
                 </div>
                 <div class="stats-card">
+                    <div class="stats-card-icon">🎯</div>
+                    <div class="stats-card-value">${currentStats.totalSpins}</div>
+                    <div class="stats-card-label">Всего прокруток</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-icon">🎁</div>
+                    <div class="stats-card-value">${currentStats.prizesWon}</div>
+                    <div class="stats-card-label">Призов выиграно</div>
+                </div>
+                <div class="stats-card">
                     <div class="stats-card-icon">👥</div>
-                    <div class="stats-card-value">${userData.stats?.referrals || userData.referrals || 0}</div>
+                    <div class="stats-card-value">${currentStats.referrals}</div>
                     <div class="stats-card-label">Рефералов</div>
                 </div>
             `;
@@ -267,8 +296,8 @@ export class ProfileScreen {
         this.updateReferralLink();
         
         // Обновляем UI всего приложения
-        if (this.app.updateUI) {
-            this.app.updateUI();
+        if (this.app.updateInterface) {
+            this.app.updateInterface();
         }
         
         console.log('✅ Статистика профиля обновлена');
