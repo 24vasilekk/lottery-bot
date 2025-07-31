@@ -141,7 +141,7 @@ export class TasksScreen {
 
     renderReferralTasks() {
         const referralLink = this.getReferralLink();
-        const friendsInvited = this.app.gameData.friendsInvited || 0;
+        const friendsInvited = this.app.gameData.referrals || 0;
 
         return `
             <!-- ПОЛНОШИРИННЫЙ БЛОК РЕФЕРАЛЬНОЙ ССЫЛКИ -->
