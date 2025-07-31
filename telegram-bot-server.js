@@ -465,13 +465,13 @@ app.post('/api/activate-referral', async (req, res) => {
         
         if (added) {
             // Начисляем звезды рефереру
-            await db.addUserStars(referrerId, 100);
+            await db.addUserStars(referrerId, 10);
             
             // Отправляем уведомления
             try {
                 await bot.sendMessage(referrerId, 
-                    `🎉 Поздравляем! Ваш друг ${user.first_name} присоединился к боту!\n` +
-                    `💫 Вы получили 100 звезд за приглашение!`
+                    `Поздравляем! Ваш друг ${user.first_name} присоединился к боту!\n` +
+                    `Вы получили 10 звезд за приглашение!`
                 );
                 
                 await bot.sendMessage(userId,
@@ -485,7 +485,7 @@ app.post('/api/activate-referral', async (req, res) => {
             res.json({
                 success: true,
                 message: 'Реферал успешно активирован',
-                starsEarned: 100
+                starsEarned: 10
             });
         } else {
             res.json({
@@ -1280,6 +1280,7 @@ app.get('/api/user/:userId', async (req, res) => {
             last_name: user.last_name,
             stars: user.stars || 0,
             total_stars_earned: user.total_stars_earned || 0,
+            availableFriendSpins: user.available_friend_spins || 0, // ДОБАВИТЬ эту строку!
             join_date: user.join_date,
             stats: {
                 stars: user.stars || 0,
@@ -1289,7 +1290,7 @@ app.get('/api/user/:userId', async (req, res) => {
                 prizesWon: user.prizes_won || 0,
                 referrals: referralsCount,
                 referralsCount: referralsCount,
-                starsFromReferrals: referralsCount * 100, // 100 звезд за каждого реферала
+                starsFromReferrals: referralsCount * 10, // ИЗМЕНИТЬ: 10 звезд за каждого реферала!
                 level: Math.floor((user.total_stars_earned || 0) / 1000) + 1
             },
             referrals: referralsCount,
@@ -2552,18 +2553,18 @@ if (bot) {
                                     console.log(`🤝 Пользователь ${userId} приглашен пользователем ${referrerId}`);
                                     
                                     // ВАЖНО: Сразу начисляем звезды рефереру
-                                    await db.addUserStars(referrerId, 100);
+                                    await db.addUserStars(referrerId, 10);
                                     
                                     // Обновляем общее количество заработанных звезд
-                                    await db.incrementTotalStarsEarned(referrerId, 100);
+                                    await db.incrementTotalStarsEarned(referrerId, 10);
                                     
-                                    console.log(`⭐ Рефереру ${referrerId} начислено 100 звезд за приглашение`);
+                                    console.log(`⭐ Рефереру ${referrerId} начислено 10 звезд за приглашение`);
                                     
                                     // Уведомляем пригласившего
                                     try {
                                         await bot.sendMessage(referrerId, 
-                                            `🎉 Поздравляем! Ваш друг ${msg.from.first_name} присоединился к боту!\n` +
-                                            `⭐ Вы получили 100 звезд за приглашение!`
+                                            ` Поздравляем! Ваш друг ${msg.from.first_name} присоединился к боту!\n` +
+                                            ` Вы получили 10 звезд за приглашение!`
                                         );
                                     } catch (notifyError) {
                                         console.log('⚠️ Не удалось уведомить реферера:', notifyError.message);
@@ -3031,7 +3032,7 @@ ${lastSpins.length > 0 ? lastSpins.map((spin, i) =>
             case 'invite':
                 // ИСПРАВЛЕНО: Создаем персональную реферальную ссылку
                 const referralLink = `https://t.me/${BOT_USERNAME}?start=ref_${userId}`;
-                const shareText = '🎰 Привет! Присоединяйся к Kosmetichka Lottery Bot - крути рулетку и выигрывай призы! 💄✨';
+                const shareText = 'Привет! Присоединяйся к Kosmetichka Lottery Bot - крути рулетку и выигрывай призы! 💄✨';
                 const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`;
                 
                 const inviteKeyboard = {
@@ -4683,7 +4684,7 @@ async function handleChannelSubscriptionTask(userId, channelId, userData) {
             });
             
             // Награждаем реферера 20 звездами
-            await db.addUserStars(user.referrer_id, 20);
+            await db.addUserStars(user.referrer_id, 5);
             
             console.log(`👥 Активирован реферер пользователя ${userId} после 2-й подписки, выдано 20 звезд`);
             
@@ -4693,7 +4694,7 @@ async function handleChannelSubscriptionTask(userId, channelId, userData) {
                 if (referrer) {
                     await bot.sendMessage(
                         referrer.telegram_id,
-                        `🎉 Ваш друг выполнил 2 подписки и активировался!\n\n+20 звезд за активного реферала!\n\nПриглашайте еще друзей и получайте больше наград! 🎁`
+                        `Ваш друг выполнил 2 подписки и активировался!\n\n+5 звезд за активного реферала!\n\nПриглашайте еще друзей и получайте больше наград! 🎁`
                     );
                 }
             } catch (notifyError) {
