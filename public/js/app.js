@@ -179,12 +179,30 @@ export default class App {
                         this.screens[screenKey].init();
                     }
                     // Специальная обработка для профиля - перезагружаем данные
+                    // ЗАМЕНИТЬ НА:
+                    // Специальная обработка для разных экранов
                     if (screenName === 'profile' && this.screens.profile && this.screens.profile.loadProfileData) {
                         setTimeout(() => {
                             this.screens.profile.loadProfileData();
                             console.log('🔄 Данные профиля перезагружены при навигации');
                         }, 200);
                     }
+
+                    // ДОБАВИТЬ синхронизацию для заданий
+                    if (screenName === 'tasks' && this.screens.tasks) {
+                        setTimeout(() => {
+                            // Принудительно обновляем данные в заданиях
+                            if (window.telegramIntegration && window.telegramIntegration.syncWithServer) {
+                                window.telegramIntegration.syncWithServer();
+                            }
+                            console.log('🔄 Данные заданий синхронизированы');
+                        }, 300);
+                    }
+
+                    // Всегда обновляем интерфейс после смены экрана
+                    setTimeout(() => {
+                        this.updateInterface();
+                    }, 500);
                     
                     // Прокрутка наверх при переключении экранов
                     targetScreen.scrollTop = 0;
