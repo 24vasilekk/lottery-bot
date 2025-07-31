@@ -311,8 +311,8 @@ class Database {
                         if (completed === totalTables) {
                             console.log('🎉 Все таблицы успешно созданы');
                             
-                            // После создания таблиц создаем индексы для оптимизации
-                            this.createIndexes()
+                            // Создаем индексы для оптимизации (упрощенная версия)
+                            this.createBasicIndexes()
                                 .then(() => {
                                     console.log('📊 Индексы созданы');
                                     return this.insertDefaultChannels();
@@ -321,7 +321,13 @@ class Database {
                                     console.log('🔧 Начальные данные добавлены');
                                     resolve();
                                 })
-                                .catch(reject);
+                                .catch((error) => {
+                                    console.warn('⚠️ Ошибка создания индексов, но продолжаем:', error);
+                                    // Если ошибка с индексами, все равно пытаемся добавить данные
+                                    this.insertDefaultChannels()
+                                        .then(resolve)
+                                        .catch(reject);
+                                });
                         }
                     }
                 });
@@ -329,6 +335,36 @@ class Database {
         });
     }
 
+    // 🆕 УПРОЩЕННЫЙ МЕТОД: Создание базовых индексов
+    createBasicIndexes() {
+        return new Promise((resolve) => {
+            const basicIndexes = [
+                'CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users (telegram_id)',
+                'CREATE INDEX IF NOT EXISTS idx_subscription_checks_user_id ON subscription_checks (user_id)',
+                'CREATE INDEX IF NOT EXISTS idx_subscription_checks_channel ON subscription_checks (channel_username)',
+                'CREATE INDEX IF NOT EXISTS idx_user_tasks_user_id ON user_tasks (user_id)'
+            ];
+
+            let completed = 0;
+            const totalIndexes = basicIndexes.length;
+
+            console.log(`📊 Создание ${totalIndexes} базовых индексов...`);
+
+            basicIndexes.forEach((sql, index) => {
+                this.db.run(sql, (err) => {
+                    if (err) {
+                        console.warn(`⚠️ Предупреждение при создании индекса ${index + 1}:`, err.message);
+                    }
+                    
+                    completed++;
+                    if (completed === totalIndexes) {
+                        console.log(`✅ Базовые индексы обработаны: ${totalIndexes}`);
+                        resolve();
+                    }
+                });
+            });
+        });
+    }
 
     insertDefaultChannels() {
         return new Promise((resolve, reject) => {
@@ -402,7 +438,7 @@ class Database {
         });
     }
 
-    // Метод для загрузки полных данных пользователя при входе
+    // Метод для получения пользователя с данными о заданиях
     async getUserWithTasks(userId) {
         return new Promise((resolve, reject) => {
             this.db.get(
@@ -410,14 +446,20 @@ class Database {
                 [userId],
                 (err, row) => {
                     if (err) {
+                        console.error('❌ Ошибка получения пользователя:', err);
                         reject(err);
                     } else if (row) {
-                        // Парсим JSON поля
+                        // Парсим JSON поля с обработкой ошибок
                         try {
                             row.completed_tasks = JSON.parse(row.completed_tasks || '[]');
                             row.task_statuses = JSON.parse(row.task_statuses || '{}');
+                            console.log(`📥 Загружены данные пользователя ${userId}:`, {
+                                stars: row.stars,
+                                completedTasks: row.completed_tasks.length,
+                                taskStatuses: Object.keys(row.task_statuses).length
+                            });
                         } catch (parseError) {
-                            console.warn('Ошибка парсинга JSON полей пользователя:', parseError);
+                            console.warn('⚠️ Ошибка парсинга JSON полей пользователя:', parseError);
                             row.completed_tasks = [];
                             row.task_statuses = {};
                         }
@@ -473,42 +515,21 @@ class Database {
         });
     }
 
-    // Также добавить методы в database.js:
-
-    // Метод для обновления звезд пользователя
-    async updateUserStars(userId, stars) {
-        return new Promise((resolve, reject) => {
-            this.db.run(
-                'UPDATE users SET stars = ? WHERE telegram_id = ?',
-                [stars, userId],
-                function(err) {
-                    if (err) {
-                        console.error('❌ Ошибка обновления звезд:', err);
-                        reject(err);
-                    } else {
-                        console.log(`💰 Звезды пользователя ${userId} обновлены: ${stars}`);
-                        resolve();
-                    }
-                }
-            );
-        });
-    }
-
     // Метод для сохранения выполненных заданий
     async updateUserCompletedTasks(userId, completedTasks) {
         return new Promise((resolve, reject) => {
             const tasksJson = JSON.stringify(completedTasks);
             
             this.db.run(
-                'UPDATE users SET completed_tasks = ? WHERE telegram_id = ?',
+                'UPDATE users SET completed_tasks = ?, last_activity = CURRENT_TIMESTAMP WHERE telegram_id = ?',
                 [tasksJson, userId],
                 function(err) {
                     if (err) {
                         console.error('❌ Ошибка сохранения выполненных заданий:', err);
                         reject(err);
                     } else {
-                        console.log(`📝 Выполненные задания пользователя ${userId} сохранены`);
-                        resolve();
+                        console.log(`📝 Выполненные задания пользователя ${userId} сохранены (${completedTasks.length} заданий)`);
+                        resolve(this.changes);
                     }
                 }
             );
@@ -521,31 +542,32 @@ class Database {
             const statusesJson = JSON.stringify(taskStatuses);
             
             this.db.run(
-                'UPDATE users SET task_statuses = ? WHERE telegram_id = ?',
+                'UPDATE users SET task_statuses = ?, last_activity = CURRENT_TIMESTAMP WHERE telegram_id = ?',
                 [statusesJson, userId],
                 function(err) {
                     if (err) {
                         console.error('❌ Ошибка сохранения статусов заданий:', err);
                         reject(err);
                     } else {
-                        console.log(`📊 Статусы заданий пользователя ${userId} сохранены`);
-                        resolve();
+                        console.log(`📊 Статусы заданий пользователя ${userId} сохранены (${Object.keys(taskStatuses).length} статусов)`);
+                        resolve(this.changes);
                     }
                 }
             );
         });
     }
 
-    // 🆕 ДОБАВИТЬ ЭТОТ МЕТОД ДЛЯ ЛОГИРОВАНИЯ ПРОВЕРОК ПОДПИСКИ
-    async logSubscriptionCheck(userId, channelUsername, isSubscribed) {
+    // Метод для логирования проверки подписки
+    async logSubscriptionCheck(userId, channelUsername, isSubscribed, taskId = null) {
         return new Promise((resolve, reject) => {
             const timestamp = new Date().toISOString();
+            const checkResult = isSubscribed ? 'success' : 'not_subscribed';
             
             this.db.run(
                 `INSERT INTO subscription_checks 
-                 (user_id, channel_username, is_subscribed, check_date) 
-                 VALUES (?, ?, ?, ?)`,
-                [userId, channelUsername, isSubscribed ? 1 : 0, timestamp],
+                (user_id, channel_username, is_subscribed, check_date, task_id, check_result) 
+                VALUES (?, ?, ?, ?, ?, ?)`,
+                [userId, channelUsername, isSubscribed ? 1 : 0, timestamp, taskId, checkResult],
                 function(err) {
                     if (err) {
                         console.error('❌ Ошибка записи проверки подписки:', err);
@@ -553,15 +575,15 @@ class Database {
                         resolve();
                     } else {
                         console.log(`📝 Записана проверка подписки: ${userId} -> ${channelUsername} = ${isSubscribed}`);
-                        resolve();
+                        resolve(this.lastID);
                     }
                 }
             );
         });
     }
 
-    // 🆕 ДОБАВИТЬ ЭТОТ МЕТОД ДЛЯ ПОЛУЧЕНИЯ ИСТОРИИ ПРОВЕРОК
-    async getSubscriptionHistory(userId, channelUsername = null) {
+    // Метод для получения истории проверок подписки
+    async getSubscriptionHistory(userId, channelUsername = null, limit = 50) {
         return new Promise((resolve, reject) => {
             let query = 'SELECT * FROM subscription_checks WHERE user_id = ?';
             let params = [userId];
@@ -571,7 +593,8 @@ class Database {
                 params.push(channelUsername);
             }
             
-            query += ' ORDER BY check_date DESC LIMIT 50';
+            query += ' ORDER BY check_date DESC LIMIT ?';
+            params.push(limit);
             
             this.db.all(query, params, (err, rows) => {
                 if (err) {
@@ -583,6 +606,44 @@ class Database {
             });
         });
     }
+
+    // Метод для получения статистики проверок по каналам
+    async getChannelSubscriptionStats(channelUsername = null, days = 7) {
+        return new Promise((resolve, reject) => {
+            const dateLimit = new Date();
+            dateLimit.setDate(dateLimit.getDate() - days);
+            const dateLimitStr = dateLimit.toISOString();
+            
+            let query = `
+                SELECT 
+                    channel_username,
+                    COUNT(*) as total_checks,
+                    SUM(is_subscribed) as successful_checks,
+                    COUNT(DISTINCT user_id) as unique_users,
+                    DATE(check_date) as check_date
+                FROM subscription_checks
+                WHERE check_date >= ?
+            `;
+            let params = [dateLimitStr];
+
+            if (channelUsername) {
+                query += ' AND channel_username = ?';
+                params.push(channelUsername);
+            }
+
+            query += ' GROUP BY channel_username, DATE(check_date) ORDER BY check_date DESC';
+
+            this.db.all(query, params, (err, rows) => {
+                if (err) {
+                    console.error('❌ Ошибка получения статистики проверок:', err);
+                    reject(err);
+                } else {
+                    resolve(rows || []);
+                }
+            });
+        });
+    }
+
 
     // 🆕 ДОБАВИТЬ ЭТОТ МЕТОД ДЛЯ СТАТИСТИКИ ПРОВЕРОК
     async getSubscriptionStats(channelUsername = null) {
@@ -616,7 +677,7 @@ class Database {
         });
     }
 
-    // 🆕 ДОБАВИТЬ ЭТОТ МЕТОД ДЛЯ ОЧИСТКИ СТАРЫХ ЗАПИСЕЙ
+    // Метод для очистки старых записей проверок (для обслуживания)
     async cleanOldSubscriptionChecks(daysToKeep = 30) {
         return new Promise((resolve, reject) => {
             const cutoffDate = new Date();
@@ -638,6 +699,77 @@ class Database {
             );
         });
     }
+
+    // Метод для массового обновления данных пользователя
+    async updateUserData(userId, updateData) {
+        return new Promise((resolve, reject) => {
+            const fields = [];
+            const values = [];
+            
+            // Обрабатываем различные поля для обновления
+            if (updateData.stars !== undefined) {
+                fields.push('stars = ?');
+                values.push(updateData.stars);
+            }
+            
+            if (updateData.completed_tasks !== undefined) {
+                fields.push('completed_tasks = ?');
+                values.push(JSON.stringify(updateData.completed_tasks));
+            }
+            
+            if (updateData.task_statuses !== undefined) {
+                fields.push('task_statuses = ?');
+                values.push(JSON.stringify(updateData.task_statuses));
+            }
+            
+            if (updateData.total_stars_earned !== undefined) {
+                fields.push('total_stars_earned = ?');
+                values.push(updateData.total_stars_earned);
+            }
+            
+            // Всегда обновляем last_activity
+            fields.push('last_activity = CURRENT_TIMESTAMP');
+            
+            if (fields.length === 1) { // Только last_activity
+                resolve(0);
+                return;
+            }
+            
+            values.push(userId); // для WHERE условия
+            
+            const query = `UPDATE users SET ${fields.join(', ')} WHERE telegram_id = ?`;
+            
+            this.db.run(query, values, function(err) {
+                if (err) {
+                    console.error('❌ Ошибка обновления данных пользователя:', err);
+                    reject(err);
+                } else {
+                    console.log(`📊 Данные пользователя ${userId} обновлены (${fields.length - 1} полей)`);
+                    resolve(this.changes);
+                }
+            });
+        });
+    }
+
+    // Метод для обновления звезд пользователя
+    async updateUserStars(userId, stars) {
+        return new Promise((resolve, reject) => {
+            this.db.run(
+                'UPDATE users SET stars = ?, last_activity = CURRENT_TIMESTAMP WHERE telegram_id = ?',
+                [stars, userId],
+                function(err) {
+                    if (err) {
+                        console.error('❌ Ошибка обновления звезд:', err);
+                        reject(err);
+                    } else {
+                        console.log(`💰 Звезды пользователя ${userId} обновлены: ${stars}`);
+                        resolve(this.changes);
+                    }
+                }
+            );
+        });
+    }
+
     // 3. Убедитесь, что метод updateUserStars работает правильно:
     async updateUserStars(telegramId, amount) {
         return new Promise((resolve, reject) => {
