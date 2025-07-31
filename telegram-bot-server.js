@@ -130,7 +130,7 @@ app.use((req, res, next) => {
 
 // Добавить эти endpoints в telegram-bot-server.js для исправления лидерборда
 
-// ИСПРАВЛЕННЫЙ API для получения лидерборда по рефералам
+// ДОБАВИТЬ или ЗАМЕНИТЬ endpoint:
 app.get('/api/leaderboard/referrals', async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 20;
@@ -142,6 +142,7 @@ app.get('/api/leaderboard/referrals', async (req, res) => {
         
         console.log(`✅ Лидерборд по рефералам загружен: ${leaderboard.length} записей`);
         
+        // Возвращаем данные напрямую как массив
         res.json(leaderboard);
         
     } catch (error) {
