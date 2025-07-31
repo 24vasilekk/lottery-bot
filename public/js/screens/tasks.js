@@ -253,11 +253,26 @@ export class TasksScreen {
                     ⏳ Проверка...
                 </button>`;
             
+            case 'ready_to_check':
+                return `<button class="task-ready-btn" onclick="window.tasksScreen.performTaskCheckById('${task.id}')">
+                    🔍 Проверить
+                </button>`;
+            
             case 'pending':
             default:
                 return `<button class="task-complete-btn" onclick="window.tasksScreen.startTaskCheck('${task.id}', 'active')">
                     Выполнить
                 </button>`;
+        }
+    }
+
+    // Вспомогательный метод для вызова из onclick
+    performTaskCheckById(taskId) {
+        const task = this.findTask(taskId, 'active');
+        if (task) {
+            this.performTaskCheck(taskId, task);
+        } else {
+            console.error('❌ Задание не найдено для проверки:', taskId);
         }
     }
 
@@ -493,6 +508,31 @@ export class TasksScreen {
             return;
         }
 
+        // ИСПРАВЛЕНО: Сначала открываем канал, если это задание с подпиской
+        if (task.type === 'channel_subscription' && task.url) {
+            console.log(`🔗 Открываем канал: ${task.url}`);
+            
+            // Открываем ссылку на канал
+            if (this.app.tg && this.app.tg.openLink) {
+                this.app.tg.openLink(task.url);
+            } else {
+                window.open(task.url, '_blank');
+            }
+            
+            // Показываем инструкцию пользователю
+            this.showMessage('📱 Подпишитесь на канал и нажмите "Проверить" когда будете готовы', 'info');
+            
+            // Меняем кнопку на "Проверить"
+            this.setTaskStatus(taskId, 'ready_to_check');
+            this.refreshTabContent(this.currentTab);
+            return;
+        }
+
+        // Если это не задание с подпиской или уже готов к проверке
+        this.performTaskCheck(taskId, task);
+    }
+
+    async performTaskCheck(taskId, task) {
         // Меняем статус на "проверка"
         this.setTaskStatus(taskId, 'checking');
         this.refreshTabContent(this.currentTab);
@@ -515,7 +555,7 @@ export class TasksScreen {
                         this.addTaskToCompleted(taskId);
                         
                         // ИСПРАВЛЕНО: правильное начисление звезд
-                        const rewardAmount = this.giveTaskReward(task);
+                        const rewardAmount = await this.giveTaskReward(task);
                         this.showMessage(`🎉 Задание выполнено! Получено ${rewardAmount} ⭐!`, 'success');
                         
                         console.log(`✅ Задание ${taskId} выполнено, начислено ${rewardAmount} звезд`);
@@ -529,7 +569,7 @@ export class TasksScreen {
                     }
                 } else {
                     // Задание не выполнено
-                    this.setTaskStatus(taskId, 'pending');
+                    this.setTaskStatus(taskId, task.type === 'channel_subscription' ? 'ready_to_check' : 'pending');
                     this.showMessage(checkResult.error || 'Вы не выполнили задание. Подпишитесь на канал и попробуйте снова.', 'error');
                     
                     // Вибрация при ошибке
@@ -561,16 +601,16 @@ export class TasksScreen {
                 return await this.checkChannelSubscriptionStatus(userId, task.channelUsername);
             }
             
-            // Для других типов заданий
-            if (task.url) {
-                // Открываем ссылку для выполнения
+            // Для других типов заданий (без подписки на канал)
+            if (task.type === 'external_action' && task.url) {
+                // Открываем ссылку для внешних действий (соцсети, оценки и т.д.)
                 if (this.app.tg?.openLink) {
                     this.app.tg.openLink(task.url);
                 } else {
                     window.open(task.url, '_blank');
                 }
                 
-                // Для заданий с внешними ссылками считаем выполненными
+                // Для внешних заданий считаем выполненными (нет автоматической проверки)
                 return { success: true };
             }
 
@@ -632,30 +672,73 @@ export class TasksScreen {
         }
     }
 
-    giveTaskReward(task) {
-        if (task.reward && task.reward.type === 'stars') {
-            const rewardAmount = task.reward.amount;
-            
-            // ИСПРАВЛЕНО: правильное начисление звезд
-            const currentStars = this.app.gameData.stars || 0;
-            this.app.gameData.stars = currentStars + rewardAmount;
-            
-            console.log(`💰 Начислено ${rewardAmount} звезд. Баланс: ${currentStars} → ${this.app.gameData.stars}`);
-            
-            // Сохраняем данные
-            this.app.saveGameData();
-            
-            // Обновляем отображение звезд в интерфейсе
+    async giveTaskReward(task) {
+        if (!task.reward || task.reward.type !== 'stars') {
+            return 0;
+        }
+
+        const rewardAmount = task.reward.amount;
+        
+        // ИСПРАВЛЕНО: правильное начисление звезд с проверками
+        const currentStars = this.app.gameData.stars || 0;
+        const newStars = currentStars + rewardAmount;
+        
+        console.log(`💰 Начисление звезд: ${currentStars} + ${rewardAmount} = ${newStars}`);
+        
+        // Обновляем локальные данные
+        this.app.gameData.stars = newStars;
+        
+        // Увеличиваем общее количество заработанных звезд
+        if (!this.app.gameData.total_stars_earned) {
+            this.app.gameData.total_stars_earned = 20; // Начальные звезды
+        }
+        this.app.gameData.total_stars_earned += rewardAmount;
+        
+        console.log(`📊 Общие статистики: баланс=${newStars}, всего заработано=${this.app.gameData.total_stars_earned}`);
+        
+        // Сохраняем данные локально
+        this.app.saveGameData();
+        
+        // Обновляем отображение звезд в интерфейсе
+        this.updateStarsDisplayImmediate();
+        
+        // Отправляем данные на сервер асинхронно
+        try {
+            await this.syncUserDataWithServer();
+            console.log(`✅ Звезды синхронизированы с сервером: ${newStars}`);
+        } catch (error) {
+            console.warn('⚠️ Ошибка синхронизации с сервером:', error);
+            // Не прерываем процесс из-за ошибки синхронизации
+        }
+        
+        return rewardAmount;
+    }
+
+    updateStarsDisplayImmediate() {
+        // Немедленно обновляем отображение звезд в интерфейсе
+        try {
             if (this.app.updateStarsDisplay) {
                 this.app.updateStarsDisplay();
             }
             
-            // Отправляем данные на сервер
-            this.syncUserDataWithServer();
+            // Обновляем все элементы с звездами на странице
+            const starsElements = document.querySelectorAll('[data-stars], .stars-count, .user-stars, .mega-stars span');
+            starsElements.forEach(el => {
+                if (el) {
+                    el.textContent = this.app.gameData.stars;
+                }
+            });
             
-            return rewardAmount;
+            // Обновляем заголовок экрана если есть
+            const headerStars = document.querySelector('.tasks-header-profile .stars, .profile-header .stars');
+            if (headerStars) {
+                headerStars.textContent = this.app.gameData.stars;
+            }
+            
+            console.log(`🎨 Обновлено отображение звезд в интерфейсе: ${this.app.gameData.stars}`);
+        } catch (error) {
+            console.warn('⚠️ Ошибка обновления отображения звезд:', error);
         }
-        return 0;
     }
 
     async syncUserDataWithServer() {
