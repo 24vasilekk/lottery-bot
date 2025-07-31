@@ -418,7 +418,7 @@ export class ProfileScreen {
     renderReferralsSection() {
         const gameData = this.app.gameData;
         const referralsCount = gameData.referrals || 0;
-        const starsFromReferrals = referralsCount * 100;
+        const starsFromReferrals = referralsCount * 10;
         
         return `
             <div class="referrals-stats">
