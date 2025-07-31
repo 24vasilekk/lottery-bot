@@ -613,6 +613,31 @@
     animation: checkingShimmer 2s ease-in-out infinite;
 }
 
+.task-ready-btn {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    border: none;
+    color: #fff;
+    padding: 12px 18px;
+    border-radius: 15px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    min-width: 100px;
+    box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+    transition: all 0.3s ease;
+    animation: readyPulse 2s ease-in-out infinite;
+}
+
+.task-ready-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(76, 175, 80, 0.6);
+    background: linear-gradient(135deg, #5CBF60, #4CAF50);
+}
+
+.task-ready-btn:active {
+    transform: translateY(0);
+}
+
 @keyframes checkingPulse {
     0%, 100% { 
         opacity: 0.9;
@@ -627,6 +652,15 @@
 @keyframes checkingShimmer {
     0% { left: -100%; }
     100% { left: 100%; }
+}
+
+@keyframes readyPulse {
+    0%, 100% { 
+        box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+    }
+    50% { 
+        box-shadow: 0 4px 20px rgba(76, 175, 80, 0.7);
+    }
 }
 
 .task-completed-status {
