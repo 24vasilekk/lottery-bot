@@ -1195,6 +1195,7 @@ class Database {
     }
 
     // ИСПРАВЛЕННЫЙ МЕТОД ДЛЯ ГЛОБАЛЬНОГО ЛИДЕРБОРДА ПО РЕФЕРАЛАМ
+    // УБЕДИТЕСЬ что в database.js есть этот метод:
     async getGlobalReferralsLeaderboard(limit = 20) {
         return new Promise((resolve, reject) => {
             this.db.all(`
@@ -1213,8 +1214,13 @@ class Database {
                 ORDER BY referrals_count DESC, u.total_stars_earned DESC, u.join_date ASC
                 LIMIT ?
             `, [limit], (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows || []);
+                if (err) {
+                    console.error('❌ Ошибка лидерборда:', err);
+                    reject(err);
+                } else {
+                    console.log(`📊 Лидерборд: найдено ${rows ? rows.length : 0} записей`);
+                    resolve(rows || []);
+                }
             });
         });
     }
