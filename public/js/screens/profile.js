@@ -205,22 +205,40 @@ export class ProfileScreen {
             
             const userData = await response.json();
             
-            // Обновляем данные в приложении
+            // ИСПРАВЛЕНО: Правильное обновление данных
             this.app.gameData = {
                 ...this.app.gameData,
-                ...userData,
-                stars: userData.stars || this.app.gameData.stars,
-                totalStarsEarned: userData.total_stars_earned || userData.stats?.totalStarsEarned,
+                stars: userData.stars || 0,
+                totalStarsEarned: userData.total_stars_earned || userData.stats?.totalStarsEarned || 0,
                 totalSpins: userData.stats?.totalSpins || 0,
                 prizesWon: userData.stats?.prizesWon || 0,
-                referrals: userData.stats?.referrals || 0
+                referrals: userData.referrals || userData.stats?.referrals || 0,
+                availableFriendSpins: userData.availableFriendSpins || 0
             };
+
+            // Обновляем отображение статистики
+            this.updateProfileStats(userData);
+            this.updateReferralsSection();
+
+            console.log('✅ Профиль обновлен:', {
+                stars: this.app.gameData.stars,
+                referrals: this.app.gameData.referrals,
+                totalStarsEarned: this.app.gameData.totalStarsEarned
+            });
             
             // Обновляем отображение статистики
             this.updateProfileStats(userData);
             
         } catch (error) {
             console.error('Error loading profile data:', error);
+        }
+    }
+
+    updateReferralsSection() {
+        const referralsContainer = document.getElementById('referrals-section');
+        if (referralsContainer) {
+            referralsContainer.innerHTML = this.renderReferralsSection();
+            console.log('🔄 Секция рефералов обновлена');
         }
     }
 
