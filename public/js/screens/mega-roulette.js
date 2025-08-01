@@ -190,124 +190,88 @@ export class MegaRouletteScreen {
             return;
         }
 
-        // ИДЕАЛЬНЫЙ КРУГ - точные параметры
+        // ИДЕАЛЬНО РОВНЫЙ КРУГ - точные параметры
         const radius = 150;
         const centerX = 160;
         const centerY = 160;
         const segmentCount = this.megaPrizes.length;
         const anglePerSegment = (2 * Math.PI) / segmentCount;
         
-        console.log(`🎯 Генерируем ${segmentCount} сегментов, угол каждого: ${(anglePerSegment * 180 / Math.PI).toFixed(2)}°`);
+        console.log(`🎯 Генерируем ${segmentCount} идеально ровных сегментов`);
 
-        // Золотые и премиальные градиенты - точно подобранные цвета
+        // Упрощенные градиенты для размытого эффекта
         const segmentColors = [
-            { from: '#FFD700', to: '#FFA500', name: 'Золотой' },
-            { from: '#FF6347', to: '#FF4500', name: 'Красно-оранжевый' },
-            { from: '#9370DB', to: '#8A2BE2', name: 'Фиолетовый' },
-            { from: '#00BFFF', to: '#1E90FF', name: 'Голубой' },
-            { from: '#32CD32', to: '#228B22', name: 'Зеленый' },
-            { from: '#FF1493', to: '#DC143C', name: 'Розово-красный' },
-            { from: '#FF8C00', to: '#FF7F50', name: 'Оранжевый' },
-            { from: '#DA70D6', to: '#BA55D3', name: 'Орхидея' },
-            { from: '#20B2AA', to: '#008B8B', name: 'Бирюзовый' }
+            { from: '#FFD700', to: '#FFA500' },
+            { from: '#FF6347', to: '#FF4500' },
+            { from: '#9370DB', to: '#8A2BE2' },
+            { from: '#00BFFF', to: '#1E90FF' },
+            { from: '#32CD32', to: '#228B22' },
+            { from: '#FF1493', to: '#DC143C' },
+            { from: '#FF8C00', to: '#FF7F50' },
+            { from: '#DA70D6', to: '#BA55D3' },
+            { from: '#20B2AA', to: '#008B8B' }
         ];
 
         let svgContent = '';
         
-        // Создаем определения градиентов для каждого сегмента
+        // Создаем определения градиентов
         let defsContent = '<defs>';
         
-        // Добавляем градиенты
+        // Добавляем только градиенты без теней для чистоты
         for (let i = 0; i < segmentCount; i++) {
             const colorIndex = i % segmentColors.length;
             const color = segmentColors[colorIndex];
             
             defsContent += `
-                <linearGradient id="megaGrad${i}" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:${color.from};stop-opacity:1" />
+                <radialGradient id="megaGrad${i}" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" style="stop-color:${color.from};stop-opacity:0.9" />
                     <stop offset="100%" style="stop-color:${color.to};stop-opacity:1" />
-                </linearGradient>
+                </radialGradient>
             `;
         }
         
-        // Добавляем фильтры для теней
-        defsContent += `
-            <filter id="segmentShadow" x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="rgba(0,0,0,0.4)"/>
-            </filter>
-            <filter id="textShadow" x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.7)"/>
-            </filter>
-        `;
-        
         defsContent += '</defs>';
 
-        // Генерируем идеально ровные сегменты
+        // Создаем идеально ровные сегменты БЕЗ иконок и текста
         for (let i = 0; i < segmentCount; i++) {
-            const prize = this.megaPrizes[i];
-            
-            // ТОЧНЫЙ РАСЧЕТ УГЛОВ - начинаем с верха (12 часов)
-            const startAngle = (i * anglePerSegment) - (Math.PI / 2);
-            const endAngle = ((i + 1) * anglePerSegment) - (Math.PI / 2);
-            
-            // Точки на окружности
+            const startAngle = i * anglePerSegment - Math.PI / 2; // Начинаем сверху
+            const endAngle = (i + 1) * anglePerSegment - Math.PI / 2;
+
+            // Точные координаты для идеального круга
             const x1 = centerX + radius * Math.cos(startAngle);
             const y1 = centerY + radius * Math.sin(startAngle);
             const x2 = centerX + radius * Math.cos(endAngle);
             const y2 = centerY + radius * Math.sin(endAngle);
 
-            // Определяем, нужна ли большая дуга
+            // Определяем большую дугу для правильного отображения
             const largeArcFlag = anglePerSegment > Math.PI ? 1 : 0;
 
-            // Создаем идеальный путь сегмента
+            // Создаем идеально ровный путь сегмента
             const pathData = [
-                `M ${centerX} ${centerY}`,           // Начинаем из центра
-                `L ${x1.toFixed(2)} ${y1.toFixed(2)}`,     // Линия к первой точке
-                `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`, // Дуга
-                'Z'                                   // Закрываем путь
+                `M ${centerX} ${centerY}`,                    // Центр
+                `L ${x1.toFixed(3)} ${y1.toFixed(3)}`,       // Первая линия
+                `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2.toFixed(3)} ${y2.toFixed(3)}`, // Дуга
+                'Z'                                           // Закрытие
             ].join(' ');
 
-            // Позиция иконки - центр сегмента
-            const middleAngle = startAngle + (anglePerSegment / 2);
-            const iconRadius = radius * 0.65; // Размещаем иконки ближе к краю
-            const iconX = centerX + iconRadius * Math.cos(middleAngle);
-            const iconY = centerY + iconRadius * Math.sin(middleAngle);
-
-            // Создаем сегмент
+            // ЧИСТЫЙ сегмент без деталей
             svgContent += `
                 <path 
                     d="${pathData}" 
                     fill="url(#megaGrad${i})" 
-                    stroke="rgba(255,255,255,0.5)" 
-                    stroke-width="1.5"
+                    stroke="rgba(255,255,255,0.2)" 
+                    stroke-width="0.5"
                     class="mega-segment-path"
-                    data-prize-id="${prize.id}"
+                    data-prize-id="${this.megaPrizes[i].id}"
                     data-segment-index="${i}"
-                    filter="url(#segmentShadow)"
                 />
-            `;
-            
-            // Создаем иконку
-            svgContent += `
-                <text 
-                    x="${iconX.toFixed(2)}" 
-                    y="${iconY.toFixed(2)}" 
-                    text-anchor="middle" 
-                    dominant-baseline="central" 
-                    font-size="22" 
-                    fill="white"
-                    font-weight="bold"
-                    class="mega-segment-icon"
-                    filter="url(#textShadow)"
-                    style="user-select: none; pointer-events: none;"
-                >${prize.icon}</text>
             `;
         }
 
         // Собираем финальный SVG
         container.innerHTML = defsContent + svgContent;
         
-        console.log('✅ Идеальная мега рулетка сгенерирована с точными сегментами');
+        console.log('✅ Идеально ровное колесо создано');
     }
 
 
@@ -337,9 +301,15 @@ export class MegaRouletteScreen {
         const spins = 5 + Math.random() * 3; // 5-8 полных оборотов
         const finalRotation = (spins * 360) + targetAngle;
 
-        // Крутим колесо
+        // Получаем элементы колеса
         const wheel = document.getElementById('mega-wheel-svg');
-        if (wheel) {
+        const wheelContainer = document.getElementById('mega-wheel');
+        
+        if (wheel && wheelContainer) {
+            // Добавляем класс spinning для дополнительного размытия
+            wheelContainer.classList.add('spinning');
+            
+            // Крутим колесо
             this.wheelRotation += finalRotation;
             wheel.style.transition = 'transform 4s cubic-bezier(0.23, 1, 0.320, 1)';
             wheel.style.transform = `rotate(${this.wheelRotation}deg)`;
@@ -352,6 +322,11 @@ export class MegaRouletteScreen {
 
         // Ждем завершения анимации
         setTimeout(() => {
+            // Убираем класс spinning для возврата к обычному размытию
+            if (wheelContainer) {
+                wheelContainer.classList.remove('spinning');
+            }
+            
             this.processMegaWin(wonPrize);
             this.isSpinning = false;
             
