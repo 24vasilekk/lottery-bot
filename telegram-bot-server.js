@@ -1277,6 +1277,41 @@ app.get('/api/user/:userId/tasks-stats', async (req, res) => {
     }
 });
 
+// API для обновления профиля пользователя
+app.post('/api/user/:userId/profile', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { first_name, username, last_name } = req.body;
+        
+        console.log(`👤 Обновление профиля пользователя ${userId}:`, {
+            first_name,
+            username,
+            last_name
+        });
+        
+        // Обновляем профиль в базе данных
+        await db.updateUserProfile(parseInt(userId), {
+            first_name: first_name || '',
+            username: username || '',
+            last_name: last_name || ''
+        });
+        
+        console.log(`✅ Профиль пользователя ${userId} обновлен`);
+        
+        res.json({
+            success: true,
+            message: 'Профиль обновлен'
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка обновления профиля:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error' 
+        });
+    }
+});
+
 // Endpoint для сброса прогресса заданий (для админки)
 app.post('/api/user/:userId/reset-tasks', async (req, res) => {
     try {
@@ -4491,40 +4526,44 @@ async function applyUnsubscriptionPenalty(subscription) {
     }
 }
 
-// ДОБАВИТЬ отладочный endpoint:
+// API для получения отладочной информации о пользователе
 app.get('/api/debug/user/:userId', async (req, res) => {
     try {
-        const userId = parseInt(req.params.userId);
+        const { userId } = req.params;
         
-        const user = await db.getUser(userId);
+        console.log(`🔍 Отладка пользователя ${userId}`);
         
-        const referralsCount = await new Promise((resolve, reject) => {
-            db.db.get(`
-                SELECT COUNT(*) as count 
-                FROM referrals r
-                JOIN users u ON r.referrer_id = u.id
-                WHERE u.telegram_id = ?
-            `, [userId], (err, result) => {
-                if (err) reject(err);
-                else resolve(result?.count || 0);
-            });
+        const user = await db.getUser(parseInt(userId));
+        
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        console.log(`👤 Данные пользователя ${userId}:`, {
+            telegram_id: user.telegram_id,
+            first_name: user.first_name,
+            username: user.username,
+            last_name: user.last_name,
+            referrals: user.referrals,
+            stars: user.stars
         });
         
         res.json({
-            user: user,
-            referrals_from_table: referralsCount,
-            referrals_field: user?.referrals || 0,
-            debug_info: {
-                user_exists: !!user,
-                is_active: user?.is_active,
-                stars: user?.stars,
-                total_stars_earned: user?.total_stars_earned
+            user_data: {
+                telegram_id: user.telegram_id,
+                first_name: user.first_name,
+                username: user.username,
+                last_name: user.last_name,
+                referrals: user.referrals,
+                stars: user.stars,
+                total_stars_earned: user.total_stars_earned,
+                is_active: user.is_active
             }
         });
         
     } catch (error) {
-        console.error('❌ Ошибка отладки:', error);
-        res.status(500).json({ error: error.message });
+        console.error('❌ Ошибка отладки пользователя:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
