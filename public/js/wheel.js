@@ -300,15 +300,18 @@ class WheelManager {
                         marginBottom: '15px'
                     },
                     onclick: () => {
-                        try {
-                            // ИСПРАВЛЕНО: Правильная ссылка на поддержку
-                            if (window.Telegram?.WebApp?.openTelegramLink) {
-                                window.Telegram.WebApp.openTelegramLink('https://t.me/kosmetichkasupport');
-                            } else {
-                                window.open('https://t.me/kosmetichkasupport', '_blank');
-                            }
-                        } catch (e) {
-                            console.warn('Не удалось открыть ссылку поддержки:', e);
+                        console.log('🎧 Попытка открыть поддержку из большого выигрыша');
+                        
+                        // Простая логика без ошибок
+                        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openTelegramLink) {
+                            window.Telegram.WebApp.openTelegramLink('https://t.me/kosmetichkasupport');
+                            console.log('✅ Поддержка открыта через Telegram WebApp');
+                        } else if (window.open) {
+                            window.open('https://t.me/kosmetichkasupport', '_blank');
+                            console.log('✅ Поддержка открыта через window.open');
+                        } else {
+                            alert('Обратитесь в поддержку: @kosmetichkasupport');
+                            console.log('📋 Показана информация о поддержке');
                         }
                     }
                 },
