@@ -59,16 +59,6 @@ export class ProfileScreen {
                                     <div class="stats-card-label">Текущий баланс</div>
                                 </div>
                                 <div class="stats-card">
-                                    <div class="stats-card-icon">🎯</div>
-                                    <div class="stats-card-value">${gameData.totalSpins || 0}</div>
-                                    <div class="stats-card-label">Всего прокруток</div>
-                                </div>
-                                <div class="stats-card">
-                                    <div class="stats-card-icon">🎁</div>
-                                    <div class="stats-card-value">${gameData.prizesWon || 0}</div>
-                                    <div class="stats-card-label">Призов выиграно</div>
-                                </div>
-                                <div class="stats-card">
                                     <div class="stats-card-icon">👥</div>
                                     <div class="stats-card-value">${gameData.referrals || 0}</div>
                                     <div class="stats-card-label">Рефералов</div>
@@ -375,17 +365,14 @@ export class ProfileScreen {
     }
 
     // Обновление статистики в профиле
-    // 2. ЗАМЕНИТЕ метод updateProfileStats() полностью:
+    // 1. ЗАМЕНИТЕ метод updateProfileStats() полностью:
     updateProfileStats(userData) {
         console.log('📊 Обновление статистики профиля с данными:', userData);
         
         // ИСПРАВЛЕНО: Используем самые актуальные данные
         const currentStats = {
             stars: userData.stars,
-            referrals: userData.referrals, // ВАЖНО: используем обновленное значение из БД
-            totalSpins: userData.total_spins || userData.stats?.totalSpins || 0,
-            prizesWon: userData.prizes_won || userData.stats?.prizesWon || 0,
-            totalStarsEarned: userData.total_stars_earned || userData.stats?.totalStarsEarned || 0
+            referrals: userData.referrals // ВАЖНО: используем обновленное значение из БД
         };
         
         console.log('📊 Актуальная статистика для отображения:', currentStats);
@@ -393,11 +380,8 @@ export class ProfileScreen {
         // Обновляем глобальные данные приложения
         this.app.gameData.stars = currentStats.stars;
         this.app.gameData.referrals = currentStats.referrals;
-        this.app.gameData.totalSpins = currentStats.totalSpins;
-        this.app.gameData.prizesWon = currentStats.prizesWon;
-        this.app.gameData.totalStarsEarned = currentStats.totalStarsEarned;
         
-        // Обновляем элементы интерфейса
+        // Обновляем элементы интерфейса - ТОЛЬКО 2 КАРТОЧКИ
         const statsGrid = document.getElementById('profile-stats-grid');
         if (statsGrid) {
             statsGrid.innerHTML = `
@@ -407,32 +391,20 @@ export class ProfileScreen {
                     <div class="stats-card-label">Текущий баланс</div>
                 </div>
                 <div class="stats-card">
-                    <div class="stats-card-icon">🎯</div>
-                    <div class="stats-card-value">${currentStats.totalSpins}</div>
-                    <div class="stats-card-label">Всего прокруток</div>
-                </div>
-                <div class="stats-card">
-                    <div class="stats-card-icon">🎁</div>
-                    <div class="stats-card-value">${currentStats.prizesWon}</div>
-                    <div class="stats-card-label">Призов выиграно</div>
-                </div>
-                <div class="stats-card">
                     <div class="stats-card-icon">👥</div>
                     <div class="stats-card-value">${currentStats.referrals}</div>
                     <div class="stats-card-label">Рефералов</div>
                 </div>
             `;
             
-            console.log('✅ Статистика в интерфейсе обновлена');
+            console.log('✅ Упрощенная статистика в интерфейсе обновлена');
         }
-        
-        // Обновляем верхнюю панель с балансом
+    // Обновляем верхнюю панель с балансом
         const balanceElement = document.querySelector('.app-header .user-balance');
         if (balanceElement) {
             balanceElement.textContent = `⭐ ${currentStats.stars}`;
         }
     }
-
     // Метод для обновления реферальной ссылки
     updateReferralLink() {
         const linkInput = document.getElementById('referral-link');
