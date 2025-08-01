@@ -126,12 +126,12 @@ export class ProfileScreen {
                 
                 <!-- Контент вкладки "Лидерборд" -->
                 <div class="tab-content" id="leaderboard">
-                    <div class="leaderboard-header">
+                   <div class="leaderboard-header">
                         <div class="leaderboard-avatar">
                             🏆
                         </div>
                         <div class="leaderboard-info">
-                            <h3>Топ по рефералам</h3>
+                            <h3>Топ по друзьям</h3>
                             <p>Глобальный рейтинг по количеству приглашенных друзей</p>
                         </div>
                     </div>
@@ -280,6 +280,31 @@ export class ProfileScreen {
         });
     }
 
+    // Функция для правильного склонения слова "друг"
+    getFriendsWord(count) {
+        const lastDigit = count % 10;
+        const lastTwoDigits = count % 100;
+        
+        // Исключения для 11, 12, 13, 14
+        if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+            return 'друзей';
+        }
+        
+        // Основные правила
+        if (lastDigit === 1) {
+            return 'друг';
+        } else if (lastDigit >= 2 && lastDigit <= 4) {
+            return 'друга';
+        } else {
+            return 'друзей';
+        }
+    }
+
+    // Функция для форматирования количества друзей
+    formatFriendsCount(count) {
+        return `${count} ${this.getFriendsWord(count)}`;
+    }
+
     // 1. ЗАМЕНИТЕ метод loadProfileData() на этот:
     async loadProfileData() {
         const userId = this.getTelegramId();
@@ -365,7 +390,8 @@ export class ProfileScreen {
     }
 
     // Обновление статистики в профиле
-    // 1. ЗАМЕНИТЕ метод updateProfileStats() полностью:
+    // ЗАМЕНИТЕ метод updateProfileStats() в файле public/js/screens/profile.js
+
     updateProfileStats(userData) {
         console.log('📊 Обновление статистики профиля с данными:', userData);
         
@@ -381,7 +407,10 @@ export class ProfileScreen {
         this.app.gameData.stars = currentStats.stars;
         this.app.gameData.referrals = currentStats.referrals;
         
-        // Обновляем элементы интерфейса - ТОЛЬКО 2 КАРТОЧКИ
+        // Получаем правильное окончание для слова "друг"
+        const friendsLabel = this.getFriendsWord(currentStats.referrals);
+        
+        // Обновляем элементы интерфейса - ТОЛЬКО 2 КАРТОЧКИ С ПРАВИЛЬНЫМИ ОКОНЧАНИЯМИ
         const statsGrid = document.getElementById('profile-stats-grid');
         if (statsGrid) {
             statsGrid.innerHTML = `
@@ -393,13 +422,14 @@ export class ProfileScreen {
                 <div class="stats-card">
                     <div class="stats-card-icon">👥</div>
                     <div class="stats-card-value">${currentStats.referrals}</div>
-                    <div class="stats-card-label">Рефералов</div>
+                    <div class="stats-card-label">${friendsLabel}</div>
                 </div>
             `;
             
             console.log('✅ Упрощенная статистика в интерфейсе обновлена');
         }
-    // Обновляем верхнюю панель с балансом
+        
+        // Обновляем верхнюю панель с балансом
         const balanceElement = document.querySelector('.app-header .user-balance');
         if (balanceElement) {
             balanceElement.textContent = `⭐ ${currentStats.stars}`;
@@ -442,6 +472,7 @@ export class ProfileScreen {
     }
 
     // 4. ЗАМЕНИТЕ метод loadLeaderboardData() полностью:
+    // ЗАМЕНИТЕ метод loadLeaderboardData() полностью:
     async loadLeaderboardData() {
         console.log('🏆 Загрузка данных лидерборда...');
         
@@ -476,21 +507,21 @@ export class ProfileScreen {
             
             console.log(`✅ Получен лидерборд: ${data.leaderboard.length} записей`);
             
-            // Отображаем лидерборд
+            // Отображаем лидерборд БЕЗ КОРОН И ЗВЕЗД
             leaderboardList.innerHTML = data.leaderboard.map((user, index) => {
                 const position = index + 1;
                 const isTop3 = position <= 3;
+                const friendsText = this.formatFriendsCount(user.referrals_count);
                 
                 return `
                     <div class="leaderboard-item ${isTop3 ? 'top-player' : ''}">
                         <div class="leaderboard-rank">
                             <span class="position-rank">${position}</span>
-                            ${isTop3 ? '<span class="rank-crown">👑</span>' : ''}
                         </div>
                         <div class="leaderboard-info">
-                            <div class="leaderboard-name">${user.first_name || 'Аноним'}</div>
+                            <div class="leaderboard-name">${user.first_name || 'Пользователь'}</div>
                             <div class="leaderboard-stats">
-                                👥 ${user.referrals_count} рефералов • ⭐ ${user.total_stars_earned || 0}
+                                ${friendsText}
                             </div>
                         </div>
                         <div class="leaderboard-score">
@@ -578,13 +609,13 @@ export class ProfileScreen {
     }
 
     // Загрузка позиции текущего пользователя по рефералам
-    // 5. ЗАМЕНИТЕ метод loadUserPosition() полностью:
+    // ЗАМЕНИТЕ метод loadUserPosition() полностью:
     async loadUserPosition(userId) {
         console.log(`👤 Загрузка позиции пользователя ${userId}...`);
         
-        const userPositionCard = document.getElementById('user-position-card');
-        if (!userPositionCard) {
-            console.warn('⚠️ Элемент user-position-card не найден');
+        const currentPosition = document.getElementById('current-position');
+        if (!currentPosition) {
+            console.warn('⚠️ Элемент current-position не найден');
             return;
         }
         
@@ -595,33 +626,39 @@ export class ProfileScreen {
             console.log('📊 Позиция пользователя:', data);
             
             if (data.position && data.score > 0) {
-                userPositionCard.innerHTML = `
-                    <div class="user-position-content">
-                        <div class="user-position-rank">
-                            <span class="position-number">#${data.position}</span>
-                        </div>
-                        <div class="user-position-info">
-                            <div class="user-position-title">Ваша позиция</div>
-                            <div class="user-position-score">👥 ${data.score} рефералов</div>
+                const friendsText = this.formatFriendsCount(data.score);
+                
+                currentPosition.innerHTML = `
+                    <div class="user-position-card">
+                        <div class="user-position-content">
+                            <div class="user-position-rank">
+                                <span class="position-number">#${data.position}</span>
+                            </div>
+                            <div class="user-position-info">
+                                <div class="user-position-title">Ваша позиция</div>
+                                <div class="user-position-score">${friendsText}</div>
+                            </div>
                         </div>
                     </div>
                 `;
-                userPositionCard.style.display = 'block';
+                currentPosition.style.display = 'block';
             } else {
-                userPositionCard.innerHTML = `
-                    <div class="user-position-content">
-                        <div class="user-position-info">
-                            <div class="user-position-title">Не в рейтинге</div>
-                            <div class="user-position-score">Пригласите друзей!</div>
+                currentPosition.innerHTML = `
+                    <div class="user-position-card">
+                        <div class="user-position-content">
+                            <div class="user-position-info">
+                                <div class="user-position-title">Не в рейтинге</div>
+                                <div class="user-position-score">Пригласите друзей!</div>
+                            </div>
                         </div>
                     </div>
                 `;
-                userPositionCard.style.display = 'block';
+                currentPosition.style.display = 'block';
             }
             
         } catch (error) {
             console.error('❌ Ошибка получения позиции пользователя:', error);
-            userPositionCard.style.display = 'none';
+            currentPosition.style.display = 'none';
         }
     }
 
@@ -660,10 +697,12 @@ export class ProfileScreen {
         }
     }
 
+    // ЗАМЕНИТЕ метод renderReferralsSection() полностью:
     renderReferralsSection() {
         const gameData = this.app.gameData;
         const referralsCount = gameData.referrals || 0;
         const starsFromReferrals = referralsCount * 10;
+        const friendsText = this.formatFriendsCount(referralsCount);
         
         return `
             <div class="referrals-stats">
@@ -671,7 +710,7 @@ export class ProfileScreen {
                 <div class="referrals-overview">
                     <div class="referral-stat-card">
                         <div class="referral-stat-value">${referralsCount}</div>
-                        <div class="referral-stat-label">👥 Приглашено друзей</div>
+                        <div class="referral-stat-label">Приглашено ${this.getFriendsWord(referralsCount)}</div>
                     </div>
                     <div class="referral-stat-card">
                         <div class="referral-stat-value">${starsFromReferrals}</div>
@@ -690,16 +729,10 @@ export class ProfileScreen {
                     </div>
                 </div>
                 
-                <!-- Информация о бонусах -->
                 <div class="referral-info">
-                    <div class="referral-description">
-                        <h4>💡 Как это работает:</h4>
-                        <ul>
-                            <li>Пригласите друга по вашей ссылке</li>
-                            <li>Друг должен выполнить 2 подписки на каналы</li>
-                            <li>Вы получите 20 звезд за активного реферала</li>
-                        </ul>
-                    </div>
+                    <p style="font-size: 14px; color: var(--text-secondary); margin: 15px 0 0 0; text-align: center;">
+                        🎁 Получайте 10 звезд за каждого приглашенного друга!
+                    </p>
                 </div>
             </div>
         `;
