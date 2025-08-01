@@ -122,6 +122,83 @@
     animation-delay: 0.9s;
 }
 
+/* ========================================
+   СТИЛИ ЗАМОЧКА ДЛЯ ЗАБЛОКИРОВАННОЙ КНОПКИ
+   ======================================== */
+
+/* Основные стили для заблокированной кнопки */
+.mega-spin-button.locked {
+    position: relative;
+    background: linear-gradient(135deg, #666, #444, #333);
+    color: #aaa;
+    cursor: not-allowed;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    border: 2px solid #555;
+}
+
+.mega-spin-button.locked .mega-btn-content {
+    opacity: 0.7;
+}
+
+/* Overlay с замочком */
+.mega-lock-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50px;
+    z-index: 10;
+}
+
+/* Анимированный замочек */
+.mega-lock-icon {
+    font-size: 24px;
+    color: #FFD700;
+    text-shadow: 
+        0 0 10px rgba(255, 215, 0, 0.8),
+        0 0 20px rgba(255, 215, 0, 0.4);
+    animation: lockPulse 2s ease-in-out infinite;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+/* Анимация пульсации замочка */
+@keyframes lockPulse {
+    0% { 
+        transform: scale(1);
+        text-shadow: 
+            0 0 10px rgba(255, 215, 0, 0.8),
+            0 0 20px rgba(255, 215, 0, 0.4);
+    }
+    50% { 
+        transform: scale(1.1);
+        text-shadow: 
+            0 0 15px rgba(255, 215, 0, 1),
+            0 0 30px rgba(255, 215, 0, 0.6),
+            0 0 40px rgba(255, 215, 0, 0.3);
+    }
+    100% { 
+        transform: scale(1);
+        text-shadow: 
+            0 0 10px rgba(255, 215, 0, 0.8),
+            0 0 20px rgba(255, 215, 0, 0.4);
+    }
+}
+
+/* Убираем эффект hover для заблокированной кнопки */
+.mega-spin-button.locked:hover {
+    transform: none;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.mega-spin-button.locked:hover .mega-btn-bg {
+    left: -100%;
+}
+
 /* Анимации для кнопки */
 @keyframes megaGlow {
     0% { 
@@ -468,7 +545,7 @@
 
 .mega-spin-info {
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 15px; /* Уменьшили отступ */
 }
 
 .mega-cost {
@@ -487,17 +564,24 @@
     color: #FFD700;
 }
 
+/* Стили для таймера без блока mega-cost */
 .mega-timer {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 16px;
+    font-weight: 500;
+    background: rgba(255, 215, 0, 0.1);
+    padding: 12px 25px;
+    border-radius: 25px;
+    border: 1px solid rgba(255, 215, 0, 0.2);
 }
 
 .mega-timer i {
     color: #FFD700;
+    margin-right: 5px;
 }
 
 .mega-spin-action {
@@ -815,6 +899,27 @@
     
     .mega-win-content h2 {
         font-size: 24px;
+    }
+}
+
+@media (max-width: 400px) {
+    .mega-lock-icon {
+        font-size: 20px;
+    }
+    
+    .mega-lock-overlay {
+        border-radius: 40px;
+    }
+}
+
+@media (max-width: 320px) {
+    .mega-lock-icon {
+        font-size: 18px;
+    }
+    
+    .mega-timer {
+        font-size: 14px;
+        padding: 10px 20px;
     }
 }
 
