@@ -1023,33 +1023,74 @@ class Database {
 
     // === МЕТОДЫ ДЛЯ РЕФЕРАЛОВ ===
 
+    // 1. ЗАМЕНИТЕ метод addReferral() полностью:
     async addReferral(referrerTelegramId, referredTelegramId) {
         return new Promise((resolve, reject) => {
-            this.db.run(
-                `INSERT OR IGNORE INTO referrals (referrer_id, referred_id)
-                SELECT r.id, rf.id FROM users r, users rf
-                WHERE r.telegram_id = ? AND rf.telegram_id = ?`,
-                [referrerTelegramId, referredTelegramId],
-                async (err) => {
-                    if (err) {
-                        reject(err);
-                    } else {
-                        if (this.changes > 0) {
-                            console.log(`✅ Добавлен реферал: ${referrerTelegramId} -> ${referredTelegramId}`);
-                            
-                            // Обновляем счетчик рефералов у пригласившего
-                            try {
-                                await this.updateReferralCount(referrerTelegramId);
-                                resolve(true);
-                            } catch (updateErr) {
-                                console.error('❌ Ошибка обновления счетчика рефералов:', updateErr);
-                                resolve(true); // Реферал все равно добавлен
-                            }
-                        } else {
-                            console.log(`⚠️ Реферал уже существует: ${referrerTelegramId} -> ${referredTelegramId}`);
-                            resolve(false);
-                        }
+            console.log(`🤝 Попытка добавить реферал: ${referrerTelegramId} -> ${referredTelegramId}`);
+            
+            // Получаем ID пользователей по их telegram_id
+            this.db.get(
+                'SELECT id FROM users WHERE telegram_id = ?',
+                [referrerTelegramId],
+                (err, referrer) => {
+                    if (err || !referrer) {
+                        console.error('❌ Реферер не найден:', referrerTelegramId);
+                        reject(err || new Error('Referrer not found'));
+                        return;
                     }
+                    
+                    this.db.get(
+                        'SELECT id FROM users WHERE telegram_id = ?',
+                        [referredTelegramId],
+                        (err, referred) => {
+                            if (err || !referred) {
+                                console.error('❌ Приглашенный не найден:', referredTelegramId);
+                                reject(err || new Error('Referred user not found'));
+                                return;
+                            }
+                            
+                            // Проверяем, не существует ли уже такой реферал
+                            this.db.get(
+                                'SELECT id FROM referrals WHERE referrer_id = ? AND referred_id = ?',
+                                [referrer.id, referred.id],
+                                (err, existing) => {
+                                    if (err) {
+                                        reject(err);
+                                        return;
+                                    }
+                                    
+                                    if (existing) {
+                                        console.log(`⚠️ Реферал уже существует: ${referrerTelegramId} -> ${referredTelegramId}`);
+                                        resolve(false);
+                                        return;
+                                    }
+                                    
+                                    // Добавляем новый реферал
+                                    this.db.run(
+                                        'INSERT INTO referrals (referrer_id, referred_id) VALUES (?, ?)',
+                                        [referrer.id, referred.id],
+                                        async (err) => {
+                                            if (err) {
+                                                console.error('❌ Ошибка добавления реферала:', err);
+                                                reject(err);
+                                            } else {
+                                                console.log(`✅ Реферал добавлен: ${referrerTelegramId} -> ${referredTelegramId}`);
+                                                
+                                                // КРИТИЧЕСКИ ВАЖНО: Обновляем счетчик рефералов
+                                                try {
+                                                    await this.updateReferralCount(referrerTelegramId);
+                                                    resolve(true);
+                                                } catch (updateErr) {
+                                                    console.error('❌ Ошибка обновления счетчика:', updateErr);
+                                                    resolve(true); // Реферал добавлен, но счетчик не обновился
+                                                }
+                                            }
+                                        }
+                                    );
+                                }
+                            );
+                        }
+                    );
                 }
             );
         });
@@ -1058,38 +1099,45 @@ class Database {
     // 3. Проверьте, что поле referrals обновляется правильно:
 
     // 2. ЗАМЕНИТЕ метод updateReferralCount на эту версию:
+    // 2. ЗАМЕНИТЕ метод updateReferralCount() полностью:
     async updateReferralCount(telegramId) {
         return new Promise((resolve, reject) => {
-            // Сначала получаем фактическое количество рефералов из таблицы referrals
+            console.log(`📊 Обновление счетчика рефералов для пользователя: ${telegramId}`);
+            
+            // Получаем реальное количество рефералов
             this.db.get(`
-                SELECT COUNT(*) as count 
+                SELECT COUNT(r.id) as count 
                 FROM referrals r
                 JOIN users u ON r.referrer_id = u.id
                 WHERE u.telegram_id = ?
             `, [telegramId], (err, result) => {
                 if (err) {
+                    console.error('❌ Ошибка подсчета рефералов:', err);
                     reject(err);
                     return;
                 }
                 
                 const actualCount = result?.count || 0;
+                console.log(`📊 Фактическое количество рефералов для ${telegramId}: ${actualCount}`);
                 
-                // Обновляем поле referrals точным фактическим значением
+                // Обновляем поле referrals в таблице users
                 this.db.run(
                     'UPDATE users SET referrals = ? WHERE telegram_id = ?',
                     [actualCount, telegramId],
-                    (err) => {
+                    function(err) {
                         if (err) {
+                            console.error('❌ Ошибка обновления поля referrals:', err);
                             reject(err);
                         } else {
-                            console.log(`📊 Обновлен счетчик рефералов для ${telegramId}: ${actualCount}`);
-                            resolve();
+                            console.log(`✅ Счетчик рефералов обновлен для ${telegramId}: ${actualCount} (изменено строк: ${this.changes})`);
+                            resolve(actualCount);
                         }
                     }
                 );
             });
         });
     }
+
 
     async getReferral(referrerId, userId) {
         return new Promise((resolve, reject) => {
@@ -1195,31 +1243,94 @@ class Database {
     }
 
     // ИСПРАВЛЕННЫЙ МЕТОД ДЛЯ ГЛОБАЛЬНОГО ЛИДЕРБОРДА ПО РЕФЕРАЛАМ
-    // УБЕДИТЕСЬ что в database.js есть этот метод:
+    // 3. ИСПРАВЬТЕ метод getGlobalReferralsLeaderboard():
     async getGlobalReferralsLeaderboard(limit = 20) {
         return new Promise((resolve, reject) => {
-            this.db.all(`
+            console.log(`🏆 Получение глобального лидерборда рефералов (лимит: ${limit})`);
+            
+            const query = `
                 SELECT 
                     u.telegram_id,
                     u.first_name,
                     u.username,
-                    COUNT(r.referred_id) as referrals_count,
+                    u.referrals as referrals_count,
                     u.total_stars_earned,
                     u.join_date
                 FROM users u
-                LEFT JOIN referrals r ON u.telegram_id = r.referrer_id
-                WHERE u.is_active = 1
-                GROUP BY u.telegram_id, u.first_name, u.username, u.total_stars_earned, u.join_date
-                HAVING referrals_count > 0
-                ORDER BY referrals_count DESC, u.total_stars_earned DESC, u.join_date ASC
+                WHERE u.is_active = 1 AND u.referrals > 0
+                ORDER BY u.referrals DESC, u.total_stars_earned DESC, u.join_date ASC
                 LIMIT ?
-            `, [limit], (err, rows) => {
+            `;
+            
+            this.db.all(query, [limit], (err, rows) => {
                 if (err) {
-                    console.error('❌ Ошибка лидерборда:', err);
+                    console.error('❌ Ошибка получения лидерборда рефералов:', err);
                     reject(err);
                 } else {
-                    console.log(`📊 Лидерборд: найдено ${rows ? rows.length : 0} записей`);
+                    console.log(`✅ Лидерборд рефералов получен: ${rows.length} записей`);
                     resolve(rows || []);
+                }
+            });
+        });
+    }
+
+    // 6. ДОБАВЬТЕ метод для отладки рефералов:
+    async debugUserReferrals(telegramId) {
+        return new Promise((resolve, reject) => {
+            const debug = {};
+            
+            // Получаем данные пользователя
+            this.db.get('SELECT * FROM users WHERE telegram_id = ?', [telegramId], (err, user) => {
+                if (err || !user) {
+                    reject(err || new Error('User not found'));
+                    return;
+                }
+                
+                debug.user = user;
+                
+                // Получаем реальные рефералы
+                this.db.all(`
+                    SELECT r.*, ref.first_name as referred_name 
+                    FROM referrals r
+                    JOIN users ref ON r.referred_id = ref.id
+                    WHERE r.referrer_id = ?
+                `, [user.id], (err, referrals) => {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+                    
+                    debug.actual_referrals = referrals || [];
+                    debug.referrals_field = user.referrals;
+                    debug.actual_count = referrals?.length || 0;
+                    debug.field_matches_actual = debug.referrals_field === debug.actual_count;
+                    
+                    console.log(`🔍 Отладка рефералов для ${telegramId}:`, debug);
+                    resolve(debug);
+                });
+            });
+        });
+    }
+
+    // 5. ДОБАВЬТЕ новый метод для принудительной синхронизации всех рефералов:
+    async syncAllReferralCounts() {
+        return new Promise((resolve, reject) => {
+            console.log('🔄 Синхронизация счетчиков рефералов для всех пользователей...');
+            
+            this.db.run(`
+                UPDATE users 
+                SET referrals = (
+                    SELECT COUNT(r.id) 
+                    FROM referrals r 
+                    WHERE r.referrer_id = users.id
+                )
+            `, (err) => {
+                if (err) {
+                    console.error('❌ Ошибка синхронизации рефералов:', err);
+                    reject(err);
+                } else {
+                    console.log(`✅ Синхронизация завершена, обновлено строк: ${this.changes}`);
+                    resolve(this.changes);
                 }
             });
         });
@@ -1228,76 +1339,59 @@ class Database {
     // НОВЫЙ МЕТОД ДЛЯ ПОЛУЧЕНИЯ ПОЗИЦИИ ПОЛЬЗОВАТЕЛЯ ПО РЕФЕРАЛАМ
     // ИСПРАВЛЕННЫЙ МЕТОД ДЛЯ ПОЛУЧЕНИЯ ПОЗИЦИИ ПОЛЬЗОВАТЕЛЯ ПО РЕФЕРАЛАМ
     // УБЕДИТЕСЬ что этот метод есть в database.js:
-    async getUserReferralRank(userId) {
+    // 4. ИСПРАВЬТЕ метод getUserReferralRank():
+    async getUserReferralRank(telegramId) {
         return new Promise((resolve, reject) => {
-            // Сначала получаем количество рефералов пользователя
-            const userQuery = `
-                SELECT 
-                    u.telegram_id,
-                    u.first_name,
-                    COUNT(r.referred_id) as referrals_count
-                FROM users u
-                LEFT JOIN referrals r ON u.telegram_id = r.referrer_id
-                WHERE u.telegram_id = ? AND u.is_active = 1
-                GROUP BY u.telegram_id, u.first_name
-            `;
+            console.log(`👤 Получение ранга пользователя ${telegramId} по рефералам`);
             
-            this.db.get(userQuery, [userId], (error, userResult) => {
-                if (error) {
-                    console.error('❌ Ошибка получения данных пользователя:', error);
-                    return reject(error);
+            // Сначала получаем данные пользователя
+            this.db.get(`
+                SELECT telegram_id, first_name, referrals as referrals_count, total_stars_earned, join_date
+                FROM users 
+                WHERE telegram_id = ? AND is_active = 1
+            `, [telegramId], (err, userResult) => {
+                if (err) {
+                    console.error('❌ Ошибка получения данных пользователя:', err);
+                    reject(err);
+                    return;
                 }
                 
                 if (!userResult || userResult.referrals_count === 0) {
-                    // Пользователь не найден или нет рефералов
-                    return resolve(null);
+                    console.log(`📊 Пользователь ${telegramId} не найден или нет рефералов`);
+                    resolve(null);
+                    return;
                 }
                 
                 const userReferrals = userResult.referrals_count;
+                const userStars = userResult.total_stars_earned;
+                const userJoinDate = userResult.join_date;
                 
-                // Теперь получаем позицию пользователя в рейтинге
-                const rankQuery = `
+                // Получаем позицию пользователя
+                this.db.get(`
                     SELECT COUNT(*) + 1 as position
-                    FROM (
-                        SELECT 
-                            u.telegram_id,
-                            COUNT(r.referred_id) as referrals_count,
-                            u.total_stars_earned,
-                            u.join_date
-                        FROM users u
-                        LEFT JOIN referrals r ON u.telegram_id = r.referrer_id
-                        WHERE u.is_active = 1
-                        GROUP BY u.telegram_id, u.total_stars_earned, u.join_date
-                        HAVING referrals_count > 0
-                    ) ranked_users
-                    WHERE 
-                        referrals_count > ? OR 
-                        (referrals_count = ? AND total_stars_earned > (
-                            SELECT total_stars_earned FROM users WHERE telegram_id = ?
-                        )) OR
-                        (referrals_count = ? AND total_stars_earned = (
-                            SELECT total_stars_earned FROM users WHERE telegram_id = ?
-                        ) AND join_date < (
-                            SELECT join_date FROM users WHERE telegram_id = ?
-                        ))
-                `;
-                
-                this.db.get(rankQuery, [
-                    userReferrals, userReferrals, userId, 
-                    userReferrals, userId, userId
-                ], (error, rankResult) => {
-                    if (error) {
-                        console.error('❌ Ошибка получения ранга:', error);
-                        return reject(error);
+                    FROM users u
+                    WHERE u.is_active = 1 
+                    AND u.referrals > 0
+                    AND (
+                        u.referrals > ? OR 
+                        (u.referrals = ? AND u.total_stars_earned > ?) OR
+                        (u.referrals = ? AND u.total_stars_earned = ? AND u.join_date < ?)
+                    )
+                `, [userReferrals, userReferrals, userStars, userReferrals, userStars, userJoinDate], (err, rankResult) => {
+                    if (err) {
+                        console.error('❌ Ошибка получения ранга:', err);
+                        reject(err);
+                    } else {
+                        const result = {
+                            telegram_id: userResult.telegram_id,
+                            first_name: userResult.first_name,
+                            referrals_count: userResult.referrals_count,
+                            position: rankResult?.position || 1
+                        };
+                        
+                        console.log(`✅ Ранг пользователя ${telegramId}:`, result);
+                        resolve(result);
                     }
-                    
-                    const position = rankResult?.position || null;
-                    
-                    resolve({
-                        position: position,
-                        referrals_count: userReferrals,
-                        first_name: userResult.first_name
-                    });
                 });
             });
         });
