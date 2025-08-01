@@ -448,10 +448,14 @@ export class ProfileScreen {
 
     // УПРОЩЕННЫЙ МЕТОД: Загрузка лидерборда (только по рефералам)
     // 3. ЗАМЕНИТЕ метод loadLeaderboard() полностью:
+    // 4. ДОБАВЬТЕ вызов отладки в метод loadLeaderboard():
     async loadLeaderboard() {
         console.log('🏆 Загрузка лидерборда рефералов...');
         
         try {
+            // Отладка для проверки данных
+            await this.debugLeaderboardData();
+            
             // Принудительно синхронизируем данные перед загрузкой лидерборда
             await fetch('/api/sync-referrals', { method: 'POST' });
             
@@ -471,8 +475,36 @@ export class ProfileScreen {
         }
     }
 
+    // 3. ДОБАВЬТЕ метод для отладки данных API:
+    async debugLeaderboardData() {
+        try {
+            console.log('🔍 Отладка данных лидерборда...');
+            
+            const response = await fetch('/api/leaderboard-referrals?limit=5');
+            const data = await response.json();
+            
+            console.log('📊 Полные данные из API:', data);
+            
+            if (data.leaderboard && data.leaderboard.length > 0) {
+                data.leaderboard.forEach((user, index) => {
+                    console.log(`👤 Игрок ${index + 1}:`, {
+                        telegram_id: user.telegram_id,
+                        first_name: user.first_name,
+                        username: user.username,
+                        referrals_count: user.referrals_count,
+                        displayName: this.getPlayerDisplayName(user)
+                    });
+                });
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка отладки:', error);
+        }
+    }
+
     // 4. ЗАМЕНИТЕ метод loadLeaderboardData() полностью:
     // Обновленный метод loadLeaderboardData() с красивой структурой:
+    // 2. ЗАМЕНИТЕ метод loadLeaderboardData() полностью:
     async loadLeaderboardData() {
         console.log('🏆 Загрузка данных лидерборда...');
         
@@ -506,13 +538,18 @@ export class ProfileScreen {
             }
             
             console.log(`✅ Получен лидерборд: ${data.leaderboard.length} записей`);
+            console.log('📊 Пример данных игрока:', data.leaderboard[0]);
             
-            // Отображаем лидерборд с обновленной структурой
+            // Отображаем лидерборд с правильными именами
             leaderboardList.innerHTML = data.leaderboard.map((user, index) => {
                 const position = index + 1;
                 const isTop3 = position <= 3;
                 const friendsText = this.formatFriendsCount(user.referrals_count);
-                const userName = user.first_name || 'Пользователь';
+                
+                // ВАЖНО: Используем улучшенный метод для получения имени
+                const userName = this.getPlayerDisplayName(user);
+                
+                console.log(`👤 Игрок ${position}: ${userName} (${user.referrals_count} друзей)`);
                 
                 return `
                     <div class="leaderboard-item ${isTop3 ? 'top-player' : ''}">
@@ -805,13 +842,27 @@ export class ProfileScreen {
     }
 
     getPlayerDisplayName(player) {
-        if (player.username) {
-            return `@${player.username}`;
-        } else if (player.first_name) {
-            return player.first_name;
-        } else {
-            return `User${player.telegram_id.toString().slice(-4)}`;
+        console.log('🔍 Определение имени для игрока:', player);
+        
+        // Проверяем разные варианты имени
+        if (player.first_name && player.first_name.trim()) {
+            console.log('✅ Используем first_name:', player.first_name);
+            return player.first_name.trim();
+        } 
+        
+        if (player.username && player.username.trim()) {
+            console.log('✅ Используем username:', player.username);
+            return `@${player.username.trim()}`;
         }
+        
+        if (player.telegram_id) {
+            const shortId = player.telegram_id.toString().slice(-4);
+            console.log('✅ Используем короткий ID:', shortId);
+            return `ID: ${shortId}`;
+        }
+        
+        console.warn('⚠️ Не найдено имя для игрока, используем заглушку');
+        return 'Аноним';
     }
 
     getPositionEmoji(position) {
