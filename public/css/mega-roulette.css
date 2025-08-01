@@ -586,6 +586,141 @@
     z-index: -1;
 }
 
+/* Основное колесо - идеально ровное */
+#mega-roulette-screen .mega-wheel {
+    position: relative;
+    margin: 0 auto;
+    width: 320px !important;
+    height: 320px !important;
+    border-radius: 50% !important;
+    overflow: hidden; /* Важно для четких краев */
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    /* Добавляем тень для глубины */
+    box-shadow: 
+        0 0 40px rgba(255, 215, 0, 0.3),
+        0 20px 40px rgba(0, 0, 0, 0.6);
+}
+
+/* SVG колесо с размытием */
+#mega-roulette-screen #mega-wheel-svg {
+    width: 320px !important;
+    height: 320px !important;
+    border-radius: 50%;
+    transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+    transform-origin: 160px 160px;
+    position: relative;
+    z-index: 2;
+    /* РАЗМЫТИЕ для скрытия деталей */
+    filter: blur(2px) saturate(1.2);
+    /* Дополнительный эффект свечения */
+    opacity: 0.95;
+}
+
+/* Убираем все детали сегментов */
+#mega-roulette-screen .mega-segment-path {
+    vector-effect: non-scaling-stroke;
+    /* Плавные переходы между сегментами */
+    transition: all 0.3s ease;
+}
+
+/* Дополнительный слой размытия при вращении */
+#mega-roulette-screen .mega-wheel.spinning #mega-wheel-svg {
+    filter: blur(4px) saturate(1.5);
+    opacity: 0.9;
+}
+
+/* Указатель остается четким */
+#mega-roulette-screen .mega-wheel-pointer {
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    width: 0;
+    height: 0;
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;
+    border-top: 20px solid #FFD700;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.6));
+    /* Указатель остается четким */
+}
+
+/* Центр колеса остается четким */
+#mega-roulette-screen .mega-wheel-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 25;
+    width: 70px;
+    height: 70px;
+    background: radial-gradient(circle, #FFD700 0%, #FFA500 70%, #FF8C00 100%);
+    border-radius: 50%;
+    border: 4px solid rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    box-shadow: 
+        0 0 20px rgba(255, 215, 0, 0.8),
+        0 8px 25px rgba(0, 0, 0, 0.4);
+    /* Центр четкий без размытия */
+    filter: none;
+}
+
+#mega-roulette-screen .mega-center-crown {
+    font-size: 24px;
+    margin-bottom: 2px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+    animation: crownSpin 8s linear infinite;
+}
+
+#mega-roulette-screen .mega-center-text {
+    font-size: 10px;
+    font-weight: bold;
+    color: #000;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+    letter-spacing: 1px;
+}
+
+/* Анимация короны */
+@keyframes crownSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Контейнер колеса */
+#mega-roulette-screen .mega-wheel-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 320px;
+    height: 320px;
+    margin: 0 auto;
+    z-index: 1;
+    /* Легкое свечение вокруг колеса */
+    filter: drop-shadow(0 0 30px rgba(255, 215, 0, 0.2));
+}
+
+#mega-roulette-screen .mega-wheel-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 20px;
+    padding: 30px 20px;
+}
+
+/* Дополнительный эффект размытия при отсутствии взаимодействия */
+#mega-roulette-screen .mega-wheel:not(.spinning) #mega-wheel-svg {
+    filter: blur(1.5px) saturate(1.1);
+}
+
 /* ========================================
    5. КНОПКИ И ИНФОРМАЦИЯ
    ======================================== */
@@ -950,6 +1085,34 @@
 }
 
 @media (max-width: 400px) {
+    #mega-roulette-screen .mega-wheel {
+        width: 280px !important;
+        height: 280px !important;
+    }
+    
+    #mega-roulette-screen #mega-wheel-svg {
+        width: 280px !important;
+        height: 280px !important;
+    }
+    
+    #mega-roulette-screen .mega-wheel-wrapper {
+        width: 280px;
+        height: 280px;
+    }
+    
+    #mega-roulette-screen .mega-wheel-center {
+        width: 60px;
+        height: 60px;
+    }
+    
+    #mega-roulette-screen .mega-center-crown {
+        font-size: 20px;
+    }
+    
+    #mega-roulette-screen .mega-center-text {
+        font-size: 8px;
+    }
+
     .mega-lock-icon {
         font-size: 20px;
     }
@@ -960,6 +1123,34 @@
 }
 
 @media (max-width: 320px) {
+    #mega-roulette-screen .mega-wheel {
+        width: 240px !important;
+        height: 240px !important;
+    }
+    
+    #mega-roulette-screen #mega-wheel-svg {
+        width: 240px !important;
+        height: 240px !important;
+    }
+    
+    #mega-roulette-screen .mega-wheel-wrapper {
+        width: 240px;
+        height: 240px;
+    }
+    
+    #mega-roulette-screen .mega-wheel-center {
+        width: 50px;
+        height: 50px;
+    }
+    
+    #mega-roulette-screen .mega-center-crown {
+        font-size: 18px;
+    }
+    
+    #mega-roulette-screen .mega-center-text {
+        font-size: 7px;
+    }
+
     .mega-lock-icon {
         font-size: 18px;
     }
