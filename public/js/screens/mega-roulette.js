@@ -27,11 +27,8 @@ export class MegaRouletteScreen {
     // Найдите метод render() и замените блок с mega-spin-info на этот код:
 
     render() {
-        const timeUntilNext = this.getTimeUntilNextSpin();
-        const canSpin = timeUntilNext <= 0;
         const userStars = this.app.gameData.stars;
-        const hasEnoughStars = userStars >= 5000;
-
+        
         return `
             <div class="mega-container">
                 <div class="mega-header">
@@ -40,7 +37,7 @@ export class MegaRouletteScreen {
                     </button>
                     <div class="mega-title">
                         <h2>🎰 МЕГА РУЛЕТКА</h2>
-                        <p>Эксклюзивные призы для VIP игроков</p>
+                        <p>Скоро запуск!</p>
                     </div>
                     <div class="mega-stars">
                         <i class="fas fa-star"></i>
@@ -48,138 +45,148 @@ export class MegaRouletteScreen {
                     </div>
                 </div>
 
+                <!-- ПРЕВЬЮ БЛОК -->
+                <div class="mega-preview-card">
+                    <div class="preview-icon">
+                        <div class="coming-soon-badge">СКОРО</div>
+                        <div class="mega-crown-animation">👑</div>
+                    </div>
+                    
+                    <h3>МЕГА РУЛЕТКА</h3>
+                    <p class="preview-subtitle">Эксклюзивная рулетка для VIP игроков</p>
+                    
+                    <div class="launch-countdown">
+                        <div class="countdown-label">Запуск через:</div>
+                        <div class="countdown-timer" id="mega-countdown">
+                            <div class="time-unit">
+                                <span class="time-value" id="days">30</span>
+                                <span class="time-label">дней</span>
+                            </div>
+                            <div class="time-separator">:</div>
+                            <div class="time-unit">
+                                <span class="time-value" id="hours">00</span>
+                                <span class="time-label">часов</span>
+                            </div>
+                            <div class="time-separator">:</div>
+                            <div class="time-unit">
+                                <span class="time-value" id="minutes">00</span>  
+                                <span class="time-label">минут</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ПРИЗОВОЙ ФОНД -->
                 <div class="mega-prizes-showcase">
                     <h3>💎 Призовой фонд</h3>
                     <div class="mega-prizes-grid">
-                        <div class="mega-prize-card legendary">
+                        <div class="mega-prize-card legendary preview">
                             <div class="prize-icon">🎧</div>
                             <div class="prize-name">AirPods 4</div>
-                            <div class="prize-tag">25.000₽</div>
+                            <div class="preview-label">Главный приз</div>
                         </div>
-                        <div class="mega-prize-card epic">
+                        <div class="mega-prize-card epic preview">
                             <div class="prize-icon">💎</div>
                             <div class="prize-name">Сертификат 5000₽</div>
-                            <div class="prize-tag">5.000₽</div>
+                            <div class="preview-label">VIP приз</div>
                         </div>
-                        <div class="mega-prize-card rare">
+                        <div class="mega-prize-card rare preview">
                             <div class="prize-icon">🔋</div>
-                            <div class="prize-name">Повербанк</div>
-                            <div class="prize-tag">2.000₽</div>
+                            <div class="prize-name">Повер-банк</div>
+                            <div class="preview-label">Полезный приз</div>
                         </div>
-                        <div class="mega-prize-card rare">
-                            <div class="prize-icon">⚡</div>
-                            <div class="prize-name">Беспроводная зарядка</div>
-                            <div class="prize-tag">1.500₽</div>
+                        <div class="mega-prize-card others preview">
+                            <div class="prize-icon">✨</div>
+                            <div class="prize-name">Другие призы</div>
+                            <div class="preview-label">Сюрпризы</div>
                         </div>
                     </div>
                 </div>
 
-                <div class="mega-wheel-container">
-                    <div class="mega-wheel-wrapper">
-                        <div class="mega-wheel-glow"></div>
-                        <div class="mega-wheel" id="mega-wheel">
-                            <div class="mega-wheel-pointer"></div>
-                            <svg id="mega-wheel-svg" width="320" height="320" viewBox="0 0 320 320">
-                                <g id="mega-wheel-segments"></g>
-                            </svg>
-                            <div class="mega-wheel-center">
-                                <div class="mega-center-crown">👑</div>
-                                <span class="mega-center-text">MEGA</span>
+                <!-- УСЛОВИЯ ДОСТУПА -->
+                <div class="access-conditions">
+                    <h3>🔑 Как получить доступ</h3>
+                    <div class="conditions-grid">
+                        <div class="condition-card">
+                            <div class="condition-icon">🏆</div>
+                            <div class="condition-title">Топ 15 лидерборда</div>
+                            <div class="condition-desc">Войди в топ 15 лучших игроков месяца</div>
+                            <div class="condition-status monthly">Ежемесячно</div>
+                        </div>
+                        <div class="condition-or">ИЛИ</div>
+                        <div class="condition-card">
+                            <div class="condition-icon">⭐</div>
+                            <div class="condition-title">5000 звезд</div>
+                            <div class="condition-desc">Потрать 5000 звезд за одну прокрутку</div>
+                            <div class="condition-status ${userStars >= 5000 ? 'available' : 'need-more'}">
+                                ${userStars >= 5000 ? 'Доступно' : `Нужно еще ${(5000 - userStars).toLocaleString()}`}
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- УБРАЛИ БЛОК mega-cost (5000 звезд за прокрутку) -->
-                
-                <div class="mega-spin-info">
-                    ${!canSpin ? `
-                        <div class="mega-timer">
-                            <i class="fas fa-clock"></i>
-                            <span>Следующая прокрутка через: <span id="mega-countdown">${this.formatTime(timeUntilNext)}</span></span>
-                        </div>
-                    ` : ''}
+                <!-- ИНФОРМАЦИЯ О ЗАПУСКЕ -->
+                <div class="launch-info">
+                    <div class="info-item">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span><strong>Дата запуска:</strong> ${this.getLaunchDate()}</span>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-trophy"></i>
+                        <span><strong>Периодичность:</strong> Ежемесячно для топ игроков</span>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-star"></i>
+                        <span><strong>Стоимость:</strong> 5000 звезд за прокрутку</span>
+                    </div>
                 </div>
 
-                <div class="mega-spin-action">
-                    <button id="mega-spin-btn" class="mega-spin-button ${!canSpin || !hasEnoughStars ? 'disabled locked' : ''}" 
-                            ${!canSpin || !hasEnoughStars ? 'disabled' : ''}>
-                        <div class="mega-btn-bg"></div>
-                        <div class="mega-btn-content">
-                            ${!canSpin ? '<i class="fas fa-clock"></i> Недоступно' : 
-                            !hasEnoughStars ? '<i class="fas fa-lock"></i> Нужно 5000 звезд' :
-                            '<i class="fas fa-crown"></i> КРУТИТЬ МЕГА РУЛЕТКУ'}
-                        </div>
-                        <!-- Добавляем анимированный замочек для заблокированной кнопки -->
-                        ${!hasEnoughStars && canSpin ? `
-                            <div class="mega-lock-overlay">
-                                <i class="fas fa-lock mega-lock-icon"></i>
-                            </div>
-                        ` : ''}
+                <!-- КНОПКА УВЕДОМЛЕНИЙ -->
+                <div class="notification-section">
+                    <button class="notify-btn" id="notify-btn">
+                        <i class="fas fa-bell"></i>
+                        <span>Уведомить о запуске</span>
                     </button>
+                    <p class="notify-text">Получи уведомление в нашем Telegram канале, когда мега рулетка станет доступна!</p>
                 </div>
-
-                ${canSpin ? '' : `
-                    <div class="mega-next-spin-info">
-                        <div style="text-align: center; padding: 20px;">
-                            <div style="font-size: 48px; margin-bottom: 15px;">⏰</div>
-                            <h4 style="color: #FFD700; margin-bottom: 10px;">Мега рулетка - эксклюзив!</h4>
-                            <p>Доступна раз в месяц для особых игроков.<br>
-                            Следите за уведомлениями в нашем канале!</p>
-                        </div>
-                    </div>
-                `}
             </div>
         `;
     }
 
+    // Обновите метод init() для превью:
     init() {
-        console.log('🎰 Инициализация мега рулетки...');
-        this.generateMegaWheelSegments();
+        console.log('🎰 Инициализация превью мега рулетки...');
         this.setupEventListeners();
-        if (this.getTimeUntilNextSpin() > 0) {
-            this.startCountdown();
-        }
-        console.log('✅ Мега рулетка инициализирована');
+        this.startCountdown();
+        console.log('✅ Превью мега рулетки инициализировано');
     }
 
+    // Обновите setupEventListeners():
     setupEventListeners() {
         // Обработчик кнопки возврата
         const backBtn = document.getElementById('mega-back-btn');
-        console.log('🔍 Поиск кнопки возврата...', backBtn);
-        
         if (backBtn) {
-            console.log('✅ Кнопка найдена, добавляем обработчик');
             backBtn.addEventListener('click', () => {
-                console.log('⬅ Клик по кнопке возврата');
-                console.log('📱 App:', this.app);
-                console.log('🧭 Navigation:', this.app?.navigation);
-                console.log('📍 NavigateTo:', this.app?.navigation?.navigateTo);
-                
-                try {
-                    if (this.app && this.app.navigation && this.app.navigation.navigateTo) {
-                        console.log('🔄 Вызываем navigateTo("main")');
-                        this.app.navigation.navigateTo('main');
-                    } else {
-                        console.error('Navigation не найден, перезагружаем страницу');
-                        console.error('App:', this.app);
-                        window.location.reload();
-                    }
-                } catch (error) {
-                    console.error('Ошибка навигации:', error);
-                    window.location.reload();
-                }
+                this.app.navigation.navigateTo('main');
             });
-        } else {
-            console.error('❌ Кнопка mega-back-btn не найдена!');
         }
 
-        // Обработчик кнопки спина
-        const spinBtn = document.getElementById('mega-spin-btn');
-        if (spinBtn && !spinBtn.disabled) {
-            spinBtn.addEventListener('click', () => {
-                this.spinMegaWheel();
+        // Обработчик кнопки уведомлений
+        const notifyBtn = document.getElementById('notify-btn');
+        if (notifyBtn) {
+            notifyBtn.addEventListener('click', () => {
+                this.subscribeToNotifications();
             });
+        }
+    }
+
+    // Новый метод для подписки на уведомления:
+    subscribeToNotifications() {
+        if (this.app.tg?.openTelegramLink) {
+            this.app.tg.openTelegramLink('https://t.me/kosmetichka_official');
+            this.app.showStatusMessage('Переход в наш канал для уведомлений!', 'success');
+        } else {
+            this.app.showStatusMessage('Подпишись на @kosmetichka_official для уведомлений!', 'info');
         }
     }
 
@@ -505,6 +512,17 @@ export class MegaRouletteScreen {
         }
     }
 
+    // Добавьте этот метод для получения даты запуска:
+    getLaunchDate() {
+        const launchDate = new Date();
+        launchDate.setDate(launchDate.getDate() + 30);
+        return launchDate.toLocaleDateString('ru-RU', { 
+            day: 'numeric', 
+            month: 'long', 
+            year: 'numeric' 
+        });
+    }
+
     getTimeUntilNextSpin() {
         const nextSpinTime = localStorage.getItem('megaRouletteNextSpin');
         if (!nextSpinTime) return 0;
@@ -522,24 +540,30 @@ export class MegaRouletteScreen {
         return `${minutes}м`;
     }
 
+    // Обновленный метод обратного отсчета:
     startCountdown() {
-        if (this.countdownInterval) {
-            clearInterval(this.countdownInterval);
-        }
-        
+        this.updateCountdown();
         this.countdownInterval = setInterval(() => {
-            const timeLeft = this.getTimeUntilNextSpin();
-            const countdownEl = document.getElementById('mega-countdown');
-            
-            if (countdownEl) {
-                countdownEl.textContent = this.formatTime(timeLeft);
-            }
-            
-            if (timeLeft <= 0) {
-                clearInterval(this.countdownInterval);
-                this.refreshScreen();
-            }
+            this.updateCountdown();
         }, 60000); // Обновляем каждую минуту
+    }
+
+    updateCountdown() {
+        const now = new Date();
+        const launchDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 дней от сейчас
+        const timeDiff = launchDate.getTime() - now.getTime();
+        
+        const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+        
+        const daysEl = document.getElementById('days');
+        const hoursEl = document.getElementById('hours');
+        const minutesEl = document.getElementById('minutes');
+        
+        if (daysEl) daysEl.textContent = days.toString().padStart(2, '0');
+        if (hoursEl) hoursEl.textContent = hours.toString().padStart(2, '0');
+        if (minutesEl) minutesEl.textContent = minutes.toString().padStart(2, '0');
     }
 
     refreshScreen() {
