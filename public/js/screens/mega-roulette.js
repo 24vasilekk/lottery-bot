@@ -495,7 +495,7 @@ export class MegaRouletteScreen {
                     <div class="mega-win-prize">${prize.name}</div>
                     <p class="mega-win-instruction">Для получения приза обратитесь в поддержку</p>
                     <div class="mega-prize-actions">
-                        <button class="mega-support-btn" onclick="window.megaRouletteScreen?.openSupport()">
+                        <button class="mega-support-btn" onclick="openMegaSupport()">
                             <i class="fas fa-headset"></i>
                             Связаться с поддержкой
                         </button>
@@ -587,16 +587,27 @@ export class MegaRouletteScreen {
 
     // Метод для открытия поддержки
     openSupport() {
-        console.log('🎧 Открытие поддержки из мега рулетки');
+        console.log('🎧 Открытие поддержки из экрана');
         
-        if (this.app.tg?.openTelegramLink) {
-            this.app.tg.openTelegramLink('https://t.me/kosmetichkasupport');
-            this.app.showStatusMessage('Переход в поддержку...', 'info');
+        // Убираем try-catch чтобы не было ошибок
+        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openTelegramLink) {
+            window.Telegram.WebApp.openTelegramLink('https://t.me/kosmetichkasupport');
+            if (this.app && this.app.showStatusMessage) {
+                this.app.showStatusMessage('Переход в поддержку...', 'info');
+            }
+            console.log('✅ Поддержка открыта через Telegram WebApp');
         } else if (window.open) {
-            // Fallback для браузера
             window.open('https://t.me/kosmetichkasupport', '_blank');
+            if (this.app && this.app.showStatusMessage) {
+                this.app.showStatusMessage('Поддержка открыта в новой вкладке', 'info');
+            }
+            console.log('✅ Поддержка открыта через window.open');
         } else {
-            this.app.showStatusMessage('Поддержка: @kosmetichkasupport', 'info');
+            // Показываем информацию без ошибок
+            if (this.app && this.app.showStatusMessage) {
+                this.app.showStatusMessage('Поддержка: @kosmetichkasupport', 'info', 5000);
+            }
+            console.log('📋 Показана информация о поддержке');
         }
     }
 
