@@ -24,6 +24,8 @@ export class MegaRouletteScreen {
         ];
     }
 
+    // Найдите метод render() и замените блок с mega-spin-info на этот код:
+
     render() {
         const timeUntilNext = this.getTimeUntilNextSpin();
         const canSpin = timeUntilNext <= 0;
@@ -31,18 +33,18 @@ export class MegaRouletteScreen {
         const hasEnoughStars = userStars >= 5000;
 
         return `
-            <div id="mega-roulette-screen" class="screen">
+            <div class="mega-container">
                 <div class="mega-header">
-                    <button class="back-btn" id="mega-back-btn">
+                    <button id="mega-back-btn" class="back-btn">
                         <i class="fas fa-arrow-left"></i>
                     </button>
                     <div class="mega-title">
-                        <h2>👑 МЕГА РУЛЕТКА</h2>
-                        <p>Премиум призы для VIP игроков</p>
+                        <h2>🎰 МЕГА РУЛЕТКА</h2>
+                        <p>Эксклюзивные призы для VIP игроков</p>
                     </div>
                     <div class="mega-stars">
                         <i class="fas fa-star"></i>
-                        <span>${userStars}</span>
+                        <span>${userStars.toLocaleString()}</span>
                     </div>
                 </div>
 
@@ -57,7 +59,7 @@ export class MegaRouletteScreen {
                         <div class="mega-prize-card epic">
                             <div class="prize-icon">💎</div>
                             <div class="prize-name">Сертификат 5000₽</div>
-                            <div class="prize-tag">Эпик</div>
+                            <div class="prize-tag">5.000₽</div>
                         </div>
                         <div class="mega-prize-card rare">
                             <div class="prize-icon">🔋</div>
@@ -88,11 +90,9 @@ export class MegaRouletteScreen {
                     </div>
                 </div>
 
+                <!-- УБРАЛИ БЛОК mega-cost (5000 звезд за прокрутку) -->
+                
                 <div class="mega-spin-info">
-                    <div class="mega-cost">
-                        <i class="fas fa-star"></i>
-                        <span>5000 звезд за прокрутку</span>
-                    </div>
                     ${!canSpin ? `
                         <div class="mega-timer">
                             <i class="fas fa-clock"></i>
@@ -102,14 +102,20 @@ export class MegaRouletteScreen {
                 </div>
 
                 <div class="mega-spin-action">
-                    <button id="mega-spin-btn" class="mega-spin-button ${!canSpin || !hasEnoughStars ? 'disabled' : ''}" 
+                    <button id="mega-spin-btn" class="mega-spin-button ${!canSpin || !hasEnoughStars ? 'disabled locked' : ''}" 
                             ${!canSpin || !hasEnoughStars ? 'disabled' : ''}>
                         <div class="mega-btn-bg"></div>
                         <div class="mega-btn-content">
                             ${!canSpin ? '<i class="fas fa-clock"></i> Недоступно' : 
-                              !hasEnoughStars ? '<i class="fas fa-star"></i> Нужно 5000 звезд' :
-                              '<i class="fas fa-crown"></i> КРУТИТЬ МЕГА РУЛЕТКУ'}
+                            !hasEnoughStars ? '<i class="fas fa-lock"></i> Нужно 5000 звезд' :
+                            '<i class="fas fa-crown"></i> КРУТИТЬ МЕГА РУЛЕТКУ'}
                         </div>
+                        <!-- Добавляем анимированный замочек для заблокированной кнопки -->
+                        ${!hasEnoughStars && canSpin ? `
+                            <div class="mega-lock-overlay">
+                                <i class="fas fa-lock mega-lock-icon"></i>
+                            </div>
+                        ` : ''}
                     </button>
                 </div>
 
