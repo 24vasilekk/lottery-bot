@@ -1,5 +1,33 @@
 /* public/css/profile.css - ФИНАЛЬНАЯ ВЕРСИЯ С РАБОЧИМ ЛИДЕРБОРДОМ */
 
+/* ДОБАВЬТЕ в начало файла public/css/profile.css или public/css/style.css */
+
+:root {
+    /* Основные цвета (если еще не определены) */
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.7);
+    --primary-lime: #CCD537;
+    --primary-pink: #FF6B9D;
+    --primary-purple: #809EFF;
+    
+    /* Цвета для лидерборда */
+    --leaderboard-gold: #FFD700;
+    --leaderboard-pink: #FF6B9D;
+    --leaderboard-blue: #809EFF;
+    --leaderboard-lime: #CCD537;
+    
+    /* Градиенты */
+    --gradient-gold: linear-gradient(135deg, #FFD700 0%, #FF6B9D 50%, #809EFF 100%);
+    --gradient-warm: linear-gradient(135deg, #FF6B9D 0%, #809EFF 100%);
+    --gradient-cool: linear-gradient(135deg, #809EFF 0%, #CCD537 100%);
+    
+    /* Тени */
+    --shadow-glow-gold: 0 0 20px rgba(255, 215, 0, 0.5);
+    --shadow-glow-pink: 0 0 15px rgba(255, 107, 157, 0.4);
+    --shadow-card: 0 8px 25px rgba(0, 0, 0, 0.3);
+    --shadow-hover: 0 15px 40px rgba(255, 107, 157, 0.2);
+}
+
 /* ========================================
    ПРОФИЛЬ - ОСНОВНЫЕ СТИЛИ
    ======================================== */
@@ -1421,147 +1449,353 @@
     }
 }
 
+/* ДОБАВЬТЕ или ЗАМЕНИТЕ в файле public/css/profile.css */
+
 /* ========================================
-   ПОЗИЦИЯ ПОЛЬЗОВАТЕЛЯ В ЛИДЕРБОРДЕ
+   КРАСИВАЯ ПОЗИЦИЯ ПОЛЬЗОВАТЕЛЯ
    ======================================== */
 
 .user-position-card {
-    display: flex;
-    align-items: center;
     background: linear-gradient(135deg, 
-        rgba(204, 213, 55, 0.15) 0%, 
-        rgba(255, 107, 157, 0.1) 50%, 
-        rgba(118, 75, 162, 0.15) 100%);
-    border-radius: 20px;
+        rgba(255, 215, 0, 0.15) 0%, 
+        rgba(255, 107, 157, 0.12) 50%, 
+        rgba(128, 158, 255, 0.15) 100%);
+    border-radius: 25px;
     padding: 25px;
     margin-bottom: 25px;
-    border: 2px solid rgba(204, 213, 55, 0.3);
-    backdrop-filter: blur(15px);
+    border: 2px solid rgba(255, 215, 0, 0.3);
+    backdrop-filter: blur(20px);
     box-shadow: 
-        0 8px 25px rgba(204, 213, 55, 0.2),
-        0 4px 15px rgba(0, 0, 0, 0.3);
+        0 10px 35px rgba(255, 215, 0, 0.2),
+        0 5px 20px rgba(0, 0, 0, 0.3),
+        inset 0 1px 2px rgba(255, 255, 255, 0.1);
     position: relative;
     overflow: hidden;
+    transition: all 0.4s ease;
 }
 
 .user-position-card::before {
     content: '';
     position: absolute;
     top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(45deg, 
-        transparent 30%, 
-        rgba(204, 213, 55, 0.1) 50%, 
-        transparent 70%);
-    pointer-events: none;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+        transparent, 
+        rgba(255, 215, 0, 0.1), 
+        transparent);
+    transition: left 0.8s ease;
 }
 
-.user-position-card > * {
+.user-position-card:hover::before {
+    left: 100%;
+}
+
+.user-position-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 
+        0 15px 45px rgba(255, 215, 0, 0.3),
+        0 8px 25px rgba(0, 0, 0, 0.4);
+}
+
+.user-position-content {
+    display: flex;
+    align-items: center;
+    gap: 20px;
     position: relative;
     z-index: 1;
 }
 
-.position-info {
+.user-position-rank {
     display: flex;
     align-items: center;
-    gap: 20px;
-    width: 100%;
-}
-
-.position-rank {
-    font-size: 32px;
-    font-weight: bold;
-    min-width: 60px;
-    text-align: center;
-    background: linear-gradient(135deg, #CCD537, #ff6b9d);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    text-shadow: 0 0 20px rgba(204, 213, 55, 0.5);
-}
-
-.position-text {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
+    justify-content: center;
+    min-width: 80px;
 }
 
 .position-number {
-    font-size: 20px;
-    font-weight: bold;
-    color: var(--text-primary);
+    font-size: 32px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #FFD700 0%, #FF6B9D 50%, #809EFF 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    position: relative;
 }
 
-.position-details {
-    font-size: 14px;
-    color: var(--text-secondary);
-    opacity: 0.9;
+.position-number::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, #FFD700, #FF6B9D, #809EFF);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradientShift 3s ease-in-out infinite;
+    z-index: -1;
+}
+
+.user-position-info {
+    flex: 1;
+}
+
+.user-position-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 5px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    letter-spacing: 0.5px;
+}
+
+.user-position-score {
+    font-size: 16px;
+    font-weight: 600;
+    background: linear-gradient(135deg, #FFD700 0%, #FF6B9D 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
 }
 
 /* ========================================
-   АНИМАЦИИ ЛИДЕРБОРДА
+   КРАСИВЫЕ ЭЛЕМЕНТЫ ЛИДЕРБОРДА
    ======================================== */
 
-@keyframes trophyGlow {
-    0%, 100% { 
-        box-shadow: 
-            0 0 30px rgba(255, 215, 0, 0.4),
-            0 8px 25px rgba(0, 0, 0, 0.3);
-    }
-    50% { 
-        box-shadow: 
-            0 0 50px rgba(255, 215, 0, 0.6),
-            0 8px 25px rgba(0, 0, 0, 0.3);
-    }
+.leaderboard-item {
+    display: flex;
+    align-items: center;
+    background: linear-gradient(135deg, 
+        rgba(255, 255, 255, 0.1) 0%, 
+        rgba(255, 255, 255, 0.05) 50%,
+        rgba(255, 107, 157, 0.08) 100%);
+    border-radius: 22px;
+    padding: 22px;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 12px;
 }
 
-@keyframes leaderboardPulse {
-    0%, 100% { 
-        transform: scale(1);
-        box-shadow: 0 8px 25px rgba(255, 215, 0, 0.2);
-    }
-    50% { 
-        transform: scale(1.02);
-        box-shadow: 0 12px 35px rgba(255, 215, 0, 0.3);
-    }
+.leaderboard-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, 
+        rgba(255, 107, 157, 0.1) 0%, 
+        rgba(128, 158, 255, 0.1) 100%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
 }
 
-@keyframes rankShine {
-    0% { 
-        background-position: -100% 0;
-    }
-    100% { 
-        background-position: 200% 0;
-    }
+.leaderboard-item:hover::before {
+    opacity: 1;
 }
 
-.top-player .player-rank {
-    background: linear-gradient(
-        90deg,
-        #FFD700 0%,
-        #FFF 50%,
-        #FFD700 100%
-    );
-    background-size: 200% 100%;
+.leaderboard-item:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 
+        0 15px 40px rgba(255, 107, 157, 0.2),
+        0 8px 25px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 107, 157, 0.4);
+}
+
+/* ========================================
+   РАНГ В ЛИДЕРБОРДЕ
+   ======================================== */
+
+.leaderboard-rank {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 60px;
+    margin-right: 20px;
+}
+
+.position-rank {
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--text-primary);
+    text-shadow: 
+        0 2px 4px rgba(0, 0, 0, 0.3),
+        0 0 15px rgba(255, 107, 157, 0.3);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+/* Стили для топ-3 */
+.top-player .position-rank {
+    font-size: 32px;
+    background: linear-gradient(135deg, #FFD700 0%, #FF6B9D 50%, #809EFF 100%);
+    background-size: 200% 200%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    animation: rankShine 2s ease-in-out infinite;
+    background-clip: text;
+    animation: gradientShift 3s ease-in-out infinite;
+    text-shadow: 
+        0 0 20px rgba(255, 215, 0, 0.6),
+        0 2px 6px rgba(0, 0, 0, 0.4);
+    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.5));
 }
 
-.leaderboard-item.top-player {
-    animation: leaderboardPulse 3s ease-in-out infinite;
+/* ========================================
+   ИНФОРМАЦИЯ О ИГРОКЕ
+   ======================================== */
+
+.leaderboard-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.loading-state i {
-    animation: spin 1s linear infinite;
+.leaderboard-name {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    letter-spacing: 0.3px;
+    transition: all 0.3s ease;
+    position: relative;
 }
 
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+.leaderboard-item:hover .leaderboard-name {
+    color: #FFD700;
+    text-shadow: 
+        0 0 15px rgba(255, 215, 0, 0.5),
+        0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.leaderboard-stats {
+    font-size: 15px;
+    font-weight: 600;
+    background: linear-gradient(135deg, #FF6B9D 0%, #809EFF 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 10px rgba(255, 107, 157, 0.3);
+    letter-spacing: 0.2px;
+}
+
+/* ========================================
+   СЧЕТ В ЛИДЕРБОРДЕ
+   ======================================== */
+
+.leaderboard-score {
+    font-size: 24px;
+    font-weight: 900;
+    background: linear-gradient(135deg, 
+        rgba(204, 213, 55, 0.25) 0%, 
+        rgba(255, 107, 157, 0.15) 100%);
+    color: var(--text-primary);
+    text-align: center;
+    min-width: 70px;
+    padding: 12px 18px;
+    border-radius: 18px;
+    border: 2px solid rgba(204, 213, 55, 0.3);
+    backdrop-filter: blur(10px);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.leaderboard-score::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+        transparent, 
+        rgba(255, 215, 0, 0.2), 
+        transparent);
+    transition: left 0.6s ease;
+}
+
+.leaderboard-item:hover .leaderboard-score::before {
+    left: 100%;
+}
+
+.leaderboard-item:hover .leaderboard-score {
+    background: linear-gradient(135deg, 
+        rgba(255, 215, 0, 0.3) 0%, 
+        rgba(255, 107, 157, 0.2) 100%);
+    border-color: rgba(255, 215, 0, 0.5);
+    color: #FFD700;
+    text-shadow: 
+        0 0 15px rgba(255, 215, 0, 0.6),
+        0 1px 3px rgba(0, 0, 0, 0.4);
+    transform: scale(1.05);
+}
+
+/* Стили для топ-3 счета */
+.top-player .leaderboard-score {
+    background: linear-gradient(135deg, #FFD700 0%, #FF6B9D 100%);
+    color: white;
+    border-color: rgba(255, 215, 0, 0.6);
+    text-shadow: 
+        0 0 20px rgba(255, 215, 0, 0.8),
+        0 2px 4px rgba(0, 0, 0, 0.5);
+    box-shadow: 
+        0 5px 20px rgba(255, 215, 0, 0.4),
+        inset 0 1px 2px rgba(255, 255, 255, 0.3);
+}
+
+/* ========================================
+   АНИМАЦИИ
+   ======================================== */
+
+@keyframes gradientShift {
+    0%, 100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+@keyframes textGlow {
+    0%, 100% {
+        text-shadow: 
+            0 0 15px rgba(255, 215, 0, 0.6),
+            0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    50% {
+        text-shadow: 
+            0 0 25px rgba(255, 215, 0, 0.8),
+            0 2px 6px rgba(0, 0, 0, 0.4);
+    }
+}
+
+.top-player {
+    animation: pulseGlow 4s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+    0%, 100% {
+        box-shadow: 
+            0 8px 25px rgba(255, 215, 0, 0.2),
+            0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+    50% {
+        box-shadow: 
+            0 12px 35px rgba(255, 215, 0, 0.3),
+            0 6px 20px rgba(0, 0, 0, 0.4);
+    }
 }
 
 /* ========================================
@@ -1586,7 +1820,6 @@
     
     .user-position-card {
         padding: 20px;
-        margin-bottom: 20px;
     }
     
     .position-rank {
@@ -1595,7 +1828,7 @@
     }
     
     .position-number {
-        font-size: 18px;
+        font-size: 28px;
     }
     
     .profile-header {
@@ -1644,7 +1877,7 @@
     }
     
     .leaderboard-item {
-        padding: 15px;
+        padding: 18px;
     }
     
     .player-rank {
@@ -1662,22 +1895,58 @@
         padding: 8px 12px;
         min-width: 50px;
     }
+
+    .top-player .position-rank {
+        font-size: 28px;
+    }
+
+    .leaderboard-name {
+        font-size: 18px;
+    }
+
+    .leaderboard-score {
+        font-size: 20px;
+        padding: 10px 15px;
+        min-width: 60px;
+    }
 }
 
 @media (max-width: 480px) {
+    .user-position-content {
+        gap: 15px;
+    }
+
     .leaderboard-header {
         padding: 20px 15px;
         gap: 15px;
     }
     
+    .leaderboard-name {
+        font-size: 16px;
+    }
+
     .leaderboard-avatar {
         width: 60px;
         height: 60px;
         font-size: 24px;
     }
     
+    .leaderboard-item {
+        padding: 15px;
+    }
+
+    .leaderboard-stats {
+        font-size: 13px;
+    }
+
     .leaderboard-header h3 {
         font-size: 20px;
+    }
+
+    .leaderboard-score {
+        font-size: 18px;
+        padding: 8px 12px;
+        min-width: 50px;
     }
     
     .user-position-card {
@@ -1685,12 +1954,17 @@
     }
     
     .position-rank {
+        font-size: 20px;
+        min-width: 45px;
+        margin-right: 12px;
+    }
+
+    .top-player .position-rank {
         font-size: 24px;
-        min-width: 40px;
     }
     
     .position-number {
-        font-size: 16px;
+        font-size: 24px;
     }
     
     .profile-header {
@@ -1738,6 +2012,10 @@
     
     .screen-header h2 {
         font-size: 24px;
+    }
+
+    .user-position-title {
+        font-size: 16px;
     }
 }
 
