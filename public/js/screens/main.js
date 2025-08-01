@@ -64,13 +64,6 @@ export class MainScreen {
                     </div>
                 </div>
 
-                <!-- Таблица призов -->
-                <div class="prizes-table-section">
-                    <h3>🎁 Таблица призов</h3>
-                    <div class="prizes-table" id="prizes-table">
-                        <!-- Prizes table will be populated by JS -->
-                    </div>
-                </div>
             </div>
         `;
     }
@@ -85,7 +78,6 @@ export class MainScreen {
                 this.setupEventListeners();
                 this.updateRecentWins();
                 this.updateSpinButtons();
-                this.generatePrizesTable();
                 this.initialized = true;
                 console.log('✅ Главный экран инициализирован');
             }, 100);
