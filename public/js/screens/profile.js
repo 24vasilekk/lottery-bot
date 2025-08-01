@@ -472,7 +472,7 @@ export class ProfileScreen {
     }
 
     // 4. ЗАМЕНИТЕ метод loadLeaderboardData() полностью:
-    // ЗАМЕНИТЕ метод loadLeaderboardData() полностью:
+    // Обновленный метод loadLeaderboardData() с красивой структурой:
     async loadLeaderboardData() {
         console.log('🏆 Загрузка данных лидерборда...');
         
@@ -507,11 +507,12 @@ export class ProfileScreen {
             
             console.log(`✅ Получен лидерборд: ${data.leaderboard.length} записей`);
             
-            // Отображаем лидерборд БЕЗ КОРОН И ЗВЕЗД
+            // Отображаем лидерборд с обновленной структурой
             leaderboardList.innerHTML = data.leaderboard.map((user, index) => {
                 const position = index + 1;
                 const isTop3 = position <= 3;
                 const friendsText = this.formatFriendsCount(user.referrals_count);
+                const userName = user.first_name || 'Пользователь';
                 
                 return `
                     <div class="leaderboard-item ${isTop3 ? 'top-player' : ''}">
@@ -519,10 +520,8 @@ export class ProfileScreen {
                             <span class="position-rank">${position}</span>
                         </div>
                         <div class="leaderboard-info">
-                            <div class="leaderboard-name">${user.first_name || 'Пользователь'}</div>
-                            <div class="leaderboard-stats">
-                                ${friendsText}
-                            </div>
+                            <div class="leaderboard-name">${userName}</div>
+                            <div class="leaderboard-stats">${friendsText}</div>
                         </div>
                         <div class="leaderboard-score">
                             ${user.referrals_count}
@@ -610,6 +609,7 @@ export class ProfileScreen {
 
     // Загрузка позиции текущего пользователя по рефералам
     // ЗАМЕНИТЕ метод loadUserPosition() полностью:
+    // Обновленный метод loadUserPosition() с красивой структурой:
     async loadUserPosition(userId) {
         console.log(`👤 Загрузка позиции пользователя ${userId}...`);
         
