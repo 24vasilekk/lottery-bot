@@ -291,26 +291,34 @@
     gap: 10px;
 }
 
+/* ДОБАВЬТЕ или ЗАМЕНИТЕ в файле public/css/profile.css */
+
 /* ========================================
-   СЕТКА СТАТИСТИКИ
+   СЕТКА СТАТИСТИКИ - УПРОЩЕННАЯ ВЕРСИЯ
    ======================================== */
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 15px;
+    grid-template-columns: 1fr 1fr; /* Фиксированные 2 колонки */
+    gap: 20px;
+    max-width: 400px; /* Ограничиваем ширину для лучшего вида */
+    margin: 0 auto; /* Центрируем блок */
 }
 
 .stats-card {
     background: 
         linear-gradient(135deg, rgba(255, 107, 157, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
     border-radius: 20px;
-    padding: 25px 20px;
+    padding: 30px 20px; /* Увеличиваем отступы для более крупных карточек */
     text-align: center;
     border: 1px solid rgba(255, 107, 157, 0.2);
     backdrop-filter: blur(15px);
     transition: all 0.3s ease;
     animation: cardFloat 6s ease-in-out infinite;
+    min-height: 120px; /* Фиксированная высота */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .stats-card:hover {
@@ -320,20 +328,65 @@
 }
 
 .stats-card-icon {
-    font-size: 32px;
-    margin-bottom: 10px;
+    font-size: 36px; /* Увеличиваем иконку */
+    margin-bottom: 12px;
 }
 
 .stats-card-value {
-    font-size: 24px;
+    font-size: 28px; /* Увеличиваем значение */
     font-weight: bold;
     color: var(--text-primary);
-    margin-bottom: 5px;
+    margin-bottom: 8px;
 }
 
 .stats-card-label {
-    font-size: 12px;
+    font-size: 14px;
     color: var(--text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Мобильная адаптация */
+@media (max-width: 480px) {
+    .stats-grid {
+        gap: 15px;
+        max-width: 100%;
+        margin: 0;
+    }
+    
+    .stats-card {
+        padding: 20px 15px;
+        min-height: 100px;
+    }
+    
+    .stats-card-icon {
+        font-size: 28px;
+        margin-bottom: 8px;
+    }
+    
+    .stats-card-value {
+        font-size: 22px;
+        margin-bottom: 5px;
+    }
+    
+    .stats-card-label {
+        font-size: 12px;
+    }
+}
+
+/* Анимация плавания для карточек */
+@keyframes cardFloat {
+    0%, 100% { 
+        transform: translateY(0px); 
+    }
+    50% { 
+        transform: translateY(-5px); 
+    }
+}
+
+.stats-card:nth-child(2) {
+    animation-delay: -3s; /* Смещаем анимацию второй карточки */
 }
 
 /* ========================================
