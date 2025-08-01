@@ -446,23 +446,96 @@ export class ProfileScreen {
         }
     }
 
+    // Метод для автоматического обновления профиля пользователя
+    async updateUserProfileIfNeeded() {
+        try {
+            // Получаем данные пользователя из Telegram
+            const tgUser = this.app.tg?.initDataUnsafe?.user;
+            if (!tgUser) {
+                console.log('ℹ️ Нет данных Telegram пользователя для обновления');
+                return;
+            }
+            
+            const userId = tgUser.id;
+            console.log(`🔄 Проверка необходимости обновления профиля для ${userId}`);
+            
+            // Проверяем текущие данные в базе
+            const response = await fetch(`/api/debug/user/${userId}`);
+            if (!response.ok) {
+                console.warn('⚠️ Не удалось получить данные пользователя из базы');
+                return;
+            }
+            
+            const { user_data } = await response.json();
+            
+            // Сравниваем данные
+            const needsUpdate = (
+                user_data.first_name !== tgUser.first_name ||
+                user_data.username !== (tgUser.username || '') ||
+                user_data.last_name !== (tgUser.last_name || '')
+            );
+            
+            if (needsUpdate) {
+                console.log('🔄 Обновляем профиль пользователя:', {
+                    old: {
+                        first_name: user_data.first_name,
+                        username: user_data.username,
+                        last_name: user_data.last_name
+                    },
+                    new: {
+                        first_name: tgUser.first_name,
+                        username: tgUser.username || '',
+                        last_name: tgUser.last_name || ''
+                    }
+                });
+                
+                // Отправляем обновление
+                const updateResponse = await fetch(`/api/user/${userId}/profile`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        first_name: tgUser.first_name || '',
+                        username: tgUser.username || '',
+                        last_name: tgUser.last_name || ''
+                    })
+                });
+                
+                if (updateResponse.ok) {
+                    console.log('✅ Профиль пользователя успешно обновлен');
+                } else {
+                    console.warn('⚠️ Ошибка обновления профиля');
+                }
+            } else {
+                console.log('ℹ️ Профиль пользователя актуален, обновление не требуется');
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка автоматического обновления профиля:', error);
+        }
+    }
+
+
     // УПРОЩЕННЫЙ МЕТОД: Загрузка лидерборда (только по рефералам)
-    // 3. ЗАМЕНИТЕ метод loadLeaderboard() полностью:
-    // 4. ДОБАВЬТЕ вызов отладки в метод loadLeaderboard():
+    // ОБНОВИТЕ метод loadLeaderboard() чтобы включить автообновление профиля:
     async loadLeaderboard() {
         console.log('🏆 Загрузка лидерборда рефералов...');
         
         try {
-            // Отладка для проверки данных
+            // 1. Обновляем профиль пользователя если нужно
+            await this.updateUserProfileIfNeeded();
+            
+            // 2. Отладка для проверки данных
             await this.debugLeaderboardData();
             
-            // Принудительно синхронизируем данные перед загрузкой лидерборда
+            // 3. Принудительно синхронизируем данные перед загрузкой лидерборда
             await fetch('/api/sync-referrals', { method: 'POST' });
             
-            // Загружаем лидерборд
+            // 4. Загружаем лидерборд
             await this.loadLeaderboardData();
             
-            // Загружаем позицию пользователя
+            // 5. Загружаем позицию пользователя
             const userId = this.getTelegramId();
             if (userId && userId !== 'Неизвестно') {
                 await this.loadUserPosition(userId);
