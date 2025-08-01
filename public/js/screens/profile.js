@@ -988,16 +988,27 @@ export class ProfileScreen {
     }
 
     openSupport() {
-        console.log('🎧 Открытие поддержки');
+        console.log('🎧 Открытие поддержки из экрана');
         
-        if (this.app.tg?.openTelegramLink) {
-            this.app.tg.openTelegramLink('https://t.me/kosmetichkasupport');
-            this.app.showStatusMessage('Переход в поддержку...', 'info');
+        // Убираем try-catch чтобы не было ошибок
+        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openTelegramLink) {
+            window.Telegram.WebApp.openTelegramLink('https://t.me/kosmetichkasupport');
+            if (this.app && this.app.showStatusMessage) {
+                this.app.showStatusMessage('Переход в поддержку...', 'info');
+            }
+            console.log('✅ Поддержка открыта через Telegram WebApp');
         } else if (window.open) {
-            // Fallback для браузера
             window.open('https://t.me/kosmetichkasupport', '_blank');
+            if (this.app && this.app.showStatusMessage) {
+                this.app.showStatusMessage('Поддержка открыта в новой вкладке', 'info');
+            }
+            console.log('✅ Поддержка открыта через window.open');
         } else {
-            this.app.showStatusMessage('Поддержка: @kosmetichkasupport', 'info');
+            // Показываем информацию без ошибок
+            if (this.app && this.app.showStatusMessage) {
+                this.app.showStatusMessage('Поддержка: @kosmetichkasupport', 'info', 5000);
+            }
+            console.log('📋 Показана информация о поддержке');
         }
     }
 
