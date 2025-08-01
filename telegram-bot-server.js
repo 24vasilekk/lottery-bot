@@ -151,23 +151,105 @@ app.get('/api/leaderboard/referrals', async (req, res) => {
     }
 });
 
-// ИСПРАВЛЕННЫЙ API для получения позиции пользователя по рефералам
+// 4. ЗАМЕНИТЕ API для позиции пользователя в лидерборде:
 app.get('/api/leaderboard/referrals/position/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
         
-        console.log(`👤 Запрос позиции по рефералам для пользователя: ${userId}`);
+        console.log(`👤 Запрос позиции пользователя ${userId} в лидерборде рефералов`);
         
-        // Используем метод из database.js
+        // Обновляем счетчик рефералов пользователя
+        await db.updateReferralCount(parseInt(userId));
+        
+        // Получаем ранг пользователя
         const rank = await db.getUserReferralRank(parseInt(userId));
         
-        res.json({ 
-            position: rank?.position,
-            score: rank?.referrals_count || 0
-        });
+        if (rank) {
+            console.log(`✅ Позиция пользователя ${userId}:`, rank.position);
+            res.json({ 
+                position: rank.position,
+                score: rank.referrals_count
+            });
+        } else {
+            console.log(`📊 Пользователь ${userId} не в рейтинге рефералов`);
+            res.json({ 
+                position: null,
+                score: 0
+            });
+        }
+        
     } catch (error) {
-        console.error('❌ Ошибка получения позиции по рефералам:', error);
+        console.error('❌ Ошибка получения позиции пользователя:', error);
         res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// 5. ДОБАВЬТЕ новый endpoint для отладки рефералов:
+app.get('/api/debug/referrals/:userId?', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        if (userId) {
+            // Отладка конкретного пользователя
+            const debug = await db.debugUserReferrals(parseInt(userId));
+            res.json(debug);
+        } else {
+            // Общая отладка всех рефералов
+            const allReferrals = await new Promise((resolve, reject) => {
+                db.db.all(`
+                    SELECT 
+                        u.telegram_id,
+                        u.first_name,
+                        u.referrals as referrals_field,
+                        COUNT(r.id) as actual_referrals_count
+                    FROM users u
+                    LEFT JOIN referrals r ON u.id = r.referrer_id
+                    WHERE u.is_active = 1
+                    GROUP BY u.telegram_id, u.first_name, u.referrals
+                    HAVING actual_referrals_count > 0 OR u.referrals > 0
+                    ORDER BY actual_referrals_count DESC
+                `, (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows || []);
+                });
+            });
+            
+            res.json({
+                total_users_with_referrals: allReferrals.length,
+                users: allReferrals.map(user => ({
+                    ...user,
+                    sync_needed: user.referrals_field !== user.actual_referrals_count
+                }))
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка отладки рефералов:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// 6. ДОБАВЬТЕ endpoint для принудительной синхронизации:
+app.post('/api/sync-referrals', async (req, res) => {
+    try {
+        console.log('🔄 Запуск принудительной синхронизации рефералов...');
+        
+        const updatedRows = await db.syncAllReferralCounts();
+        
+        console.log(`✅ Синхронизация завершена, обновлено строк: ${updatedRows}`);
+        
+        res.json({
+            success: true,
+            message: `Синхронизация завершена, обновлено записей: ${updatedRows}`,
+            updatedRows: updatedRows
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка синхронизации рефералов:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error' 
+        });
     }
 });
 
@@ -433,45 +515,77 @@ app.get('/api/debug/referrals', async (req, res) => {
     }
 });
 
-// API для обработки реферальной активации (дополнительно)
+// 1. ЗАМЕНИТЕ endpoint для активации реферала:
 app.post('/api/activate-referral', async (req, res) => {
     try {
-        const { userId, referrerId } = req.body;
+        const { userId, referralCode } = req.body;
         
-        if (!userId || !referrerId) {
+        console.log(`🤝 Попытка активации реферала: пользователь ${userId}, код ${referralCode}`);
+        
+        if (!userId || !referralCode) {
             return res.status(400).json({ 
-                error: 'Требуются userId и referrerId' 
-            });
-        }
-        
-        // Проверяем, что пользователи существуют
-        const user = await db.getUser(userId);
-        const referrer = await db.getUser(referrerId);
-        
-        if (!user || !referrer) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-        
-        // Проверяем, не был ли уже добавлен этот реферал
-        const existingReferral = await db.getReferral(referrerId, userId);
-        if (existingReferral) {
-            return res.json({ 
                 success: false, 
-                message: 'Реферал уже активирован' 
+                message: 'Отсутствуют обязательные параметры' 
             });
         }
         
-        // Добавляем реферал
+        const referrerId = parseInt(referralCode);
+        
+        if (!referrerId || referrerId === userId) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Неверный реферальный код' 
+            });
+        }
+        
+        // Проверяем существование реферера
+        const referrer = await db.getUser(referrerId);
+        if (!referrer) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Пользователь-реферер не найден' 
+            });
+        }
+        
+        // Проверяем существование приглашенного
+        const user = await db.getUser(userId);
+        if (!user) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Пользователь не найден' 
+            });
+        }
+        
+        // Пытаемся добавить реферал
         const added = await db.addReferral(referrerId, userId);
         
         if (added) {
-            // Начисляем звезды рефереру
+            console.log(`✅ Реферал успешно активирован: ${referrerId} -> ${userId}`);
+            
+            // Начисляем бонусы рефереру
             await db.addUserStars(referrerId, 10);
             
-            // Отправляем уведомления
+            // Добавляем прокрутку за друга
+            await new Promise((resolve, reject) => {
+                db.db.run(
+                    'UPDATE users SET available_friend_spins = available_friend_spins + 1 WHERE telegram_id = ?',
+                    [referrerId],
+                    (err) => err ? reject(err) : resolve()
+                );
+            });
+            
+            // Обновляем total_stars_earned
+            await db.incrementTotalStarsEarned(referrerId, 10);
+            
+            // ВАЖНО: Принудительно обновляем счетчик рефералов
+            await db.updateReferralCount(referrerId);
+            
+            console.log(`⭐ Рефереру ${referrerId} начислено 10 звезд + 1 прокрутка`);
+            
+            // Отправляем уведомления через бота
             try {
                 await bot.sendMessage(referrerId, 
-                    `Поздравляем! Ваш друг ${user.first_name} присоединился к боту!\n` +
+                    `🎉 Поздравляем! Ваш друг ${user.first_name} присоединился к боту!\n` +
                     `Вы получили 10 звезд за приглашение!`
                 );
                 
@@ -491,13 +605,16 @@ app.post('/api/activate-referral', async (req, res) => {
         } else {
             res.json({
                 success: false,
-                message: 'Не удалось активировать реферал'
+                message: 'Реферал уже был активирован ранее'
             });
         }
         
     } catch (error) {
         console.error('❌ Ошибка активации реферала:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error' 
+        });
     }
 });
 
@@ -505,44 +622,24 @@ app.post('/api/activate-referral', async (req, res) => {
 
 // Замените эти endpoints в telegram-bot-server.js
 
-// API для получения глобального лидерборда по рефералам (ИСПРАВЛЕННЫЙ)
+// 3. ЗАМЕНИТЕ API для лидерборда рефералов:
 app.get('/api/leaderboard-referrals', async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 20;
         
-        console.log(`📊 Запрос глобального лидерборда рефералов, лимит: ${limit}`);
+        console.log(`📊 Запрос лидерборда рефералов, лимит: ${limit}`);
         
-        // ИСПРАВЛЕННЫЙ запрос с правильными именами полей и синтаксисом SQLite
-        const query = `
-            SELECT 
-                u.telegram_id,
-                u.first_name,
-                u.username,
-                COUNT(r.referred_id) as referrals_count,
-                u.total_stars_earned,
-                u.join_date
-            FROM users u
-            LEFT JOIN referrals r ON u.telegram_id = r.referrer_id
-            WHERE u.is_active = 1
-            GROUP BY u.telegram_id, u.first_name, u.username, u.total_stars_earned, u.join_date
-            HAVING referrals_count > 0
-            ORDER BY referrals_count DESC, u.total_stars_earned DESC, u.join_date ASC
-            LIMIT ?
-        `;
+        // Сначала синхронизируем все счетчики
+        await db.syncAllReferralCounts();
         
-        // Используем правильный синтаксис SQLite
-        db.db.all(query, [limit], (error, results) => {
-            if (error) {
-                console.error('❌ Ошибка получения лидерборда рефералов:', error);
-                return res.status(500).json({ error: 'Internal server error' });
-            }
-            
-            console.log(`📊 Лидерборд рефералов загружен: ${results.length} записей`);
-            
-            res.json({ 
-                leaderboard: results || [],
-                total: results ? results.length : 0
-            });
+        // Получаем актуальный лидерборд
+        const leaderboard = await db.getGlobalReferralsLeaderboard(limit);
+        
+        console.log(`✅ Лидерборд рефералов получен: ${leaderboard.length} записей`);
+        
+        res.json({ 
+            leaderboard: leaderboard,
+            total: leaderboard.length
         });
         
     } catch (error) {
@@ -1042,60 +1139,46 @@ app.get('/api/test-subscription/:userId/:channel', async (req, res) => {
     }
 });
 
-// API endpoint для получения данных пользователя
-app.get('/api/user/:userId', async (req, res) => {
+// 2. ЗАМЕНИТЕ API для получения статистики пользователя:
+app.get('/api/user/:telegramId', async (req, res) => {
     try {
-        const userId = parseInt(req.params.userId);
+        const { telegramId } = req.params;
         
-        console.log(`📥 Запрос данных пользователя: ${userId}`);
+        console.log(`👤 Запрос данных пользователя: ${telegramId}`);
         
-        if (!userId) {
-            return res.status(400).json({
-                success: false,
-                error: 'Неверный userId'
-            });
+        // Получаем пользователя
+        const user = await db.getUser(parseInt(telegramId));
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
         }
-
-        // Получаем данные пользователя из базы
-        const userData = await database.getUserWithTasks(userId);
         
-        if (!userData) {
-            // Если пользователь не найден, создаем его
-            console.log(`👤 Пользователь ${userId} не найден, создаем нового`);
-            await database.createUser(userId, '', '');
-            
-            return res.json({
-                success: true,
-                stars: 20, // Начальное количество звезд
-                completed_tasks: [],
-                task_statuses: {},
-                referrals: 0,
-                isNewUser: true
-            });
-        }
-
-        console.log(`✅ Данные пользователя ${userId} загружены`);
-
+        // ВАЖНО: Принудительно обновляем счетчик рефералов перед отправкой
+        await db.updateReferralCount(parseInt(telegramId));
+        
+        // Получаем обновленные данные
+        const updatedUser = await db.getUser(parseInt(telegramId));
+        
+        console.log(`✅ Данные пользователя ${telegramId} получены:`, {
+            stars: updatedUser.stars,
+            referrals: updatedUser.referrals,
+            total_stars_earned: updatedUser.total_stars_earned
+        });
+        
         res.json({
-            success: true,
-            stars: userData.stars || 0,
-            completed_tasks: userData.completed_tasks || [],
-            task_statuses: userData.task_statuses || {},
-            referrals: userData.referrals || 0,
-            username: userData.username,
-            first_name: userData.first_name,
-            isNewUser: false
+            ...updatedUser,
+            stats: {
+                referrals: updatedUser.referrals,
+                totalSpins: updatedUser.total_spins,
+                prizesWon: updatedUser.prizes_won,
+                totalStarsEarned: updatedUser.total_stars_earned
+            }
         });
         
     } catch (error) {
         console.error('❌ Ошибка получения данных пользователя:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Внутренняя ошибка сервера'
-        });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
-
 
 // Дополнительно: endpoint для обновления отдельно звезд (для совместимости)
 app.post('/api/user/:userId/stars', async (req, res) => {
@@ -2553,10 +2636,10 @@ if (bot) {
                                 if (added) {
                                     console.log(`🤝 Пользователь ${userId} приглашен пользователем ${referrerId}`);
                                     
-                                    // ВАЖНО: Сразу начисляем звезды рефереру
+                                    // Начисляем бонусы рефереру
                                     await db.addUserStars(referrerId, 10);
                                     
-                                    // ДОБАВЛЕНО: Даем одну прокрутку за друга
+                                    // Добавляем прокрутку за друга
                                     await new Promise((resolve, reject) => {
                                         db.db.run(
                                             'UPDATE users SET available_friend_spins = available_friend_spins + 1 WHERE telegram_id = ?',
@@ -2565,42 +2648,16 @@ if (bot) {
                                         );
                                     });
                                     
-                                    // Обновляем общее количество заработанных звезд
+                                    // Обновляем total_stars_earned
                                     await db.incrementTotalStarsEarned(referrerId, 10);
                                     
                                     console.log(`⭐ Рефереру ${referrerId} начислено 10 звезд + 1 прокрутка за приглашение`);
                                     
-                                    // ДОБАВЛЕНО: Принудительная синхронизация данных для отладки
-                                    try {
-                                        const updatedReferrer = await db.getUser(referrerId);
-                                        const referralsCount = await new Promise((resolve, reject) => {
-                                            db.db.get(`
-                                                SELECT COUNT(*) as count 
-                                                FROM referrals r
-                                                JOIN users u ON r.referrer_id = u.id
-                                                WHERE u.telegram_id = ?
-                                            `, [referrerId], (err, result) => {
-                                                if (err) reject(err);
-                                                else resolve(result?.count || 0);
-                                            });
-                                        });
-                                        
-                                        console.log(`📊 Обновленные данные реферера ${referrerId}:`, {
-                                            stars: updatedReferrer.stars,
-                                            referrals: referralsCount,
-                                            available_friend_spins: updatedReferrer.available_friend_spins,
-                                            total_stars_earned: updatedReferrer.total_stars_earned
-                                        });
-                                        
-                                    } catch (error) {
-                                        console.warn('⚠️ Ошибка получения обновленных данных:', error);
-                                    }
-                                    
-                                    // ИСПРАВЛЕНО: Обновленные уведомления
+                                    // Отправляем уведомления
                                     try {
                                         await bot.sendMessage(referrerId, 
-                                            `🎉 Поздравляем! Ваш друг ${msg.from.first_name} присоединился к боту!\n` +
-                                            `💫 Вы получили 10 звезд + 1 прокрутку за друга!`
+                                            `🎉 Поздравляем! Ваш друг ${user.first_name} присоединился к боту!\n` +
+                                            `Вы получили 10 звезд за приглашение!`
                                         );
                                         
                                         await bot.sendMessage(userId,
@@ -2610,13 +2667,17 @@ if (bot) {
                                     } catch (notifyError) {
                                         console.warn('⚠️ Не удалось отправить уведомления:', notifyError.message);
                                     }
+                                } else {
+                                    console.log(`⚠️ Реферал уже существует: ${referrerId} -> ${userId}`);
                                 }
                             } else {
-                                console.log(`⚠️ Реферал ${userId} уже был добавлен пользователем ${referrerId}`);
+                                console.log(`⚠️ Реферал уже был активирован ранее: ${referrerId} -> ${userId}`);
                             }
+                        } else {
+                            console.log(`❌ Реферер не найден: ${referrerId}`);
                         }
-                    } catch (refError) {
-                        console.error('❌ Ошибка обработки реферальной ссылки:', refError);
+                    } catch (error) {
+                        console.error('❌ Ошибка обработки реферальной ссылки:', error);
                     }
                 }
             }
