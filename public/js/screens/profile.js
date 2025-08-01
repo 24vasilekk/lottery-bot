@@ -9,10 +9,13 @@ export class ProfileScreen {
         window.profileScreen = this;
     }
 
+    // === ПОЛНЫЙ МЕТОД render() ДЛЯ profile.js ===
+
     render() {
         const gameData = this.app.gameData;
         
-        return `
+        // Возвращаем HTML разметку
+        const htmlContent = `
             <div id="profile-screen" class="screen">
                 <div class="screen-header">
                     <h2>Профиль</h2>
@@ -54,6 +57,16 @@ export class ProfileScreen {
                                     <div class="stats-card-icon">⭐</div>
                                     <div class="stats-card-value">${gameData.stars || 0}</div>
                                     <div class="stats-card-label">Текущий баланс</div>
+                                </div>
+                                <div class="stats-card">
+                                    <div class="stats-card-icon">🎯</div>
+                                    <div class="stats-card-value">${gameData.totalSpins || 0}</div>
+                                    <div class="stats-card-label">Всего прокруток</div>
+                                </div>
+                                <div class="stats-card">
+                                    <div class="stats-card-icon">🎁</div>
+                                    <div class="stats-card-value">${gameData.prizesWon || 0}</div>
+                                    <div class="stats-card-label">Призов выиграно</div>
                                 </div>
                                 <div class="stats-card">
                                     <div class="stats-card-icon">👥</div>
@@ -146,6 +159,93 @@ export class ProfileScreen {
                 </div>
             </div>
         `;
+        
+        // ДОБАВЛЯЕМ КНОПКУ ОТЛАДКИ ПОСЛЕ РЕНДЕРА
+        // Используем setTimeout для выполнения после добавления HTML в DOM
+        setTimeout(() => {
+            this.setupDebugControls();
+        }, 100);
+        
+        return htmlContent;
+    }
+
+    // Отдельный метод для настройки кнопки отладки
+    setupDebugControls() {
+        // Добавляем кнопку обновления рефералов (только для отладки)
+        if (window.DEBUG_MODE) {
+            // Удаляем старую кнопку если она есть
+            const existingButton = document.querySelector('.debug-refresh-btn');
+            if (existingButton) {
+                existingButton.remove();
+            }
+            
+            const refreshButton = document.createElement('button');
+            refreshButton.textContent = '🔄 Обновить рефералы';
+            refreshButton.className = 'debug-refresh-btn';
+            refreshButton.onclick = () => this.forceRefreshReferrals();
+            refreshButton.style.cssText = `
+                position: fixed;
+                top: 10px;
+                right: 10px;
+                z-index: 1000;
+                padding: 8px 12px;
+                background: #ff6b9d;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 12px;
+                cursor: pointer;
+                box-shadow: 0 4px 12px rgba(255, 107, 157, 0.4);
+                transition: all 0.3s ease;
+            `;
+            
+            // Добавляем hover эффект
+            refreshButton.onmouseover = () => {
+                refreshButton.style.background = '#e55a8a';
+                refreshButton.style.transform = 'translateY(-2px)';
+                refreshButton.style.boxShadow = '0 6px 20px rgba(255, 107, 157, 0.6)';
+            };
+            
+            refreshButton.onmouseout = () => {
+                refreshButton.style.background = '#ff6b9d';
+                refreshButton.style.transform = 'translateY(0)';
+                refreshButton.style.boxShadow = '0 4px 12px rgba(255, 107, 157, 0.4)';
+            };
+            
+            document.body.appendChild(refreshButton);
+            console.log('🔧 Кнопка отладки рефералов добавлена');
+        }
+        
+        // Включаем режим отладки если есть параметр в URL
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('debug') === 'true' || localStorage.getItem('debug_mode') === 'true') {
+            window.DEBUG_MODE = true;
+            console.log('🔧 Режим отладки включен');
+            
+            // Если DEBUG_MODE не был включен, вызываем setupDebugControls еще раз
+            if (!document.querySelector('.debug-refresh-btn')) {
+                this.setupDebugControls();
+            }
+        }
+    }
+
+    // Альтернативный способ включения режима отладки
+    enableDebugMode() {
+        window.DEBUG_MODE = true;
+        localStorage.setItem('debug_mode', 'true');
+        this.setupDebugControls();
+        console.log('🔧 Режим отладки включен вручную');
+    }
+
+    // Отключение режима отладки
+    disableDebugMode() {
+        window.DEBUG_MODE = false;
+        localStorage.removeItem('debug_mode');
+        const debugButton = document.querySelector('.debug-refresh-btn');
+        if (debugButton) {
+            debugButton.remove();
+        }
+        console.log('🔧 Режим отладки отключен');
     }
 
     init() {
@@ -190,37 +290,52 @@ export class ProfileScreen {
         });
     }
 
-    // Загрузка данных профиля
+    // 1. ЗАМЕНИТЕ метод loadProfileData() на этот:
     async loadProfileData() {
         const userId = this.getTelegramId();
         
         if (!userId || userId === 'Неизвестно') {
-            console.error('User ID not found');
+            console.error('❌ Не удалось получить ID пользователя');
             return;
         }
         
+        console.log(`📊 Загрузка данных профиля для пользователя: ${userId}`);
+        
         try {
+            // ВАЖНО: Принудительно синхронизируем рефералы перед загрузкой
+            try {
+                await fetch('/api/sync-referrals', { method: 'POST' });
+                console.log('🔄 Синхронизация рефералов выполнена');
+            } catch (syncError) {
+                console.warn('⚠️ Ошибка синхронизации рефералов:', syncError);
+            }
+            
+            // Загружаем актуальные данные пользователя
             const response = await fetch(`/api/user/${userId}`);
             if (!response.ok) throw new Error('Failed to load user data');
             
             const userData = await response.json();
             
-            // ИСПРАВЛЕНО: Правильное обновление данных
+            if (userData.error) {
+                throw new Error(userData.error);
+            }
+            
+            console.log('✅ Данные пользователя получены:', userData);
+            
+            // ИСПРАВЛЕНО: Обновляем gameData с актуальными данными
             this.app.gameData = {
                 ...this.app.gameData,
                 stars: userData.stars || 0,
+                referrals: userData.referrals || userData.stats?.referrals || 0, // ВАЖНО: используем обновленное значение
+                totalSpins: userData.total_spins || userData.stats?.totalSpins || 0,
+                prizesWon: userData.prizes_won || userData.stats?.prizesWon || 0,
                 totalStarsEarned: userData.total_stars_earned || userData.stats?.totalStarsEarned || 0,
-                totalSpins: userData.stats?.totalSpins || 0,
-                prizesWon: userData.stats?.prizesWon || 0,
-                referrals: userData.referrals || userData.stats?.referrals || 0,
-                availableFriendSpins: userData.availableFriendSpins || 0
+                username: userData.username,
+                firstName: userData.first_name,
+                availableFriendSpins: userData.available_friend_spins || 0
             };
-
-            // Обновляем отображение статистики
-            this.updateProfileStats(userData);
-            this.updateReferralsSection();
-
-            console.log('✅ Профиль обновлен:', {
+            
+            console.log('📊 Обновленные данные в gameData:', {
                 stars: this.app.gameData.stars,
                 referrals: this.app.gameData.referrals,
                 totalStarsEarned: this.app.gameData.totalStarsEarned
@@ -228,44 +343,61 @@ export class ProfileScreen {
             
             // Обновляем отображение статистики
             this.updateProfileStats(userData);
+            this.updateReferralsSection();
+            
+            // Принудительно обновляем интерфейс приложения
+            if (this.app.updateInterface) {
+                this.app.updateInterface();
+            }
+            
+            console.log('✅ Профиль обновлен успешно');
             
         } catch (error) {
-            console.error('Error loading profile data:', error);
+            console.error('❌ Ошибка загрузки данных профиля:', error);
         }
     }
+    
 
+    // 8. ИСПРАВЬТЕ метод updateReferralsSection():
     updateReferralsSection() {
         const referralsContainer = document.getElementById('referrals-section');
         if (referralsContainer) {
+            // Используем актуальные данные из gameData
+            const referralsCount = this.app.gameData.referrals || 0;
+            
+            console.log(`🔄 Обновление секции рефералов, количество: ${referralsCount}`);
+            
             referralsContainer.innerHTML = this.renderReferralsSection();
-            console.log('🔄 Секция рефералов обновлена');
+            
+            // Обновляем реферальную ссылку
+            this.updateReferralLink();
         }
     }
 
     // Обновление статистики в профиле
-    // ЗАМЕНИТЬ ВЕСЬ МЕТОД updateProfileStats():
+    // 2. ЗАМЕНИТЕ метод updateProfileStats() полностью:
     updateProfileStats(userData) {
-        console.log('📊 Обновление статистики профиля:', userData);
+        console.log('📊 Обновление статистики профиля с данными:', userData);
         
-        // ИСПРАВЛЕНО: Используем единый источник данных
+        // ИСПРАВЛЕНО: Используем самые актуальные данные
         const currentStats = {
-            stars: userData.stars || this.app.gameData.stars || 0,
-            referrals: userData.referrals || userData.stats?.referrals || this.app.gameData.referrals || 0,
-            totalSpins: userData.stats?.totalSpins || this.app.gameData.totalSpins || 0,
-            prizesWon: userData.stats?.prizesWon || this.app.gameData.prizesWon || 0,
-            totalStarsEarned: userData.total_stars_earned || userData.stats?.totalStarsEarned || this.app.gameData.totalStarsEarned || 0
+            stars: userData.stars,
+            referrals: userData.referrals, // ВАЖНО: используем обновленное значение из БД
+            totalSpins: userData.total_spins || userData.stats?.totalSpins || 0,
+            prizesWon: userData.prizes_won || userData.stats?.prizesWon || 0,
+            totalStarsEarned: userData.total_stars_earned || userData.stats?.totalStarsEarned || 0
         };
         
-        console.log('📊 Актуальная статистика:', currentStats);
+        console.log('📊 Актуальная статистика для отображения:', currentStats);
         
-        // Обновляем gameData приложения
+        // Обновляем глобальные данные приложения
         this.app.gameData.stars = currentStats.stars;
         this.app.gameData.referrals = currentStats.referrals;
         this.app.gameData.totalSpins = currentStats.totalSpins;
         this.app.gameData.prizesWon = currentStats.prizesWon;
         this.app.gameData.totalStarsEarned = currentStats.totalStarsEarned;
         
-        // Обновляем детальную статистику если есть соответствующий элемент
+        // Обновляем элементы интерфейса
         const statsGrid = document.getElementById('profile-stats-grid');
         if (statsGrid) {
             statsGrid.innerHTML = `
@@ -290,17 +422,15 @@ export class ProfileScreen {
                     <div class="stats-card-label">Рефералов</div>
                 </div>
             `;
+            
+            console.log('✅ Статистика в интерфейсе обновлена');
         }
         
-        // Обновляем реферальную ссылку
-        this.updateReferralLink();
-        
-        // Обновляем UI всего приложения
-        if (this.app.updateInterface) {
-            this.app.updateInterface();
+        // Обновляем верхнюю панель с балансом
+        const balanceElement = document.querySelector('.app-header .user-balance');
+        if (balanceElement) {
+            balanceElement.textContent = `⭐ ${currentStats.stars}`;
         }
-        
-        console.log('✅ Статистика профиля обновлена');
     }
 
     // Метод для обновления реферальной ссылки
@@ -315,58 +445,96 @@ export class ProfileScreen {
     }
 
     // УПРОЩЕННЫЙ МЕТОД: Загрузка лидерборда (только по рефералам)
+    // 3. ЗАМЕНИТЕ метод loadLeaderboard() полностью:
     async loadLeaderboard() {
-        console.log('🏆 Начинаем загрузку лидерборда по рефералам...');
+        console.log('🏆 Загрузка лидерборда рефералов...');
         
-        // Загружаем топ по рефералам
-        await this.loadLeaderboardData();
-        
-        // Загружаем позицию текущего пользователя
-        const userId = this.getTelegramId();
-        if (userId && userId !== 'Неизвестно') {
-            await this.loadUserPosition(userId);
+        try {
+            // Принудительно синхронизируем данные перед загрузкой лидерборда
+            await fetch('/api/sync-referrals', { method: 'POST' });
+            
+            // Загружаем лидерборд
+            await this.loadLeaderboardData();
+            
+            // Загружаем позицию пользователя
+            const userId = this.getTelegramId();
+            if (userId && userId !== 'Неизвестно') {
+                await this.loadUserPosition(userId);
+            }
+            
+            console.log('✅ Лидерборд загружен успешно');
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки лидерборда:', error);
         }
     }
 
-    // ЗАМЕНИТЬ ВЕСЬ МЕТОД loadLeaderboardData():
+    // 4. ЗАМЕНИТЕ метод loadLeaderboardData() полностью:
     async loadLeaderboardData() {
-        console.log('🏆 Загрузка топа по рефералам...');
+        console.log('🏆 Загрузка данных лидерборда...');
         
         const leaderboardList = document.getElementById('leaderboard-list');
-        if (!leaderboardList) return;
+        if (!leaderboardList) {
+            console.warn('⚠️ Элемент leaderboard-list не найден');
+            return;
+        }
         
-        // Показываем состояние загрузки
+        // Показываем загрузку
         leaderboardList.innerHTML = `
-            <div class="loading-state">
-                <i class="fas fa-spinner fa-spin"></i>
-                <p>Загрузка лидерборда...</p>
+            <div class="leaderboard-loading">
+                <div class="loading-spinner"></div>
+                <div>Загрузка рейтинга...</div>
             </div>
         `;
         
         try {
-            // ИСПРАВЛЕНО: используем правильный endpoint
-            const response = await fetch('/api/leaderboard-referrals?limit=10');
+            const response = await fetch('/api/leaderboard-referrals?limit=50');
+            const data = await response.json();
             
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            if (!data.leaderboard || data.leaderboard.length === 0) {
+                leaderboardList.innerHTML = `
+                    <div class="leaderboard-empty">
+                        <div class="empty-icon">🏆</div>
+                        <div class="empty-title">Рейтинг пуст</div>
+                        <div class="empty-subtitle">Станьте первым! Приглашайте друзей.</div>
+                    </div>
+                `;
+                return;
             }
             
-            const data = await response.json();
-            console.log('✅ Данные лидерборда по рефералам:', data);
+            console.log(`✅ Получен лидерборд: ${data.leaderboard.length} записей`);
             
-            // ИСПРАВЛЕНО: данные приходят в формате { leaderboard: [...] }
-            const leaderboard = data.leaderboard || data;
-            this.renderLeaderboard(leaderboard);
+            // Отображаем лидерборд
+            leaderboardList.innerHTML = data.leaderboard.map((user, index) => {
+                const position = index + 1;
+                const isTop3 = position <= 3;
+                
+                return `
+                    <div class="leaderboard-item ${isTop3 ? 'top-player' : ''}">
+                        <div class="leaderboard-rank">
+                            <span class="position-rank">${position}</span>
+                            ${isTop3 ? '<span class="rank-crown">👑</span>' : ''}
+                        </div>
+                        <div class="leaderboard-info">
+                            <div class="leaderboard-name">${user.first_name || 'Аноним'}</div>
+                            <div class="leaderboard-stats">
+                                👥 ${user.referrals_count} рефералов • ⭐ ${user.total_stars_earned || 0}
+                            </div>
+                        </div>
+                        <div class="leaderboard-score">
+                            ${user.referrals_count}
+                        </div>
+                    </div>
+                `;
+            }).join('');
             
         } catch (error) {
-            console.error('❌ Ошибка загрузки лидерборда по рефералам:', error);
+            console.error('❌ Ошибка загрузки лидерборда:', error);
             leaderboardList.innerHTML = `
-                <div class="error-state">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <p>Ошибка загрузки лидерборда</p>
-                    <button onclick="window.profileScreen.loadLeaderboardData()" class="retry-btn">
-                        Повторить попытку
-                    </button>
+                <div class="leaderboard-error">
+                    <div class="error-icon">❌</div>
+                    <div class="error-title">Ошибка загрузки</div>
+                    <div class="error-subtitle">Попробуйте позже</div>
                 </div>
             `;
         }
@@ -411,26 +579,77 @@ export class ProfileScreen {
         leaderboardList.innerHTML = leaderboardHTML;
     }
 
-    // Загрузка позиции текущего пользователя по рефералам
-    // ЗАМЕНИТЬ ВЕСЬ МЕТОД loadUserPosition():
-    async loadUserPosition(userId) {
+    // 6. ДОБАВЬТЕ новый метод для принудительного обновления рефералов:
+    async forceRefreshReferrals() {
         try {
-            // ИСПРАВЛЕНО: используем правильный endpoint
-            const response = await fetch(`/api/leaderboard/referrals/position/${userId}`);
+            console.log('🔄 Принудительное обновление рефералов...');
             
-            if (response.ok) {
-                const positionData = await response.json();
-                console.log('✅ Данные позиции пользователя:', positionData);
-                
-                this.renderUserPosition(positionData);
-            } else {
-                console.warn('⚠️ Не удалось получить позицию пользователя');
-                // Показываем что пользователь не в рейтинге
-                this.renderUserPosition(null);
+            // Синхронизируем рефералы
+            const syncResponse = await fetch('/api/sync-referrals', { method: 'POST' });
+            const syncData = await syncResponse.json();
+            
+            console.log('✅ Синхронизация рефералов:', syncData);
+            
+            // Перезагружаем данные профиля
+            await this.loadData();
+            
+            // Если мы в разделе лидерборда, обновляем его тоже
+            if (this.currentTab === 'leaderboard') {
+                await this.loadLeaderboard();
             }
+            
+            console.log('✅ Принудительное обновление завершено');
+            
         } catch (error) {
-            console.error('❌ Ошибка загрузки позиции пользователя:', error);
-            this.renderUserPosition(null);
+            console.error('❌ Ошибка принудительного обновления:', error);
+        }
+    }
+
+    // Загрузка позиции текущего пользователя по рефералам
+    // 5. ЗАМЕНИТЕ метод loadUserPosition() полностью:
+    async loadUserPosition(userId) {
+        console.log(`👤 Загрузка позиции пользователя ${userId}...`);
+        
+        const userPositionCard = document.getElementById('user-position-card');
+        if (!userPositionCard) {
+            console.warn('⚠️ Элемент user-position-card не найден');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/leaderboard/referrals/position/${userId}`);
+            const data = await response.json();
+            
+            console.log('📊 Позиция пользователя:', data);
+            
+            if (data.position && data.score > 0) {
+                userPositionCard.innerHTML = `
+                    <div class="user-position-content">
+                        <div class="user-position-rank">
+                            <span class="position-number">#${data.position}</span>
+                        </div>
+                        <div class="user-position-info">
+                            <div class="user-position-title">Ваша позиция</div>
+                            <div class="user-position-score">👥 ${data.score} рефералов</div>
+                        </div>
+                    </div>
+                `;
+                userPositionCard.style.display = 'block';
+            } else {
+                userPositionCard.innerHTML = `
+                    <div class="user-position-content">
+                        <div class="user-position-info">
+                            <div class="user-position-title">Не в рейтинге</div>
+                            <div class="user-position-score">Пригласите друзей!</div>
+                        </div>
+                    </div>
+                `;
+                userPositionCard.style.display = 'block';
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка получения позиции пользователя:', error);
+            userPositionCard.style.display = 'none';
         }
     }
 
@@ -689,15 +908,6 @@ export class ProfileScreen {
     isCurrentUser(player) {
         const currentUserId = this.getTelegramId();
         return currentUserId && currentUserId.toString() === player.telegram_id.toString();
-    }
-
-    // Обновление секции рефералов (если еще не добавлен)
-    updateReferralsSection() {
-        const referralsContainer = document.getElementById('referrals-section');
-        if (referralsContainer) {
-            referralsContainer.innerHTML = this.renderReferralsSection();
-            console.log('🔄 Секция рефералов обновлена');
-        }
     }
 
 }
