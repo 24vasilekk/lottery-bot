@@ -2609,15 +2609,21 @@ if (bot) {
         const userId = msg.from.id;
         const startParam = match ? match[1] : null;
         
-        console.log(`👤 Пользователь ${userId} (${msg.from.first_name}) запустил бота${startParam ? ` с параметром: ${startParam}` : ''}`);
+        console.log(`👤 ДИАГНОСТИКА /start: Пользователь ${userId} (${msg.from.first_name}) запустил бота${startParam ? ` с параметром: ${startParam}` : ''}`);
         
         try {
             // Проверяем, существует ли пользователь
             let user = await db.getUser(userId);
+            console.log(`🔍 ДИАГНОСТИКА /start: db.getUser(${userId}) результат:`, user ? {
+                id: user.id,
+                telegram_id: user.telegram_id,
+                stars: user.stars,
+                first_name: user.first_name
+            } : 'null');
             
             if (!user) {
                 // Создаем нового пользователя
-                console.log(`🆕 Создаем нового пользователя: ${userId}`);
+                console.log(`🆕 ДИАГНОСТИКА /start: Создаем НОВОГО пользователя: ${userId}`);
                 await db.createUser({
                     telegram_id: userId,
                     username: msg.from.username || '',
@@ -2628,9 +2634,9 @@ if (bot) {
                 // Проверяем, что пользователь создан
                 user = await db.getUser(userId);
                 if (user) {
-                    console.log(`✅ Пользователь ${userId} успешно создан с ID: ${user.id}`);
+                    console.log(`✅ ДИАГНОСТИКА /start: Пользователь ${userId} успешно создан с ID: ${user.id}, баланс: ${user.stars}`);
                 } else {
-                    console.error(`❌ Не удалось создать пользователя ${userId}`);
+                    console.error(`❌ ДИАГНОСТИКА /start: Не удалось создать пользователя ${userId}`);
                     bot.sendMessage(chatId, '❌ Ошибка создания профиля. Попробуйте позже.');
                     return;
                 }
@@ -3888,11 +3894,20 @@ async function handleChannelSubscription(userId, data) {
 // Синхронизация данных пользователя
 async function syncUserData(userId, webAppData) {
     try {
+        console.log(`🔍 ДИАГНОСТИКА: syncUserData вызван для userId: ${userId}, тип: ${typeof userId}`);
+        
         let user = await db.getUser(userId);
+        console.log(`🔍 ДИАГНОСТИКА: результат db.getUser(${userId}):`, user ? {
+            id: user.id,
+            telegram_id: user.telegram_id, 
+            stars: user.stars,
+            first_name: user.first_name
+        } : 'null');
         
         // Если пользователя нет в БД - создаем его
         if (!user) {
-            console.log(`👤 Создание нового пользователя ${userId} через веб-приложение`);
+            console.log(`👤 ВНИМАНИЕ: Пользователь ${userId} НЕ НАЙДЕН в БД - создаем нового`);
+            console.log(`🔍 ДИАГНОСТИКА: webAppData:`, JSON.stringify(webAppData, null, 2));
             
             // Берем данные из Telegram WebApp если есть
             const telegramUser = webAppData.userData?.user || webAppData.user || {};
@@ -3903,13 +3918,18 @@ async function syncUserData(userId, webAppData) {
                 last_name: telegramUser.last_name || ''
             };
             
+            console.log(`🔍 ДИАГНОСТИКА: создаем пользователя с данными:`, userData);
             await db.createUser(userData);
             user = await db.getUser(userId);
             
             if (!user) {
-                console.error('❌ Не удалось создать пользователя');
+                console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: Не удалось создать пользователя');
                 return webAppData;
+            } else {
+                console.log(`✅ ПОЛЬЗОВАТЕЛЬ СОЗДАН: ID ${user.id}, telegram_id: ${user.telegram_id}, stars: ${user.stars}`);
             }
+        } else {
+            console.log(`✅ ПОЛЬЗОВАТЕЛЬ НАЙДЕН: ID ${user.id}, telegram_id: ${user.telegram_id}, текущий баланс: ${user.stars} звезд`);
         }
         
         console.log(`🔄 Синхронизация данных пользователя ${userId}`);
