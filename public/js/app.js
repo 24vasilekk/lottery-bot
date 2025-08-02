@@ -153,16 +153,23 @@ export default class App {
                     return;
                 }
                 
-                // Скрываем все экраны
-                document.querySelectorAll('.screen').forEach(screen => {
-                    screen.classList.remove('active');
-                });
-                
-                // Показываем нужный экран
-                const targetScreen = document.getElementById(`${screenName}-screen`);
-                if (targetScreen) {
-                    targetScreen.classList.add('active');
-                    this.navigation.currentScreen = screenName;
+                // Специальная обработка для мега рулетки
+                if (screenName === 'mega-roulette') {
+                    this.renderMegaRoulette();
+                } else {
+                    // Убираем мега рулетку если она была показана
+                    this.removeMegaRoulette();
+                    
+                    // Скрываем все обычные экраны
+                    document.querySelectorAll('.screen:not(#mega-roulette-screen)').forEach(screen => {
+                        screen.classList.remove('active');
+                    });
+                    
+                    // Показываем нужный экран
+                    const targetScreen = document.getElementById(`${screenName}-screen`);
+                    if (targetScreen) {
+                        targetScreen.classList.add('active');
+                        this.navigation.currentScreen = screenName;
                     
                     // Инициализируем экран если нужно
                     // Маппинг имен экранов для camelCase
@@ -206,9 +213,10 @@ export default class App {
                     
                     // Прокрутка наверх при переключении экранов
                     targetScreen.scrollTop = 0;
-                } else {
-                    console.error(`❌ Экран ${screenName} не найден`);
-                    return;
+                    } else {
+                        console.error(`❌ Экран ${screenName} не найден`);
+                        return;
+                    }
                 }
                 
                 // Обновляем состояние навигации
@@ -300,14 +308,14 @@ export default class App {
                 console.warn('⚠️ Мега рулетка недоступна:', megaError.message);
             }
 
-            // Рендерим все экраны
+            // Рендерим основные экраны (кроме мега рулетки - она рендерится отдельно)
             const screensHTML = [];
             
             if (this.screens.main) screensHTML.push(this.screens.main.render());
             if (this.screens.tasks) screensHTML.push(this.screens.tasks.render());
             if (this.screens.profile) screensHTML.push(this.screens.profile.render());
             if (this.screens.deposit) screensHTML.push(this.screens.deposit.render());
-            if (this.screens.megaRoulette) screensHTML.push(this.screens.megaRoulette.render());
+            // Мега рулетка НЕ рендерится здесь - только при переходе на неё
             
             container.innerHTML = screensHTML.join('');
 
@@ -800,6 +808,49 @@ export default class App {
         // Обновляем профиль если он активен
         if (this.navigation.currentScreen === 'profile' && this.screens.profile) {
             this.screens.profile.loadProfileData();
+        }
+    }
+
+    // Методы для работы с мега рулеткой
+    renderMegaRoulette() {
+        if (!this.screens.megaRoulette) {
+            console.error('❌ Мега рулетка не инициализирована');
+            return;
+        }
+
+        // Убираем все обычные экраны
+        document.querySelectorAll('.screen:not(#mega-roulette-screen)').forEach(screen => {
+            screen.classList.remove('active');
+        });
+
+        // Добавляем мега рулетку в DOM
+        const container = document.getElementById('screens-container');
+        if (container) {
+            // Убираем существующую мега рулетку если есть
+            this.removeMegaRoulette();
+            
+            // Добавляем новую
+            const megaHTML = this.screens.megaRoulette.render();
+            container.insertAdjacentHTML('beforeend', megaHTML);
+            
+            // Инициализируем
+            this.screens.megaRoulette.init();
+            
+            // Показываем
+            const megaScreen = document.getElementById('mega-roulette-screen');
+            if (megaScreen) {
+                megaScreen.classList.add('active');
+                this.navigation.currentScreen = 'mega-roulette';
+                console.log('✅ Мега рулетка отображена');
+            }
+        }
+    }
+
+    removeMegaRoulette() {
+        const existingMegaScreen = document.getElementById('mega-roulette-screen');
+        if (existingMegaScreen) {
+            existingMegaScreen.remove();
+            console.log('🗑️ Мега рулетка удалена из DOM');
         }
     }
 }

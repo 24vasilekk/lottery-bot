@@ -30,8 +30,9 @@ export class MegaRouletteScreen {
         const userStars = this.app.gameData.stars;
         
         return `
-            <div class="mega-container">
-                <div class="mega-header">
+            <div class="screen" id="mega-roulette-screen">
+                <div class="mega-container">
+                    <div class="mega-header">
                     <button id="mega-back-btn" class="back-btn">
                         <i class="fas fa-arrow-left"></i>
                     </button>
@@ -148,6 +149,7 @@ export class MegaRouletteScreen {
                         <span>Уведомить о запуске</span>
                     </button>
                     <p class="notify-text">Получи уведомление в нашем Telegram канале, когда мега рулетка станет доступна!</p>
+                </div>
                 </div>
             </div>
         `;
