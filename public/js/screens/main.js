@@ -516,6 +516,15 @@ export class MainScreen {
             resultModal.remove();
         });
         
+        // Обработчик кнопки поддержки
+        const supportBtn = resultModal.querySelector('.prize-support-btn');
+        if (supportBtn) {
+            supportBtn.addEventListener('click', () => {
+                this.openSupport();
+                resultModal.remove();
+            });
+        }
+        
         // Автоматически закрываем через 8 секунд
         setTimeout(() => {
             if (document.body.contains(resultModal)) {

@@ -147,7 +147,7 @@ export default class App {
                 console.log(`🧭 Переход на экран: ${screenName}`);
                 
                 // Валидация экрана
-                const validScreens = ['main', 'tasks', 'profile', 'deposit', 'mega-roulette'];
+                const validScreens = ['main', 'tasks', 'profile', 'deposit'];
                 if (!validScreens.includes(screenName)) {
                     console.error(`❌ Неизвестный экран: ${screenName}`);
                     return;
@@ -171,7 +171,6 @@ export default class App {
                         'tasks': 'tasks', 
                         'profile': 'profile',
                         'deposit': 'deposit',
-                        'mega-roulette': 'megaRoulette'
                     };
                     
                     const screenKey = screenMapping[screenName] || screenName;
@@ -260,7 +259,6 @@ export default class App {
             'main': 'Kosmetichka - Рулетка красоты',
             'tasks': 'Kosmetichka - Задания',
             'profile': 'Kosmetichka - Профиль',
-            'mega-roulette': 'Kosmetichka - Мега рулетка'
         };
         
         if (screenTitles[activeScreen]) {
@@ -288,16 +286,6 @@ export default class App {
             console.log('🔗 Проверяем глобальную ссылку profileScreen:', window.profileScreen);
 
             // ДОПОЛНИТЕЛЬНЫЕ ЭКРАНЫ (необязательные)
-            try {
-                console.log('🎰 Попытка загрузки мега рулетки...');
-                const megaModule = await import('./screens/mega-roulette.js');
-                if (megaModule.MegaRouletteScreen) {
-                    this.screens.megaRoulette = new megaModule.MegaRouletteScreen(this);
-                    console.log('✅ Мега рулетка загружена');
-                }
-            } catch (megaError) {
-                console.warn('⚠️ Мега рулетка недоступна:', megaError.message);
-            }
 
             // Рендерим все экраны
             const screensHTML = [];
@@ -306,7 +294,6 @@ export default class App {
             if (this.screens.tasks) screensHTML.push(this.screens.tasks.render());
             if (this.screens.profile) screensHTML.push(this.screens.profile.render());
             if (this.screens.deposit) screensHTML.push(this.screens.deposit.render());
-            if (this.screens.megaRoulette) screensHTML.push(this.screens.megaRoulette.render());
             
             container.innerHTML = screensHTML.join('');
 
@@ -405,11 +392,6 @@ export default class App {
                 console.log('✅ Задания обновлены');
             }
             
-            // Мега рулетка - обновляем если активна
-            if (this.screens.megaRoulette && this.screens.megaRoulette.updateInterface) {
-                this.screens.megaRoulette.updateInterface();
-                console.log('✅ Мега рулетка обновлена');
-            }
             
         } catch (error) {
             console.warn('⚠️ Ошибка обновления экранов:', error);
