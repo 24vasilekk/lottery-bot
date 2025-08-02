@@ -57,6 +57,16 @@ export class MainScreen {
                     </div>
                 </div>
 
+                <!-- Таблица призов -->
+                <div class="prizes-table-section">
+                    <h3 class="prizes-table-title">🎁 Призы и их шансы</h3>
+                    <div class="prizes-table-container">
+                        <div id="prizes-table" class="prizes-table">
+                            <!-- Таблица будет заполнена через JS -->
+                        </div>
+                    </div>
+                </div>
+
                 <div class="recent-wins">
                     <span class="recent-wins-title">Последние выигрыши</span>
                     <div class="recent-wins-list" id="recent-wins-list">
@@ -75,6 +85,7 @@ export class MainScreen {
             // Небольшая задержка для корректной инициализации DOM
             setTimeout(() => {
                 this.generateWheelSVG();
+                this.generatePrizesTable();
                 this.setupEventListeners();
                 this.updateRecentWins();
                 this.updateSpinButtons();
