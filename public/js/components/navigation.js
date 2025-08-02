@@ -60,7 +60,7 @@ export class Navigation {
         console.log(`🧭 Навигация: ${this.currentScreen} -> ${screenName}`);
         
         // Валидация экрана
-        const validScreens = ['main', 'tasks', 'profile'];
+        const validScreens = ['main', 'tasks', 'profile', 'mega-roulette', 'deposit'];
         if (!validScreens.includes(screenName)) {
             console.error(`❌ Неизвестный экран: ${screenName}`);
             return;
@@ -207,7 +207,7 @@ export class Navigation {
 
     // Метод для проверки доступности экрана
     isScreenAvailable(screenName) {
-        const validScreens = ['main', 'tasks', 'profile'];
+        const validScreens = ['main', 'tasks', 'profile', 'mega-roulette', 'deposit'];
         return validScreens.includes(screenName);
     }
 
