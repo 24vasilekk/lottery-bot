@@ -3937,11 +3937,11 @@ async function syncUserData(userId, webAppData) {
                 name: user.first_name || 'Пользователь'
             },
             stats: {
-                stars: user.stars || 20,
+                stars: user.stars, // ❌ ИСПРАВЛЕНО: убираем хардкод || 20
                 totalSpins: user.total_spins || 0,
                 prizesWon: user.prizes_won || 0,
                 referrals: actualReferralsCount,
-                totalStarsEarned: user.total_stars_earned || 20
+                totalStarsEarned: user.total_stars_earned // ❌ ИСПРАВЛЕНО: убираем хардкод || 20
             },
             prizes: prizes || [],
             tasks: {

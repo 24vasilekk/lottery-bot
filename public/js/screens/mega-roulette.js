@@ -295,10 +295,13 @@ export class MegaRouletteScreen {
 
         this.isSpinning = true;
 
-        // Списываем звезды
-        this.app.gameData.stars -= 5000;
-        this.app.saveGameData();
-        this.app.updateStarsDisplay();
+        // Безопасно списываем звезды
+        const success = await this.app.spendStars(5000);
+        if (!success) {
+            this.isSpinning = false;
+            this.app.showStatusMessage('Недостаточно звезд для мега рулетки!', 'error');
+            return;
+        }
 
         // Определяем выигрыш
         const wonPrize = await this.calculateMegaPrize();

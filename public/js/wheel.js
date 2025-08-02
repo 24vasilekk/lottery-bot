@@ -107,10 +107,22 @@ class WheelManager {
         this.spinButton.disabled = true;
         this.spinButton.innerHTML = '<span>Крутится...</span>';
         
-        // Списываем звезды
-        userData.stats.stars -= spinCost;
-        updateUserData(userData);
-        updateStarDisplay();
+        // Безопасно списываем звезды через App
+        if (window.app && window.app.spendStars) {
+            const success = await window.app.spendStars(spinCost);
+            if (!success) {
+                this.isSpinning = false;
+                this.spinButton.disabled = false;
+                this.spinButton.innerHTML = '<span>Крутить</span>';
+                console.error('❌ Не удалось списать звезды для прокрутки');
+                return;
+            }
+        } else {
+            // Fallback для совместимости
+            userData.stats.stars -= spinCost;
+            updateUserData(userData);
+            updateStarDisplay();
+        }
 
         // Добавляем эффекты
         this.addSpinEffects();

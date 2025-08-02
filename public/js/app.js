@@ -17,6 +17,10 @@ export default class App {
         this.navigation = null;
         this.tg = null;
         
+        // Блокировка операций с балансом для предотвращения race conditions
+        this.balanceOperationInProgress = false;
+        this.pendingBalanceOperations = [];
+        
         // Telegram WebApp будет инициализирован в telegram-integration.js
         
         console.log('📱 App создан');
@@ -602,25 +606,69 @@ export default class App {
         }
     }
 
-    // Дополнительные методы для работы с игрой
-    addStars(amount) {
-        this.gameData.stars += amount;
-        this.gameData.totalStarsEarned = (this.gameData.totalStarsEarned || 0) + amount;
-        this.updateInterface();
-        this.saveGameData();
-        console.log(`⭐ Добавлено ${amount} звезд. Всего: ${this.gameData.stars}`);
+    // БЕЗОПАСНЫЕ методы для работы с балансом (защита от race conditions)
+    async addStars(amount) {
+        return this.executeBalanceOperation('add', amount);
     }
 
-    spendStars(amount) {
-        if (this.gameData.stars >= amount) {
-            this.gameData.stars -= amount;
-            this.updateInterface();
-            this.saveGameData();
-            console.log(`💰 Потрачено ${amount} звезд. Осталось: ${this.gameData.stars}`);
-            return true;
+    async spendStars(amount) {
+        return this.executeBalanceOperation('spend', amount);
+    }
+
+    async executeBalanceOperation(operation, amount) {
+        return new Promise((resolve) => {
+            // Добавляем операцию в очередь
+            this.pendingBalanceOperations.push({ operation, amount, resolve });
+            
+            // Запускаем обработку если не идет другая операция
+            if (!this.balanceOperationInProgress) {
+                this.processBalanceOperations();
+            }
+        });
+    }
+
+    async processBalanceOperations() {
+        if (this.balanceOperationInProgress || this.pendingBalanceOperations.length === 0) {
+            return;
         }
-        console.log(`❌ Недостаточно звезд. Нужно: ${amount}, есть: ${this.gameData.stars}`);
-        return false;
+
+        this.balanceOperationInProgress = true;
+
+        while (this.pendingBalanceOperations.length > 0) {
+            const { operation, amount, resolve } = this.pendingBalanceOperations.shift();
+            
+            try {
+                let result = false;
+                
+                if (operation === 'add') {
+                    this.gameData.stars += amount;
+                    this.gameData.totalStarsEarned = (this.gameData.totalStarsEarned || 0) + amount;
+                    console.log(`⭐ БЕЗОПАСНО добавлено ${amount} звезд. Всего: ${this.gameData.stars}`);
+                    result = true;
+                } else if (operation === 'spend') {
+                    if (this.gameData.stars >= amount) {
+                        this.gameData.stars -= amount;
+                        console.log(`💰 БЕЗОПАСНО потрачено ${amount} звезд. Осталось: ${this.gameData.stars}`);
+                        result = true;
+                    } else {
+                        console.log(`❌ Недостаточно звезд. Нужно: ${amount}, есть: ${this.gameData.stars}`);
+                        result = false;
+                    }
+                }
+                
+                // Обновляем интерфейс только один раз в конце
+                this.updateInterface();
+                this.saveGameData();
+                
+                resolve(result);
+                
+            } catch (error) {
+                console.error(`❌ Ошибка операции с балансом ${operation}:`, error);
+                resolve(false);
+            }
+        }
+
+        this.balanceOperationInProgress = false;
     }
 
     addWin(prize) {
@@ -643,21 +691,39 @@ export default class App {
         console.log(`🎁 Добавлен выигрыш: ${prize.name}`);
     }
 
-    // ИСПРАВЛЕННОЕ обновление данных пользователя (БД - единственный источник истины)
-    updateUserData(newData) {
+    // БЕЗОПАСНОЕ обновление данных пользователя с защитой от race conditions
+    async updateUserData(newData) {
         if (!newData) return;
         
         console.log('🔄 КРИТИЧЕСКОЕ обновление данных из БД:', {
             starsFromServer: newData.stars,
-            currentLocal: this.gameData.stars
+            currentLocal: this.gameData.stars,
+            operationInProgress: this.balanceOperationInProgress
         });
+        
+        // Ждем завершения текущих операций с балансом
+        if (this.balanceOperationInProgress) {
+            console.log('⏳ Ожидаем завершения операций с балансом...');
+            await new Promise(resolve => {
+                const checkOperations = () => {
+                    if (!this.balanceOperationInProgress) {
+                        resolve();
+                    } else {
+                        setTimeout(checkOperations, 50);
+                    }
+                };
+                checkOperations();
+            });
+        }
         
         // ИСПРАВЛЕНО: БД имеет абсолютный приоритет для критичных данных
         
-        // 1. Баланс звезд - ТОЛЬКО из БД
-        if (newData.stars !== undefined) {
+        // 1. Баланс звезд - ТОЛЬКО из БД (с проверкой на undefined и null)
+        if (newData.stars !== undefined && newData.stars !== null) {
             console.log(`💰 Обновляем баланс: ${this.gameData.stars} → ${newData.stars}`);
             this.gameData.stars = newData.stars;
+        } else {
+            console.warn('⚠️ Сервер не предоставил данные о балансе звезд');
         }
         
         // 2. Статистика - ТОЛЬКО из БД  
@@ -705,13 +771,11 @@ export default class App {
             referrals: this.gameData.referrals
         });
         
-        // Обновляем профиль если он активен
+        // Обновляем профиль если он активен (убираем дублирование)
         if (this.navigation.currentScreen === 'profile' && this.screens.profile) {
+            // Немедленное обновление
             this.screens.profile.loadProfileData();
-        }
-        
-        // Обновляем профиль если он активен
-        if (this.navigation.currentScreen === 'profile' && this.screens.profile) {
+            // Дополнительное обновление через задержку для надежности
             setTimeout(() => {
                 this.screens.profile.loadProfileData();
             }, 500);

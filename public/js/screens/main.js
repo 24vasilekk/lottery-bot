@@ -322,17 +322,22 @@ export class MainScreen {
         this.isSpinning = true;
         this.updateSpinButtons();
 
-        // Списание ресурсов
+        // Безопасное списание ресурсов
         if (type === 'stars') {
-            this.app.gameData.stars -= APP_CONFIG.wheel.starCost;
-            console.log(`💰 Списано ${APP_CONFIG.wheel.starCost} звезд. Осталось: ${this.app.gameData.stars}`);
+            const success = await this.app.spendStars(APP_CONFIG.wheel.starCost);
+            if (!success) {
+                this.isSpinning = false;
+                this.updateSpinButtons();
+                this.app.showStatusMessage('Недостаточно звезд для прокрутки!', 'error');
+                return;
+            }
+            console.log(`💰 БЕЗОПАСНО списано ${APP_CONFIG.wheel.starCost} звезд. Осталось: ${this.app.gameData.stars}`);
         } else if (type === 'friend') {
             this.app.gameData.friendSpinsUsed = (this.app.gameData.friendSpinsUsed || 0) + 1;
             console.log(`❤️ Использована прокрутка за друга. Использовано: ${this.app.gameData.friendSpinsUsed}`);
+            // Обновляем UI только для friend спинов
+            this.app.updateUI();
         }
-
-        // Обновление UI
-        this.app.updateUI();
 
         try {
             // Определение выигрышного приза
