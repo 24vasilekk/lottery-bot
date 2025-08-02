@@ -164,12 +164,13 @@ export const WHEEL_PRIZES = [
     }
 ];
 
-// Пользователь по умолчанию (ИСПРАВЛЕНО: 20 звезд)
+// ТОЛЬКО ДЛЯ НОВЫХ ПОЛЬЗОВАТЕЛЕЙ! НЕ для обновления существующих данных
+// Эти данные должны использоваться ТОЛЬКО при создании нового пользователя в БД
 export const DEFAULT_USER_DATA = {
-    stars: APP_CONFIG.game.startingStars, // 20 звезд
+    stars: APP_CONFIG.game.startingStars, // 20 звезд - ТОЛЬКО для новых пользователей
     referrals: 0,
     totalSpins: 0,
-    totalStarsEarned: APP_CONFIG.game.startingStars,
+    totalStarsEarned: APP_CONFIG.game.startingStars, // 20 - ТОЛЬКО для новых пользователей  
     prizesWon: 0,
     availableFriendSpins: APP_CONFIG.game.startingFriendSpins, // 1 прокрутка за друга
     completedTasks: [],

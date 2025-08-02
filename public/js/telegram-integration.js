@@ -123,21 +123,17 @@ class TelegramIntegration {
             return;
         }
         
-        // Проверяем, что у app есть метод getUserData
-        if (!window.app.getUserData) {
-            console.error('❌ TelegramIntegration: метод getUserData не найден');
-            return;
-        }
-        
-        // Получаем сохраненные данные пользователя
-        const userData = window.app.getUserData();
-        
-        // Обновляем профиль данными из Telegram
+        // ИСПРАВЛЕНО: НЕ обновляем данные с DEFAULT_USER_DATA
+        // Только обновляем профиль телеграм-данными, НЕ ТРОГАЯ баланс
         const displayName = this.user.username ? `@${this.user.username}` : (this.user.first_name || 'Пользователь');
-        userData.profile.name = displayName;
-        userData.profile.username = this.user.username || '';
-        userData.profile.first_name = this.user.first_name || '';
-        userData.profile.telegramId = this.user.id;
+        
+        // Обновляем ТОЛЬКО профиль, НЕ весь объект userData
+        if (window.app.gameData && window.app.gameData.profile) {
+            window.app.gameData.profile.name = displayName;
+            window.app.gameData.profile.username = this.user.username || '';
+            window.app.gameData.profile.first_name = this.user.first_name || '';
+            window.app.gameData.profile.telegramId = this.user.id;
+        }
 
         console.log('📋 TelegramIntegration: Данные пользователя:', {
             id: this.user.id,
@@ -146,14 +142,12 @@ class TelegramIntegration {
             displayName: displayName
         });
         
-        console.log('📋 TelegramIntegration: Обновленные данные пользователя:', userData.profile);
+        console.log('📋 TelegramIntegration: Обновлен только профиль, баланс НЕ тронут');
         
-        // Сохраняем и обновляем UI
-        window.app.updateUserData(userData);
+        // Обновляем только UI, НЕ вызываем updateUserData с дефолтными данными
         window.app.updateUI();
         
-        // Отправляем данные на сервер
-        this.syncWithServer();
+        console.log('✅ TelegramIntegration: Инициализация завершена, синхронизация с сервером...');
     }
 
     handleScreenChange(screen) {

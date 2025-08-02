@@ -4,13 +4,13 @@
 window.getUserData = function() {
     const app = window.app;
     if (!app || !app.gameData) {
-        console.warn('App not initialized, returning default data');
+        console.warn('⚠️ App не инициализирован, возвращаем пустые данные (баланс должен загрузиться из БД)');
         return {
             stats: {
-                stars: 0,
+                stars: undefined, // НЕ инициализируем баланс - должен загрузиться из БД
                 totalSpins: 0,
                 prizesWon: 0,
-                totalStarsEarned: 0,
+                totalStarsEarned: undefined, // НЕ инициализируем - должен загрузиться из БД
                 achievements: []
             },
             prizes: []

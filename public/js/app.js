@@ -73,27 +73,40 @@ export default class App {
         console.log('💾 Загрузка данных пользователя...');
 
         try {
-            // ИСПРАВЛЕНО: Сначала инициализируем минимальные данные
-            this.gameData = { ...DEFAULT_USER_DATA };
-            console.log('🆕 Временные данные пользователя созданы');
+            // ИСПРАВЛЕНО: Создаем минимальные данные БЕЗ начального баланса
+            this.gameData = {
+                // НЕ задаем stars здесь - будет загружено из БД
+                stars: 0, // Временное значение до синхронизации с БД
+                recentWins: [],
+                completedTasks: [],
+                availableFriendSpins: 1,
+                profile: { name: 'Пользователь', avatar: '👤', joinDate: Date.now() },
+                settings: { notifications: true, sounds: true, animations: true },
+                // Статистика - будет загружена из БД
+                totalStarsEarned: 0,
+                referrals: 0,
+                totalSpins: 0,
+                prizesWon: 0
+            };
+            console.log('🆕 Минимальные данные пользователя созданы (БЕЗ начального баланса)');
             
-            // Попытка загрузки из localStorage (только для fallback)
+            // Попытка загрузки из localStorage (только для некритичных данных)
             const saved = localStorage.getItem('kosmetichkaGameData');
             if (saved) {
                 const savedData = JSON.parse(saved);
-                // Объединяем только некритичные данные, звезды берем из БД
+                // Объединяем только некритичные данные, критичные (звезды, статистика) берем из БД
                 this.gameData = {
                     ...this.gameData,
                     recentWins: savedData.recentWins || [],
                     completedTasks: savedData.completedTasks || [],
                     profile: savedData.profile || this.gameData.profile,
                     settings: savedData.settings || this.gameData.settings
-                    // НЕ берем stars из localStorage - только из БД!
+                    // НЕ берем stars, totalStarsEarned и другую критичную статистику из localStorage!
                 };
                 console.log('💾 Некритичные данные восстановлены из localStorage');
             }
             
-            // Инициализация необходимых полей (без звезд)
+            // Инициализация необходимых полей (проверяем что все есть)
             if (!this.gameData.recentWins) this.gameData.recentWins = [];
             if (!this.gameData.completedTasks) this.gameData.completedTasks = [];
             if (!this.gameData.availableFriendSpins) this.gameData.availableFriendSpins = 1;
@@ -468,21 +481,34 @@ export default class App {
     // Вспомогательный метод для обновления отображения звезд
     updateStarsDisplay() {
         try {
+            // УЛУЧШЕННАЯ обработка отображения баланса
+            const displayValue = this.gameData.stars !== undefined && this.gameData.stars !== null 
+                ? this.gameData.stars.toLocaleString() 
+                : '⏳'; // Показываем "⏳" пока данные не загрузились
+            
             // Основной счетчик звезд
             const starCount = document.getElementById('star-count');
             if (starCount) {
-                starCount.textContent = this.gameData.stars || 0;
+                starCount.textContent = displayValue;
             }
             
             // Все элементы с классом stars
             const starsElements = document.querySelectorAll('.stars-value, .current-stars, .star-balance');
             starsElements.forEach(el => {
                 if (el) {
-                    el.textContent = this.gameData.stars || 0;
+                    el.textContent = displayValue;
                 }
             });
             
-            console.log(`💰 Обновлено отображение звезд: ${this.gameData.stars}`);
+            // Обновляем элементы с data-stars атрибутом
+            const dataStarsElements = document.querySelectorAll('[data-stars]');
+            dataStarsElements.forEach(el => {
+                if (el) {
+                    el.textContent = displayValue;
+                }
+            });
+            
+            console.log(`💰 Обновлено отображение звезд: ${this.gameData.stars} (отображение: ${displayValue})`);
             
         } catch (error) {
             console.warn('⚠️ Ошибка обновления отображения звезд:', error);
@@ -718,10 +744,15 @@ export default class App {
         
         // ИСПРАВЛЕНО: БД имеет абсолютный приоритет для критичных данных
         
-        // 1. Баланс звезд - ТОЛЬКО из БД (с проверкой на undefined и null)
+        // 1. Баланс звезд - ТОЛЬКО из БД (с валидацией)
         if (newData.stars !== undefined && newData.stars !== null) {
-            console.log(`💰 Обновляем баланс: ${this.gameData.stars} → ${newData.stars}`);
-            this.gameData.stars = newData.stars;
+            // ДОБАВЛЕНА ВАЛИДАЦИЯ: проверяем что значение корректное
+            if (typeof newData.stars === 'number' && newData.stars >= 0 && newData.stars <= 1000000) {
+                console.log(`💰 Обновляем баланс: ${this.gameData.stars} → ${newData.stars}`);
+                this.gameData.stars = newData.stars;
+            } else {
+                console.error(`❌ НЕКОРРЕКТНЫЙ баланс от сервера: ${newData.stars}. Оставляем текущий: ${this.gameData.stars}`);
+            }
         } else {
             console.warn('⚠️ Сервер не предоставил данные о балансе звезд');
         }
@@ -819,12 +850,7 @@ export default class App {
         }
     }
 
-    // Обновление отображения звезд во всех местах
-    updateStarsDisplay() {
-        document.querySelectorAll('[data-stars]').forEach(el => {
-            el.textContent = this.gameData.stars;
-        });
-    }
+    // УДАЛЕН ДУБЛИРОВАННЫЙ МЕТОД - используем основной метод updateStarsDisplay() выше
 
     // Обновление аватарки пользователя в header
     updateUserAvatar() {

@@ -283,12 +283,18 @@ class Navigation {
     }
 
     getUserData() {
-        // Получаем данные пользователя из localStorage или возвращаем дефолтные
+        // ИСПРАВЛЕНО: НЕ возвращаем hardcoded значения - пересылаем на app.getUserData()
         try {
+            // Если app доступен - используем его данные
+            if (window.app && window.app.getUserData) {
+                return window.app.getUserData();
+            }
+            
+            // Fallback только для критических случаев (БЕЗ hardcoded звезд)
             const stored = localStorage.getItem('userData');
-            return stored ? JSON.parse(stored) : { stats: { stars: 100, totalSpins: 0, prizesWon: 0, referrals: 0 } };
+            return stored ? JSON.parse(stored) : { stats: { stars: 0, totalSpins: 0, prizesWon: 0, referrals: 0 } };
         } catch {
-            return { stats: { stars: 100, totalSpins: 0, prizesWon: 0, referrals: 0 } };
+            return { stats: { stars: 0, totalSpins: 0, prizesWon: 0, referrals: 0 } };
         }
     }
 }
