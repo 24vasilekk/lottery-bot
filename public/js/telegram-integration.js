@@ -392,20 +392,35 @@ class TelegramIntegration {
 
     // Синхронизация с сервером
     async syncWithServer() {
-        if (!this.user) return;
+        if (!this.user) {
+            console.error('❌ syncWithServer: нет данных пользователя');
+            return;
+        }
+        
+        console.log('🔄 ДИАГНОСТИКА syncWithServer: начинаем синхронизацию');
+        console.log('👤 ДИАГНОСТИКА syncWithServer: пользователь:', this.user);
+        console.log('🆔 ДИАГНОСТИКА syncWithServer: отправляем ID:', this.user.id, 'тип:', typeof this.user.id);
         
         try {
+            const userData = window.app.getUserData();
+            console.log('📊 ДИАГНОСТИКА syncWithServer: текущие данные приложения:', userData);
+            
             const response = await this.sendToServer('sync_user', {
-                userData: window.app.getUserData(),
+                userData: userData,
                 user: this.user // Добавляем данные пользователя
             });
             
+            console.log('📡 ДИАГНОСТИКА syncWithServer: ответ сервера:', response);
+            
             if (response?.userData) {
+                console.log('✅ ДИАГНОСТИКА syncWithServer: обновляем данные пользователя:', response.userData);
                 window.app.updateUserData(response.userData);
                 window.app.updateUI();
+            } else {
+                console.warn('⚠️ ДИАГНОСТИКА syncWithServer: нет userData в ответе сервера');
             }
         } catch (error) {
-            console.error('Ошибка синхронизации:', error);
+            console.error('❌ ДИАГНОСТИКА syncWithServer: ошибка синхронизации:', error);
         }
     }
 
