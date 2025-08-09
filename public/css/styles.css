@@ -2466,4 +2466,109 @@ body {
         flex-direction: column;
         align-items: center;
     }
+
+    /* ========================================
+   СТИЛИ ДЛЯ НОВЫХ ПРИЗОВ КОЛЕСА
+   Добавить в конец public/css/styles.css
+   ======================================== */
+
+    /* Стили для пустых сегментов */
+    .prize-result.empty {
+        background: linear-gradient(135deg, #2C3E50 0%, #34495E 100%);
+        border: 2px solid #555;
+    }
+
+    .prize-result.empty .prize-icon {
+        font-size: 48px;
+        opacity: 0.7;
+    }
+
+    .prize-result.empty .prize-title {
+        color: #BDC3C7;
+        opacity: 0.8;
+    }
+
+    /* Стили для сертификатов Золотое яблоко */
+    .prize-result.golden-apple {
+        background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
+        border: 2px solid #922B21;
+    }
+
+    .prize-result.golden-apple .prize-icon {
+        filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+    }
+
+    /* Стили для сертификатов Wildberries */
+    .prize-result.wildberries {
+        background: linear-gradient(135deg, #8E44AD 0%, #6C3483 100%);
+        border: 2px solid #512E5F;
+    }
+
+    .prize-result.wildberries .prize-icon {
+        filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+    }
+
+    /* Анимация для черных сегментов */
+    .wheel-segment[data-prize-type="empty"] {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .wheel-segment[data-prize-type="empty"]::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 10px,
+            rgba(255, 255, 255, 0.1) 10px,
+            rgba(255, 255, 255, 0.1) 20px
+        );
+        opacity: 0.3;
+        pointer-events: none;
+    }
+
+    /* Улучшенные иконки в модальных окнах */
+    .prize-modal .prize-icon {
+        font-size: 64px;
+        margin-bottom: 16px;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Стили для отображения суммы в названии приза */
+    .prize-amount {
+        font-weight: bold;
+        color: #FFD700;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Эффекты для редких призов */
+    .prize-result.legendary {
+        animation: legendary-glow 2s ease-in-out infinite alternate;
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+    }
+
+    @keyframes legendary-glow {
+        from {
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+        to {
+            box-shadow: 0 0 40px rgba(255, 215, 0, 0.8);
+        }
+    }
+
+    /* Адаптивность для мобильных устройств */
+    @media (max-width: 480px) {
+        .prize-modal .prize-icon {
+            font-size: 48px;
+        }
+        
+        .prize-amount {
+            font-size: 18px;
+        }
+    }
 }
