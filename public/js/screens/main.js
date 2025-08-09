@@ -196,6 +196,8 @@ export class MainScreen {
 
     // В файле public/js/screens/main.js замените функцию generateWheelSVG() на эту:
 
+    // В файле public/js/screens/main.js замените функцию generateWheelSVG() на эту:
+
     generateWheelSVG() {
         const container = document.getElementById('wheel-segments');
         if (!container) {
@@ -332,12 +334,22 @@ export class MainScreen {
 
                 // ВЕРХНИЙ ТЕКСТ (перпендикулярно линиям разделения - радиально)
                 if (prize.topText) {
-                    const topRadius = radius * 0.8; // Ближе к краю
+                    const topRadius = radius * 0.85; // ПОДНЯТО ВЫШЕ - ближе к краю
                     const topX = centerX + topRadius * Math.cos(middleAngle);
                     const topY = centerY + topRadius * Math.sin(middleAngle);
                     
                     // Поворот текста радиально (перпендикулярно линиям разделения)
                     const topRotation = middleAngleDeg + 90; // +90 чтобы текст шел от центра наружу
+                    
+                    // ИНТЕРЕСНЫЕ ЦВЕТА для верхнего текста
+                    let topTextColor = 'white';
+                    if (prize.type.startsWith('stars')) {
+                        topTextColor = '#FFFACD'; // Лимонно-кремовый для звезд
+                    } else if (prize.type.startsWith('golden-apple')) {
+                        topTextColor = '#FFE4E1'; // Нежно-розоватый для ЗЯ
+                    } else if (prize.type.startsWith('wildberries')) {
+                        topTextColor = '#F0E6FF'; // Светло-фиолетовый для WB
+                    }
                     
                     svgContent += `
                         <text 
@@ -347,7 +359,7 @@ export class MainScreen {
                             dominant-baseline="middle" 
                             font-size="${segmentAngle > 60 ? '16' : '14'}" 
                             font-weight="bold"
-                            fill="white"
+                            fill="${topTextColor}"
                             class="segment-top-text"
                             style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8)); font-family: 'Arial', sans-serif; user-select: none;"
                             transform="rotate(${topRotation} ${topX} ${topY})"
@@ -368,6 +380,16 @@ export class MainScreen {
                         centerRotation += 180; // Переворачиваем текст, чтобы не был вверх ногами
                     }
                     
+                    // ИНТЕРЕСНЫЕ ЦВЕТА для центрального текста
+                    let centerTextColor = 'white';
+                    if (prize.type.startsWith('stars')) {
+                        centerTextColor = '#FFF8DC'; // Кукурузный шелк для звезд
+                    } else if (prize.type.startsWith('golden-apple')) {
+                        centerTextColor = '#FFEFD5'; // Папайя для ЗЯ
+                    } else if (prize.type.startsWith('wildberries')) {
+                        centerTextColor = '#E6E6FA'; // Лаванда для WB
+                    }
+                    
                     svgContent += `
                         <text 
                             x="${centerX_pos}" 
@@ -376,7 +398,7 @@ export class MainScreen {
                             dominant-baseline="middle" 
                             font-size="${segmentAngle > 60 ? '14' : segmentAngle > 30 ? '12' : '10'}" 
                             font-weight="bold"
-                            fill="white"
+                            fill="${centerTextColor}"
                             class="segment-center-text"
                             style="filter: drop-shadow(0 1px 3px rgba(0,0,0,0.8)); font-family: 'Arial', sans-serif; user-select: none;"
                             transform="rotate(${centerRotation} ${centerX_pos} ${centerY_pos})"
