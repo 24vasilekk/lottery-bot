@@ -214,11 +214,11 @@ export class MainScreen {
             empty: 'linear-gradient(135deg, #1a1a1a 0%, #000000 100%)',
             stars: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
             'golden-apple': [
-                'linear-gradient(135deg, #FF6B6B 0%, #FF5252 100%)', // 300₽
-                'linear-gradient(135deg, #E74C3C 0%, #C0392B 100%)', // 500₽
-                'linear-gradient(135deg, #C0392B 0%, #A93226 100%)', // 1000₽
-                'linear-gradient(135deg, #A93226 0%, #922B21 100%)', // 2000₽
-                'linear-gradient(135deg, #922B21 0%, #7B241F 100%)'  // 5000₽
+                'linear-gradient(135deg, #9ACD32 0%, #8FBC8F 100%)', // 300₽ - салатовый
+                'linear-gradient(135deg, #8FBC8F 0%, #7CFC00 100%)', // 500₽ - темно-салатовый  
+                'linear-gradient(135deg, #7CFC00 0%, #ADFF2F 100%)', // 1000₽ - ярко-салатовый
+                'linear-gradient(135deg, #ADFF2F 0%, #32CD32 100%)', // 2000₽ - зелено-желтый
+                'linear-gradient(135deg, #32CD32 0%, #228B22 100%)'  // 5000₽ - ярко-зеленый
             ],
             'wildberries': [
                 'linear-gradient(135deg, #8E44AD 0%, #9B59B6 100%)', // 500₽
@@ -253,7 +253,7 @@ export class MainScreen {
             </linearGradient>
         `;
         
-        // Градиенты для Золотого яблока
+        // Градиенты для Золотого яблока (САЛАТОВО-ЗЕЛЕНЫЕ)
         gradients['golden-apple'].forEach((gradient, index) => {
             const gradientMatch = gradient.match(/linear-gradient\(135deg,\s*([^,]+)\s*0%,\s*([^)]+)\s*100%\)/);
             if (gradientMatch) {
@@ -346,7 +346,7 @@ export class MainScreen {
                     if (prize.type.startsWith('stars')) {
                         topTextColor = '#FFFACD'; // Лимонно-кремовый для звезд
                     } else if (prize.type.startsWith('golden-apple')) {
-                        topTextColor = '#FFE4E1'; // Нежно-розоватый для ЗЯ
+                        topTextColor = '#F0FFF0'; // Медовая роса для ЗЯ (светло-зеленый)
                     } else if (prize.type.startsWith('wildberries')) {
                         topTextColor = '#F0E6FF'; // Светло-фиолетовый для WB
                     }
@@ -385,7 +385,7 @@ export class MainScreen {
                     if (prize.type.startsWith('stars')) {
                         centerTextColor = '#FFF8DC'; // Кукурузный шелк для звезд
                     } else if (prize.type.startsWith('golden-apple')) {
-                        centerTextColor = '#FFEFD5'; // Папайя для ЗЯ
+                        centerTextColor = '#F5FFFA'; // Мятно-кремовый для ЗЯ
                     } else if (prize.type.startsWith('wildberries')) {
                         centerTextColor = '#E6E6FA'; // Лаванда для WB
                     }
@@ -413,6 +413,8 @@ export class MainScreen {
         container.innerHTML = defsContent + svgContent;
         console.log('✅ Чистое колесо без иконок с правильной ориентацией текста создано');
     }
+
+    // В файле public/js/screens/main.js замените функцию spinWheel на эту:
 
     async spinWheel(type) {
         if (this.isSpinning) {
@@ -472,13 +474,25 @@ export class MainScreen {
             
             console.log(`🎁 Выпал приз: ${winningPrize.name} (индекс: ${prizeIndex})`);
             
-            // Расчет угла поворота
-            const segmentAngle = 360 / WHEEL_PRIZES.length;
-            const targetAngle = prizeIndex * segmentAngle + (segmentAngle / 2);
+            // ИСПРАВЛЕННЫЙ расчет угла поворота
+            let targetAngle = 0;
+            
+            // Суммируем углы всех предыдущих сегментов
+            for (let i = 0; i < prizeIndex; i++) {
+                targetAngle += WHEEL_PRIZES[i].angle || (360 / WHEEL_PRIZES.length);
+            }
+            
+            // Добавляем половину угла выигрышного сегмента (чтобы указатель был в центре)
+            const currentPrizeAngle = WHEEL_PRIZES[prizeIndex].angle || (360 / WHEEL_PRIZES.length);
+            targetAngle += currentPrizeAngle / 2;
+            
+            // Указатель находится вверху (0°), поэтому целевой угол = 360° - targetAngle
+            const finalTargetAngle = 360 - targetAngle;
+            
             const spins = Math.floor(Math.random() * 3) + APP_CONFIG.wheel.minSpins;
-            const finalRotation = spins * 360 + (360 - targetAngle);
+            const finalRotation = spins * 360 + finalTargetAngle;
 
-            console.log(`🌀 Поворот на ${finalRotation} градусов (${spins} оборотов + ${360 - targetAngle})`);
+            console.log(`🌀 Поворот на ${finalRotation} градусов (цель: ${finalTargetAngle}°, спинов: ${spins})`);
 
             // Анимация SVG рулетки
             const wheelSvg = document.getElementById('wheel-svg');
@@ -508,12 +522,17 @@ export class MainScreen {
         }
     }
 
+    // В файле public/js/screens/main.js замените функцию selectRandomPrize на эту:
+
     selectRandomPrize() {
-        // Создаем массив с учетом вероятностей
+        // Создаем массив с учетом НОВЫХ вероятностей
         const prizePool = [];
         
-        WHEEL_PRIZES.forEach(prize => {
-            const weight = Math.round(prize.probability * 100);
+        // Новые вероятности: пустота 20%, звезды 10%, сертификаты по 7.78%
+        const probabilities = [20, 10, 7.78, 7.78, 7.78, 7.78, 7.78, 7.78, 7.78, 7.78, 7.78];
+        
+        WHEEL_PRIZES.forEach((prize, index) => {
+            const weight = Math.round(probabilities[index] * 100);
             for (let i = 0; i < weight; i++) {
                 prizePool.push(prize);
             }
@@ -523,7 +542,7 @@ export class MainScreen {
         const randomIndex = Math.floor(Math.random() * prizePool.length);
         const selectedPrize = prizePool[randomIndex];
         
-        console.log(`🎲 Выбран приз: ${selectedPrize.name} (вероятность: ${selectedPrize.probability}%)`);
+        console.log(`🎲 Выбран приз: ${selectedPrize.name} (вероятность: ${probabilities[WHEEL_PRIZES.findIndex(p => p.id === selectedPrize.id)]}%)`);
         
         return selectedPrize;
     }
