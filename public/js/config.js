@@ -30,7 +30,7 @@ export const APP_CONFIG = {
 
 // ЧИСТАЯ конфигурация призов рулетки - БЕЗ ИКОНОК
 export const WHEEL_PRIZES = [
-    // 1. ПУСТОЙ сегмент (30% площади) - никакого текста
+    // 1. ПУСТОЙ сегмент (20% площади) - никакого текста
     {
         id: 1,
         name: '',
@@ -39,14 +39,14 @@ export const WHEEL_PRIZES = [
         color: '#000000',
         icon: '', // Пустая иконка
         rarity: 'common',
-        probability: 30, // 30%
+        probability: 20, // 20%
         value: 0,
-        angle: 108, // 30% от 360° = 108°
+        angle: 72, // 20% от 360° = 72°
         topText: '', // Ничего вверху
         centerText: '' // Ничего по центру
     },
     
-    // 2. ЗВЕЗДЫ сегмент (20% площади)
+    // 2. ЗВЕЗДЫ сегмент (10% площади)
     {
         id: 2,
         name: '20 звезд',
@@ -55,14 +55,14 @@ export const WHEEL_PRIZES = [
         color: '#FFD700',
         icon: '', // Без иконки
         rarity: 'common',
-        probability: 20, // 20%
+        probability: 10, // 10%
         value: 20,
-        angle: 72, // 20% от 360° = 72°
+        angle: 36, // 10% от 360° = 36°
         topText: '⭐', // Звезда вверху перпендикулярно
         centerText: '20' // 20 по центру параллельно
     },
     
-    // 3-11. СЕРТИФИКАТЫ (9 сегментов по ~5.56% каждый = 50% общая площади)
+    // 3-11. СЕРТИФИКАТЫ (9 сегментов по ~7.78% каждый = 70% общая площади)
     {
         id: 3,
         name: 'ЗЯ 300₽',
@@ -85,9 +85,9 @@ export const WHEEL_PRIZES = [
         color: '#8E44AD',
         icon: '',
         rarity: 'rare',
-        probability: 5.56,
+        probability: 7.78,
         value: 500,
-        angle: 20,
+        angle: 28,
         topText: 'WB', // WB вверху перпендикулярно
         centerText: '500₽' // Сумма по центру параллельно
     },
@@ -99,9 +99,9 @@ export const WHEEL_PRIZES = [
         color: '#E74C3C',
         icon: '',
         rarity: 'rare',
-        probability: 5.56,
+        probability: 7.78,
         value: 500,
-        angle: 20,
+        angle: 28,
         topText: 'ЗЯ',
         centerText: '500₽'
     },
@@ -113,9 +113,9 @@ export const WHEEL_PRIZES = [
         color: '#9B59B6',
         icon: '',
         rarity: 'epic',
-        probability: 5.56,
+        probability: 7.78,
         value: 1000,
-        angle: 20,
+        angle: 28,
         topText: 'WB',
         centerText: '1000₽'
     },
@@ -127,9 +127,9 @@ export const WHEEL_PRIZES = [
         color: '#C0392B',
         icon: '',
         rarity: 'epic',
-        probability: 5.56,
+        probability: 7.78,
         value: 1000,
-        angle: 20,
+        angle: 28,
         topText: 'ЗЯ',
         centerText: '1000₽'
     },
@@ -141,9 +141,9 @@ export const WHEEL_PRIZES = [
         color: '#6C3483',
         icon: '',
         rarity: 'epic',
-        probability: 5.56,
+        probability: 7.78,
         value: 2000,
-        angle: 20,
+        angle: 28,
         topText: 'WB',
         centerText: '2000₽'
     },
@@ -155,9 +155,9 @@ export const WHEEL_PRIZES = [
         color: '#A93226',
         icon: '',
         rarity: 'epic',
-        probability: 5.56,
+        probability: 7.78,
         value: 2000,
-        angle: 20,
+        angle: 28,
         topText: 'ЗЯ',
         centerText: '2000₽'
     },
@@ -169,9 +169,9 @@ export const WHEEL_PRIZES = [
         color: '#512E5F',
         icon: '',
         rarity: 'legendary',
-        probability: 5.56,
+        probability: 7.78,
         value: 3000,
-        angle: 20,
+        angle: 28,
         topText: 'WB',
         centerText: '3000₽'
     },
@@ -183,9 +183,9 @@ export const WHEEL_PRIZES = [
         color: '#922B21',
         icon: '',
         rarity: 'legendary',
-        probability: 5.56,
+        probability: 7.78,
         value: 5000,
-        angle: 20,
+        angle: 28,
         topText: 'ЗЯ',
         centerText: '5000₽'
     }
