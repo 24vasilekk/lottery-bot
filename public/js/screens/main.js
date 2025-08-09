@@ -204,20 +204,27 @@ export class MainScreen {
         const centerY = 200;
         const anglePerSegment = (2 * Math.PI) / WHEEL_PRIZES.length;
 
-        // Красивые градиентные цвета в стиле профиля
+        // В файле public/js/screens/main.js найдите массив segmentColors и замените его на:
+
         const segmentColors = [
-            'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)', // Розово-малиновый
-            'linear-gradient(135deg, #764ba2 0%, #667eea 100%)', // Фиолетово-синий  
-            'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', // Розово-красный
-            'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', // Сине-голубой
-            'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', // Зелено-мятный
-            'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', // Розово-желтый
-            'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', // Мятно-розовый
-            'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)', // Коралловый
-            'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', // Синий-фиолетовый
-            'linear-gradient(135deg, #f6d365 0%, #fda085 100%)', // Желто-персиковый
-            'linear-gradient(135deg, #96fbc4 0%, #f9f586 100%)', // Зелено-желтый
-            'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)'  // Кремово-персиковый
+            // Черный для пустых сегментов
+            'linear-gradient(135deg, #000000 0%, #333333 100%)', // Черный градиент
+            
+            // Золотой для звезд
+            'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)', // Золотой градиент
+            
+            // Красные оттенки для Золотого яблока
+            'linear-gradient(135deg, #FF6B6B 0%, #FF5252 100%)', // Красный для ЗЯ 300
+            'linear-gradient(135deg, #E74C3C 0%, #C0392B 100%)', // Красный для ЗЯ 500
+            'linear-gradient(135deg, #C0392B 0%, #A93226 100%)', // Темно-красный для ЗЯ 1000
+            'linear-gradient(135deg, #A93226 0%, #922B21 100%)', // Очень темно-красный для ЗЯ 2000
+            'linear-gradient(135deg, #922B21 0%, #7B2C1F 100%)', // Самый темно-красный для ЗЯ 5000
+            
+            // Фиолетовые оттенки для Wildberries
+            'linear-gradient(135deg, #8E44AD 0%, #9B59B6 100%)', // Фиолетовый для ВБ 500
+            'linear-gradient(135deg, #9B59B6 0%, #6C3483 100%)', // Темно-фиолетовый для ВБ 1000
+            'linear-gradient(135deg, #6C3483 0%, #512E5F 100%)', // Очень темно-фиолетовый для ВБ 2000
+            'linear-gradient(135deg, #512E5F 0%, #3E1B40 100%)', // Самый темно-фиолетовый для ВБ 3000
         ];
 
         let svgContent = '';
