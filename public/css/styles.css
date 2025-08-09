@@ -2876,4 +2876,309 @@ body {
         pointer-events: none;
         border-radius: inherit;
     }
+
+    /* ========================================
+   СТИЛИ ДЛЯ ЧИСТОГО ДИЗАЙНА КОЛЕСА (БЕЗ ИКОНОК)
+   Добавить в конец public/css/styles.css
+   ======================================== */
+
+    /* Улучшенные стили сегментов */
+    .wheel-segment-path {
+        transition: all 0.3s ease;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    }
+
+    .wheel-segment-path:hover {
+        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4)) brightness(1.05);
+    }
+
+    /* Стили для верхнего текста (радиального) */
+    .segment-top-text {
+        user-select: none;
+        pointer-events: none;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+        font-family: 'Arial', sans-serif;
+        font-weight: bold;
+        letter-spacing: 1px;
+    }
+
+    /* Стили для центрального текста (тангенциального) */
+    .segment-center-text {
+        user-select: none;
+        pointer-events: none;
+        filter: drop-shadow(0 1px 3px rgba(0,0,0,0.8));
+        font-family: 'Arial', sans-serif;
+        font-weight: bold;
+        letter-spacing: 0.5px;
+    }
+
+    /* Специальные стили для разных типов призов */
+
+    /* Звезды - золотое свечение */
+    .segment-stars .segment-top-text {
+        filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.8)) drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+        font-size: 18px !important;
+    }
+
+    .segment-stars .segment-center-text {
+        filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.6)) drop-shadow(0 1px 3px rgba(0,0,0,0.8));
+        font-weight: 900;
+    }
+
+    /* Сертификаты Золотое яблоко - красное свечение */
+    .segment-golden-apple .segment-top-text {
+        filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4)) drop-shadow(0 2px 4px rgba(0,0,0,0.9));
+        color: #ffffff !important;
+    }
+
+    .segment-golden-apple .segment-center-text {
+        filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3)) drop-shadow(0 1px 3px rgba(0,0,0,0.9));
+        color: #ffffff !important;
+    }
+
+    /* Сертификаты Wildberries - фиолетовое свечение */
+    .segment-wildberries .segment-top-text {
+        filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4)) drop-shadow(0 2px 4px rgba(0,0,0,0.9));
+        color: #ffffff !important;
+    }
+
+    .segment-wildberries .segment-center-text {
+        filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3)) drop-shadow(0 1px 3px rgba(0,0,0,0.9));
+        color: #ffffff !important;
+    }
+
+    /* Стили для результатов призов */
+    .prize-result.empty {
+        background: linear-gradient(135deg, #2C3E50 0%, #1a1a1a 100%);
+        border: 2px solid #34495E;
+        color: #BDC3C7;
+    }
+
+    .prize-result.empty .prize-title {
+        color: #BDC3C7;
+        font-weight: 600;
+    }
+
+    .prize-result.empty .prize-description {
+        color: #7F8C8D;
+    }
+
+    /* Звезды в результатах */
+    .prize-result.stars {
+        background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+        border: 2px solid #FF8C00;
+        color: white;
+    }
+
+    .prize-result.stars .prize-title {
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        color: white;
+    }
+
+    /* Сертификаты Золотое яблоко в результатах */
+    .prize-result.golden-apple {
+        background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
+        border: 2px solid #922B21;
+        color: white;
+    }
+
+    .prize-result.golden-apple .prize-title {
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    /* Сертификаты Wildberries в результатах */
+    .prize-result.wildberries {
+        background: linear-gradient(135deg, #8E44AD 0%, #6C3483 100%);
+        border: 2px solid #512E5F;
+        color: white;
+    }
+
+    .prize-result.wildberries .prize-title {
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    /* Улучшенная типографика */
+    .prize-amount {
+        font-weight: 700;
+        font-size: 1.1em;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Анимации для легендарных призов */
+    .prize-result.legendary {
+        animation: legendary-pulse 2s ease-in-out infinite alternate;
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+    }
+
+    @keyframes legendary-pulse {
+        from {
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+            transform: scale(1);
+        }
+        to {
+            box-shadow: 0 0 40px rgba(255, 215, 0, 0.8);
+            transform: scale(1.02);
+        }
+    }
+
+    /* Чистый дизайн модального окна */
+    .prize-modal-clean {
+        backdrop-filter: blur(12px);
+        background: rgba(0, 0, 0, 0.85);
+    }
+
+    .prize-modal-content-clean {
+        background: linear-gradient(145deg, #ffffff, #f8f9fa);
+        border-radius: 25px;
+        padding: 40px;
+        box-shadow: 
+            0 25px 50px rgba(0,0,0,0.3),
+            0 0 0 1px rgba(255,255,255,0.8);
+        text-align: center;
+        max-width: 450px;
+        margin: 20px;
+        border: none;
+    }
+
+    /* Кнопки без иконок */
+    .prize-action-button-clean {
+        background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        border: none;
+        color: white;
+        padding: 16px 32px;
+        border-radius: 25px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .prize-action-button-clean:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4);
+    }
+
+    .prize-action-button-clean:active {
+        transform: translateY(0);
+    }
+
+    /* Адаптивность для мобильных устройств */
+    @media (max-width: 480px) {
+        .segment-top-text {
+            font-size: 12px !important;
+            letter-spacing: 0.5px;
+        }
+        
+        .segment-center-text {
+            font-size: 10px !important;
+            letter-spacing: 0.3px;
+        }
+        
+        .segment-stars .segment-top-text {
+            font-size: 14px !important;
+        }
+        
+        .prize-result .prize-title {
+            font-size: 20px !important;
+        }
+        
+        .prize-amount {
+            font-size: 16px;
+        }
+        
+        .prize-modal-content-clean {
+            padding: 25px;
+            margin: 15px;
+        }
+    }
+
+    /* Эффекты для центральной кнопки SPIN */
+    .wheel-center-clean {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(145deg, #2c3e50, #34495e);
+        border: 6px solid #fff;
+        border-radius: 50%;
+        transition: all 0.3s ease;
+    }
+
+    .wheel-center-clean::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(
+            45deg,
+            transparent,
+            rgba(255,255,255,0.1),
+            transparent
+        );
+        transform: rotate(45deg);
+        transition: all 0.6s ease;
+        opacity: 0;
+    }
+
+    .wheel-center-clean:hover::before {
+        opacity: 1;
+        animation: shine 0.6s ease-out;
+    }
+
+    @keyframes shine {
+        0% {
+            transform: translateX(-100%) translateY(-100%) rotate(45deg);
+        }
+        100% {
+            transform: translateX(100%) translateY(100%) rotate(45deg);
+        }
+    }
+
+    /* Эффекты при выигрыше */
+    .prize-win-animation-clean {
+        animation: prizeWinClean 0.8s ease-out;
+    }
+
+    @keyframes prizeWinClean {
+        0% {
+            transform: scale(1) rotate(0deg);
+            opacity: 1;
+        }
+        50% {
+            transform: scale(1.05) rotate(2deg);
+            opacity: 0.95;
+        }
+        100% {
+            transform: scale(1) rotate(0deg);
+            opacity: 1;
+        }
+    }
+
+    /* Темная тема для пустых сегментов */
+    .wheel-segment[data-type="empty"] {
+        position: relative;
+    }
+
+    .wheel-segment[data-type="empty"]::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 8px,
+            rgba(255, 255, 255, 0.08) 8px,
+            rgba(255, 255, 255, 0.08) 16px
+        );
+        opacity: 0.6;
+        pointer-events: none;
+        border-radius: inherit;
+    }
 }
