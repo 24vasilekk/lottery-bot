@@ -192,6 +192,10 @@ export class MainScreen {
         }
     }
 
+    // В файле public/js/screens/main.js замените функцию generateWheelSVG() на эту:
+
+    // В файле public/js/screens/main.js замените функцию generateWheelSVG() на эту:
+
     generateWheelSVG() {
         const container = document.getElementById('wheel-segments');
         if (!container) {
@@ -202,97 +206,190 @@ export class MainScreen {
         const radius = 180;
         const centerX = 200;
         const centerY = 200;
-        const anglePerSegment = (2 * Math.PI) / WHEEL_PRIZES.length;
 
-        // В файле public/js/screens/main.js найдите массив segmentColors и замените его на:
-
-        const segmentColors = [
-            // Черный для пустых сегментов
-            'linear-gradient(135deg, #000000 0%, #333333 100%)', // Черный градиент
-            
-            // Золотой для звезд
-            'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)', // Золотой градиент
-            
-            // Красные оттенки для Золотого яблока
-            'linear-gradient(135deg, #FF6B6B 0%, #FF5252 100%)', // Красный для ЗЯ 300
-            'linear-gradient(135deg, #E74C3C 0%, #C0392B 100%)', // Красный для ЗЯ 500
-            'linear-gradient(135deg, #C0392B 0%, #A93226 100%)', // Темно-красный для ЗЯ 1000
-            'linear-gradient(135deg, #A93226 0%, #922B21 100%)', // Очень темно-красный для ЗЯ 2000
-            'linear-gradient(135deg, #922B21 0%, #7B2C1F 100%)', // Самый темно-красный для ЗЯ 5000
-            
-            // Фиолетовые оттенки для Wildberries
-            'linear-gradient(135deg, #8E44AD 0%, #9B59B6 100%)', // Фиолетовый для ВБ 500
-            'linear-gradient(135deg, #9B59B6 0%, #6C3483 100%)', // Темно-фиолетовый для ВБ 1000
-            'linear-gradient(135deg, #6C3483 0%, #512E5F 100%)', // Очень темно-фиолетовый для ВБ 2000
-            'linear-gradient(135deg, #512E5F 0%, #3E1B40 100%)', // Самый темно-фиолетовый для ВБ 3000
-        ];
+        // Красивые градиенты для каждого типа приза
+        const gradients = {
+            empty: 'linear-gradient(135deg, #1a1a1a 0%, #000000 100%)',
+            stars: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+            'golden-apple': [
+                'linear-gradient(135deg, #FF6B6B 0%, #FF5252 100%)', // 300₽
+                'linear-gradient(135deg, #E74C3C 0%, #C0392B 100%)', // 500₽
+                'linear-gradient(135deg, #C0392B 0%, #A93226 100%)', // 1000₽
+                'linear-gradient(135deg, #A93226 0%, #922B21 100%)', // 2000₽
+                'linear-gradient(135deg, #922B21 0%, #7B241F 100%)'  // 5000₽
+            ],
+            'wildberries': [
+                'linear-gradient(135deg, #8E44AD 0%, #9B59B6 100%)', // 500₽
+                'linear-gradient(135deg, #9B59B6 0%, #6C3483 100%)', // 1000₽
+                'linear-gradient(135deg, #6C3483 0%, #512E5F 100%)', // 2000₽
+                'linear-gradient(135deg, #512E5F 0%, #3E1B40 100%)'  // 3000₽
+            ]
+        };
 
         let svgContent = '';
         
         // Создаем определения градиентов
         let defsContent = '<defs>';
-        segmentColors.forEach((gradient, index) => {
+        
+        // Градиент для пустого сегмента
+        defsContent += `
+            <linearGradient id="emptyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#1a1a1a;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#000000;stop-opacity:1" />
+            </linearGradient>
+            <pattern id="emptyPattern" patternUnits="userSpaceOnUse" width="20" height="20">
+                <rect width="20" height="20" fill="url(#emptyGradient)"/>
+                <path d="M0,20 L20,0" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+            </pattern>
+        `;
+        
+        // Градиент для звезд
+        defsContent += `
+            <linearGradient id="starsGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#FFA500;stop-opacity:1" />
+            </linearGradient>
+        `;
+        
+        // Градиенты для Золотого яблока
+        gradients['golden-apple'].forEach((gradient, index) => {
             const gradientMatch = gradient.match(/linear-gradient\(135deg,\s*([^,]+)\s*0%,\s*([^)]+)\s*100%\)/);
             if (gradientMatch) {
                 const [, color1, color2] = gradientMatch;
                 defsContent += `
-                    <linearGradient id="gradient${index}" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <linearGradient id="appleGradient${index}" x1="0%" y1="0%" x2="100%" y2="100%">
                         <stop offset="0%" style="stop-color:${color1.trim()};stop-opacity:1" />
                         <stop offset="100%" style="stop-color:${color2.trim()};stop-opacity:1" />
                     </linearGradient>
                 `;
             }
         });
+        
+        // Градиенты для Wildberries
+        gradients['wildberries'].forEach((gradient, index) => {
+            const gradientMatch = gradient.match(/linear-gradient\(135deg,\s*([^,]+)\s*0%,\s*([^)]+)\s*100%\)/);
+            if (gradientMatch) {
+                const [, color1, color2] = gradientMatch;
+                defsContent += `
+                    <linearGradient id="wbGradient${index}" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:${color1.trim()};stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:${color2.trim()};stop-opacity:1" />
+                    </linearGradient>
+                `;
+            }
+        });
+        
         defsContent += '</defs>';
 
+        // Создаем сегменты с правильными углами
+        let currentAngle = -90; // Начинаем сверху
+        
         WHEEL_PRIZES.forEach((prize, index) => {
-            const startAngle = index * anglePerSegment - Math.PI / 2;
-            const endAngle = (index + 1) * anglePerSegment - Math.PI / 2;
+            const segmentAngle = prize.angle || (360 / WHEEL_PRIZES.length);
+            const startAngle = currentAngle * Math.PI / 180;
+            const endAngle = (currentAngle + segmentAngle) * Math.PI / 180;
 
             const x1 = centerX + radius * Math.cos(startAngle);
             const y1 = centerY + radius * Math.sin(startAngle);
             const x2 = centerX + radius * Math.cos(endAngle);
             const y2 = centerY + radius * Math.sin(endAngle);
 
-            const largeArc = anglePerSegment > Math.PI ? 1 : 0;
+            const largeArc = segmentAngle > 180 ? 1 : 0;
 
             const path = `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
 
-            // Текст иконки
-            const textAngle = (startAngle + endAngle) / 2;
-            const textRadius = radius * 0.7;
-            const textX = centerX + textRadius * Math.cos(textAngle);
-            const textY = centerY + textRadius * Math.sin(textAngle);
+            // Определяем градиент для сегмента
+            let fillUrl;
+            if (prize.type === 'empty') {
+                fillUrl = 'url(#emptyPattern)';
+            } else if (prize.type.startsWith('stars')) {
+                fillUrl = 'url(#starsGradient)';
+            } else if (prize.type.startsWith('golden-apple')) {
+                const appleIndex = ['golden-apple-300', 'golden-apple-500', 'golden-apple-1000', 'golden-apple-2000', 'golden-apple-5000'].indexOf(prize.type);
+                fillUrl = `url(#appleGradient${appleIndex})`;
+            } else if (prize.type.startsWith('wildberries')) {
+                const wbIndex = ['wildberries-500', 'wildberries-1000', 'wildberries-2000', 'wildberries-3000'].indexOf(prize.type);
+                fillUrl = `url(#wbGradient${wbIndex})`;
+            }
 
-            // Используем циклический выбор градиента
-            const gradientIndex = index % segmentColors.length;
-
+            // Создаем сегмент
             svgContent += `
                 <path 
                     d="${path}" 
-                    fill="url(#gradient${gradientIndex})" 
-                    stroke="rgba(255,255,255,0.3)" 
-                    stroke-width="2"
+                    fill="${fillUrl}" 
+                    stroke="rgba(255,255,255,0.2)" 
+                    stroke-width="1"
                     class="wheel-segment-path"
                     data-prize-id="${prize.id}"
-                    filter="drop-shadow(0 4px 8px rgba(0,0,0,0.3))"
+                    style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3))"
                 />
-                <text 
-                    x="${textX}" 
-                    y="${textY}" 
-                    text-anchor="middle" 
-                    dominant-baseline="middle" 
-                    font-size="24" 
-                    fill="white"
-                    font-weight="bold"
-                    class="segment-icon"
-                    filter="drop-shadow(0 2px 4px rgba(0,0,0,0.5))"
-                >${prize.icon}</text>
             `;
+
+            // Добавляем текст только если есть topText или centerText
+            if (prize.topText || prize.centerText) {
+                const middleAngle = (startAngle + endAngle) / 2;
+                const middleAngleDeg = middleAngle * 180 / Math.PI;
+
+                // ВЕРХНИЙ ТЕКСТ (перпендикулярно линиям разделения - радиально)
+                if (prize.topText) {
+                    const topRadius = radius * 0.8; // Ближе к краю
+                    const topX = centerX + topRadius * Math.cos(middleAngle);
+                    const topY = centerY + topRadius * Math.sin(middleAngle);
+                    
+                    // Поворот текста радиально (перпендикулярно линиям разделения)
+                    const topRotation = middleAngleDeg + 90; // +90 чтобы текст шел от центра наружу
+                    
+                    svgContent += `
+                        <text 
+                            x="${topX}" 
+                            y="${topY}" 
+                            text-anchor="middle" 
+                            dominant-baseline="middle" 
+                            font-size="${segmentAngle > 60 ? '16' : '14'}" 
+                            font-weight="bold"
+                            fill="white"
+                            class="segment-top-text"
+                            style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8)); font-family: 'Arial', sans-serif; user-select: none;"
+                            transform="rotate(${topRotation} ${topX} ${topY})"
+                        >${prize.topText}</text>
+                    `;
+                }
+
+                // ЦЕНТРАЛЬНЫЙ ТЕКСТ (параллельно линиям разделения - тангенциально)
+                if (prize.centerText) {
+                    const centerRadius = radius * 0.6; // По центру сегмента
+                    const centerX_pos = centerX + centerRadius * Math.cos(middleAngle);
+                    const centerY_pos = centerY + centerRadius * Math.sin(middleAngle);
+                    
+                    // Поворот текста тангенциально (параллельно линиям разделения)
+                    // Для читаемости корректируем угол в зависимости от позиции
+                    let centerRotation = middleAngleDeg;
+                    if (middleAngleDeg > 90 && middleAngleDeg < 270) {
+                        centerRotation += 180; // Переворачиваем текст, чтобы не был вверх ногами
+                    }
+                    
+                    svgContent += `
+                        <text 
+                            x="${centerX_pos}" 
+                            y="${centerY_pos}" 
+                            text-anchor="middle" 
+                            dominant-baseline="middle" 
+                            font-size="${segmentAngle > 60 ? '14' : segmentAngle > 30 ? '12' : '10'}" 
+                            font-weight="bold"
+                            fill="white"
+                            class="segment-center-text"
+                            style="filter: drop-shadow(0 1px 3px rgba(0,0,0,0.8)); font-family: 'Arial', sans-serif; user-select: none;"
+                            transform="rotate(${centerRotation} ${centerX_pos} ${centerY_pos})"
+                        >${prize.centerText}</text>
+                    `;
+                }
+            }
+
+            currentAngle += segmentAngle;
         });
 
         container.innerHTML = defsContent + svgContent;
-        console.log('✅ Красивая SVG рулетка сгенерирована');
+        console.log('✅ Чистое колесо без иконок с правильной ориентацией текста создано');
     }
 
     async spinWheel(type) {
