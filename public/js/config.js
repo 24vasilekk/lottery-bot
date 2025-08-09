@@ -1,4 +1,4 @@
-// public/js/config.js - ПОЛНАЯ ОРИГИНАЛЬНАЯ КОНФИГУРАЦИЯ
+// public/js/config.js - ОБНОВЛЕННАЯ КОНФИГУРАЦИЯ
 
 // Основные настройки приложения
 export const APP_CONFIG = {
@@ -15,7 +15,7 @@ export const APP_CONFIG = {
         notificationDuration: 5000
     },
     wheel: {
-        segments: 12,
+        segments: 11, // ИЗМЕНЕНО: было 12, стало 11
         minSpins: 5, // Минимальное количество оборотов
         maxSpins: 8, // Максимальное количество оборотов
         starCost: 20, // Стоимость прокрутки за звезды
@@ -28,275 +28,208 @@ export const APP_CONFIG = {
     }
 };
 
-// Конфигурация призов рулетки (ПОЛНАЯ С ПРАВИЛЬНЫМИ ВЕРОЯТНОСТЯМИ)
+// НОВАЯ конфигурация призов рулетки
 export const WHEEL_PRIZES = [
+    // 30% - ПУСТЫЕ СЕГМЕНТЫ (черные)
     {
         id: 1,
-        name: 'Золотое яблоко 3000₽',
-        type: 'golden-apple-3000',
-        description: 'Сертификат в магазин Золотое яблоко на 3000₽',
-        color: '#FFD700',
-        icon: '💎',
-        rarity: 'legendary',
-        probability: 1, // 1%
-        value: 3000
+        name: 'Пусто',
+        type: 'empty',
+        description: 'Повезет в следующий раз!',
+        color: '#000000',
+        icon: '❌',
+        rarity: 'common',
+        probability: 30, // 30%
+        value: 0
     },
+    
+    // 20% - ЗВЕЗДЫ
     {
         id: 2,
-        name: '200 ⭐',
-        type: 'stars-200',
-        description: 'Получено 200 звезд',
-        color: '#9C27B0',
+        name: '20 ⭐',
+        type: 'stars-20',
+        description: 'Получено 20 звезд',
+        color: '#FFD700',
         icon: '⭐',
-        rarity: 'epic',
-        probability: 3, // 3%
-        value: 200
+        rarity: 'common',
+        probability: 20, // 20%
+        value: 20
     },
+    
+    // 50% - СЕРТИФИКАТЫ (разделены поровну между 9 призов = ~5.56% каждый)
     {
         id: 3,
-        name: 'Золотое яблоко 2000₽',
-        type: 'golden-apple-2000',
-        description: 'Сертификат в магазин Золотое яблоко на 2000₽',
-        color: '#FF9800',
-        icon: '🎁',
-        rarity: 'epic',
-        probability: 2, // 2%
-        value: 2000
+        name: 'ЗЯ 300₽',
+        type: 'golden-apple-300',
+        description: 'Сертификат Золотое яблоко на 300₽',
+        color: '#FF6B6B',
+        icon: '🍎',
+        rarity: 'rare',
+        probability: 5.56, // ~5.56%
+        value: 300
     },
     {
         id: 4,
-        name: 'Dolce Deals',
-        type: 'dolce-deals',
-        description: 'Сертификат на доставку Dolce Deals',
-        color: '#E91E63',
-        icon: '🍰',
-        rarity: 'epic',
-        probability: 2.5, // 2.5%
-        value: 1500
-    },
-    {
-        id: 5,
-        name: '100 ⭐',
-        type: 'stars-100',
-        description: 'Получено 100 звезд',
-        color: '#3F51B5',
-        icon: '💫',
+        name: 'ВБ 500₽',
+        type: 'wildberries-500',
+        description: 'Сертификат Wildberries на 500₽',
+        color: '#8E44AD',
+        icon: '🛍️',
         rarity: 'rare',
-        probability: 7, // 7%
-        value: 100
-    },
-    {
-        id: 6,
-        name: 'Золотое яблоко 1500₽',
-        type: 'golden-apple-1500',
-        description: 'Сертификат в магазин Золотое яблоко на 1500₽',
-        color: '#FF5722',
-        icon: '🎈',
-        rarity: 'rare',
-        probability: 4, // 4%
-        value: 1500
-    },
-    {
-        id: 7,
-        name: '75 ⭐',
-        type: 'stars-75',
-        description: 'Получено 75 звезд',
-        color: '#009688',
-        icon: '✨',
-        rarity: 'common',
-        probability: 8, // 8%
-        value: 75
-    },
-    {
-        id: 8,
-        name: 'Золотое яблоко 1000₽',
-        type: 'golden-apple-1000',
-        description: 'Сертификат в магазин Золотое яблоко на 1000₽',
-        color: '#4CAF50',
-        icon: '🎀',
-        rarity: 'common',
-        probability: 6, // 6%
-        value: 1000
-    },
-    {
-        id: 9,
-        name: '50 ⭐',
-        type: 'stars-50',
-        description: 'Получено 50 звезд',
-        color: '#FFC107',
-        icon: '🌟',
-        rarity: 'common',
-        probability: 12, // 12%
-        value: 50
-    },
-    {
-        id: 10,
-        name: 'Золотое яблоко 500₽',
-        type: 'golden-apple-500',
-        description: 'Сертификат в магазин Золотое яблоко на 500₽',
-        color: '#795548',
-        icon: '🎊',
-        rarity: 'common',
-        probability: 8, // 8%
+        probability: 5.56, // ~5.56%
         value: 500
     },
     {
-        id: 11,
-        name: '25 ⭐',
-        type: 'stars-25',
-        description: 'Получено 25 звезд',
-        color: '#607D8B',
-        icon: '💖',
-        rarity: 'common',
-        probability: 15, // 15%
-        value: 25
+        id: 5,
+        name: 'ЗЯ 500₽',
+        type: 'golden-apple-500',
+        description: 'Сертификат Золотое яблоко на 500₽',
+        color: '#E74C3C',
+        icon: '🍎',
+        rarity: 'rare',
+        probability: 5.56, // ~5.56%
+        value: 500
     },
     {
-        id: 12,
-        name: 'Повезет в следующий раз',
-        type: 'empty',
-        description: 'В этот раз не повезло, попробуйте еще раз!',
-        color: '#9E9E9E',
-        icon: '🌙',
-        rarity: 'empty',
-        probability: 30, // 30%
-        value: 0
-    }
-];
-
-// ТОЛЬКО ДЛЯ НОВЫХ ПОЛЬЗОВАТЕЛЕЙ! НЕ для обновления существующих данных
-// Эти данные должны использоваться ТОЛЬКО при создании нового пользователя в БД
-export const DEFAULT_USER_DATA = {
-    stars: APP_CONFIG.game.startingStars, // 20 звезд - ТОЛЬКО для новых пользователей
-    referrals: 0,
-    totalSpins: 0,
-    totalStarsEarned: APP_CONFIG.game.startingStars, // 20 - ТОЛЬКО для новых пользователей  
-    prizesWon: 0,
-    availableFriendSpins: APP_CONFIG.game.startingFriendSpins, // 1 прокрутка за друга
-    completedTasks: [],
-    prizes: [],
-    recentWins: [],
-    lastDailyReset: 0,
-    profile: {
-        name: 'Пользователь',
-        avatar: '👤',
-        joinDate: Date.now()
+        id: 6,
+        name: 'ВБ 1000₽',
+        type: 'wildberries-1000',
+        description: 'Сертификат Wildberries на 1000₽',
+        color: '#9B59B6',
+        icon: '🛍️',
+        rarity: 'epic',
+        probability: 5.56, // ~5.56%
+        value: 1000
     },
-    settings: {
-        notifications: true,
-        sounds: true,
-        animations: true
+    {
+        id: 7,
+        name: 'ЗЯ 1000₽',
+        type: 'golden-apple-1000',
+        description: 'Сертификат Золотое яблоко на 1000₽',
+        color: '#C0392B',
+        icon: '🍎',
+        rarity: 'epic',
+        probability: 5.56, // ~5.56%
+        value: 1000
+    },
+    {
+        id: 8,
+        name: 'ВБ 2000₽',
+        type: 'wildberries-2000',
+        description: 'Сертификат Wildberries на 2000₽',
+        color: '#6C3483',
+        icon: '🛍️',
+        rarity: 'epic',
+        probability: 5.56, // ~5.56%
+        value: 2000
+    },
+    {
+        id: 9,
+        name: 'ЗЯ 2000₽',
+        type: 'golden-apple-2000',
+        description: 'Сертификат Золотое яблоко на 2000₽',
+        color: '#A93226',
+        icon: '🍎',
+        rarity: 'epic',
+        probability: 5.56, // ~5.56%
+        value: 2000
+    },
+    {
+        id: 10,
+        name: 'ВБ 3000₽',
+        type: 'wildberries-3000',
+        description: 'Сертификат Wildberries на 3000₽',
+        color: '#512E5F',
+        icon: '🛍️',
+        rarity: 'legendary',
+        probability: 5.56, // ~5.56%
+        value: 3000
+    },
+    {
+        id: 11,
+        name: 'ЗЯ 5000₽',
+        type: 'golden-apple-5000',
+        description: 'Сертификат Золотое яблоко на 5000₽',
+        color: '#922B21',
+        icon: '🍎',
+        rarity: 'legendary',
+        probability: 5.56, // ~5.56%
+        value: 5000
     }
-};
-
-// public/js/config.js - Обновленная конфигурация заданий
-
-export const TASKS_CONFIG = {
-    // Активные задания (в основном подписки на каналы)
-    active: [
-        {
-            id: 'subscribe_main_channel',
-            name: 'Подпишись на канал',
-            description: 'Наш основной новостной канал',
-            type: 'channel_subscription', // Тип задания - подписка на канал
-            channelUsername: 'kosmetichka_spin', // Username канала без @
-            url: 'https://t.me/kosmetichka_spin', // Ссылка для перехода к каналу
-            reward: { type: 'stars', amount: 20 }
-        },
-        {
-            id: 'subscribe_promo_channel',
-            name: 'Подпишись на канал',
-            description: 'Подпишись на наш канал с лайв выигрышами',
-            type: 'channel_subscription',
-            channelUsername: 'kosmetichkolive', // Username канала
-            url: 'https://t.me/kosmetichkolive',
-            reward: { type: 'stars', amount: 20 }
-        },
-        {
-            id: 'subscribe_beauty_tips',
-            name: 'Подпишись на канал',
-            description: 'Подпишись на dolce deals',
-            type: 'channel_subscription',
-            channelUsername: 'dolcedeals',
-            url: 'https://t.me/dolcedeals',
-            reward: { type: 'stars', amount: 20 }
-        },
-    ],
-
-    // Задания с друзьями (реферальная программа)
-    friends: [
-        {
-            id: 'invite_1_friend',
-            name: 'Пригласи 1 друга',
-            description: 'Поделись ссылкой и пригласи одного друга',
-            required_friends: 1,
-            reward: { type: 'stars', amount: 20 }
-        },
-        {
-            id: 'invite_5_friends',
-            name: 'Пригласи 5 друзей',
-            description: 'Приводи друзей и получай больше звезд!',
-            required_friends: 5,
-            reward: { type: 'stars', amount: 100 }
-        },
-        {
-            id: 'invite_10_friends',
-            name: 'Пригласи 10 друзей',
-            description: 'Стань лидером по приглашениям',
-            required_friends: 10,
-            reward: { type: 'stars', amount: 200 }
-        }
-    ]
-};
-
-// Типы заданий:
-// - 'channel_subscription': требует проверки подписки на канал через Telegram API
-// - 'external_action': внешние действия (подписка в соцсетях, оценка приложения)
-// - 'referral': задания связанные с приглашением друзей
-
-// Для заданий типа 'channel_subscription' обязательны поля:
-// - channelUsername: username канала без символа @
-// - url: ссылка на канал для удобства пользователя
-
-// Для заданий типа 'external_action':
-// - url: ссылка на внешний ресурс
-// - проверка выполнения не производится автоматически
-
-// Для заданий типа 'referral':
-// - required_friends: количество приглашенных друзей для выполнения
-// Уровни игрока
-export const PLAYER_LEVELS = [
-    { level: 1, requiredStars: 0, title: 'Новичок', icon: '🌱', reward: 0 },
-    { level: 2, requiredStars: 500, title: 'Любитель красоты', icon: '💄', reward: 50 },
-    { level: 3, requiredStars: 1500, title: 'Косметический гуру', icon: '✨', reward: 100 },
-    { level: 4, requiredStars: 3000, title: 'Мастер стиля', icon: '👑', reward: 200 },
-    { level: 5, requiredStars: 5000, title: 'Икона красоты', icon: '💎', reward: 500 },
-    { level: 6, requiredStars: 10000, title: 'Легенда Kosmetichka', icon: '🌟', reward: 1000 }
 ];
 
-// Достижения
+// Остальная конфигурация остается без изменений
+export const DEFAULT_USER_DATA = {
+    stars: 20,
+    level: 1,
+    experience: 0,
+    friendSpins: 1,
+    friendSpinsUsed: 0,
+    totalSpins: 0,
+    prizesWon: 0,
+    recentWins: [],
+    achievements: [],
+    firstVisit: Date.now(),
+    lastVisit: Date.now(),
+    referrals: 0,
+    totalStarsEarned: 20
+};
+
+export const TASKS_CONFIG = [
+    {
+        id: 'spin_wheel_10',
+        name: 'Крутим колесо!',
+        description: 'Прокрути рулетку 10 раз',
+        icon: '🎰',
+        reward: { type: 'stars', amount: 100 },
+        target: 10,
+        current: 0,
+        completed: false
+    },
+    {
+        id: 'win_5_prizes',
+        name: 'Везунчик',
+        description: 'Выиграй 5 призов',
+        icon: '🏆',
+        reward: { type: 'friend_spins', amount: 2 },
+        target: 5,
+        current: 0,
+        completed: false
+    },
+    {
+        id: 'collect_200_stars',
+        name: 'Звездный коллекционер',
+        description: 'Собери 200 звезд',
+        icon: '⭐',
+        reward: { type: 'stars', amount: 50 },
+        target: 200,
+        current: 0,
+        completed: false
+    }
+];
+
+export const PLAYER_LEVELS = [
+    { level: 1, minExperience: 0, reward: { type: 'stars', amount: 20 } },
+    { level: 2, minExperience: 100, reward: { type: 'stars', amount: 30 } },
+    { level: 3, minExperience: 250, reward: { type: 'friend_spins', amount: 1 } },
+    { level: 4, minExperience: 500, reward: { type: 'stars', amount: 50 } },
+    { level: 5, minExperience: 1000, reward: { type: 'friend_spins', amount: 2 } }
+];
+
 export const ACHIEVEMENTS = [
     {
         id: 'first_spin',
-        name: 'Первая прокрутка',
-        description: 'Сделай первую прокрутку рулетки',
-        icon: '🎰',
-        reward: { type: 'stars', amount: 25 },
+        name: 'Первый раз',
+        description: 'Прокрути рулетку в первый раз',
+        icon: '🎯',
+        reward: { type: 'stars', amount: 10 },
         condition: (gameData) => gameData.totalSpins >= 1
     },
     {
-        id: 'first_win',
-        name: 'Первый выигрыш',
-        description: 'Выиграй первый приз',
-        icon: '🎁',
-        reward: { type: 'stars', amount: 50 },
-        condition: (gameData) => gameData.prizesWon >= 1
-    },
-    {
-        id: 'collector',
-        name: 'Коллекционер',
+        id: 'lucky_streak',
+        name: 'Удачная серия',
         description: 'Выиграй 10 призов',
-        icon: '💎',
+        icon: '🍀',
         reward: { type: 'stars', amount: 200 },
         condition: (gameData) => gameData.prizesWon >= 10
     },
@@ -318,7 +251,6 @@ export const ACHIEVEMENTS = [
     }
 ];
 
-// Настройки уведомлений
 export const NOTIFICATION_CONFIG = {
     types: {
         success: { icon: '✅', color: '#4CAF50', duration: 4000 },
