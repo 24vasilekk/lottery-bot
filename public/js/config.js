@@ -1,4 +1,4 @@
-// public/js/config.js - ОБНОВЛЕННАЯ КОНФИГУРАЦИЯ
+// public/js/config.js - КОНФИГУРАЦИЯ БЕЗ ИКОНОК
 
 // Основные настройки приложения
 export const APP_CONFIG = {
@@ -15,7 +15,7 @@ export const APP_CONFIG = {
         notificationDuration: 5000
     },
     wheel: {
-        segments: 11, // ИЗМЕНЕНО: было 12, стало 11
+        segments: 11, // 11 сегментов (1 пустой + 1 звезды + 9 сертификатов)
         minSpins: 5, // Минимальное количество оборотов
         maxSpins: 8, // Максимальное количество оборотов
         starCost: 20, // Стоимость прокрутки за звезды
@@ -28,56 +28,68 @@ export const APP_CONFIG = {
     }
 };
 
-// НОВАЯ конфигурация призов рулетки
+// ЧИСТАЯ конфигурация призов рулетки - БЕЗ ИКОНОК
 export const WHEEL_PRIZES = [
-    // 30% - ПУСТЫЕ СЕГМЕНТЫ (черные)
+    // 1. ПУСТОЙ сегмент (30% площади) - никакого текста
     {
         id: 1,
-        name: 'Пусто',
+        name: '',
         type: 'empty',
-        description: 'Повезет в следующий раз!',
+        description: 'Попробуйте еще раз!',
         color: '#000000',
-        icon: '❌',
+        icon: '', // Пустая иконка
         rarity: 'common',
         probability: 30, // 30%
-        value: 0
+        value: 0,
+        angle: 108, // 30% от 360° = 108°
+        topText: '', // Ничего вверху
+        centerText: '' // Ничего по центру
     },
     
-    // 20% - ЗВЕЗДЫ
+    // 2. ЗВЕЗДЫ сегмент (20% площади)
     {
         id: 2,
-        name: '20 ⭐',
+        name: '20 звезд',
         type: 'stars-20',
         description: 'Получено 20 звезд',
         color: '#FFD700',
-        icon: '⭐',
+        icon: '', // Без иконки
         rarity: 'common',
         probability: 20, // 20%
-        value: 20
+        value: 20,
+        angle: 72, // 20% от 360° = 72°
+        topText: '⭐', // Звезда вверху перпендикулярно
+        centerText: '20' // 20 по центру параллельно
     },
     
-    // 50% - СЕРТИФИКАТЫ (разделены поровну между 9 призов = ~5.56% каждый)
+    // 3-11. СЕРТИФИКАТЫ (9 сегментов по ~5.56% каждый = 50% общая площади)
     {
         id: 3,
         name: 'ЗЯ 300₽',
         type: 'golden-apple-300',
         description: 'Сертификат Золотое яблоко на 300₽',
         color: '#FF6B6B',
-        icon: '🍎',
+        icon: '',
         rarity: 'rare',
-        probability: 5.56, // ~5.56%
-        value: 300
+        probability: 5.56,
+        value: 300,
+        angle: 20,
+        topText: 'ЗЯ', // ЗЯ вверху перпендикулярно
+        centerText: '300₽' // Сумма по центру параллельно
     },
     {
         id: 4,
-        name: 'ВБ 500₽',
+        name: 'WB 500₽',
         type: 'wildberries-500',
         description: 'Сертификат Wildberries на 500₽',
         color: '#8E44AD',
-        icon: '🛍️',
+        icon: '',
         rarity: 'rare',
-        probability: 5.56, // ~5.56%
-        value: 500
+        probability: 5.56,
+        value: 500,
+        angle: 20,
+        topText: 'WB', // WB вверху перпендикулярно
+        centerText: '500₽' // Сумма по центру параллельно
     },
     {
         id: 5,
@@ -85,21 +97,27 @@ export const WHEEL_PRIZES = [
         type: 'golden-apple-500',
         description: 'Сертификат Золотое яблоко на 500₽',
         color: '#E74C3C',
-        icon: '🍎',
+        icon: '',
         rarity: 'rare',
-        probability: 5.56, // ~5.56%
-        value: 500
+        probability: 5.56,
+        value: 500,
+        angle: 20,
+        topText: 'ЗЯ',
+        centerText: '500₽'
     },
     {
         id: 6,
-        name: 'ВБ 1000₽',
+        name: 'WB 1000₽',
         type: 'wildberries-1000',
         description: 'Сертификат Wildberries на 1000₽',
         color: '#9B59B6',
-        icon: '🛍️',
+        icon: '',
         rarity: 'epic',
-        probability: 5.56, // ~5.56%
-        value: 1000
+        probability: 5.56,
+        value: 1000,
+        angle: 20,
+        topText: 'WB',
+        centerText: '1000₽'
     },
     {
         id: 7,
@@ -107,21 +125,27 @@ export const WHEEL_PRIZES = [
         type: 'golden-apple-1000',
         description: 'Сертификат Золотое яблоко на 1000₽',
         color: '#C0392B',
-        icon: '🍎',
+        icon: '',
         rarity: 'epic',
-        probability: 5.56, // ~5.56%
-        value: 1000
+        probability: 5.56,
+        value: 1000,
+        angle: 20,
+        topText: 'ЗЯ',
+        centerText: '1000₽'
     },
     {
         id: 8,
-        name: 'ВБ 2000₽',
+        name: 'WB 2000₽',
         type: 'wildberries-2000',
         description: 'Сертификат Wildberries на 2000₽',
         color: '#6C3483',
-        icon: '🛍️',
+        icon: '',
         rarity: 'epic',
-        probability: 5.56, // ~5.56%
-        value: 2000
+        probability: 5.56,
+        value: 2000,
+        angle: 20,
+        topText: 'WB',
+        centerText: '2000₽'
     },
     {
         id: 9,
@@ -129,21 +153,27 @@ export const WHEEL_PRIZES = [
         type: 'golden-apple-2000',
         description: 'Сертификат Золотое яблоко на 2000₽',
         color: '#A93226',
-        icon: '🍎',
+        icon: '',
         rarity: 'epic',
-        probability: 5.56, // ~5.56%
-        value: 2000
+        probability: 5.56,
+        value: 2000,
+        angle: 20,
+        topText: 'ЗЯ',
+        centerText: '2000₽'
     },
     {
         id: 10,
-        name: 'ВБ 3000₽',
+        name: 'WB 3000₽',
         type: 'wildberries-3000',
         description: 'Сертификат Wildberries на 3000₽',
         color: '#512E5F',
-        icon: '🛍️',
+        icon: '',
         rarity: 'legendary',
-        probability: 5.56, // ~5.56%
-        value: 3000
+        probability: 5.56,
+        value: 3000,
+        angle: 20,
+        topText: 'WB',
+        centerText: '3000₽'
     },
     {
         id: 11,
@@ -151,10 +181,13 @@ export const WHEEL_PRIZES = [
         type: 'golden-apple-5000',
         description: 'Сертификат Золотое яблоко на 5000₽',
         color: '#922B21',
-        icon: '🍎',
+        icon: '',
         rarity: 'legendary',
-        probability: 5.56, // ~5.56%
-        value: 5000
+        probability: 5.56,
+        value: 5000,
+        angle: 20,
+        topText: 'ЗЯ',
+        centerText: '5000₽'
     }
 ];
 
