@@ -938,6 +938,41 @@ app.get('/api/wheel-settings/normal', async (req, res) => {
 
 // Добавьте этот endpoint в telegram-bot-server.js после других API endpoints
 
+app.post('/api/sync_user', async (req, res) => {
+    try {
+        const { action, data, user } = req.body;
+        
+        console.log('📡 /api/sync_user запрос:', { action, userId: user?.id });
+        
+        if (!user || !user.id) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'User ID missing' 
+            });
+        }
+        
+        const userId = parseInt(user.id);
+        const userData = data?.userData || {};
+        
+        // Синхронизируем данные
+        const syncedData = await syncUserData(userId, userData);
+        
+        console.log(`✅ Отправляем клиенту данные с балансом: ${syncedData.stars}`);
+        
+        res.json({ 
+            success: true,
+            userData: syncedData
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка /api/sync_user:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Sync failed' 
+        });
+    }
+});
+
 // API для синхронизации баланса звезд
 app.post('/api/sync_stars', async (req, res) => {
     try {
@@ -3979,9 +4014,10 @@ async function handleChannelSubscription(userId, data) {
 // Синхронизация данных пользователя
 async function syncUserData(userId, webAppData) {
     try {
-        console.log(`🔍 ДИАГНОСТИКА: syncUserData вызван для userId: ${userId}, тип: ${typeof userId}`);
+        console.log(`🔍 ДИАГНОСТИКА: syncUserData вызван для userId: ${userId}`);
+        
         let user = await db.getUser(userId);
-        console.log(`🔍 ДИАГНОСТИКА: результат db.getUser(${userId}):`, user ? {
+        console.log(`🔍 ДИАГНОСТИКА: Пользователь из БД:`, user ? {
             id: user.id,
             telegram_id: user.telegram_id, 
             stars: user.stars,
@@ -3990,11 +4026,9 @@ async function syncUserData(userId, webAppData) {
         
         // Если пользователя нет в БД - создаем его
         if (!user) {
-            console.log(`👤 ВНИМАНИЕ: Пользователь ${userId} НЕ НАЙДЕН в БД - создаем нового`);
-            console.log(`🔍 ДИАГНОСТИКА: webAppData:`, JSON.stringify(webAppData, null, 2));
+            console.log(`👤 Создаем нового пользователя ${userId}`);
             
-            // Берем данные из Telegram WebApp если есть
-            const telegramUser = webAppData.userData?.user || webAppData.user || {};
+            const telegramUser = webAppData?.userData?.user || webAppData?.user || {};
             const userData = {
                 telegram_id: userId,
                 username: telegramUser.username || '',
@@ -4002,95 +4036,76 @@ async function syncUserData(userId, webAppData) {
                 last_name: telegramUser.last_name || ''
             };
             
-            console.log(`🔍 ДИАГНОСТИКА: создаем пользователя с данными:`, userData);
             await db.createUser(userData);
             user = await db.getUser(userId);
             
             if (!user) {
-                console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: Не удалось создать пользователя');
+                console.error('❌ Не удалось создать пользователя');
                 return webAppData;
-            } else {
-                console.log(`✅ ПОЛЬЗОВАТЕЛЬ СОЗДАН: ID ${user.id}, telegram_id: ${user.telegram_id}, stars: ${user.stars}`);
             }
-        } else {
-            console.log(`✅ ПОЛЬЗОВАТЕЛЬ НАЙДЕН: ID ${user.id}, telegram_id: ${user.telegram_id}, текущий баланс: ${user.stars} звезд`);
+            
+            console.log(`✅ Новый пользователь создан с балансом: ${user.stars} звезд`);
         }
         
-        console.log(`🔄 Синхронизация данных пользователя ${userId}`);
+        // ВАЖНО: НЕ ПЕРЕЗАПИСЫВАЕМ баланс из webAppData!
+        // Баланс ВСЕГДА берем из БД, кроме случаев когда были траты
         
-        // ИСПРАВЛЕНО: Правильная логика синхронизации баланса
-        let finalStars = user.stars; // По умолчанию используем баланс из БД
+        const webAppStars = webAppData?.stars;
+        console.log(`💰 Сравнение балансов - БД: ${user.stars}, WebApp: ${webAppStars}`);
         
-        // Получаем баланс из WebApp
-        const webAppStars = webAppData?.stars ?? webAppData?.stats?.stars;
-        
-        console.log(`💰 Баланс: БД=${user.stars}, WebApp=${webAppStars}`);
-        
-        // ВАЖНО: Синхронизируем только если:
-        // 1. WebApp прислал валидное значение (не undefined и не null)
-        // 2. WebApp баланс МЕНЬШЕ чем в БД (были траты)
-        // 3. WebApp баланс НЕ равен 0 (чтобы не обнулять при первом входе)
-        if (webAppStars !== undefined && 
-            webAppStars !== null && 
-            webAppStars < user.stars && 
-            webAppStars >= 0) {
-            
-            console.log(`⚠️ Обнаружены траты: БД=${user.stars}, WebApp=${webAppStars}`);
+        // Обновляем БД только если в WebApp явно меньше звезд (были траты)
+        if (typeof webAppStars === 'number' && webAppStars < user.stars && webAppStars >= 0) {
+            console.log(`📉 Обнаружены траты, обновляем БД: ${user.stars} -> ${webAppStars}`);
             await db.updateUserStars(userId, webAppStars);
-            finalStars = webAppStars;
-            
-        } else if (webAppStars > user.stars) {
-            // Если в WebApp больше звезд чем в БД - это может быть после выигрыша
-            // но лучше не доверять клиенту, используем БД
-            console.log(`⚠️ WebApp показывает больше звезд чем БД, используем БД`);
-            finalStars = user.stars;
-        } else {
-            // В остальных случаях используем баланс из БД
-            console.log(`✅ Используем баланс из БД: ${user.stars}`);
-            finalStars = user.stars;
+            user.stars = webAppStars;
         }
         
-        // Обновляем активность пользователя
+        // Обновляем активность
         await db.updateUserActivity(userId);
         
-        // Получаем актуальные данные из базы
+        // Получаем дополнительные данные
         const prizes = await db.getUserPrizes(userId);
         const completedTasks = await db.getUserCompletedTasks(userId);
         const subscriptions = await db.getUserSubscriptions(userId);
         const actualReferralsCount = await db.getUserReferralsCount(userId);
         
-        // Синхронизированные данные
+        // ВАЖНО: Возвращаем данные с балансом ИЗ БАЗЫ ДАННЫХ
         const syncedData = {
-            ...webAppData,
-            // Используем финальный баланс
-            stars: finalStars,
+            stars: user.stars, // БАЛАНС ИЗ БД!
             referrals: actualReferralsCount,
-            total_stars_earned: user.total_stars_earned || 20, // Минимум 20 (стартовый бонус)
+            total_stars_earned: user.total_stars_earned || 20,
+            totalSpins: user.total_spins || 0,
+            prizesWon: user.prizes_won || 0,
+            friendSpinsUsed: user.friend_spins_used || 0,
             profile: {
-                ...webAppData.profile,
                 telegramId: userId,
                 verified: true,
                 name: user.first_name || 'Пользователь'
             },
-            stats: {
-                stars: finalStars,
-                totalSpins: user.total_spins || 0,
-                prizesWon: user.prizes_won || 0,
-                referrals: actualReferralsCount,
-                totalStarsEarned: user.total_stars_earned || 20
-            },
             prizes: prizes || [],
+            recentWins: [],
             tasks: {
                 completed: completedTasks || [],
                 subscriptions: subscriptions || {}
             }
         };
         
-        console.log(`✅ Синхронизация завершена. Финальный баланс: ${finalStars} звезд`);
+        console.log(`✅ Возвращаем синхронизированные данные с балансом: ${syncedData.stars} звезд`);
         return syncedData;
         
     } catch (error) {
         console.error('❌ Ошибка синхронизации:', error);
+        // При ошибке возвращаем данные из БД если есть
+        try {
+            const user = await db.getUser(userId);
+            if (user) {
+                return {
+                    stars: user.stars,
+                    referrals: user.referrals || 0,
+                    total_stars_earned: user.total_stars_earned || 20
+                };
+            }
+        } catch (e) {}
         return webAppData;
     }
 }
