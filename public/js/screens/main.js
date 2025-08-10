@@ -530,9 +530,19 @@ export class MainScreen {
                     console.log('📋 Полученные настройки из API:', settings);
                     
                     if (settings.prizes && settings.prizes.length > 0) {
-                        realChances = settings.prizes;
-                        apiWorking = true;
-                        console.log('✅ API работает! Получены шансы:', realChances);
+                        // ИСПРАВЛЕНО: Проверяем корректность данных
+                        const validPrizes = settings.prizes.filter(p => 
+                            p.probability && p.probability > 0 && 
+                            p.type && ['empty', 'stars', 'certificate'].includes(p.type)
+                        );
+                        
+                        if (validPrizes.length > 0) {
+                            realChances = validPrizes;
+                            apiWorking = true;
+                            console.log('✅ API работает! Получены корректные шансы:', realChances);
+                        } else {
+                            console.warn('⚠️ API вернул некорректные данные:', settings.prizes);
+                        }
                     } else {
                         console.warn('⚠️ API ответил, но без призов');
                     }
@@ -541,6 +551,7 @@ export class MainScreen {
                 }
             } catch (apiError) {
                 console.error('❌ Ошибка API:', apiError);
+                console.log('🔄 Переходим на дефолтные шансы');
             }
             
             // Если API не работает, используем дефолтные шансы
@@ -633,81 +644,41 @@ export class MainScreen {
     // ============================================================================
     // ИСПРАВЛЕННАЯ ФУНКЦИЯ ПОИСКА ВИЗУАЛЬНОГО ПРИЗА
     // ============================================================================
-    // 3. ПОЛНОСТЬЮ ПЕРЕПИСАННАЯ функция поиска визуального приза
     findVisualPrizeForRealChance(realChance) {
         console.log(`🔍 Ищем визуальный сегмент для реального приза:`, realChance);
         console.log(`📋 Всего сегментов в WHEEL_PRIZES: ${WHEEL_PRIZES.length}`);
         
-        // Выводим все доступные сегменты для отладки
-        console.log('📋 Доступные сегменты:');
-        WHEEL_PRIZES.forEach((prize, index) => {
-            console.log(`  ${index + 1}. ID: ${prize.id}, Тип: ${prize.type}, Имя: "${prize.name}"`);
-        });
+        // ИСПРАВЛЕННАЯ логика поиска с гибким маппингом
+        let targetPrize = null;
         
         if (realChance.type === 'empty') {
             // Ищем пустой сегмент
-            const emptyPrize = WHEEL_PRIZES.find(p => p.type === 'empty');
-            console.log('🎯 Поиск пустого сегмента:', emptyPrize);
-            return emptyPrize;
-        } 
-        else if (realChance.type === 'stars') {
-            // ИСПРАВЛЕНИЕ: Ищем любой сегмент со звездами (разные варианты названий)
-            const starsPrize = WHEEL_PRIZES.find(p => 
-                p.type === 'stars-20' || 
-                p.type === 'stars' || 
-                p.type.includes('star') ||
-                p.name.includes('звезд') ||
-                p.name.includes('⭐')
-            );
-            console.log('⭐ Поиск сегмента звезд:', starsPrize);
-            return starsPrize;
-        } 
-        else if (realChance.type === 'certificate') {
-            // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Расширенный поиск сертификатов
-            console.log('🔍 Ищем сертификаты среди всех сегментов...');
+            targetPrize = WHEEL_PRIZES.find(p => p.type === 'empty');
+            console.log('🔍 Поиск пустого сегмента:', targetPrize);
             
-            const certificateSegments = WHEEL_PRIZES.filter(p => {
-                const matchConditions = [
-                    p.type.includes('apple'),
-                    p.type.includes('wildberries'), 
-                    p.type.includes('certificate'),
-                    p.name.includes('₽'),
-                    p.name.includes('сертификат'),
-                    p.name.includes('Сертификат'),
-                    p.name.includes('Apple'),
-                    p.name.includes('WB'),
-                    p.name.includes('Wildberries'),
-                    p.name.includes('Золотое'),
-                    p.name.includes('яблоко')
-                ];
-                
-                const matches = matchConditions.some(condition => condition);
-                if (matches) {
-                    console.log(`  ✅ Найден сертификат: ID=${p.id}, тип="${p.type}", имя="${p.name}"`);
-                }
-                return matches;
-            });
+        } else if (realChance.type === 'stars') {
+            // Ищем сегмент со звездами
+            targetPrize = WHEEL_PRIZES.find(p => p.type === 'stars');
+            console.log('🔍 Поиск сегмента со звездами:', targetPrize);
             
-            console.log(`🏆 Всего найдено сертификатов: ${certificateSegments.length}`);
-            
-            if (certificateSegments.length > 0) {
-                const randomIndex = Math.floor(Math.random() * certificateSegments.length);
-                const selectedCert = certificateSegments[randomIndex];
-                console.log(`🎫 Выбран случайный сертификат [${randomIndex}]:`, selectedCert);
-                return selectedCert;
-            } else {
-                console.warn('⚠️ НЕ НАЙДЕНО ни одного сертификата! Проверяем все сегменты:');
-                WHEEL_PRIZES.forEach(p => {
-                    console.log(`  - ID: ${p.id}, Тип: "${p.type}", Имя: "${p.name}"`);
-                });
+        } else if (realChance.type === 'certificate') {
+            // Ищем любой сегмент с сертификатом (случайный выбор)
+            const certificatePrizes = WHEEL_PRIZES.filter(p => p.type === 'certificate');
+            if (certificatePrizes.length > 0) {
+                const randomIndex = Math.floor(Math.random() * certificatePrizes.length);
+                targetPrize = certificatePrizes[randomIndex];
+                console.log(`🔍 Выбран случайный сертификат ${randomIndex + 1}/${certificatePrizes.length}:`, targetPrize);
             }
         }
         
-        // Fallback - возвращаем первый НЕ пустой сегмент
-        console.warn(`⚠️ Не найден визуальный сегмент для типа: ${realChance.type}`);
-        const nonEmptyPrize = WHEEL_PRIZES.find(p => p.type !== 'empty') || WHEEL_PRIZES[0];
-        console.log('🔄 Используем fallback сегмент:', nonEmptyPrize);
-        return nonEmptyPrize;
+        // Если ничего не найдено - fallback
+        if (!targetPrize) {
+            console.warn(`⚠️ Не найден визуальный сегмент для типа: ${realChance.type}`);
+            targetPrize = WHEEL_PRIZES.find(p => p.type !== 'empty') || WHEEL_PRIZES[0];
+            console.log('🔄 Используем fallback сегмент:', targetPrize);
+        }
+        
+        return targetPrize;
     }
 
     calculateTargetAngleForPrize(targetPrize) {
@@ -751,7 +722,10 @@ export class MainScreen {
         const spins = Math.floor(Math.random() * 3) + 5; // 5-7 полных оборотов
         const finalRotation = spins * 360 + targetAngle;
         
-        this.wheelRotation = (this.wheelRotation || 0) + finalRotation;
+        // ИСПРАВЛЕНО: Используем модуль 360° чтобы избежать накопления ошибок
+    const currentRotation = this.wheelRotation || 0;
+    this.wheelRotation = (currentRotation + finalRotation) % 360;
+    console.log(`🌀 Старый угол: ${currentRotation}°, поворот: ${finalRotation}°, новый: ${this.wheelRotation}°`);
         
         const wheelSvg = document.getElementById('wheel-svg');
         if (!wheelSvg) {
@@ -874,34 +848,41 @@ export class MainScreen {
     // ============================================================================
     // ИСПРАВЛЕННЫЕ ДЕФОЛТНЫЕ ШАНСЫ
     // ============================================================================
-    // 5. ИСПРАВЛЕННЫЕ дефолтные шансы с ГАРАНТИРОВАННО правильными значениями
     getRealDefaultChances() {
-        return [
+        // ИСПРАВЛЕННЫЕ дефолтные шансы - ТОЧНО 100%
+        const defaultChances = [
             { 
                 id: 'empty', 
                 type: 'empty', 
-                probability: 94, // 94% - пустота
-                name: 'Пусто (черный раздел)', 
-                value: 0,
-                description: 'Попробуйте еще раз!'
+                probability: 94.0, 
+                name: 'Пусто', 
+                value: 0 
             },
             { 
                 id: 'stars20', 
                 type: 'stars', 
-                probability: 5, // 5% - звезды  
+                probability: 5.0, 
                 name: '20 звезд', 
-                value: 20,
-                description: 'Получено 20 звезд'
+                value: 20 
             },
             { 
                 id: 'cert300', 
                 type: 'certificate', 
-                probability: 1, // 1% - сертификат
-                name: 'Сертификат 300₽ ЗЯ', 
-                value: 300,
-                description: 'Сертификат на 300 рублей в Золотое Яблоко'
+                probability: 1.0, 
+                name: 'Сертификат 300₽', 
+                value: 300 
             }
         ];
+        
+        // Проверяем что сумма точно 100%
+        const total = defaultChances.reduce((sum, chance) => sum + chance.probability, 0);
+        console.log(`📊 Дефолтные шансы проверены: ${total}%`);
+        
+        if (Math.abs(total - 100) > 0.001) {
+            console.error('❌ Некорректные дефолтные шансы!', defaultChances);
+        }
+        
+        return defaultChances;
     }
 
     // ============================================================================
@@ -1346,6 +1327,45 @@ export class MainScreen {
             window.open('https://t.me/kosmetichkasupport', '_blank');
         } else {
             this.app.showStatusMessage('Поддержка: @kosmetichkasupport', 'info');
+        }
+    }
+
+    // НОВАЯ функция для отладки синхронизации
+    debugWheelSynchronization() {
+        console.log('\n🧪 ========== ОТЛАДКА СИНХРОНИЗАЦИИ ==========');
+        
+        // Проверяем структуру WHEEL_PRIZES
+        console.log(`📋 WHEEL_PRIZES (${WHEEL_PRIZES.length} сегментов):`);
+        const typeCount = {};
+        let totalAngle = 0;
+        
+        WHEEL_PRIZES.forEach((prize, index) => {
+            console.log(`  ${index + 1}. ID: ${prize.id}, Тип: "${prize.type}", Угол: ${prize.angle}°, Имя: "${prize.name}"`);
+            typeCount[prize.type] = (typeCount[prize.type] || 0) + 1;
+            totalAngle += prize.angle || 0;
+        });
+        
+        console.log('📊 Подсчет типов:', typeCount);
+        console.log(`📐 Общий угол: ${totalAngle}° (норма: 360°)`);
+        
+        // Тестируем API
+        this.testAPIConnection();
+        
+        console.log('🧪 ========== ОТЛАДКА ЗАВЕРШЕНА ==========\n');
+    }
+
+    async testAPIConnection() {
+        try {
+            console.log('🔌 Тестирование API...');
+            const response = await fetch('/api/wheel-settings/normal');
+            console.log(`📡 API статус: ${response.status}`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('📋 API данные:', data);
+            }
+        } catch (error) {
+            console.error('❌ API недоступно:', error);
         }
     }
 }
