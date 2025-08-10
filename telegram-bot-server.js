@@ -950,21 +950,25 @@ app.post('/api/sync_stars', async (req, res) => {
             });
         }
         
-        console.log(`🔄 Синхронизация звезд для пользователя ${user.id}`);
+        const userId = user.id;
+        console.log(`🔄 Синхронизация звезд для пользователя ${userId}`);
         console.log(`⭐ Новый баланс: ${data.stars}`);
         
         // Обновляем баланс в базе данных
-        const updateResult = await db.updateUserStars(user.id, data.stars);
+        const result = await db.pool.query(
+            'UPDATE users SET stars = $1, last_activity = CURRENT_TIMESTAMP WHERE telegram_id = $2 RETURNING *',
+            [data.stars, userId]
+        );
         
-        if (updateResult) {
-            console.log(`✅ Баланс обновлен: ${data.stars} звезд`);
+        if (result.rows.length > 0) {
+            console.log(`✅ Баланс обновлен в БД: ${data.stars} звезд для пользователя ${userId}`);
             res.json({ 
                 success: true,
                 stars: data.stars,
                 message: 'Баланс синхронизирован'
             });
         } else {
-            throw new Error('Не удалось обновить баланс');
+            throw new Error('Пользователь не найден в БД');
         }
         
     } catch (error) {
@@ -3971,10 +3975,10 @@ async function handleChannelSubscription(userId, data) {
 }
 
 // Синхронизация данных пользователя
+// Синхронизация данных пользователя
 async function syncUserData(userId, webAppData) {
     try {
         console.log(`🔍 ДИАГНОСТИКА: syncUserData вызван для userId: ${userId}, тип: ${typeof userId}`);
-        
         let user = await db.getUser(userId);
         console.log(`🔍 ДИАГНОСТИКА: результат db.getUser(${userId}):`, user ? {
             id: user.id,
@@ -4013,6 +4017,19 @@ async function syncUserData(userId, webAppData) {
         
         console.log(`🔄 Синхронизация данных пользователя ${userId}`);
         
+        // ВАЖНО: Если баланс в webApp меньше чем в БД - значит были траты, сохраняем их
+        const webAppStars = webAppData?.stars ?? webAppData?.stats?.stars;
+        const syncedStars = (webAppStars !== undefined && webAppStars < user.stars) 
+            ? webAppStars 
+            : user.stars;
+        
+        // Если баланс изменился - обновляем в БД
+        if (syncedStars !== user.stars) {
+            console.log(`⚠️ Обнаружено изменение баланса: БД=${user.stars}, WebApp=${webAppStars}, синхронизируем на ${syncedStars}`);
+            await db.updateUserStars(userId, syncedStars);
+            user.stars = syncedStars;
+        }
+        
         // Обновляем активность пользователя
         await db.updateUserActivity(userId);
         
@@ -4022,13 +4039,13 @@ async function syncUserData(userId, webAppData) {
         const subscriptions = await db.getUserSubscriptions(userId);
         const actualReferralsCount = await db.getUserReferralsCount(userId);
         
-        // ИСПРАВЛЕНО: Точная синхронизация баланса БЕЗ принудительных фолбэков
+        // Синхронизированные данные
         const syncedData = {
             ...webAppData,
-            // Данные ТОЧНО из базы (никаких фолбэков!!!)
-            stars: user.stars, // Берем именно то что в БД, даже если 0
+            // ИСПРАВЛЕНО: Используем синхронизированный баланс
+            stars: syncedStars,
             referrals: actualReferralsCount,
-            total_stars_earned: user.total_stars_earned, // Точное значение из БД
+            total_stars_earned: user.total_stars_earned,
             profile: {
                 ...webAppData.profile,
                 telegramId: userId,
@@ -4036,11 +4053,11 @@ async function syncUserData(userId, webAppData) {
                 name: user.first_name || 'Пользователь'
             },
             stats: {
-                stars: user.stars, // ❌ ИСПРАВЛЕНО: убираем хардкод || 20
+                stars: syncedStars, // Используем синхронизированный баланс
                 totalSpins: user.total_spins || 0,
                 prizesWon: user.prizes_won || 0,
                 referrals: actualReferralsCount,
-                totalStarsEarned: user.total_stars_earned // ❌ ИСПРАВЛЕНО: убираем хардкод || 20
+                totalStarsEarned: user.total_stars_earned
             },
             prizes: prizes || [],
             tasks: {
@@ -4049,7 +4066,9 @@ async function syncUserData(userId, webAppData) {
             }
         };
         
+        console.log(`✅ Синхронизация завершена. Финальный баланс: ${syncedStars} звезд`);
         return syncedData;
+        
     } catch (error) {
         console.error('❌ Ошибка синхронизации:', error);
         return webAppData;
