@@ -302,12 +302,21 @@ export class MainScreen {
                 fillUrl = 'url(#emptyPattern)';
             } else if (prize.type.startsWith('stars')) {
                 fillUrl = 'url(#starsGradient)';
-            } else if (prize.type.startsWith('golden-apple')) {
-                const appleIndex = ['golden-apple-300', 'golden-apple-500', 'golden-apple-1000', 'golden-apple-2000', 'golden-apple-5000'].indexOf(prize.type);
-                fillUrl = `url(#appleGradient${appleIndex})`;
-            } else if (prize.type.startsWith('wildberries')) {
-                const wbIndex = ['wildberries-500', 'wildberries-1000', 'wildberries-2000', 'wildberries-3000'].indexOf(prize.type);
-                fillUrl = `url(#wbGradient${wbIndex})`;
+            } else if (prize.type.startsWith('wildberries') || prize.type.startsWith('golden-apple')) { // ✅ ИСПРАВЛЕНО
+                // Определяем градиент по названию приза
+                if (prize.name.includes('ЗЯ')) {
+                    const appleValues = ['300₽', '500₽', '1000₽', '2000₽', '5000₽'];
+                    const appleIndex = appleValues.findIndex(val => prize.name.includes(val));
+                    fillUrl = `url(#appleGradient${Math.max(0, appleIndex)})`;
+                } else if (prize.name.includes('WB')) {
+                    const wbValues = ['500₽', '1000₽', '2000₽', '3000₽'];
+                    const wbIndex = wbValues.findIndex(val => prize.name.includes(val));
+                    fillUrl = `url(#wbGradient${Math.max(0, wbIndex)})`;
+                } else {
+                    fillUrl = 'url(#appleGradient0)'; // fallback
+                }
+            } else {
+                fillUrl = 'url(#emptyPattern)'; // fallback для неизвестных типов
             }
 
             // Создаем сегмент
@@ -641,6 +650,22 @@ export class MainScreen {
         }
     }
 
+    // Добавить в конец класса MainScreen
+    saveWinToHistory(winData) {
+        if (!this.app.gameData.winHistory) {
+            this.app.gameData.winHistory = [];
+        }
+        
+        this.app.gameData.winHistory.unshift(winData);
+        
+        // Ограничиваем историю
+        if (this.app.gameData.winHistory.length > 50) {
+            this.app.gameData.winHistory = this.app.gameData.winHistory.slice(0, 50);
+        }
+        
+        console.log('💾 Сохранен выигрыш в историю:', winData);
+    }
+
     // ============================================================================
     // ИСПРАВЛЕННАЯ ФУНКЦИЯ ПОИСКА ВИЗУАЛЬНОГО ПРИЗА
     // ============================================================================
@@ -660,7 +685,8 @@ export class MainScreen {
             console.log('✅ Найден сегмент со звездами:', targetPrize);
             
         } else if (realChance.type === 'certificate') {
-            // Ищем ЛЮБОЙ сертификат (случайный выбор из wildberries или golden-apple)
+            // ИСПРАВЛЕНО: Ищем сертификаты правильно
+            // ЗАМЕНИТЬ НА:
             const certificatePrizes = WHEEL_PRIZES.filter(p => 
                 p.type.startsWith('wildberries') || p.type.startsWith('golden-apple')
             );
@@ -725,7 +751,8 @@ export class MainScreen {
         
         // ИСПРАВЛЕНО: Используем модуль 360° чтобы избежать накопления ошибок
         // Накапливаем поворот для красивой анимации
-        this.wheelRotation = (this.wheelRotation || 0) + finalRotation;
+        const currentRotation = this.wheelRotation || 0;  // ✅ ДОБАВИТЬ ЭТУ СТРОКУ
+        this.wheelRotation = currentRotation + finalRotation;
         console.log(`🌀 Старый угол: ${currentRotation}°, поворот: ${finalRotation}°, новый: ${this.wheelRotation}°`);
         
         const wheelSvg = document.getElementById('wheel-svg');
