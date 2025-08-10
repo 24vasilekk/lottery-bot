@@ -30,8 +30,9 @@ export default class App {
         try {
             console.log('🔧 Запуск инициализации приложения...');
             
-            // 1. Загружаем данные пользователя
+            // 1. Загружаем локальные данные (как временные)
             this.loadGameData();
+            console.log('📊 Локальные данные загружены, баланс:', this.gameData.stars);
             
             // 2. Создаем интерфейс
             await this.createInterface();
@@ -45,37 +46,52 @@ export default class App {
             // 5. Настраиваем глобальные обработчики
             this.setupGlobalHandlers();
             
-            // 6. Обновляем интерфейс
+            // 6. Обновляем интерфейс с локальными данными (временно)
             this.updateInterface();
             
-            // 7. Получаем ссылку на Telegram WebApp и синхронизируем
+            // 7. ГЛАВНОЕ: Синхронизация с сервером
             if (window.telegramIntegration) {
                 this.tg = window.telegramIntegration.tg;
-                console.log('🔄 ДИАГНОСТИКА: Инициализация пользователя и синхронизация...');
+                console.log('🔄 Начинаем синхронизацию с сервером...');
                 
-                // Логируем состояние до инициализации
-                console.log('📊 ДИАГНОСТИКА: Баланс ДО инициализации:', this.gameData.stars);
-                
-                // Сначала инициализируем пользователя
-                console.log('👤 ДИАГНОСТИКА: Вызываем initUser...');
+                // Инициализируем пользователя
                 window.telegramIntegration.initUser();
                 
-                // Логируем состояние после initUser
-                console.log('📊 ДИАГНОСТИКА: Баланс ПОСЛЕ initUser:', this.gameData.stars);
-                
-                // Затем синхронизируем с сервером
-                console.log('🔄 ДИАГНОСТИКА: Вызываем syncWithServer...');
+                // ВАЖНО: Ждем синхронизацию и получаем актуальные данные
+                console.log('📡 Запрашиваем актуальные данные с сервера...');
                 await window.telegramIntegration.syncWithServer();
                 
-                // Логируем состояние после синхронизации с сервером
-                console.log('📊 ДИАГНОСТИКА: Баланс ПОСЛЕ syncWithServer:', this.gameData.stars);
-                console.log('📊 ДИАГНОСТИКА: Полные данные после синхронизации:', this.gameData);
+                // КРИТИЧЕСКИ ВАЖНО: После синхронизации проверяем, что данные обновились
+                // Если syncWithServer обновил gameData, нужно обновить интерфейс
+                console.log('📊 Баланс после синхронизации:', this.gameData.stars);
+                
+                // ДОБАВЛЯЕМ: Принудительное обновление интерфейса с новыми данными
+                this.updateInterface();
+                this.updateStarsDisplay();
+                
+                // ДОБАВЛЯЕМ: Обновляем все экраны, которые могут показывать баланс
+                if (this.screens.main && this.screens.main.updateSpinButtons) {
+                    this.screens.main.updateSpinButtons();
+                }
+                
+                // ДОБАВЛЯЕМ: Сохраняем синхронизированные данные локально
+                this.saveGameData();
+                
+            } else {
+                console.warn('⚠️ telegramIntegration не доступен');
             }
             
             // 8. Скрываем загрузочный экран
             this.hideLoadingScreen();
             
-            console.log('✅ Приложение полностью инициализировано!');
+            // 9. ФИНАЛЬНАЯ ПРОВЕРКА
+            console.log('✅ Приложение инициализировано!');
+            console.log('🏁 ФИНАЛЬНЫЙ БАЛАНС:', this.gameData.stars);
+            console.log('🏁 ФИНАЛЬНЫЕ ДАННЫЕ:', {
+                stars: this.gameData.stars,
+                referrals: this.gameData.referrals,
+                totalSpins: this.gameData.totalSpins
+            });
             
         } catch (error) {
             console.error('❌ Критическая ошибка инициализации:', error);
@@ -408,124 +424,153 @@ export default class App {
     }
 
     updateInterface() {
-        console.log('🔄 Обновление интерфейса...');
-        
-        // 1. Обновляем основные счетчики звезд
-        this.updateStarsDisplay();
-        
-        // 2. Обновление имени пользователя
-        const userName = document.querySelector('.user-name');
-        if (userName && this.tg?.initDataUnsafe?.user?.first_name) {
-            userName.textContent = this.tg.initDataUnsafe.user.first_name;
-        }
-
-        // 3. Обновление аватарки пользователя
-        this.updateUserAvatar();
-
-        // 4. Обновление бейджа заданий
-        this.updateTasksBadge();
-        
-        // 5. Обновляем все экраны
         try {
-            // Главный экран - обновляем кнопки прокрутки
-            if (this.screens.main && this.screens.main.updateSpinButtons) {
+            console.log('🔄 Обновление интерфейса, текущий баланс:', this.gameData.stars);
+            
+            // Обновляем отображение звезд
+            const starCount = document.getElementById('star-count');
+            if (starCount) {
+                starCount.textContent = this.gameData.stars || 0;
+            }
+            
+            // Обновляем все элементы с классом для звезд
+            document.querySelectorAll('.stars-value, .star-balance, .user-stars span').forEach(el => {
+                if (el) {
+                    el.textContent = this.gameData.stars || 0;
+                }
+            });
+            
+            // Обновляем элементы с data-stars
+            document.querySelectorAll('[data-stars]').forEach(el => {
+                el.textContent = this.gameData.stars || 0;
+            });
+            
+            // Обновляем счетчик в хедере
+            const headerStars = document.querySelector('.user-stars');
+            if (headerStars) {
+                const starsSpan = headerStars.querySelector('span');
+                if (starsSpan) {
+                    starsSpan.textContent = this.gameData.stars || 0;
+                }
+            }
+            
+            // Обновляем экран депозита если он активен
+            const depositBalance = document.getElementById('current-balance');
+            if (depositBalance) {
+                depositBalance.textContent = `${this.gameData.stars || 0} ⭐`;
+            }
+            
+            // Обновляем профиль если он активен
+            const profileStars = document.querySelector('#profile-screen .stat-value');
+            if (profileStars) {
+                profileStars.textContent = this.gameData.stars || 0;
+            }
+            
+            // Обновляем экран заданий если он активен
+            const tasksStars = document.querySelector('#tasks-screen .header-stars');
+            if (tasksStars) {
+                tasksStars.textContent = this.gameData.stars || 0;
+            }
+            
+            // Обновляем кнопки прокрутки если главный экран активен
+            if (this.screens.main && typeof this.screens.main.updateSpinButtons === 'function') {
                 this.screens.main.updateSpinButtons();
-                console.log('✅ Главный экран обновлен');
             }
             
-            // Профиль - обновляем секцию рефералов
-            if (this.screens.profile && this.screens.profile.updateReferralsSection) {
-                this.screens.profile.updateReferralsSection();
-                console.log('✅ Профиль обновлен');
-            }
-            
-            // Задания - обновляем счетчики
-            if (this.screens.tasks && this.screens.tasks.updateTaskCounter) {
-                this.screens.tasks.updateTaskCounter();
-                console.log('✅ Задания обновлены');
-            }
-            
-            // Мега рулетка - обновляем если активна
-            if (this.screens.megaRoulette && this.screens.megaRoulette.updateInterface) {
-                this.screens.megaRoulette.updateInterface();
-                console.log('✅ Мега рулетка обновлена');
-            }
-            
-            
-        } catch (error) {
-            console.warn('⚠️ Ошибка обновления экранов:', error);
-        }
-        
-        // 6. Обновляем все элементы со звездами на странице
-        try {
-            const starsElements = document.querySelectorAll('[data-stars], .stars-count, .user-stars');
-            starsElements.forEach(el => {
-                if (el && this.gameData.stars !== undefined) {
-                    el.textContent = this.gameData.stars;
+            // Обновляем счетчик рефералов
+            const referralElements = document.querySelectorAll('.referral-count, [data-referrals]');
+            referralElements.forEach(el => {
+                if (el) {
+                    el.textContent = this.gameData.referrals || 0;
                 }
             });
             
-            // Обновляем счетчики статистики
-            const statsElements = {
-                'total-spins': this.gameData.totalSpins || 0,
-                'prizes-won': this.gameData.prizesWon || 0,
-                'referrals-count': this.gameData.referrals || 0,
-                'total-earned': this.gameData.totalStarsEarned || 0
-            };
-            
-            Object.entries(statsElements).forEach(([id, value]) => {
-                const element = document.getElementById(id);
-                if (element) {
-                    element.textContent = value;
+            // Обновляем общую статистику
+            const totalSpinsElements = document.querySelectorAll('[data-total-spins]');
+            totalSpinsElements.forEach(el => {
+                if (el) {
+                    el.textContent = this.gameData.totalSpins || 0;
                 }
             });
             
+            const prizesWonElements = document.querySelectorAll('[data-prizes-won]');
+            prizesWonElements.forEach(el => {
+                if (el) {
+                    el.textContent = this.gameData.prizesWon || 0;
+                }
+            });
+            
+            // Обновляем бейдж заданий если есть
+            if (this.screens.tasks && typeof this.screens.tasks.getAvailableTasksCount === 'function') {
+                const taskBadge = document.getElementById('tasks-badge');
+                if (taskBadge) {
+                    const availableTasks = this.screens.tasks.getAvailableTasksCount();
+                    if (availableTasks > 0) {
+                        taskBadge.style.display = 'block';
+                        taskBadge.textContent = availableTasks;
+                    } else {
+                        taskBadge.style.display = 'none';
+                    }
+                }
+            }
+            
+            // Обновляем состояние кнопок в навигации
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => {
+                const screen = item.dataset.screen;
+                if (screen && this.currentScreen === screen) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+            
+            // Обновляем мега-рулетку если доступна
+            if (this.screens['mega-roulette'] && typeof this.screens['mega-roulette'].updateUI === 'function') {
+                this.screens['mega-roulette'].updateUI();
+            }
+            
+            // Логируем финальное состояние
+            console.log('✅ Интерфейс обновлен. Финальные значения:', {
+                stars: this.gameData.stars,
+                referrals: this.gameData.referrals,
+                totalSpins: this.gameData.totalSpins,
+                prizesWon: this.gameData.prizesWon
+            });
+            
         } catch (error) {
-            console.warn('⚠️ Ошибка обновления элементов интерфейса:', error);
+            console.error('❌ Ошибка обновления интерфейса:', error);
         }
-
-        console.log('✅ Интерфейс полностью обновлен:', {
-            stars: this.gameData.stars,
-            referrals: this.gameData.referrals,
-            totalSpins: this.gameData.totalSpins,
-            prizesWon: this.gameData.prizesWon
-        });
     }
 
     // Вспомогательный метод для обновления отображения звезд
     updateStarsDisplay() {
         try {
-            // УЛУЧШЕННАЯ обработка отображения баланса
-            const displayValue = this.gameData.stars !== undefined && this.gameData.stars !== null 
-                ? this.gameData.stars.toLocaleString() 
-                : '⏳'; // Показываем "⏳" пока данные не загрузились
+            console.log(`💫 Обновляем отображение звезд: ${this.gameData.stars}`);
             
-            // Основной счетчик звезд
-            const starCount = document.getElementById('star-count');
-            if (starCount) {
-                starCount.textContent = displayValue;
+            // Обновляем все элементы со звездами
+            const starElements = [
+                document.getElementById('star-count'),
+                document.querySelector('.user-stars span'),
+                document.querySelector('.balance-amount'),
+                document.querySelector('.current-balance .balance-amount'),
+                ...document.querySelectorAll('[data-stars]')
+            ];
+            
+            starElements.forEach(element => {
+                if (element) {
+                    element.textContent = this.gameData.stars || 0;
+                    console.log(`✅ Обновлен элемент:`, element.className || element.id);
+                }
+            });
+            
+            // Обновляем кнопки прокрутки если главный экран активен
+            if (this.screens.main && typeof this.screens.main.updateSpinButtons === 'function') {
+                this.screens.main.updateSpinButtons();
             }
             
-            // Все элементы с классом stars
-            const starsElements = document.querySelectorAll('.stars-value, .current-stars, .star-balance');
-            starsElements.forEach(el => {
-                if (el) {
-                    el.textContent = displayValue;
-                }
-            });
-            
-            // Обновляем элементы с data-stars атрибутом
-            const dataStarsElements = document.querySelectorAll('[data-stars]');
-            dataStarsElements.forEach(el => {
-                if (el) {
-                    el.textContent = displayValue;
-                }
-            });
-            
-            console.log(`💰 Обновлено отображение звезд: ${this.gameData.stars} (отображение: ${displayValue})`);
-            
         } catch (error) {
-            console.warn('⚠️ Ошибка обновления отображения звезд:', error);
+            console.error('❌ Ошибка обновления отображения звезд:', error);
         }
     }
 
