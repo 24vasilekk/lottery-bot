@@ -646,32 +646,33 @@ export class MainScreen {
     // ============================================================================
     findVisualPrizeForRealChance(realChance) {
         console.log(`🔍 Ищем визуальный сегмент для реального приза:`, realChance);
-        console.log(`📋 Всего сегментов в WHEEL_PRIZES: ${WHEEL_PRIZES.length}`);
         
-        // ИСПРАВЛЕННАЯ логика поиска с гибким маппингом
         let targetPrize = null;
         
         if (realChance.type === 'empty') {
             // Ищем пустой сегмент
             targetPrize = WHEEL_PRIZES.find(p => p.type === 'empty');
-            console.log('🔍 Поиск пустого сегмента:', targetPrize);
+            console.log('✅ Найден пустой сегмент:', targetPrize);
             
         } else if (realChance.type === 'stars') {
-            // Ищем сегмент со звездами
-            targetPrize = WHEEL_PRIZES.find(p => p.type === 'stars');
-            console.log('🔍 Поиск сегмента со звездами:', targetPrize);
+            // Ищем сегмент со звездами (любой начинающийся с 'stars')
+            targetPrize = WHEEL_PRIZES.find(p => p.type.startsWith('stars'));
+            console.log('✅ Найден сегмент со звездами:', targetPrize);
             
         } else if (realChance.type === 'certificate') {
-            // Ищем любой сегмент с сертификатом (случайный выбор)
-            const certificatePrizes = WHEEL_PRIZES.filter(p => p.type === 'certificate');
+            // Ищем ЛЮБОЙ сертификат (случайный выбор из wildberries или golden-apple)
+            const certificatePrizes = WHEEL_PRIZES.filter(p => 
+                p.type.startsWith('wildberries') || p.type.startsWith('golden-apple')
+            );
+            
             if (certificatePrizes.length > 0) {
                 const randomIndex = Math.floor(Math.random() * certificatePrizes.length);
                 targetPrize = certificatePrizes[randomIndex];
-                console.log(`🔍 Выбран случайный сертификат ${randomIndex + 1}/${certificatePrizes.length}:`, targetPrize);
+                console.log(`✅ Выбран случайный сертификат ${randomIndex + 1}/${certificatePrizes.length}:`, targetPrize);
             }
         }
         
-        // Если ничего не найдено - fallback
+        // Fallback если ничего не найдено
         if (!targetPrize) {
             console.warn(`⚠️ Не найден визуальный сегмент для типа: ${realChance.type}`);
             targetPrize = WHEEL_PRIZES.find(p => p.type !== 'empty') || WHEEL_PRIZES[0];
@@ -723,9 +724,9 @@ export class MainScreen {
         const finalRotation = spins * 360 + targetAngle;
         
         // ИСПРАВЛЕНО: Используем модуль 360° чтобы избежать накопления ошибок
-    const currentRotation = this.wheelRotation || 0;
-    this.wheelRotation = (currentRotation + finalRotation) % 360;
-    console.log(`🌀 Старый угол: ${currentRotation}°, поворот: ${finalRotation}°, новый: ${this.wheelRotation}°`);
+        // Накапливаем поворот для красивой анимации
+        this.wheelRotation = (this.wheelRotation || 0) + finalRotation;
+        console.log(`🌀 Старый угол: ${currentRotation}°, поворот: ${finalRotation}°, новый: ${this.wheelRotation}°`);
         
         const wheelSvg = document.getElementById('wheel-svg');
         if (!wheelSvg) {
@@ -773,7 +774,18 @@ export class MainScreen {
         console.log('🐛 Отладочная информация:', prize.debugInfo);
         
         // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Определяем что показать на основе realType с fallback
+        // ИСПРАВЛЕННАЯ логика определения типа
         const realType = prize.realType || prize.type;
+        const isRealCertificate = realType === 'certificate';
+        const isVisualCertificate = prize.type && (prize.type.startsWith('wildberries') || prize.type.startsWith('golden-apple'));
+
+        console.log(`🔍 Анализ приза:`, {
+            realType: realType,
+            visualType: prize.type,
+            isRealCertificate: isRealCertificate,
+            isVisualCertificate: isVisualCertificate,
+            value: prize.value
+        });
         const realValue = prize.realValue || prize.value || 0;
         const realName = prize.realName || prize.name;
         
@@ -802,15 +814,28 @@ export class MainScreen {
             this.app.gameData.stars = (this.app.gameData.stars || 0) + realValue;
             console.log(`⭐ Добавлено ${realValue} звезд, новый баланс: ${this.app.gameData.stars}`);
         } 
-        else if (realType === 'certificate') {
-            console.log(`🏆 Показываем результат: Сертификат "${realName}"`);
+        else if (realType === 'certificate' || isVisualCertificate) {
+            // ИСПРАВЛЕНО: Обрабатываем и реальные, и визуальные сертификаты
+            const certificateValue = prize.value || prize.realValue || 300;
+            
+            console.log(`🎫 Показываем результат: Сертификат ${certificateValue}₽`);
             this.showResultModal({
-                icon: '🏆',
+                icon: '🎫',
                 title: 'Поздравляем!',
-                description: `Вы выиграли: ${realName}`,
-                type: 'certificate'
+                description: `Вы выиграли сертификат на ${certificateValue}₽!`,
+                isWin: true,
+                prize: prize
             });
-            console.log(`🏆 Выигран сертификат: ${realName}`);
+            
+            // Сохраняем выигрыш
+            this.saveWinToHistory({
+                type: 'certificate',
+                name: `Сертификат ${certificateValue}₽`,
+                value: certificateValue,
+                timestamp: Date.now()
+            });
+            
+            console.log(`🏆 Выигран сертификат: ${certificateValue}₽`);
         }
         else {
             // На случай неизвестного типа
@@ -1366,6 +1391,71 @@ export class MainScreen {
             }
         } catch (error) {
             console.error('❌ API недоступно:', error);
+        }
+    }
+
+    // ============================================================================
+    // ФУНКЦИЯ ДИАГНОСТИКИ ПРОБЛЕМ СИНХРОНИЗАЦИИ
+    // ============================================================================
+    debugWheelSync() {
+        console.log('\n🧪 ========== ДИАГНОСТИКА СИНХРОНИЗАЦИИ КОЛЕСА ==========');
+        
+        // 1. Проверяем структуру WHEEL_PRIZES
+        console.log(`📋 WHEEL_PRIZES (${WHEEL_PRIZES.length} сегментов):`);
+        WHEEL_PRIZES.forEach((prize, index) => {
+            console.log(`  ${index + 1}. ID: ${prize.id}, Тип: "${prize.type}", Имя: "${prize.name}", Угол: ${prize.angle}°`);
+        });
+        
+        // 2. Проверяем углы
+        const totalAngle = WHEEL_PRIZES.reduce((sum, p) => sum + (p.angle || 0), 0);
+        console.log(`📐 Общий угол: ${totalAngle}° ${totalAngle === 360 ? '✅' : '❌'}`);
+        
+        // 3. Тестируем маппинг типов
+        console.log('\n🔗 Тестирование маппинга типов:');
+        const testCases = [
+            { type: 'empty', name: 'Пусто' },
+            { type: 'stars', name: '20 звезд' },
+            { type: 'certificate', name: 'Сертификат' }
+        ];
+        
+        testCases.forEach(testCase => {
+            console.log(`\n--- Тест для "${testCase.name}" (${testCase.type}) ---`);
+            const visualPrize = this.findVisualPrizeForRealChance(testCase);
+            
+            if (visualPrize) {
+                console.log(`✅ Найден: ${visualPrize.name} (${visualPrize.type})`);
+                
+                // Проверяем что сегмент существует в массиве
+                const index = WHEEL_PRIZES.findIndex(p => p.id === visualPrize.id);
+                console.log(`📍 Индекс в массиве: ${index >= 0 ? index : 'НЕ НАЙДЕН ❌'}`);
+            } else {
+                console.error(`❌ НЕ НАЙДЕН визуальный сегмент!`);
+            }
+        });
+        
+        // 4. Проверяем API
+        console.log('\n🌐 Тестирование API...');
+        this.testAPI();
+        
+        console.log('\n🧪 ========== ДИАГНОСТИКА ЗАВЕРШЕНА ==========\n');
+    }
+
+    async testAPI() {
+        try {
+            const response = await fetch('/api/wheel-settings/normal');
+            console.log(`📡 API статус: ${response.status} ${response.ok ? '✅' : '❌'}`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('📋 API возвращает:', data);
+                
+                if (data.prizes) {
+                    const totalProb = data.prizes.reduce((sum, p) => sum + p.probability, 0);
+                    console.log(`🎲 Сумма вероятностей: ${totalProb}% ${Math.abs(totalProb - 100) < 0.1 ? '✅' : '❌'}`);
+                }
+            }
+        } catch (error) {
+            console.error('❌ API недоступно:', error.message);
         }
     }
 }
