@@ -50,7 +50,7 @@ export const WHEEL_PRIZES = [
     {
         id: 2,
         name: '20 звезд',
-        type: 'stars',
+        type: 'stars-20',
         description: 'Получено 20 звезд',
         color: '#FFD700',
         icon: '', // Без иконки
@@ -66,7 +66,7 @@ export const WHEEL_PRIZES = [
     {
         id: 3,
         name: 'ЗЯ 300₽',
-        type: 'certificate',
+        type: 'golden-apple-300',
         description: 'Сертификат Золотое яблоко на 300₽',
         color: '#FF6B6B',
         icon: '',
@@ -80,7 +80,7 @@ export const WHEEL_PRIZES = [
     {
         id: 4,
         name: 'WB 500₽',
-        type: 'certificate',
+        type: 'wildberries-500',
         description: 'Сертификат Wildberries на 500₽',
         color: '#8E44AD',
         icon: '',
@@ -94,7 +94,7 @@ export const WHEEL_PRIZES = [
     {
         id: 5,
         name: 'ЗЯ 500₽',
-        type: 'certificate',
+        type: 'golden-apple-500',
         description: 'Сертификат Золотое яблоко на 500₽',
         color: '#E74C3C',
         icon: '',
@@ -108,7 +108,7 @@ export const WHEEL_PRIZES = [
     {
         id: 6,
         name: 'WB 1000₽',
-        type: 'certificate',
+        type: 'wildberries-1000',
         description: 'Сертификат Wildberries на 1000₽',
         color: '#9B59B6',
         icon: '',
@@ -122,7 +122,7 @@ export const WHEEL_PRIZES = [
     {
         id: 7,
         name: 'ЗЯ 1000₽',
-        type: 'certificate',
+        type: 'golden-apple-1000',
         description: 'Сертификат Золотое яблоко на 1000₽',
         color: '#C0392B',
         icon: '',
@@ -136,7 +136,7 @@ export const WHEEL_PRIZES = [
     {
         id: 8,
         name: 'WB 2000₽',
-        type: 'certificate',
+        type: 'wildberries-2000',
         description: 'Сертификат Wildberries на 2000₽',
         color: '#6C3483',
         icon: '',
@@ -150,7 +150,7 @@ export const WHEEL_PRIZES = [
     {
         id: 9,
         name: 'ЗЯ 2000₽',
-        type: 'certificate',
+        type: 'golden-apple-2000',
         description: 'Сертификат Золотое яблоко на 2000₽',
         color: '#A93226',
         icon: '',
@@ -164,7 +164,7 @@ export const WHEEL_PRIZES = [
     {
         id: 10,
         name: 'WB 3000₽',
-        type: 'certificate',
+        type: 'wildberries-3000',
         description: 'Сертификат Wildberries на 3000₽',
         color: '#512E5F',
         icon: '',
@@ -178,7 +178,7 @@ export const WHEEL_PRIZES = [
     {
         id: 11,
         name: 'ЗЯ 5000₽',
-        type: 'certificate',
+        type: 'golden-apple-5000',
         description: 'Сертификат Золотое яблоко на 5000₽',
         color: '#922B21',
         icon: '',
