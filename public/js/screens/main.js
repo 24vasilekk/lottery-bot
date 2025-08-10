@@ -810,25 +810,38 @@ export class MainScreen {
                 type: 'stars'
             });
             
-            // Добавляем звезды локально
-            this.app.gameData.stars = (this.app.gameData.stars || 0) + realValue;
-            console.log(`⭐ Добавлено ${realValue} звезд, новый баланс: ${this.app.gameData.stars}`);
+            // ИСПРАВЛЕНО: Используем метод addStars который сохраняет на сервер
+            if (this.app.addStars) {
+                await this.app.addStars(realValue);
+            } else {
+                // Fallback если метод не существует
+                const oldBalance = this.app.gameData.stars || 0;
+                this.app.gameData.stars = oldBalance + realValue;
+                
+                // Сохраняем на сервер
+                if (window.telegramIntegration?.sendToServer) {
+                    try {
+                        const response = await window.telegramIntegration.sendToServer('update_balance', {
+                            stars: this.app.gameData.stars
+                        });
+                        console.log('📡 Результат сохранения баланса:', response);
+                    } catch (error) {
+                        console.error('❌ Ошибка сохранения баланса:', error);
+                    }
+                }
+            }
             
-            // ИСПРАВЛЕНИЕ: Синхронизируем баланс звезд с сервером
-            await this.syncStarsWithServer();
+            console.log(`⭐ Новый баланс: ${this.app.gameData.stars} звезд`);
         } 
         else if (realType === 'certificate' || isVisualCertificate) {
-            // ИСПРАВЛЕНО: Правильно определяем тип и название сертификата
             const certificateValue = prize.realValue || prize.value || 300;
             let certificateName = '';
             
-            // Определяем название сертификата по визуальному типу
             if (prize.type && prize.type.startsWith('wildberries')) {
                 certificateName = `WB ${certificateValue}₽`;
             } else if (prize.type && prize.type.startsWith('golden-apple')) {
                 certificateName = `ЗЯ ${certificateValue}₽`;
             } else {
-                // Если визуальный тип неизвестен, используем название из приза
                 if (prize.name.includes('WB')) {
                     certificateName = `WB ${certificateValue}₽`;
                 } else if (prize.name.includes('ЗЯ')) {
@@ -866,25 +879,38 @@ export class MainScreen {
             });
         }
 
-        // ИСПРАВЛЕНО: Правильно формируем данные для сервера
+        // Сохраняем информацию о призе на сервер
         const serverPrize = {
             id: prize.id,
             type: realType,
             name: realName,
             value: realValue,
             description: prize.realDescription || prize.description || '',
-            // Добавляем визуальную информацию для правильного отображения в уведомлениях
             visualType: prize.type,
             visualName: prize.name
         };
         
-        console.log(`💾 Сохраняем на сервер:`, serverPrize);
+        console.log(`💾 Сохраняем приз на сервер:`, serverPrize);
         await this.savePrizeToServer(serverPrize);
+
+        // ВАЖНО: Сохраняем финальный баланс на сервер после всех изменений
+        if (window.telegramIntegration?.sendToServer) {
+            try {
+                const finalBalance = await window.telegramIntegration.sendToServer('update_balance', {
+                    stars: this.app.gameData.stars
+                });
+                console.log(`✅ Финальный баланс синхронизирован: ${this.app.gameData.stars} звезд`);
+            } catch (error) {
+                console.error('❌ Ошибка финальной синхронизации баланса:', error);
+            }
+        }
 
         this.updateLocalDataAfterPrize(prize);
         this.updateRecentWins();
         this.app.updateUI();
-        this.app.saveGameData();
+        
+        // НЕ сохраняем в localStorage баланс
+        // this.app.saveGameData(); // Убираем или модифицируем чтобы не сохранял баланс
 
         console.log('✅ Выигрыш полностью обработан');
         console.log('🏆 ========== КОНЕЦ ОБРАБОТКИ ВЫИГРЫША ==========\n');
