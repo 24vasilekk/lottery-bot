@@ -4030,12 +4030,10 @@ async function handleChannelSubscription(userId, data) {
 }
 
 // Синхронизация данных пользователя
-// Синхронизация данных пользователя
 async function syncUserData(userId, webAppData) {
     try {
         console.log(`🔄 syncUserData для userId: ${userId}`);
         
-        // Получаем пользователя из БД
         let user = await db.getUser(userId);
         
         if (!user) {
@@ -4050,21 +4048,13 @@ async function syncUserData(userId, webAppData) {
             
             await db.createUser(userData);
             user = await db.getUser(userId);
-            
-            if (!user) {
-                console.error('❌ Не удалось создать пользователя');
-                return { stars: 0 };
-            }
         }
         
         console.log(`✅ Пользователь из БД: ID=${user.telegram_id}, stars=${user.stars}`);
         
-        // Обновляем активность
-        await db.updateUserActivity(userId);
-        
-        // ВАЖНО: Возвращаем ТОЛЬКО данные из БД, игнорируем webAppData
+        // ВСЕГДА возвращаем баланс из БД
         const syncedData = {
-            stars: user.stars || 0,
+            stars: user.stars,
             referrals: user.referrals || 0,
             total_stars_earned: user.total_stars_earned || 20,
             totalSpins: user.total_spins || 0,
@@ -4111,6 +4101,54 @@ app.post('/api/update_stars', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Ошибка сервера' 
+        });
+    }
+});
+
+// Endpoint для обновления баланса звезд (траты/пополнения)
+app.post('/api/update_balance', async (req, res) => {
+    try {
+        const { action, data, user } = req.body;
+        
+        if (!user?.id) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'User ID отсутствует' 
+            });
+        }
+        
+        const userId = user.id;
+        const newBalance = parseInt(data?.stars);
+        
+        if (isNaN(newBalance) || newBalance < 0) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Некорректный баланс' 
+            });
+        }
+        
+        console.log(`💾 Обновление баланса для пользователя ${userId}: ${newBalance} звезд`);
+        
+        // Обновляем баланс в БД
+        await db.run(
+            'UPDATE users SET stars = ?, last_activity = CURRENT_TIMESTAMP WHERE telegram_id = ?',
+            [newBalance, userId]
+        );
+        
+        // Проверяем что обновилось
+        const updatedUser = await db.getUser(userId);
+        console.log(`✅ Баланс обновлен в БД: ${updatedUser.stars} звезд`);
+        
+        res.json({ 
+            success: true,
+            stars: updatedUser.stars
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка обновления баланса:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка обновления баланса' 
         });
     }
 });
