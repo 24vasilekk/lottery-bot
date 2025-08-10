@@ -73,7 +73,7 @@ export const WHEEL_PRIZES = [
         rarity: 'rare',
         probability: 5.56,
         value: 300,
-        angle: 20,
+        angle: 28,
         topText: 'ЗЯ', // ЗЯ вверху перпендикулярно
         centerText: '300₽' // Сумма по центру параллельно
     },
