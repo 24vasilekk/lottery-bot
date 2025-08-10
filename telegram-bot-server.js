@@ -3976,6 +3976,7 @@ async function handleChannelSubscription(userId, data) {
 
 // Синхронизация данных пользователя
 // Синхронизация данных пользователя
+// Синхронизация данных пользователя
 async function syncUserData(userId, webAppData) {
     try {
         console.log(`🔍 ДИАГНОСТИКА: syncUserData вызван для userId: ${userId}, тип: ${typeof userId}`);
@@ -4017,17 +4018,36 @@ async function syncUserData(userId, webAppData) {
         
         console.log(`🔄 Синхронизация данных пользователя ${userId}`);
         
-        // ВАЖНО: Если баланс в webApp меньше чем в БД - значит были траты, сохраняем их
-        const webAppStars = webAppData?.stars ?? webAppData?.stats?.stars;
-        const syncedStars = (webAppStars !== undefined && webAppStars < user.stars) 
-            ? webAppStars 
-            : user.stars;
+        // ИСПРАВЛЕНО: Правильная логика синхронизации баланса
+        let finalStars = user.stars; // По умолчанию используем баланс из БД
         
-        // Если баланс изменился - обновляем в БД
-        if (syncedStars !== user.stars) {
-            console.log(`⚠️ Обнаружено изменение баланса: БД=${user.stars}, WebApp=${webAppStars}, синхронизируем на ${syncedStars}`);
-            await db.updateUserStars(userId, syncedStars);
-            user.stars = syncedStars;
+        // Получаем баланс из WebApp
+        const webAppStars = webAppData?.stars ?? webAppData?.stats?.stars;
+        
+        console.log(`💰 Баланс: БД=${user.stars}, WebApp=${webAppStars}`);
+        
+        // ВАЖНО: Синхронизируем только если:
+        // 1. WebApp прислал валидное значение (не undefined и не null)
+        // 2. WebApp баланс МЕНЬШЕ чем в БД (были траты)
+        // 3. WebApp баланс НЕ равен 0 (чтобы не обнулять при первом входе)
+        if (webAppStars !== undefined && 
+            webAppStars !== null && 
+            webAppStars < user.stars && 
+            webAppStars >= 0) {
+            
+            console.log(`⚠️ Обнаружены траты: БД=${user.stars}, WebApp=${webAppStars}`);
+            await db.updateUserStars(userId, webAppStars);
+            finalStars = webAppStars;
+            
+        } else if (webAppStars > user.stars) {
+            // Если в WebApp больше звезд чем в БД - это может быть после выигрыша
+            // но лучше не доверять клиенту, используем БД
+            console.log(`⚠️ WebApp показывает больше звезд чем БД, используем БД`);
+            finalStars = user.stars;
+        } else {
+            // В остальных случаях используем баланс из БД
+            console.log(`✅ Используем баланс из БД: ${user.stars}`);
+            finalStars = user.stars;
         }
         
         // Обновляем активность пользователя
@@ -4042,10 +4062,10 @@ async function syncUserData(userId, webAppData) {
         // Синхронизированные данные
         const syncedData = {
             ...webAppData,
-            // ИСПРАВЛЕНО: Используем синхронизированный баланс
-            stars: syncedStars,
+            // Используем финальный баланс
+            stars: finalStars,
             referrals: actualReferralsCount,
-            total_stars_earned: user.total_stars_earned,
+            total_stars_earned: user.total_stars_earned || 20, // Минимум 20 (стартовый бонус)
             profile: {
                 ...webAppData.profile,
                 telegramId: userId,
@@ -4053,11 +4073,11 @@ async function syncUserData(userId, webAppData) {
                 name: user.first_name || 'Пользователь'
             },
             stats: {
-                stars: syncedStars, // Используем синхронизированный баланс
+                stars: finalStars,
                 totalSpins: user.total_spins || 0,
                 prizesWon: user.prizes_won || 0,
                 referrals: actualReferralsCount,
-                totalStarsEarned: user.total_stars_earned
+                totalStarsEarned: user.total_stars_earned || 20
             },
             prizes: prizes || [],
             tasks: {
@@ -4066,7 +4086,7 @@ async function syncUserData(userId, webAppData) {
             }
         };
         
-        console.log(`✅ Синхронизация завершена. Финальный баланс: ${syncedStars} звезд`);
+        console.log(`✅ Синхронизация завершена. Финальный баланс: ${finalStars} звезд`);
         return syncedData;
         
     } catch (error) {
