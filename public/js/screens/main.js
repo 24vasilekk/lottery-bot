@@ -641,25 +641,43 @@ export class MainScreen {
         
         console.log(`📍 Найден сегмент ${segmentIndex + 1}: ${targetPrize.name}`);
         
+        // ВАЖНО: Колесо рисуется начиная с -90° (сверху), поэтому учитываем это смещение
+        const startOffset = -90; // Колесо начинается с верхней точки
+        
+        // Рассчитываем накопленный угол до этого сегмента
         let accumulatedAngle = 0;
         for (let i = 0; i < segmentIndex; i++) {
             accumulatedAngle += WHEEL_PRIZES[i].angle || (360 / WHEEL_PRIZES.length);
         }
         
+        // Добавляем половину угла текущего сегмента (центр)
         const currentSegmentAngle = WHEEL_PRIZES[segmentIndex].angle || (360 / WHEEL_PRIZES.length);
         const segmentCenterAngle = accumulatedAngle + (currentSegmentAngle / 2);
         
-        // ИСПРАВЛЕНИЕ: Учитываем текущее положение колеса
-        const currentRotationNormalized = this.wheelRotation % 360;
-        const targetAngle = (360 - segmentCenterAngle + currentRotationNormalized) % 360;
+        // Учитываем смещение начала отрисовки колеса
+        const actualSegmentAngle = segmentCenterAngle + startOffset;
         
+        // Указатель находится сверху (0°), поэтому нужно повернуть колесо так,
+        // чтобы нужный сегмент оказался сверху
+        // Формула: нужно повернуть на угол, который приведет сегмент к позиции 0°
+        let targetAngle = -actualSegmentAngle;
+        
+        // Нормализуем угол в диапазон 0-360
+        while (targetAngle < 0) targetAngle += 360;
+        while (targetAngle >= 360) targetAngle -= 360;
+        
+        // Добавляем небольшую случайность внутри сегмента
         const maxDeviation = (currentSegmentAngle / 2) * 0.4;
         const deviation = (Math.random() - 0.5) * maxDeviation;
-        const finalAngle = targetAngle + deviation;
+        let finalAngle = targetAngle + deviation;
         
-        console.log(`📊 Текущий поворот: ${currentRotationNormalized}°`);
-        console.log(`📊 Накоплено: ${accumulatedAngle}°, сегмент: ${currentSegmentAngle}°`);
-        console.log(`🎯 Целевой угол: ${finalAngle.toFixed(1)}° (базовый: ${targetAngle.toFixed(1)}°, отклонение: ${deviation.toFixed(1)}°)`);
+        // Нормализуем финальный угол
+        while (finalAngle < 0) finalAngle += 360;
+        while (finalAngle >= 360) finalAngle -= 360;
+        
+        console.log(`📊 Позиция сегмента на колесе: ${actualSegmentAngle.toFixed(1)}° (с учетом смещения -90°)`);
+        console.log(`📊 Накоплено до сегмента: ${accumulatedAngle}°, ширина сегмента: ${currentSegmentAngle}°`);
+        console.log(`🎯 Целевой угол поворота: ${finalAngle.toFixed(1)}° (базовый: ${targetAngle.toFixed(1)}°, отклонение: ${deviation.toFixed(1)}°)`);
         
         return finalAngle;
     }
@@ -668,16 +686,30 @@ export class MainScreen {
     async animateWheelToTarget(targetAngle) {
         const spins = Math.floor(Math.random() * 3) + 5; // 5-7 полных оборотов
         
-        // Рассчитываем общий угол поворота для анимации
-        const totalRotation = spins * 360 + targetAngle;
-        
-        // Получаем текущее положение колеса
+        // Получаем текущее положение колеса (нормализованное)
         const currentRotation = this.wheelRotation || 0;
+        
+        // ИСПРАВЛЕНИЕ: Правильно рассчитываем угол поворота
+        // Нужно найти кратчайший путь от текущего положения до целевого
+        let rotationDelta = targetAngle - currentRotation;
+        
+        // Если разница отрицательная или слишком маленькая, 
+        // добавляем полный оборот, чтобы колесо крутилось по часовой стрелке
+        if (rotationDelta <= 0) {
+            rotationDelta += 360;
+        }
+        
+        // Добавляем полные обороты для красивой анимации
+        const totalRotation = spins * 360 + rotationDelta;
         
         // Новое абсолютное положение после анимации
         const newAbsoluteRotation = currentRotation + totalRotation;
         
-        console.log(`🌀 Анимация: от ${currentRotation}° на ${totalRotation}°, итого: ${newAbsoluteRotation}°`);
+        console.log(`🌀 Текущая позиция: ${currentRotation.toFixed(1)}°`);
+        console.log(`🌀 Целевая позиция: ${targetAngle.toFixed(1)}°`);
+        console.log(`🌀 Дельта поворота: ${rotationDelta.toFixed(1)}°`);
+        console.log(`🌀 Полный поворот: ${totalRotation.toFixed(1)}° (${spins} оборотов + ${rotationDelta.toFixed(1)}°)`);
+        console.log(`🌀 Новая абсолютная позиция: ${newAbsoluteRotation.toFixed(1)}°`);
         
         const wheelSvg = document.getElementById('wheel-svg');
         if (!wheelSvg) {
@@ -691,20 +723,17 @@ export class MainScreen {
         // Ждем завершения анимации
         return new Promise(resolve => {
             setTimeout(() => {
-                // ГЛАВНОЕ ИСПРАВЛЕНИЕ: После анимации сбрасываем визуальное положение
-                // но сохраняем логическое положение для следующего вращения
-                
-                // Нормализуем угол в диапазон 0-360
-                const normalizedAngle = targetAngle % 360;
+                // После анимации сбрасываем визуальное положение на нормализованное значение
+                // Это предотвращает накопление больших углов
                 
                 // Мгновенно (без анимации) устанавливаем колесо в нормализованное положение
                 wheelSvg.style.transition = 'none';
-                wheelSvg.style.transform = `rotate(${normalizedAngle}deg)`;
+                wheelSvg.style.transform = `rotate(${targetAngle}deg)`;
                 
                 // Сохраняем нормализованное положение для следующего вращения
-                this.wheelRotation = normalizedAngle;
+                this.wheelRotation = targetAngle;
                 
-                console.log(`✅ Анимация завершена. Нормализованная позиция: ${normalizedAngle}°`);
+                console.log(`✅ Анимация завершена. Финальная позиция: ${targetAngle.toFixed(1)}°`);
                 
                 // Небольшая задержка перед разрешением промиса
                 setTimeout(() => {
@@ -870,7 +899,7 @@ export class MainScreen {
         
         console.log(`📋 Структура WHEEL_PRIZES (${WHEEL_PRIZES.length} сегментов):`);
         WHEEL_PRIZES.forEach((prize, index) => {
-            console.log(`  ${index + 1}. ID: ${prize.id}, Тип: "${prize.type}", Имя: "${prize.name}"`);
+            console.log(`  ${index + 1}. ID: ${prize.id}, Тип: "${prize.type}", Имя: "${prize.name}", Угол: ${prize.angle}°`);
         });
         
         const testCases = [
@@ -891,6 +920,10 @@ export class MainScreen {
                 const segmentIndex = WHEEL_PRIZES.findIndex(p => p.id === visualPrize.id);
                 if (segmentIndex !== -1) {
                     console.log(`✅ Сегмент найден в WHEEL_PRIZES под индексом ${segmentIndex}`);
+                    
+                    // Тестируем расчет угла для этого сегмента
+                    const targetAngle = this.calculateTargetAngleForPrize(visualPrize);
+                    console.log(`📐 Расчетный угол для попадания в этот сегмент: ${targetAngle.toFixed(1)}°`);
                 } else {
                     console.error(`❌ Сегмент НЕ найден в WHEEL_PRIZES!`);
                 }
@@ -923,6 +956,34 @@ export class MainScreen {
         // Проверка текущего состояния колеса
         console.log('\n🎡 Текущее состояние колеса:');
         console.log(`Текущий угол поворота: ${this.wheelRotation}°`);
+        
+        // НОВАЯ ПРОВЕРКА: Визуальная проверка сегментов
+        console.log('\n🎯 Проверка позиций сегментов на колесе (с учетом смещения -90°):');
+        const startOffset = -90; // Колесо начинается с верхней точки
+        let currentAngle = 0;
+        
+        WHEEL_PRIZES.forEach((prize, index) => {
+            const segmentAngle = prize.angle || (360 / WHEEL_PRIZES.length);
+            const startAngle = currentAngle;
+            const endAngle = currentAngle + segmentAngle;
+            const centerAngle = currentAngle + segmentAngle / 2;
+            
+            // Реальные углы на колесе с учетом смещения
+            const actualStart = startAngle + startOffset;
+            const actualEnd = endAngle + startOffset;
+            const actualCenter = centerAngle + startOffset;
+            
+            // Угол поворота для попадания в этот сегмент
+            let targetRotation = -actualCenter;
+            while (targetRotation < 0) targetRotation += 360;
+            
+            console.log(`${index + 1}. ${prize.name}:`);
+            console.log(`   Логические углы: ${startAngle.toFixed(1)}° - ${endAngle.toFixed(1)}° (центр: ${centerAngle.toFixed(1)}°)`);
+            console.log(`   Реальные углы на колесе: ${actualStart.toFixed(1)}° - ${actualEnd.toFixed(1)}° (центр: ${actualCenter.toFixed(1)}°)`);
+            console.log(`   Угол поворота для попадания: ${targetRotation.toFixed(1)}°`);
+            
+            currentAngle += segmentAngle;
+        });
         
         console.log('🧪 ========== КОНЕЦ ТЕСТА ==========\n');
     }
