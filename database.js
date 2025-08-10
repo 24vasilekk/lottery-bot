@@ -627,17 +627,52 @@ class Database {
         return new Promise((resolve, reject) => {
             const starsToAdd = parseInt(amount) || 0;
             
-            this.db.run(
-                'UPDATE users SET stars = stars + ?, total_stars_earned = total_stars_earned + ?, last_activity = CURRENT_TIMESTAMP WHERE telegram_id = ?',
-                [starsToAdd, Math.max(0, starsToAdd), userId],
-                function(err) {
+            // Сначала получаем текущий баланс
+            this.db.get(
+                'SELECT stars FROM users WHERE telegram_id = ?',
+                [userId],
+                (err, row) => {
                     if (err) {
-                        console.error(`❌ БД: Ошибка добавления звезд для ${userId}:`, err);
+                        console.error(`❌ Ошибка получения баланса:`, err);
                         reject(err);
-                    } else {
-                        console.log(`✅ БД: Добавлено ${starsToAdd} звезд пользователю ${userId}`);
-                        resolve({ added: starsToAdd });
+                        return;
                     }
+                    
+                    const currentStars = row?.stars || 0;
+                    const newStars = currentStars + starsToAdd;
+                    
+                    // Теперь обновляем
+                    this.db.run(
+                        'UPDATE users SET stars = ?, total_stars_earned = total_stars_earned + ?, last_activity = CURRENT_TIMESTAMP WHERE telegram_id = ?',
+                        [newStars, Math.max(0, starsToAdd), userId],
+                        (updateErr) => {
+                            if (updateErr) {
+                                console.error(`❌ Ошибка обновления баланса:`, updateErr);
+                                reject(updateErr);
+                            } else {
+                                console.log(`✅ БД: ${currentStars} + ${starsToAdd} = ${newStars} звезд для user ${userId}`);
+                                
+                                // Проверяем что обновилось
+                                this.db.get(
+                                    'SELECT * FROM users WHERE telegram_id = ?',
+                                    [userId],
+                                    (checkErr, updatedUser) => {
+                                        if (checkErr) {
+                                            console.error('❌ Ошибка проверки:', checkErr);
+                                        } else {
+                                            console.log(`✅ ПРОВЕРКА: Пользователь ${userId} теперь имеет ${updatedUser.stars} звезд в БД`);
+                                        }
+                                    }
+                                );
+                                
+                                resolve({ 
+                                    added: starsToAdd,
+                                    oldBalance: currentStars,
+                                    newBalance: newStars 
+                                });
+                            }
+                        }
+                    );
                 }
             );
         });
