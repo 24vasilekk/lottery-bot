@@ -601,16 +601,39 @@ class Database {
 
     async updateUserStars(userId, newBalance) {
         return new Promise((resolve, reject) => {
+            // ВАЖНО: убедитесь что newBalance это число
+            const stars = parseInt(newBalance) || 0;
+            
             this.db.run(
                 'UPDATE users SET stars = ?, last_activity = CURRENT_TIMESTAMP WHERE telegram_id = ?',
-                [newBalance, userId],
+                [stars, userId],
                 function(err) {
                     if (err) {
                         console.error(`❌ БД: Ошибка обновления баланса для ${userId}:`, err);
                         reject(err);
                     } else {
-                        console.log(`✅ БД: Обновлен баланс пользователя ${userId}: ${newBalance} звезд`);
-                        resolve({ stars: newBalance });
+                        console.log(`✅ БД: Обновлен баланс пользователя ${userId}: ${stars} звезд`);
+                        resolve({ stars: stars });
+                    }
+                }
+            );
+        });
+    }
+
+    async addUserStars(userId, amount) {
+        return new Promise((resolve, reject) => {
+            const starsToAdd = parseInt(amount) || 0;
+            
+            this.db.run(
+                'UPDATE users SET stars = stars + ?, total_stars_earned = total_stars_earned + ?, last_activity = CURRENT_TIMESTAMP WHERE telegram_id = ?',
+                [starsToAdd, Math.max(0, starsToAdd), userId],
+                function(err) {
+                    if (err) {
+                        console.error(`❌ БД: Ошибка добавления звезд для ${userId}:`, err);
+                        reject(err);
+                    } else {
+                        console.log(`✅ БД: Добавлено ${starsToAdd} звезд пользователю ${userId}`);
+                        resolve({ added: starsToAdd });
                     }
                 }
             );
