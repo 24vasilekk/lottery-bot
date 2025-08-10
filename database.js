@@ -581,15 +581,18 @@ class Database {
     async createUser(userData) {
         return new Promise((resolve, reject) => {
             const { telegram_id, username, first_name, last_name } = userData;
-            // ИСПРАВЛЕНО: Правильный начальный баланс - 20 звезд при первой регистрации
+            
+            // ВАЖНО: Начальный баланс 20 звезд!
             this.db.run(
                 `INSERT INTO users (telegram_id, username, first_name, last_name, stars, total_stars_earned) 
-                 VALUES (?, ?, ?, ?, 20, 20)`,
+                VALUES (?, ?, ?, ?, 20, 20)`,
                 [telegram_id, username, first_name, last_name],
                 function(err) {
-                    if (err) reject(err);
-                    else {
-                        console.log(`✅ Пользователь ${telegram_id} создан с начальным балансом 20 звезд`);
+                    if (err) {
+                        console.error('❌ Ошибка создания пользователя:', err);
+                        reject(err);
+                    } else {
+                        console.log(`✅ Пользователь ${telegram_id} создан с балансом 20 звезд`);
                         resolve(this.lastID);
                     }
                 }
