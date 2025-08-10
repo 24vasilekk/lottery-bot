@@ -472,6 +472,97 @@ class Database {
         });
     }
 
+    // В класс Database добавьте этот метод (после существующих методов):
+
+    async initializeRealWheelChances() {
+        try {
+            // Проверяем существующие настройки
+            const existingNormal = await this.getWheelSettings('normal');
+            const existingMega = await this.getWheelSettings('mega');
+
+            // ОБЫЧНАЯ РУЛЕТКА - РЕАЛЬНЫЕ ШАНСЫ (не визуальные!)
+            if (!existingNormal) {
+                const realNormalChances = {
+                    prizes: [
+                        {
+                            id: 'empty',
+                            name: 'Пусто (черный раздел)',
+                            type: 'empty',
+                            probability: 94, // РЕАЛЬНО 940 из 1000 прокруток
+                            description: 'Попробуйте еще раз!'
+                        },
+                        {
+                            id: 'stars20',
+                            name: '20 звезд',
+                            type: 'stars',
+                            probability: 5, // РЕАЛЬНО 50 из 1000 прокруток
+                            description: 'Получено 20 звезд',
+                            value: 20
+                        },
+                        {
+                            id: 'cert300',
+                            name: 'Сертификат 300₽ ЗЯ',
+                            type: 'certificate',
+                            probability: 1, // РЕАЛЬНО 10 из 1000 прокруток
+                            description: 'Сертификат на 300 рублей в Золотое Яблоко',
+                            value: 300
+                        }
+                    ]
+                };
+                
+                await this.saveWheelSettings('normal', realNormalChances);
+                console.log('✅ Инициализированы РЕАЛЬНЫЕ шансы обычной рулетки');
+            }
+
+            // МЕГА-РУЛЕТКА - призы 1:10000
+            if (!existingMega) {
+                const realMegaChances = {
+                    prizes: [
+                        {
+                            id: 'empty',
+                            name: 'Пусто (черный раздел)',
+                            type: 'empty', 
+                            probability: 99.97, // Почти все
+                            description: 'Попробуйте еще раз!'
+                        },
+                        {
+                            id: 'iphone15',
+                            name: 'iPhone 15',
+                            type: 'mega_prize',
+                            probability: 0.01, // 1:10000
+                            description: 'iPhone 15 128GB',
+                            value: 80000
+                        },
+                        {
+                            id: 'macbook',
+                            name: 'MacBook Air',
+                            type: 'mega_prize',
+                            probability: 0.01, // 1:10000
+                            description: 'MacBook Air M2',
+                            value: 120000
+                        },
+                        {
+                            id: 'cert10000',
+                            name: 'Сертификат 10000₽',
+                            type: 'mega_certificate',
+                            probability: 0.01, // 1:10000
+                            description: 'Сертификат на 10000 рублей',
+                            value: 10000
+                        }
+                    ]
+                };
+                
+                await this.saveWheelSettings('mega', realMegaChances);
+                console.log('✅ Инициализированы РЕАЛЬНЫЕ шансы мега-рулетки');
+            }
+
+            return true;
+        } catch (error) {
+            console.error('❌ Ошибка инициализации реальных шансов:', error);
+            return false;
+        }
+    }
+
     // === МЕТОДЫ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ ===
 
     async getUser(telegramId) {
