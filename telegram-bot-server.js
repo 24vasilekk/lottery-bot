@@ -936,6 +936,46 @@ app.get('/api/wheel-settings/normal', async (req, res) => {
     }
 });
 
+// Добавьте этот endpoint в telegram-bot-server.js после других API endpoints
+
+// API для синхронизации баланса звезд
+app.post('/api/sync_stars', async (req, res) => {
+    try {
+        const { action, data, user } = req.body;
+        
+        if (!user || !user.id) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'User ID отсутствует' 
+            });
+        }
+        
+        console.log(`🔄 Синхронизация звезд для пользователя ${user.id}`);
+        console.log(`⭐ Новый баланс: ${data.stars}`);
+        
+        // Обновляем баланс в базе данных
+        const updateResult = await db.updateUserStars(user.id, data.stars);
+        
+        if (updateResult) {
+            console.log(`✅ Баланс обновлен: ${data.stars} звезд`);
+            res.json({ 
+                success: true,
+                stars: data.stars,
+                message: 'Баланс синхронизирован'
+            });
+        } else {
+            throw new Error('Не удалось обновить баланс');
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка синхронизации звезд:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка синхронизации баланса' 
+        });
+    }
+});
+
 // API для проверки подписок на каналы
 // API endpoint для проверки подписки на канал
 app.post('/api/check-subscription', async (req, res) => {
