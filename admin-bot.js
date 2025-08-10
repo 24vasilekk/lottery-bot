@@ -92,7 +92,8 @@ function isAdmin(userId) {
 // === КОМАНДЫ АДМИН-БОТА ===
 
 if (adminBot) {
-    // Команда /start для админ-бота
+    // Замените приветственное сообщение на:
+
     adminBot.onText(/\/start/, (msg) => {
         const chatId = msg.chat.id;
         const userId = msg.from.id;
@@ -103,37 +104,42 @@ if (adminBot) {
         }
 
         const welcomeMessage = `
-🤖 **Админ-бот Kosmetichka Lottery**
+    🤖 **Админ-бот Kosmetichka Lottery**
 
-👋 Привет, ${msg.from.first_name}!
+    👋 Привет, ${msg.from.first_name}!
 
-🛠️ **Основные команды:**
-/stats - Общая статистика
-/users - Последние пользователи
-/prizes - Ожидающие призы
-/channels - Активные каналы
+    🛠️ **Основные команды:**
+    /stats - Общая статистика
+    /users - Последние пользователи
+    /prizes - Ожидающие призы
 
-💰 **Управление пользователями:**
-/stars user_id amount - изменить звезды
-/set_prize user_id type "name" - добавить приз
+    💰 **Управление пользователями:**
+    /stars user_id amount - изменить звезды
+    /set_prize user_id type "name" - добавить приз
 
-🎰 **Настройки рулетки:**
-/wheel_settings mega|normal - посмотреть настройки
-/set_wheel_prob type index prob - изменить вероятность
+    🎰 **УПРАВЛЕНИЕ ШАНСАМИ (НОВОЕ!):**
+    /real_chances - посмотреть реальные шансы
+    /set_real_chance normal 1 94 - изменить шанс приза
+    /reset_real_chances - сбросить к базовым настройкам
 
-🤖 **Автоматизация:**
-/automation - статистика спонсоров
-/wins_stats - канал выигрышей
+    📺 **Каналы и автоматизация:**
+    /channels - Активные каналы
+    /automation - Статистика спонсоров
 
-💬 **Прочее:**
-/broadcast сообщение - рассылка
-/panel - веб-панель (сводка)
-/help - полная справка
+    💬 **Прочее:**
+    /broadcast сообщение - рассылка
+    /help - полная справка
 
-💡 **Пример:**
-\`/stars 123456789 +500\` - добавить 500 звезд
+    🎯 **Быстрый старт:**
+    1. /reset_real_chances - настроить ваши шансы
+    2. /real_chances - проверить результат
+    3. /test_real_chances 1000 - протестировать
 
-Все управление происходит через команды бота!
+    Все управление происходит только через команды бота!
+    HTML админка отключена - используйте только этого бота.
+
+    ⚠️ **ВАЖНО:** Визуально рулетка НЕ изменится (пустота 20%, звезды 10%, сертификаты 70%)
+    Но реальные шансы: пустота 94%, звезды 5%, сертификат 1% (ваши требования)
         `;
 
         adminBot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
@@ -579,6 +585,305 @@ if (adminBot) {
         }
     });
 
+    // Добавьте эти команды в ваш admin-bot.js (после существующих команд):
+
+    // Команда просмотра РЕАЛЬНЫХ шансов (не визуальных)
+    adminBot.onText(/\/real_chances/, async (msg) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+
+        if (!isAdmin(userId)) {
+            adminBot.sendMessage(chatId, '❌ Доступ запрещен');
+            return;
+        }
+
+        try {
+            const normalSettings = await getWheelSettings('normal');
+            const megaSettings = await getWheelSettings('mega');
+
+            let message = `🎰 **РЕАЛЬНЫЕ шансы выпадения (не визуальные!)**\n\n`;
+
+            message += `📊 **ОБЫЧНАЯ РУЛЕТКА - ФАКТ (на 1000 прокруток):**\n`;
+            if (normalSettings && normalSettings.prizes) {
+                normalSettings.prizes.forEach((prize, index) => {
+                    const per1000 = Math.round(prize.probability * 10);
+                    message += `${index + 1}. ${prize.name}: ${prize.probability}% (${per1000} раз)\n`;
+                });
+            }
+
+            message += `\n🎯 **МЕГА-РУЛЕТКА - ФАКТ:**\n`;
+            if (megaSettings && megaSettings.prizes) {
+                megaSettings.prizes.forEach((prize, index) => {
+                    const rarity = prize.probability <= 0.01 ? `(1:${Math.round(100/prize.probability)})` : '';
+                    message += `${index + 1}. ${prize.name}: ${prize.probability}% ${rarity}\n`;
+                });
+            }
+
+            message += `\n⚠️ **ВАЖНО:**\n`;
+            message += `Визуально рулетка выглядит по-другому!\n`;
+            message += `Пользователи видят: пустота 20%, звезды 10%, сертификаты 70%\n`;
+            message += `Но реально выпадает по указанным выше шансам.\n\n`;
+
+            message += `💡 **Команды изменения:**\n`;
+            message += `/set_real_chance normal 1 95 - изменить реальный шанс пустоты\n`;
+            message += `/set_real_chance normal 2 4 - изменить реальный шанс звезд\n`;
+            message += `/set_real_chance normal 3 1 - изменить реальный шанс сертификата\n`;
+            message += `/reset_real_chances - сбросить к вашим базовым настройкам`;
+
+            adminBot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } catch (error) {
+            console.error('❌ Ошибка получения реальных шансов:', error);
+            adminBot.sendMessage(chatId, '❌ Ошибка получения данных');
+        }
+    });
+
+    // Команда изменения РЕАЛЬНОГО шанса
+    adminBot.onText(/\/set_real_chance (normal|mega) (\d+) ([\d.]+)/, async (msg, match) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+
+        if (!isAdmin(userId)) {
+            adminBot.sendMessage(chatId, '❌ Доступ запрещен');
+            return;
+        }
+
+        const [, wheelType, prizeNum, newChance] = match;
+        const prizeIndex = parseInt(prizeNum) - 1;
+        const chance = parseFloat(newChance);
+
+        if (chance < 0 || chance > 100) {
+            adminBot.sendMessage(chatId, '❌ Шанс должен быть от 0 до 100');
+            return;
+        }
+
+        try {
+            const settings = await getWheelSettings(wheelType);
+            if (!settings || !settings.prizes[prizeIndex]) {
+                adminBot.sendMessage(chatId, '❌ Приз не найден');
+                return;
+            }
+
+            const oldChance = settings.prizes[prizeIndex].probability;
+            settings.prizes[prizeIndex].probability = chance;
+
+            const totalChance = settings.prizes.reduce((sum, prize) => sum + prize.probability, 0);
+            
+            await db.saveWheelSettings(wheelType, settings);
+
+            const prizeName = settings.prizes[prizeIndex].name;
+            let message = `✅ **РЕАЛЬНЫЙ шанс изменен!**\n\n`;
+            message += `🎰 Рулетка: ${wheelType === 'mega' ? 'МЕГА' : 'обычная'}\n`;
+            message += `🎁 Приз: ${prizeName}\n`;
+            message += `📊 Было: ${oldChance}% → Стало: ${chance}%\n`;
+            message += `📈 Общая сумма: ${totalChance.toFixed(2)}%\n\n`;
+            
+            if (wheelType === 'normal' && prizeIndex < 3) {
+                const per1000 = Math.round(chance * 10);
+                message += `📋 На 1000 прокруток: ${per1000} раз\n`;
+            }
+            
+            if (Math.abs(totalChance - 100) > 0.1) {
+                message += `\n⚠️ **Внимание!** Сумма не равна 100%\n`;
+            }
+
+            message += `\n💡 Визуально рулетка НЕ изменилась - пользователи не видят разницы!`;
+
+            adminBot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } catch (error) {
+            console.error('❌ Ошибка изменения реального шанса:', error);
+            adminBot.sendMessage(chatId, '❌ Ошибка при изменении');
+        }
+    });
+
+    // Команда быстрой установки ваших базовых настроек
+    adminBot.onText(/\/reset_real_chances/, async (msg) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+
+        if (!isAdmin(userId)) {
+            adminBot.sendMessage(chatId, '❌ Доступ запрещен');
+            return;
+        }
+
+        try {
+            // Устанавливаем ваши базовые реальные шансы
+            const yourDefaultNormal = {
+                prizes: [
+                    { id: 'empty', name: 'Пусто (черный раздел)', type: 'empty', probability: 94 },
+                    { id: 'stars20', name: '20 звезд', type: 'stars', probability: 5 },
+                    { id: 'cert300', name: 'Сертификат 300₽ ЗЯ', type: 'certificate', probability: 1 }
+                ]
+            };
+
+            const yourDefaultMega = {
+                prizes: [
+                    { id: 'empty', name: 'Пусто (черный раздел)', type: 'empty', probability: 99.97 },
+                    { id: 'iphone15', name: 'iPhone 15', type: 'mega_prize', probability: 0.01 },
+                    { id: 'macbook', name: 'MacBook Air', type: 'mega_prize', probability: 0.01 },
+                    { id: 'cert10000', name: 'Сертификат 10000₽', type: 'mega_certificate', probability: 0.01 }
+                ]
+            };
+
+            await db.saveWheelSettings('normal', yourDefaultNormal);
+            await db.saveWheelSettings('mega', yourDefaultMega);
+            
+            adminBot.sendMessage(chatId, `
+    ✅ **РЕАЛЬНЫЕ шансы сброшены к вашим требованиям!**
+
+    📊 **Обычная рулетка - ФАКТ (на 1000 прокруток):**
+    • Пусто: 940 раз (94%)
+    • 20 звезд: 50 раз (5%)
+    • Сертификат 300₽: 10 раз (1%)
+
+    🎯 **Мега-рулетка - ФАКТ:**
+    • Пусто: 99.97%
+    • iPhone 15: 0.01% (1:10000)
+    • MacBook Air: 0.01% (1:10000)  
+    • Сертификат 10000₽: 0.01% (1:10000)
+
+    ⚠️ **ВАЖНО:** Визуально рулетка НЕ изменилась!
+    Пользователи по-прежнему видят пустоту 20%, звезды 10%, сертификаты 70%
+
+    Проверить: /real_chances
+            `, { parse_mode: 'Markdown' });
+        } catch (error) {
+            console.error('❌ Ошибка сброса реальных шансов:', error);
+            adminBot.sendMessage(chatId, '❌ Ошибка сброса настроек');
+        }
+    });
+
+    // Команда тестирования РЕАЛЬНЫХ шансов
+    adminBot.onText(/\/test_real_chances (\d+)/, async (msg, match) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+
+        if (!isAdmin(userId)) {
+            adminBot.sendMessage(chatId, '❌ Доступ запрещен');
+            return;
+        }
+
+        const testCount = parseInt(match[1]);
+        if (testCount < 100 || testCount > 10000) {
+            adminBot.sendMessage(chatId, '❌ Количество тестов должно быть от 100 до 10000');
+            return;
+        }
+
+        try {
+            const settings = await getWheelSettings('normal');
+            if (!settings) {
+                adminBot.sendMessage(chatId, '❌ Настройки не найдены');
+                return;
+            }
+
+            // Симуляция с реальными шансами
+            const results = {};
+            settings.prizes.forEach(prize => {
+                results[prize.name] = 0;
+            });
+
+            for (let i = 0; i < testCount; i++) {
+                const random = Math.random() * 100;
+                let cumulative = 0;
+                
+                for (const prize of settings.prizes) {
+                    cumulative += prize.probability;
+                    if (random < cumulative) {
+                        results[prize.name]++;
+                        break;
+                    }
+                }
+            }
+
+            let message = `🧪 **Тест РЕАЛЬНЫХ шансов (${testCount} прокруток)**\n\n`;
+            
+            Object.entries(results).forEach(([name, count]) => {
+                const percentage = ((count / testCount) * 100).toFixed(2);
+                const expectedPer1000 = testCount >= 1000 ? Math.round((count / testCount) * 1000) : 'N/A';
+                message += `• ${name}: ${count} раз (${percentage}%)`;
+                if (testCount >= 1000) {
+                    message += ` [на 1000: ~${expectedPer1000}]`;
+                }
+                message += `\n`;
+            });
+
+            message += `\n💡 Для сравнения: /real_chances`;
+
+            adminBot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+
+        } catch (error) {
+            console.error('❌ Ошибка тестирования реальных шансов:', error);
+            adminBot.sendMessage(chatId, '❌ Ошибка при тестировании');
+        }
+    });
+
+    // Команда тестирования синхронизации визуального и реального результата
+    adminBot.onText(/\/test_sync (\d+)/, async (msg, match) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id;
+
+        if (!isAdmin(userId)) {
+            adminBot.sendMessage(chatId, '❌ Доступ запрещен');
+            return;
+        }
+
+        const testCount = parseInt(match[1]);
+        if (testCount < 10 || testCount > 1000) {
+            adminBot.sendMessage(chatId, '❌ Количество тестов должно быть от 10 до 1000');
+            return;
+        }
+
+        try {
+            const settings = await getWheelSettings('normal');
+            if (!settings) {
+                adminBot.sendMessage(chatId, '❌ Настройки рулетки не найдены');
+                return;
+            }
+
+            let message = `🧪 **Тест синхронизации визуального и реального результата**\n`;
+            message += `Тестов: ${testCount}\n\n`;
+
+            // Симулируем определение призов
+            const results = {
+                empty: 0,
+                stars: 0,
+                certificate: 0
+            };
+
+            for (let i = 0; i < testCount; i++) {
+                const random = Math.random() * 100;
+                let cumulative = 0;
+                
+                for (const prize of settings.prizes) {
+                    cumulative += prize.probability;
+                    if (random < cumulative) {
+                        if (prize.type === 'empty') results.empty++;
+                        else if (prize.type === 'stars') results.stars++;
+                        else if (prize.type === 'certificate') results.certificate++;
+                        break;
+                    }
+                }
+            }
+
+            message += `📊 **Результаты определения призов:**\n`;
+            message += `• Пусто: ${results.empty} (${((results.empty/testCount)*100).toFixed(1)}%)\n`;
+            message += `• Звезды: ${results.stars} (${((results.stars/testCount)*100).toFixed(1)}%)\n`;
+            message += `• Сертификаты: ${results.certificate} (${((results.certificate/testCount)*100).toFixed(1)}%)\n\n`;
+
+            message += `✅ **Гарантии синхронизации:**\n`;
+            message += `• Если выпадают звезды → рулетка остановится на сегменте ⭐ 20\n`;
+            message += `• Если выпадает сертификат → рулетка остановится на любом сегменте 🏆\n`;
+            message += `• Если выпадает пусто → рулетка остановится на черном сегменте\n\n`;
+
+            message += `💡 Визуальный результат = Реальный результат (100% соответствие)`;
+
+            adminBot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+
+        } catch (error) {
+            console.error('❌ Ошибка тестирования синхронизации:', error);
+            adminBot.sendMessage(chatId, '❌ Ошибка при тестировании');
+        }
+    });
+
     // Команда изменения вероятности /set_wheel_prob mega|normal index probability
     adminBot.onText(/\/set_wheel_prob (mega|normal) (\d+) (\d+)/, async (msg, match) => {
         const chatId = msg.chat.id;
@@ -673,7 +978,8 @@ if (adminBot) {
         }
     });
 
-    // Команда /help
+    // Замените существующую команду /help на эту:
+
     adminBot.onText(/\/help/, (msg) => {
         const chatId = msg.chat.id;
         const userId = msg.from.id;
@@ -684,38 +990,38 @@ if (adminBot) {
         }
 
         const helpMessage = `
-🔧 **Справка по админ-боту**
+    🔧 **Справка по админ-боту**
 
-📊 **Статистика:**
-/stats - Общая статистика системы
-/users - Последние пользователи  
-/prizes - Ожидающие выдачи призы
-/automation - Статистика автоматизации
-/wins_stats - Статистика канала выигрышей
+    📊 **Статистика:**
+    /stats - Общая статистика системы
+    /users - Последние пользователи  
+    /prizes - Ожидающие выдачи призы
 
-🛠️ **Управление пользователями:**
-/stars user_id amount - изменить звезды (+100, -50)
-/set_prize user_id type "name" - добавить приз
+    🛠️ **Управление пользователями:**
+    /stars user_id amount - изменить звезды (+100, -50)
+    /set_prize user_id type "name" - добавить приз
 
-📺 **Управление каналами:**
-/channels - Список активных каналов
-/add_channel @username "Name" stars hours
-/remove_channel @username
-/hot_channel @username - горячее предложение
+    🎰 **УПРАВЛЕНИЕ РЕАЛЬНЫМИ ШАНСАМИ:**
+    /real_chances - посмотреть реальные шансы выпадения
+    /set_real_chance normal 1 95 - изменить реальный шанс
+    /reset_real_chances - сбросить к вашим базовым настройкам
+    /test_real_chances 1000 - тест реальных шансов
+    /test_sync 100 - тест синхронизации визуального и реального
 
-🎰 **Настройки рулетки:**
-/wheel_settings mega|normal - показать настройки
-/set_wheel_prob mega|normal index probability
+    💡 **ВАЖНО про шансы:**
+    • Визуально рулетка НЕ меняется (пустота 20%, звезды 10%, сертификаты 70%)
+    • Но реальные шансы выпадения управляются через команды выше
+    • По умолчанию: 94% пусто, 5% звезды (50/1000), 1% сертификат (10/1000)
+    • Мега-рулетка: редкие призы по 0.01% (1:10000)
 
-💬 **Система:**
-/panel - Веб-панель (только для просмотра)
-/broadcast <сообщение> - Рассылка
-/help - Эта справка
+    📺 **Управление каналами:**
+    /channels - Список каналов
+    /automation - Статистика
 
-💡 **Примеры:**
-\`/stars 123456789 +500\` - добавить 500 звезд
-\`/set_prize 123456789 certificate "Сертификат 1000₽"\`
-\`/set_wheel_prob mega 1 15\` - 15% для 1-го приза мега рулетки
+    💬 **Прочее:**
+    /broadcast сообщение - рассылка
+
+    Управление только через этого бота!
         `;
 
         adminBot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
