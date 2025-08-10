@@ -651,8 +651,30 @@ export default class App {
         return this.executeBalanceOperation('add', amount);
     }
 
+    // Обновите метод в app.js
+
     async spendStars(amount) {
-        return this.executeBalanceOperation('spend', amount);
+        const result = await this.executeBalanceOperation('spend', amount);
+        
+        if (result) {
+            // Синхронизируем с сервером после успешного списания
+            if (window.telegramIntegration?.sendToServer) {
+                try {
+                    const syncData = {
+                        action: 'update_balance',
+                        stars: this.gameData.stars,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    await window.telegramIntegration.sendToServer('sync_stars', syncData);
+                    console.log('✅ Баланс синхронизирован после списания');
+                } catch (error) {
+                    console.error('❌ Ошибка синхронизации после списания:', error);
+                }
+            }
+        }
+        
+        return result;
     }
 
     async executeBalanceOperation(operation, amount) {
