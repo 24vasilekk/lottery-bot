@@ -100,56 +100,30 @@ export default class App {
     }
 
     loadGameData() {
-        console.log('💾 Загрузка данных пользователя...');
-
         try {
-            // ИСПРАВЛЕНО: Создаем минимальные данные БЕЗ начального баланса
-            this.gameData = {
-                // НЕ задаем stars здесь - будет загружено из БД
-                stars: 0, // Временное значение до синхронизации с БД
-                recentWins: [],
-                completedTasks: [],
-                availableFriendSpins: 1,
-                profile: { name: 'Пользователь', avatar: '👤', joinDate: Date.now() },
-                settings: { notifications: true, sounds: true, animations: true },
-                // Статистика - будет загружена из БД
-                totalStarsEarned: 0,
-                referrals: 0,
-                totalSpins: 0,
-                prizesWon: 0
-            };
-            console.log('🆕 Минимальные данные пользователя созданы (БЕЗ начального баланса)');
-            
-            // Попытка загрузки из localStorage (только для некритичных данных)
             const saved = localStorage.getItem('kosmetichkaGameData');
             if (saved) {
-                const savedData = JSON.parse(saved);
-                // Объединяем только некритичные данные, критичные (звезды, статистика) берем из БД
+                const parsedData = JSON.parse(saved);
+                console.log('📂 Загружены локальные данные:', parsedData);
+                
+                // ВАЖНО: НЕ загружаем баланс из localStorage!
+                // Баланс должен приходить только с сервера
+                delete parsedData.stars;
+                delete parsedData.total_stars_earned;
+                
                 this.gameData = {
-                    ...this.gameData,
-                    recentWins: savedData.recentWins || [],
-                    completedTasks: savedData.completedTasks || [],
-                    profile: savedData.profile || this.gameData.profile,
-                    settings: savedData.settings || this.gameData.settings
-                    // НЕ берем stars, totalStarsEarned и другую критичную статистику из localStorage!
+                    ...DEFAULT_USER_DATA,
+                    ...parsedData,
+                    stars: 0 // Временно 0, пока не придут данные с сервера
                 };
-                console.log('💾 Некритичные данные восстановлены из localStorage');
+            } else {
+                this.gameData = { ...DEFAULT_USER_DATA, stars: 0 };
             }
             
-            // Инициализация необходимых полей (проверяем что все есть)
-            if (!this.gameData.recentWins) this.gameData.recentWins = [];
-            if (!this.gameData.completedTasks) this.gameData.completedTasks = [];
-            if (!this.gameData.availableFriendSpins) this.gameData.availableFriendSpins = 1;
-            if (!this.gameData.profile) this.gameData.profile = { name: 'Пользователь', avatar: '👤', joinDate: Date.now() };
-            if (!this.gameData.referrals) this.gameData.referrals = 0;
-            if (!this.gameData.prizesWon) this.gameData.prizesWon = 0;
-            
-            // ВАЖНО: НЕ инициализируем totalStarsEarned здесь - только из БД
-            console.log('⚠️ Инициализация завершена. Ожидаем данные из БД для баланса...');
-            
+            console.log('📊 Инициализированы данные (без баланса):', this.gameData);
         } catch (error) {
             console.error('❌ Ошибка загрузки данных:', error);
-            this.gameData = { ...DEFAULT_USER_DATA };
+            this.gameData = { ...DEFAULT_USER_DATA, stars: 0 };
         }
     }
 
@@ -634,9 +608,19 @@ export default class App {
 
     saveGameData() {
         try {
-            localStorage.setItem('kosmetichkaGameData', JSON.stringify(this.gameData));
+            // Сохраняем все, КРОМЕ баланса
+            const dataToSave = {
+                ...this.gameData
+            };
+            
+            // НЕ сохраняем баланс локально - он должен быть только на сервере
+            delete dataToSave.stars;
+            delete dataToSave.total_stars_earned;
+            
+            localStorage.setItem('kosmetichkaGameData', JSON.stringify(dataToSave));
+            console.log('💾 Данные сохранены (без баланса)');
         } catch (error) {
-            console.error('❌ Ошибка сохранения данных:', error);
+            console.error('❌ Ошибка сохранения:', error);
         }
     }
 
@@ -699,27 +683,24 @@ export default class App {
     // Обновите метод в app.js
 
     async spendStars(amount) {
-        const result = await this.executeBalanceOperation('spend', amount);
-        
-        if (result) {
-            // Синхронизируем с сервером после успешного списания
-            if (window.telegramIntegration?.sendToServer) {
-                try {
-                    const syncData = {
-                        action: 'update_balance',
-                        stars: this.gameData.stars,
-                        timestamp: new Date().toISOString()
-                    };
-                    
-                    await window.telegramIntegration.sendToServer('sync_stars', syncData);
-                    console.log('✅ Баланс синхронизирован после списания');
-                } catch (error) {
-                    console.error('❌ Ошибка синхронизации после списания:', error);
-                }
-            }
+        if (this.gameData.stars < amount) {
+            console.log('❌ Недостаточно звезд');
+            return false;
         }
         
-        return result;
+        // Списываем локально
+        this.gameData.stars -= amount;
+        console.log(`💰 Списано ${amount} звезд. Новый баланс: ${this.gameData.stars}`);
+        
+        // Обновляем UI
+        this.updateInterface();
+        
+        // Синхронизируем с сервером
+        if (this.screens.main && typeof this.screens.main.syncStarsWithServer === 'function') {
+            await this.screens.main.syncStarsWithServer();
+        }
+        
+        return true;
     }
 
     async executeBalanceOperation(operation, amount) {
