@@ -754,101 +754,31 @@ export default class App {
     }
 
     // БЕЗОПАСНОЕ обновление данных пользователя с защитой от race conditions
-    async updateUserData(newData) {
-        if (!newData) return;
+    updateUserData(newData) {
+        console.log('📝 Обновление данных пользователя:', newData);
         
-        console.log('🔄 КРИТИЧЕСКОЕ обновление данных из БД:', {
-            starsFromServer: newData.stars,
-            currentLocal: this.gameData.stars,
-            operationInProgress: this.balanceOperationInProgress
-        });
-        
-        // Ждем завершения текущих операций с балансом
-        if (this.balanceOperationInProgress) {
-            console.log('⏳ Ожидаем завершения операций с балансом...');
-            await new Promise(resolve => {
-                const checkOperations = () => {
-                    if (!this.balanceOperationInProgress) {
-                        resolve();
-                    } else {
-                        setTimeout(checkOperations, 50);
-                    }
-                };
-                checkOperations();
-            });
+        // ВАЖНО: Обновляем только если есть валидные данные
+        if (newData && typeof newData.stars === 'number') {
+            this.gameData.stars = newData.stars;
+            console.log(`⭐ Баланс обновлен: ${this.gameData.stars}`);
         }
         
-        // ИСПРАВЛЕНО: БД имеет абсолютный приоритет для критичных данных
-        
-        // 1. Баланс звезд - ТОЛЬКО из БД (с валидацией)
-        if (newData.stars !== undefined && newData.stars !== null) {
-            // ДОБАВЛЕНА ВАЛИДАЦИЯ: проверяем что значение корректное
-            if (typeof newData.stars === 'number' && newData.stars >= 0 && newData.stars <= 1000000) {
-                console.log(`💰 Обновляем баланс: ${this.gameData.stars} → ${newData.stars}`);
-                this.gameData.stars = newData.stars;
-            } else {
-                console.error(`❌ НЕКОРРЕКТНЫЙ баланс от сервера: ${newData.stars}. Оставляем текущий: ${this.gameData.stars}`);
-            }
-        } else {
-            console.warn('⚠️ Сервер не предоставил данные о балансе звезд');
-        }
-        
-        // 2. Статистика - ТОЛЬКО из БД  
-        if (newData.total_stars_earned !== undefined) {
-            this.gameData.totalStarsEarned = newData.total_stars_earned;
-        }
+        // Обновляем остальные данные
         if (newData.referrals !== undefined) {
             this.gameData.referrals = newData.referrals;
         }
-        if (newData.total_spins !== undefined) {
-            this.gameData.totalSpins = newData.total_spins;
-        }
-        if (newData.prizes_won !== undefined) {
-            this.gameData.prizesWon = newData.prizes_won;
+        
+        if (newData.totalSpins !== undefined) {
+            this.gameData.totalSpins = newData.totalSpins;
         }
         
-        // 3. Поддержка разных форматов статистики
-        if (newData.stats) {
-            this.gameData.stars = newData.stats.stars !== undefined ? newData.stats.stars : this.gameData.stars;
-            this.gameData.totalSpins = newData.stats.totalSpins !== undefined ? newData.stats.totalSpins : this.gameData.totalSpins;
-            this.gameData.prizesWon = newData.stats.prizesWon !== undefined ? newData.stats.prizesWon : this.gameData.prizesWon;  
-            this.gameData.totalStarsEarned = newData.stats.totalStarsEarned !== undefined ? newData.stats.totalStarsEarned : this.gameData.totalStarsEarned;
-            this.gameData.referrals = newData.stats.referrals !== undefined ? newData.stats.referrals : this.gameData.referrals;
+        if (newData.prizesWon !== undefined) {
+            this.gameData.prizesWon = newData.prizesWon;
         }
         
-        // 4. Некритичные данные можем объединять
-        if (newData.prizes) {
-            this.gameData.prizes = newData.prizes;
-        }
-        if (newData.recentWins) {
-            this.gameData.recentWins = newData.recentWins;
-        }
-        if (newData.completedTasks || newData.tasks?.completed) {
-            this.gameData.completedTasks = newData.completedTasks || newData.tasks.completed;
-            console.log('✅ Обновлены выполненные задания:', this.gameData.completedTasks);
-        }
-        
-        // КРИТИЧНО: Немедленно обновляем интерфейс с данными из БД
+        // Сохраняем и обновляем UI
+        this.saveGameData();
         this.updateInterface();
-        this.saveGameData(); // Сохраняем после обновления UI
-        
-        console.log('✅ Данные синхронизированы с БД:', {
-            stars: this.gameData.stars,
-            totalStarsEarned: this.gameData.totalStarsEarned,
-            referrals: this.gameData.referrals
-        });
-        
-        // Обновляем профиль если он активен (убираем дублирование)
-        if (this.navigation.currentScreen === 'profile' && this.screens.profile) {
-            // Немедленное обновление
-            this.screens.profile.loadProfileData();
-            // Дополнительное обновление через задержку для надежности
-            setTimeout(() => {
-                this.screens.profile.loadProfileData();
-            }, 500);
-        }
-
-        console.log('✅ Данные обновлены:', this.gameData);
     }
 
     // Метод для получения данных пользователя (используется в telegram-integration)
@@ -934,6 +864,32 @@ export default class App {
         // Обновляем профиль если он активен
         if (this.navigation.currentScreen === 'profile' && this.screens.profile) {
             this.screens.profile.loadProfileData();
+        }
+    }
+
+    async initializeUserData() {
+        console.log('🔄 Инициализация данных пользователя...');
+        
+        try {
+            // Сначала загружаем локальные данные
+            const localData = this.loadGameData();
+            
+            // НЕ перезаписываем баланс нулем!
+            if (localData && typeof localData.stars === 'number' && localData.stars > 0) {
+                this.gameData = { ...this.gameData, ...localData };
+            }
+            
+            // Синхронизация с сервером
+            if (window.telegramIntegration) {
+                console.log('📡 Запрос данных с сервера...');
+                await window.telegramIntegration.syncWithServer();
+            }
+            
+            // После синхронизации обновляем UI
+            this.updateInterface();
+            
+        } catch (error) {
+            console.error('❌ Ошибка инициализации данных:', error);
         }
     }
 
