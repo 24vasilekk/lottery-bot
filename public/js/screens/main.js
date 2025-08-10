@@ -435,6 +435,9 @@ export class MainScreen {
                     return;
                 }
                 console.log(`💰 Списано ${APP_CONFIG.wheel.starCost} звезд`);
+                
+                // ИСПРАВЛЕНИЕ: Синхронизируем баланс после списания звезд
+                await this.syncStarsWithServer();
             } else if (type === 'friend') {
                 this.app.gameData.friendSpinsUsed = (this.app.gameData.friendSpinsUsed || 0) + 1;
                 console.log(`❤️ Использована прокрутка за друга`);
@@ -475,6 +478,9 @@ export class MainScreen {
             }
             this.app.updateUI();
             this.app.saveGameData();
+            
+            // Синхронизируем возврат с сервером
+            await this.syncStarsWithServer();
         } finally {
             this.isSpinning = false;
             this.updateSpinButtons();
@@ -804,8 +810,12 @@ export class MainScreen {
                 type: 'stars'
             });
             
+            // Добавляем звезды локально
             this.app.gameData.stars = (this.app.gameData.stars || 0) + realValue;
             console.log(`⭐ Добавлено ${realValue} звезд, новый баланс: ${this.app.gameData.stars}`);
+            
+            // ИСПРАВЛЕНИЕ: Синхронизируем баланс звезд с сервером
+            await this.syncStarsWithServer();
         } 
         else if (realType === 'certificate' || isVisualCertificate) {
             // ИСПРАВЛЕНО: Правильно определяем тип и название сертификата
@@ -1477,6 +1487,56 @@ export class MainScreen {
         this.testAPI();
         
         console.log('\n🧪 ========== ДИАГНОСТИКА ЗАВЕРШЕНА ==========\n');
+    }
+
+    // НОВЫЙ МЕТОД: Синхронизация баланса звезд с сервером
+    async syncStarsWithServer() {
+        try {
+            console.log('🔄 Синхронизация баланса звезд с сервером...');
+            
+            if (!window.telegramIntegration?.sendToServer) {
+                console.error('❌ telegramIntegration не инициализирован');
+                return false;
+            }
+            
+            const userId = this.app.tg?.initDataUnsafe?.user?.id || window.telegramIntegration?.user?.id;
+            if (!userId) {
+                console.error('❌ Нет ID пользователя для синхронизации');
+                return false;
+            }
+            
+            const syncData = {
+                action: 'update_balance',
+                stars: this.app.gameData.stars,
+                total_stars_earned: this.app.gameData.total_stars_earned || 0,
+                timestamp: new Date().toISOString()
+            };
+            
+            console.log(`📤 Отправка баланса на сервер: ${this.app.gameData.stars} звезд`);
+            
+            const response = await window.telegramIntegration.sendToServer('sync_stars', syncData);
+            
+            if (response && response.success) {
+                console.log(`✅ Баланс синхронизирован: ${this.app.gameData.stars} звезд`);
+                return true;
+            } else {
+                console.error('❌ Ошибка синхронизации баланса:', response);
+                return false;
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка синхронизации с сервером:', error);
+            
+            // Сохраняем локально, даже если сервер недоступен
+            this.app.saveGameData();
+            
+            // Пытаемся синхронизировать позже
+            setTimeout(() => {
+                this.syncStarsWithServer();
+            }, 5000);
+            
+            return false;
+        }
     }
 
     async testAPI() {
