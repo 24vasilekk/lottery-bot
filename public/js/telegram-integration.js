@@ -397,30 +397,46 @@ class TelegramIntegration {
             return;
         }
         
-        console.log('🔄 ДИАГНОСТИКА syncWithServer: начинаем синхронизацию');
-        console.log('👤 ДИАГНОСТИКА syncWithServer: пользователь:', this.user);
-        console.log('🆔 ДИАГНОСТИКА syncWithServer: отправляем ID:', this.user.id, 'тип:', typeof this.user.id);
+        console.log('🔄 Начинаем синхронизацию с сервером...');
+        console.log('👤 Пользователь:', this.user);
         
         try {
-            const userData = window.app.getUserData();
-            console.log('📊 ДИАГНОСТИКА syncWithServer: текущие данные приложения:', userData);
-            
+            // НЕ отправляем локальные данные, только запрашиваем актуальные с сервера
             const response = await this.sendToServer('sync_user', {
-                userData: userData,
-                user: this.user // Добавляем данные пользователя
+                // Отправляем минимум данных, только для идентификации
+                userData: {
+                    telegramId: this.user.id
+                },
+                user: this.user
             });
             
-            console.log('📡 ДИАГНОСТИКА syncWithServer: ответ сервера:', response);
+            console.log('📡 Ответ сервера:', response);
             
             if (response?.userData) {
-                console.log('✅ ДИАГНОСТИКА syncWithServer: обновляем данные пользователя:', response.userData);
-                window.app.updateUserData(response.userData);
-                window.app.updateUI();
+                console.log(`✅ Получены данные с сервера, баланс: ${response.userData.stars}`);
+                
+                // ВАЖНО: Полностью заменяем локальные данные данными с сервера
+                if (window.app) {
+                    window.app.gameData = {
+                        ...window.app.gameData,
+                        stars: response.userData.stars || 0,
+                        referrals: response.userData.referrals || 0,
+                        totalSpins: response.userData.totalSpins || 0,
+                        prizesWon: response.userData.prizesWon || 0,
+                        total_stars_earned: response.userData.total_stars_earned || 0
+                    };
+                    
+                    console.log(`⭐ Локальный баланс обновлен на: ${window.app.gameData.stars}`);
+                    
+                    // Обновляем UI
+                    window.app.updateInterface();
+                    window.app.saveGameData();
+                }
             } else {
-                console.warn('⚠️ ДИАГНОСТИКА syncWithServer: нет userData в ответе сервера');
+                console.warn('⚠️ Нет userData в ответе сервера');
             }
         } catch (error) {
-            console.error('❌ ДИАГНОСТИКА syncWithServer: ошибка синхронизации:', error);
+            console.error('❌ Ошибка синхронизации:', error);
         }
     }
 
