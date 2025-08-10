@@ -379,6 +379,19 @@ app.use(express.static(publicPath, {
 // Инициализация базы данных
 const db = new Database();
 
+// Инициализируем реальные шансы рулетки при запуске
+db.initializeRealWheelChances().then(success => {
+    if (success) {
+        console.log('✅ Реальные шансы рулетки проверены/созданы');
+        console.log('   📊 Факт: пусто 94%, звезды 5%, сертификат 1%');
+        console.log('   👁️  Визуально: пустота 20%, звезды 10%, сертификаты 70%');
+    } else {
+        console.log('⚠️  Не удалось инициализировать реальные шансы рулетки');
+    }
+}).catch(error => {
+    console.error('❌ Ошибка инициализации реальных шансов:', error);
+});
+
 // Импорт фоновых задач
 const BackgroundTaskManager = require('./admin/background-tasks.js');
 
@@ -894,6 +907,32 @@ app.post('/api/debug/wheel-spin', async (req, res) => {
             error: 'Debug endpoint error',
             details: error.message 
         });
+    }
+});
+
+app.get('/api/wheel-settings/normal', async (req, res) => {
+    try {
+        const settings = await db.getWheelSettings('normal');
+        
+        if (settings && settings.prizes) {
+            // Возвращаем только шансы призов для фронтенда
+            const publicSettings = {
+                prizes: settings.prizes.map(prize => ({
+                    id: prize.id,
+                    type: prize.type,
+                    probability: prize.probability,
+                    name: prize.name,
+                    value: prize.value
+                }))
+            };
+            res.json(publicSettings);
+        } else {
+            // Возвращаем пустые настройки, чтобы фронтенд использовал дефолтные
+            res.json({ prizes: [] });
+        }
+    } catch (error) {
+        console.error('❌ Ошибка получения публичных настроек рулетки:', error);
+        res.json({ prizes: [] }); // В случае ошибки возвращаем пустые настройки
     }
 });
 
