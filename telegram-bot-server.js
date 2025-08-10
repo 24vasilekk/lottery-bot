@@ -4081,6 +4081,40 @@ async function syncUserData(userId, webAppData) {
     }
 }
 
+// Endpoint для обновления баланса
+app.post('/api/update_stars', async (req, res) => {
+    try {
+        const { data, user } = req.body;
+        
+        if (!user?.id || data?.stars === undefined) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Недостаточно данных' 
+            });
+        }
+        
+        const userId = user.id;
+        const newStars = parseInt(data.stars) || 0;
+        
+        console.log(`💾 Обновление баланса для ${userId}: ${newStars} звезд`);
+        
+        // Обновляем в БД
+        await db.updateUserStars(userId, newStars);
+        
+        res.json({ 
+            success: true,
+            stars: newStars
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка обновления баланса:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка сервера' 
+        });
+    }
+});
+
 // Функция для отправки красиво оформленного уведомления о выигрыше
 async function notifyWinToChannel(user, prize) {
     try {
