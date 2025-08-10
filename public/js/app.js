@@ -677,7 +677,38 @@ export default class App {
 
     // БЕЗОПАСНЫЕ методы для работы с балансом (защита от race conditions)
     async addStars(amount) {
-        return this.executeBalanceOperation('add', amount);
+        const oldBalance = this.gameData.stars;
+        this.gameData.stars += amount;
+        
+        console.log(`⭐ Начисление: ${oldBalance} + ${amount} = ${this.gameData.stars}`);
+        
+        // Сохраняем на сервер
+        try {
+            if (window.telegramIntegration?.sendToServer) {
+                const response = await window.telegramIntegration.sendToServer('update_balance', {
+                    stars: this.gameData.stars
+                });
+                
+                if (response?.success) {
+                    console.log('✅ Баланс сохранен на сервере');
+                } else {
+                    console.error('❌ Не удалось сохранить баланс на сервере');
+                    // Откатываем изменения
+                    this.gameData.stars = oldBalance;
+                    return false;
+                }
+            }
+        } catch (error) {
+            console.error('❌ Ошибка сохранения баланса:', error);
+            // Откатываем изменения
+            this.gameData.stars = oldBalance;
+            return false;
+        }
+        
+        // Обновляем UI
+        this.updateInterface();
+        
+        return true;
     }
 
     // Обновите метод в app.js
@@ -689,16 +720,36 @@ export default class App {
         }
         
         // Списываем локально
+        const oldBalance = this.gameData.stars;
         this.gameData.stars -= amount;
-        console.log(`💰 Списано ${amount} звезд. Новый баланс: ${this.gameData.stars}`);
+        
+        console.log(`💰 Списание: ${oldBalance} - ${amount} = ${this.gameData.stars}`);
+        
+        // ВАЖНО: Сразу сохраняем на сервер
+        try {
+            if (window.telegramIntegration?.sendToServer) {
+                const response = await window.telegramIntegration.sendToServer('update_balance', {
+                    stars: this.gameData.stars
+                });
+                
+                if (response?.success) {
+                    console.log('✅ Баланс сохранен на сервере');
+                } else {
+                    console.error('❌ Не удалось сохранить баланс на сервере');
+                    // Откатываем изменения
+                    this.gameData.stars = oldBalance;
+                    return false;
+                }
+            }
+        } catch (error) {
+            console.error('❌ Ошибка сохранения баланса:', error);
+            // Откатываем изменения
+            this.gameData.stars = oldBalance;
+            return false;
+        }
         
         // Обновляем UI
         this.updateInterface();
-        
-        // Синхронизируем с сервером
-        if (this.screens.main && typeof this.screens.main.syncStarsWithServer === 'function') {
-            await this.screens.main.syncStarsWithServer();
-        }
         
         return true;
     }
