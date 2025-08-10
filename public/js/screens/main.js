@@ -69,17 +69,28 @@ export class MainScreen {
         `;
     }
 
+    // 9. ИСПРАВЛЕННАЯ инициализация с проверкой углов
     init() {
         console.log('🎮 Инициализация главного экрана...');
         
         try {
             // Небольшая задержка для корректной инициализации DOM
             setTimeout(() => {
+                // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем углы ПЕРЕД созданием SVG
+                const anglesValid = this.checkWheelAngles();
+                if (!anglesValid) {
+                    console.warn('⚠️ Обнаружены некорректные углы, исправляем автоматически...');
+                    this.autoFixAngles();
+                }
+                
+                // Сбрасываем накопленный поворот при инициализации
+                this.wheelRotation = 0;
+                
                 this.generateWheelSVG();
                 this.setupEventListeners();
                 this.updateRecentWins();
                 this.updateSpinButtons();
-                this.testSynchronization(); // ДОБАВЛЕНО: тест синхронизации при запуске
+                this.testSynchronization(); // Тест синхронизации
                 this.initialized = true;
                 console.log('✅ Главный экран инициализирован');
             }, 100);
@@ -630,6 +641,89 @@ export class MainScreen {
         }
     }
 
+    // 10. Функция для ручной проверки синхронизации
+    async testSpinSynchronization(count = 10) {
+        console.log(`\n🧪 ========== ТЕСТ СИНХРОНИЗАЦИИ ${count} СПИНОВ ==========`);
+        
+        const results = {
+            empty: 0,
+            stars: 0,
+            certificate: 0,
+            total: 0,
+            errors: []
+        };
+        
+        for (let i = 0; i < count; i++) {
+            console.log(`\n--- Тест ${i + 1}/${count} ---`);
+            
+            try {
+                // Определяем приз
+                const realPrize = await this.selectRandomPrize();
+                console.log(`Реальный приз: ${realPrize.realType || realPrize.type}`);
+                
+                // Рассчитываем угол
+                const targetAngle = this.calculateTargetAngleForPrize(realPrize);
+                console.log(`Целевой угол: ${targetAngle.toFixed(1)}°`);
+                
+                // Определяем где остановится рулетка
+                const stoppedSegment = this.determineStoppedSegment(360 - targetAngle);
+                console.log(`Визуальный сегмент: ${stoppedSegment.prize.type}`);
+                
+                // Проверяем соответствие
+                const realType = realPrize.realType || realPrize.type;
+                const visualType = stoppedSegment.prize.type;
+                
+                if (this.typesMatch(realType, visualType)) {
+                    console.log('✅ Синхронизация корректна');
+                    results[realType]++;
+                } else {
+                    console.error(`❌ РАССИНХРОНИЗАЦИЯ: реальный=${realType}, визуальный=${visualType}`);
+                    results.errors.push({
+                        test: i + 1,
+                        real: realType,
+                        visual: visualType,
+                        angle: targetAngle
+                    });
+                }
+                
+                results.total++;
+                
+            } catch (error) {
+                console.error(`❌ Ошибка в тесте ${i + 1}:`, error);
+                results.errors.push({
+                    test: i + 1,
+                    error: error.message
+                });
+            }
+        }
+        
+        console.log(`\n📊 ========== РЕЗУЛЬТАТЫ ТЕСТИРОВАНИЯ ==========`);
+        console.log(`Всего тестов: ${results.total}`);
+        console.log(`Пустота: ${results.empty} (${(results.empty/results.total*100).toFixed(1)}%)`);
+        console.log(`Звезды: ${results.stars} (${(results.stars/results.total*100).toFixed(1)}%)`);
+        console.log(`Сертификаты: ${results.certificate} (${(results.certificate/results.total*100).toFixed(1)}%)`);
+        console.log(`Ошибок: ${results.errors.length}`);
+        
+        if (results.errors.length > 0) {
+            console.error('❌ Обнаружены ошибки синхронизации:', results.errors);
+        } else {
+            console.log('✅ Синхронизация работает корректно!');
+        }
+        
+        return results;
+    }
+
+    // 11. Функция проверки соответствия типов
+    typesMatch(realType, visualType) {
+        if (realType === visualType) return true;
+        
+        // Специальные правила соответствия
+        if (realType === 'stars' && (visualType === 'stars-20' || visualType.includes('star'))) return true;
+        if (realType === 'certificate' && (visualType.includes('apple') || visualType.includes('wildberries'))) return true;
+        
+        return false;
+    }
+
     // ============================================================================
     // ИСПРАВЛЕННАЯ ФУНКЦИЯ ПОИСКА ВИЗУАЛЬНОГО ПРИЗА
     // ============================================================================
@@ -710,6 +804,7 @@ export class MainScreen {
         return nonEmptyPrize;
     }
 
+    // 1. ИСПРАВЛЕННАЯ функция расчета целевого угла - БЕЗ накопления поворотов
     calculateTargetAngleForPrize(targetPrize) {
         console.log(`📐 Рассчитываем угол для приза:`, targetPrize);
         
@@ -723,21 +818,25 @@ export class MainScreen {
         
         console.log(`📍 Найден сегмент ${segmentIndex + 1}: ${targetPrize.name}`);
         
+        // ИСПРАВЛЕНИЕ: Сначала проверяем и нормализуем углы
+        const normalizedPrizes = this.normalizeWheelAngles();
+        
         // Рассчитываем накопленный угол до этого сегмента
         let accumulatedAngle = 0;
         for (let i = 0; i < segmentIndex; i++) {
-            accumulatedAngle += WHEEL_PRIZES[i].angle || (360 / WHEEL_PRIZES.length);
+            accumulatedAngle += normalizedPrizes[i].angle;
         }
         
         // Добавляем половину угла текущего сегмента (центр)
-        const currentSegmentAngle = WHEEL_PRIZES[segmentIndex].angle || (360 / WHEEL_PRIZES.length);
+        const currentSegmentAngle = normalizedPrizes[segmentIndex].angle;
         const segmentCenterAngle = accumulatedAngle + (currentSegmentAngle / 2);
         
-        // Указатель находится сверху (0°), поворачиваем рулетку
+        // ИСПРАВЛЕНИЕ: Указатель находится сверху (0°), рассчитываем чистый угол
+        // БЕЗ учета предыдущих поворотов
         const targetAngle = 360 - segmentCenterAngle;
         
         // Добавляем небольшую случайность внутри сегмента
-        const maxDeviation = (currentSegmentAngle / 2) * 0.4;
+        const maxDeviation = (currentSegmentAngle / 2) * 0.3; // Уменьшаем случайность
         const deviation = (Math.random() - 0.5) * maxDeviation;
         const finalAngle = targetAngle + deviation;
         
@@ -747,26 +846,237 @@ export class MainScreen {
         return finalAngle;
     }
 
+    // 2. НОВАЯ функция нормализации углов рулетки
+    normalizeWheelAngles() {
+        console.log('🔧 Нормализация углов рулетки...');
+        
+        // Проверяем текущую сумму углов
+        const currentTotal = WHEEL_PRIZES.reduce((sum, p) => sum + (p.angle || 0), 0);
+        console.log(`📊 Текущая сумма углов: ${currentTotal}°`);
+        
+        if (Math.abs(currentTotal - 360) > 1) {
+            console.warn(`⚠️ Углы не сумма не равна 360°! Исправляем...`);
+            
+            // Создаем нормализованную копию с правильными углами
+            const normalizedPrizes = WHEEL_PRIZES.map(prize => ({ ...prize }));
+            
+            // Рассчитываем пропорциональные углы
+            normalizedPrizes.forEach(prize => {
+                if (currentTotal > 0) {
+                    prize.angle = (prize.angle / currentTotal) * 360;
+                } else {
+                    prize.angle = 360 / WHEEL_PRIZES.length;
+                }
+            });
+            
+            // Проверяем что сумма теперь правильная
+            const newTotal = normalizedPrizes.reduce((sum, p) => sum + p.angle, 0);
+            console.log(`✅ Нормализованная сумма углов: ${newTotal.toFixed(1)}°`);
+            
+            return normalizedPrizes;
+        }
+        
+        console.log('✅ Углы уже корректны');
+        return WHEEL_PRIZES;
+    }
+
+    // 3. ПОЛНОСТЬЮ ПЕРЕПИСАННАЯ функция анимации - БЕЗ накопления
     async animateWheelToTarget(targetAngle) {
         const spins = Math.floor(Math.random() * 3) + 5; // 5-7 полных оборотов
-        const finalRotation = spins * 360 + targetAngle;
         
-        this.wheelRotation = (this.wheelRotation || 0) + finalRotation;
+        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: НЕ накапливаем поворот, а рассчитываем абсолютный
+        const currentRotation = this.getCurrentWheelRotation(); // Текущий угол из CSS
+        const totalRotation = (spins * 360) + targetAngle;
+        const finalRotation = currentRotation + totalRotation;
+        
+        // ИСПРАВЛЕНИЕ: Нормализуем финальный поворот чтобы избежать огромных значений
+        const normalizedFinalRotation = finalRotation % 360;
+        
+        console.log(`🌀 Анимация:`);
+        console.log(`  Текущий поворот: ${currentRotation.toFixed(1)}°`);
+        console.log(`  Целевой угол: ${targetAngle.toFixed(1)}°`);
+        console.log(`  Полных оборотов: ${spins}`);
+        console.log(`  Общий поворот: ${totalRotation.toFixed(1)}°`);
+        console.log(`  Финальный поворот: ${finalRotation.toFixed(1)}°`);
+        console.log(`  Нормализованный: ${normalizedFinalRotation.toFixed(1)}°`);
         
         const wheelSvg = document.getElementById('wheel-svg');
         if (!wheelSvg) {
             throw new Error('Элемент wheel-svg не найден');
         }
         
+        // ИСПРАВЛЕНИЕ: Устанавливаем точный угол без накопления
         wheelSvg.style.transition = `transform ${APP_CONFIG.animations.wheelSpinDuration}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
-        wheelSvg.style.transform = `rotate(${this.wheelRotation}deg)`;
+        wheelSvg.style.transform = `rotate(${finalRotation}deg)`;
         
-        console.log(`🌀 Анимация: поворот на ${finalRotation}° (итого: ${this.wheelRotation}°)`);
+        // ИСПРАВЛЕНИЕ: Сохраняем нормализованный угол для следующего спина
+        this.wheelRotation = normalizedFinalRotation;
+        
+        console.log(`🎯 Установлен поворот: ${finalRotation}°, сохранен: ${this.wheelRotation}°`);
         
         // Ждем завершения анимации
         return new Promise(resolve => {
-            setTimeout(resolve, APP_CONFIG.animations.wheelSpinDuration);
+            setTimeout(() => {
+                // После анимации проверяем где остановилась рулетка
+                this.verifyWheelPosition(targetAngle);
+                resolve();
+            }, APP_CONFIG.animations.wheelSpinDuration);
         });
+    }
+
+    // 5. НОВАЯ функция проверки позиции рулетки после остановки
+    verifyWheelPosition(expectedTargetAngle) {
+        console.log('\n🔍 Проверка позиции рулетки после остановки...');
+        
+        const finalRotation = this.getCurrentWheelRotation();
+        const normalizedTarget = ((360 - expectedTargetAngle) % 360 + 360) % 360;
+        const difference = Math.abs(finalRotation - normalizedTarget);
+        
+        console.log(`🎯 Ожидаемый угол: ${normalizedTarget.toFixed(1)}°`);
+        console.log(`📍 Фактический угол: ${finalRotation.toFixed(1)}°`);
+        console.log(`📏 Разница: ${difference.toFixed(1)}°`);
+        
+        if (difference > 30) { // Если разница больше 30°, это подозрительно
+            console.warn('⚠️ Большая разница между ожидаемым и фактическим углом!');
+            console.warn('   Возможно проблема с расчетами или анимацией');
+        } else {
+            console.log('✅ Позиция рулетки корректна');
+        }
+        
+        // Определяем на каком сегменте остановилась рулетка
+        const stoppedSegment = this.determineStoppedSegment(finalRotation);
+        console.log(`🎲 Рулетка остановилась на сегменте:`, stoppedSegment);
+    }
+
+    // 7. УЛУЧШЕННАЯ функция проверки углов при инициализации
+    checkWheelAngles() {
+        console.log('\n🔧 ========== ПРОВЕРКА УГЛОВ РУЛЕТКИ ==========');
+        
+        const totalAngle = WHEEL_PRIZES.reduce((sum, p) => sum + (p.angle || 0), 0);
+        console.log(`📊 Общая сумма углов: ${totalAngle}°`);
+        
+        if (Math.abs(totalAngle - 360) > 1) {
+            console.error(`❌ КРИТИЧЕСКАЯ ОШИБКА: Сумма углов = ${totalAngle}° (должно быть 360°)`);
+            console.error('   Это приведет к рассинхронизации визуального и реального призов!');
+            
+            console.log('📋 Углы по сегментам:');
+            WHEEL_PRIZES.forEach((prize, index) => {
+                console.log(`  ${index + 1}. ${prize.name}: ${prize.angle}° (${prize.type})`);
+            });
+            
+            console.log('\n🔧 РЕКОМЕНДУЕМЫЕ ИСПРАВЛЕНИЯ:');
+            console.log('1. Проверьте config.js - сумма всех angle должна = 360°');
+            console.log('2. Если изменили угол одного сегмента, скорректируйте другие');
+            console.log('3. Или используйте функцию autoFixAngles() для автоматического исправления');
+            
+            return false;
+        } else {
+            console.log('✅ Углы сегментов корректны');
+            return true;
+        }
+    }
+
+    // 8. НОВАЯ функция автоматического исправления углов
+    autoFixAngles() {
+        console.log('🔧 Автоматическое исправление углов...');
+        
+        const currentTotal = WHEEL_PRIZES.reduce((sum, p) => sum + (p.angle || 0), 0);
+        
+        if (currentTotal === 0) {
+            // Если углы не заданы, делим поровну
+            const equalAngle = 360 / WHEEL_PRIZES.length;
+            WHEEL_PRIZES.forEach(prize => {
+                prize.angle = equalAngle;
+            });
+            console.log(`✅ Установлены равные углы: ${equalAngle}° для каждого сегмента`);
+        } else {
+            // Пропорционально корректируем существующие углы
+            const factor = 360 / currentTotal;
+            WHEEL_PRIZES.forEach(prize => {
+                prize.angle = prize.angle * factor;
+            });
+            console.log(`✅ Углы скорректированы с коэффициентом ${factor.toFixed(3)}`);
+        }
+        
+        const newTotal = WHEEL_PRIZES.reduce((sum, p) => sum + p.angle, 0);
+        console.log(`✅ Новая сумма углов: ${newTotal.toFixed(1)}°`);
+    }
+
+    // 6. НОВАЯ функция определения сегмента по углу
+    determineStoppedSegment(rotation) {
+        const normalizedRotation = ((rotation % 360) + 360) % 360;
+        const normalizedPrizes = this.normalizeWheelAngles();
+        
+        // Указатель находится сверху (0°), определяем сегмент
+        let accumulatedAngle = 0;
+        
+        for (let i = 0; i < normalizedPrizes.length; i++) {
+            const segmentAngle = normalizedPrizes[i].angle;
+            const segmentStart = accumulatedAngle;
+            const segmentEnd = accumulatedAngle + segmentAngle;
+            
+            // Преобразуем в систему координат где указатель сверху
+            const adjustedStart = (360 - segmentEnd) % 360;
+            const adjustedEnd = (360 - segmentStart) % 360;
+            
+            // Проверяем попадание в сегмент (учитываем переход через 0°)
+            if (adjustedStart > adjustedEnd) {
+                // Сегмент пересекает 0°
+                if (normalizedRotation >= adjustedStart || normalizedRotation <= adjustedEnd) {
+                    return {
+                        index: i,
+                        prize: normalizedPrizes[i],
+                        angleStart: adjustedStart,
+                        angleEnd: adjustedEnd,
+                        rotation: normalizedRotation
+                    };
+                }
+            } else {
+                // Обычный сегмент
+                if (normalizedRotation >= adjustedStart && normalizedRotation <= adjustedEnd) {
+                    return {
+                        index: i,
+                        prize: normalizedPrizes[i],
+                        angleStart: adjustedStart,
+                        angleEnd: adjustedEnd,
+                        rotation: normalizedRotation
+                    };
+                }
+            }
+            
+            accumulatedAngle += segmentAngle;
+        }
+        
+        // Fallback - возвращаем первый сегмент
+        return {
+            index: 0,
+            prize: normalizedPrizes[0],
+            angleStart: 0,
+            angleEnd: normalizedPrizes[0].angle,
+            rotation: normalizedRotation,
+            fallback: true
+        };
+    }
+
+    // 4. НОВАЯ функция получения текущего поворота
+    getCurrentWheelRotation() {
+        const wheelSvg = document.getElementById('wheel-svg');
+        if (!wheelSvg) return 0;
+        
+        // Получаем текущий transform из CSS
+        const transform = wheelSvg.style.transform;
+        const match = transform.match(/rotate\(([^)]+)deg\)/);
+        
+        if (match) {
+            const currentRotation = parseFloat(match[1]) % 360;
+            console.log(`📐 Текущий поворот из CSS: ${currentRotation.toFixed(1)}°`);
+            return currentRotation;
+        }
+        
+        // Если нет transform в CSS, используем сохраненное значение
+        const savedRotation = this.wheelRotation || 0;
+        console.log(`📐 Используем сохраненный поворот: ${savedRotation.toFixed(1)}°`);
+        return savedRotation;
     }
 
     // 2. НОВАЯ функция создания fallback приза
