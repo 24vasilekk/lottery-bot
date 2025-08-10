@@ -641,8 +641,8 @@ export class MainScreen {
         
         console.log(`📍 Найден сегмент ${segmentIndex + 1}: ${targetPrize.name}`);
         
-        // ВАЖНО: Колесо рисуется начиная с -90° (сверху), поэтому учитываем это смещение
-        const startOffset = -90; // Колесо начинается с верхней точки
+        // ИСПРАВЛЕНО: Корректное смещение для правильной ориентации колеса
+        const startOffset = 0; // Поворот на 90° вправо для правильной синхронизации
         
         // Рассчитываем накопленный угол до этого сегмента
         let accumulatedAngle = 0;
@@ -808,25 +808,43 @@ export class MainScreen {
             console.log(`⭐ Добавлено ${realValue} звезд, новый баланс: ${this.app.gameData.stars}`);
         } 
         else if (realType === 'certificate' || isVisualCertificate) {
-            const certificateValue = prize.value || prize.realValue || 300;
+            // ИСПРАВЛЕНО: Правильно определяем тип и название сертификата
+            const certificateValue = prize.realValue || prize.value || 300;
+            let certificateName = '';
             
-            console.log(`🎫 Показываем результат: Сертификат ${certificateValue}₽`);
+            // Определяем название сертификата по визуальному типу
+            if (prize.type && prize.type.startsWith('wildberries')) {
+                certificateName = `WB ${certificateValue}₽`;
+            } else if (prize.type && prize.type.startsWith('golden-apple')) {
+                certificateName = `ЗЯ ${certificateValue}₽`;
+            } else {
+                // Если визуальный тип неизвестен, используем название из приза
+                if (prize.name.includes('WB')) {
+                    certificateName = `WB ${certificateValue}₽`;
+                } else if (prize.name.includes('ЗЯ')) {
+                    certificateName = `ЗЯ ${certificateValue}₽`;
+                } else {
+                    certificateName = `Сертификат ${certificateValue}₽`;
+                }
+            }
+            
+            console.log(`🎫 Показываем результат: ${certificateName}`);
             this.showResultModal({
                 icon: '🎫',
                 title: 'Поздравляем!',
-                description: `Вы выиграли сертификат на ${certificateValue}₽!`,
+                description: `Вы выиграли ${certificateName}!`,
                 isWin: true,
                 prize: prize
             });
             
             this.saveWinToHistory({
                 type: 'certificate',
-                name: `Сертификат ${certificateValue}₽`,
+                name: certificateName,
                 value: certificateValue,
                 timestamp: Date.now()
             });
             
-            console.log(`🏆 Выигран сертификат: ${certificateValue}₽`);
+            console.log(`🏆 Выигран сертификат: ${certificateName}`);
         }
         else {
             console.warn(`⚠️ Неизвестный тип приза: "${realType}", показываем универсальное сообщение`);
@@ -838,12 +856,16 @@ export class MainScreen {
             });
         }
 
+        // ИСПРАВЛЕНО: Правильно формируем данные для сервера
         const serverPrize = {
             id: prize.id,
             type: realType,
             name: realName,
             value: realValue,
-            description: prize.realDescription || prize.description || ''
+            description: prize.realDescription || prize.description || '',
+            // Добавляем визуальную информацию для правильного отображения в уведомлениях
+            visualType: prize.type,
+            visualName: prize.name
         };
         
         console.log(`💾 Сохраняем на сервер:`, serverPrize);
@@ -957,9 +979,9 @@ export class MainScreen {
         console.log('\n🎡 Текущее состояние колеса:');
         console.log(`Текущий угол поворота: ${this.wheelRotation}°`);
         
-        // НОВАЯ ПРОВЕРКА: Визуальная проверка сегментов
-        console.log('\n🎯 Проверка позиций сегментов на колесе (с учетом смещения -90°):');
-        const startOffset = -90; // Колесо начинается с верхней точки
+        // ИСПРАВЛЕНО: Визуальная проверка сегментов с корректным смещением
+        console.log('\n🎯 Проверка позиций сегментов на колесе (смещение 0°):');
+        const startOffset = 0; // Корректное смещение
         let currentAngle = 0;
         
         WHEEL_PRIZES.forEach((prize, index) => {
@@ -1087,20 +1109,43 @@ export class MainScreen {
         }
         
         try {
+            // ИСПРАВЛЕНО: Правильно определяем название приза для уведомлений
+            let displayName = prize.name;
+            
+            // Если это сертификат, формируем правильное название
+            if (prize.type === 'certificate' || prize.visualType?.includes('wildberries') || prize.visualType?.includes('golden-apple')) {
+                const value = Number(prize.value) || 300;
+                
+                if (prize.visualName?.includes('WB') || prize.visualType?.includes('wildberries')) {
+                    displayName = `WB ${value}₽`;
+                } else if (prize.visualName?.includes('ЗЯ') || prize.visualType?.includes('golden-apple')) {
+                    displayName = `ЗЯ ${value}₽`;
+                } else {
+                    displayName = `Сертификат ${value}₽`;
+                }
+            }
+            
+            // Получаем правильное имя пользователя
+            const userName = this.app.tg?.initDataUnsafe?.user?.first_name || 
+                           window.telegramIntegration.user?.first_name || 
+                           'Игрок';
+            
             const spinData = {
                 spinType: 'normal',
                 prize: {
                     id: prize.id || Math.floor(Math.random() * 1000000),
-                    name: prize.name || 'Неизвестный приз',
+                    name: displayName, // Используем правильное отображаемое имя
                     type: prize.type || 'empty',
                     value: Number(prize.value) || 0,
                     probability: prize.probability || 0
                 },
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                // Добавляем имя пользователя для уведомлений (без ID)
+                userName: userName
             };
             
             console.log('📤 Отправляемые данные на сервер:', spinData);
-            console.log('👤 Пользователь:', window.telegramIntegration.user);
+            console.log('👤 Пользователь:', userName);
             
             const response = await window.telegramIntegration.sendToServer('wheel_spin', spinData);
             
@@ -1108,6 +1153,12 @@ export class MainScreen {
             
             if (response && response.success === true) {
                 console.log('✅ Приз успешно сохранен на сервере');
+                
+                // Если это ценный приз, показываем дополнительное подтверждение
+                if (prize.type === 'certificate' && prize.value >= 300) {
+                    console.log('🎊 Отправлено уведомление о крупном выигрыше');
+                }
+                
                 return true;
             } else {
                 console.error('❌ Сервер вернул ошибку:', response);
