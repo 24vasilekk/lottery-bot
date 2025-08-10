@@ -390,21 +390,18 @@ class TelegramIntegration {
         console.log('=== КОНЕЦ ОТЛАДКИ ===');
     }
 
-    // Синхронизация с сервером
     async syncWithServer() {
         if (!this.user) {
             console.error('❌ syncWithServer: нет данных пользователя');
             return;
         }
         
-        console.log('🔄 Начинаем синхронизацию с сервером...');
-        console.log('👤 Пользователь:', this.user);
+        console.log('🔄 Синхронизация с сервером...');
         
         try {
-            // НЕ отправляем локальные данные, только запрашиваем актуальные с сервера
             const response = await this.sendToServer('sync_user', {
-                // Отправляем минимум данных, только для идентификации
                 userData: {
+                    // Отправляем только ID для получения данных
                     telegramId: this.user.id
                 },
                 user: this.user
@@ -412,28 +409,35 @@ class TelegramIntegration {
             
             console.log('📡 Ответ сервера:', response);
             
-            if (response?.userData) {
-                console.log(`✅ Получены данные с сервера, баланс: ${response.userData.stars}`);
+            if (response?.userData && window.app) {
+                // ВАЖНО: Баланс ВСЕГДА берем с сервера
+                const serverStars = response.userData.stars;
                 
-                // ВАЖНО: Полностью заменяем локальные данные данными с сервера
-                if (window.app) {
-                    window.app.gameData = {
-                        ...window.app.gameData,
-                        stars: response.userData.stars || 0,
-                        referrals: response.userData.referrals || 0,
-                        totalSpins: response.userData.totalSpins || 0,
-                        prizesWon: response.userData.prizesWon || 0,
-                        total_stars_earned: response.userData.total_stars_earned || 0
-                    };
+                console.log(`⭐ Получен баланс с сервера: ${serverStars}`);
+                
+                // Обновляем ТОЛЬКО если есть валидное значение с сервера
+                if (typeof serverStars === 'number') {
+                    window.app.gameData.stars = serverStars;
+                    window.app.gameData.total_stars_earned = response.userData.total_stars_earned || serverStars;
                     
-                    console.log(`⭐ Локальный баланс обновлен на: ${window.app.gameData.stars}`);
+                    // Обновляем остальные данные
+                    if (response.userData.referrals !== undefined) {
+                        window.app.gameData.referrals = response.userData.referrals;
+                    }
+                    if (response.userData.totalSpins !== undefined) {
+                        window.app.gameData.totalSpins = response.userData.totalSpins;
+                    }
+                    if (response.userData.prizesWon !== undefined) {
+                        window.app.gameData.prizesWon = response.userData.prizesWon;
+                    }
                     
-                    // Обновляем UI
+                    console.log(`✅ Данные обновлены. Баланс: ${window.app.gameData.stars}`);
+                    
+                    // НЕ сохраняем в localStorage - только обновляем UI
                     window.app.updateInterface();
-                    window.app.saveGameData();
+                } else {
+                    console.error('❌ Невалидный баланс с сервера:', serverStars);
                 }
-            } else {
-                console.warn('⚠️ Нет userData в ответе сервера');
             }
         } catch (error) {
             console.error('❌ Ошибка синхронизации:', error);
