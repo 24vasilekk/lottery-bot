@@ -600,22 +600,21 @@ class Database {
     // Добавьте этот метод в класс Database в database.js
 
     async updateUserStars(userId, newBalance) {
-        try {
-            const result = await this.pool.query(
-                'UPDATE users SET stars = $1 WHERE telegram_id = $2 RETURNING *',
-                [newBalance, userId]
+        return new Promise((resolve, reject) => {
+            this.db.run(
+                'UPDATE users SET stars = ?, last_activity = CURRENT_TIMESTAMP WHERE telegram_id = ?',
+                [newBalance, userId],
+                function(err) {
+                    if (err) {
+                        console.error(`❌ БД: Ошибка обновления баланса для ${userId}:`, err);
+                        reject(err);
+                    } else {
+                        console.log(`✅ БД: Обновлен баланс пользователя ${userId}: ${newBalance} звезд`);
+                        resolve({ stars: newBalance });
+                    }
+                }
             );
-            
-            if (result.rows.length > 0) {
-                console.log(`✅ БД: Обновлен баланс пользователя ${userId}: ${newBalance} звезд`);
-                return result.rows[0];
-            }
-            
-            return null;
-        } catch (error) {
-            console.error('❌ БД: Ошибка обновления баланса:', error);
-            throw error;
-        }
+        });
     }
 
     async updateUserActivity(telegramId) {
