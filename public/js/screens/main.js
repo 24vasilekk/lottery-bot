@@ -1492,49 +1492,28 @@ export class MainScreen {
     // НОВЫЙ МЕТОД: Синхронизация баланса звезд с сервером
     async syncStarsWithServer() {
         try {
-            console.log('🔄 Синхронизация баланса звезд с сервером...');
-            
             if (!window.telegramIntegration?.sendToServer) {
-                console.error('❌ telegramIntegration не инициализирован');
-                return false;
-            }
-            
-            const userId = this.app.tg?.initDataUnsafe?.user?.id || window.telegramIntegration?.user?.id;
-            if (!userId) {
-                console.error('❌ Нет ID пользователя для синхронизации');
+                console.error('❌ telegramIntegration не доступен');
                 return false;
             }
             
             const syncData = {
-                action: 'update_balance',
                 stars: this.app.gameData.stars,
-                total_stars_earned: this.app.gameData.total_stars_earned || 0,
                 timestamp: new Date().toISOString()
             };
             
-            console.log(`📤 Отправка баланса на сервер: ${this.app.gameData.stars} звезд`);
+            console.log(`📤 Синхронизация баланса: ${this.app.gameData.stars} звезд`);
             
-            const response = await window.telegramIntegration.sendToServer('sync_stars', syncData);
+            const response = await window.telegramIntegration.sendToServer('update_stars', syncData);
             
-            if (response && response.success) {
-                console.log(`✅ Баланс синхронизирован: ${this.app.gameData.stars} звезд`);
+            if (response?.success) {
+                console.log(`✅ Баланс синхронизирован с сервером`);
                 return true;
-            } else {
-                console.error('❌ Ошибка синхронизации баланса:', response);
-                return false;
             }
             
+            return false;
         } catch (error) {
-            console.error('❌ Ошибка синхронизации с сервером:', error);
-            
-            // Сохраняем локально, даже если сервер недоступен
-            this.app.saveGameData();
-            
-            // Пытаемся синхронизировать позже
-            setTimeout(() => {
-                this.syncStarsWithServer();
-            }, 5000);
-            
+            console.error('❌ Ошибка синхронизации баланса:', error);
             return false;
         }
     }
