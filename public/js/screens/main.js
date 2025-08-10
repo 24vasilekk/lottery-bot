@@ -1,4 +1,4 @@
-// screens/main.js - ИСПРАВЛЕННАЯ ВЕРСИЯ с рабочими кнопками
+// screens/main.js - ПОЛНОСТЬЮ ИСПРАВЛЕННАЯ ВЕРСИЯ с устранением всех ошибок
 
 import { WHEEL_PRIZES, APP_CONFIG } from '../config.js';
 
@@ -8,6 +8,7 @@ export class MainScreen {
         this.isSpinning = false;
         this.wheelRotation = 0;
         this.initialized = false;
+        this.lastSpinType = null; // ДОБАВЛЕНО: отслеживание типа последней прокрутки
     }
 
     render() {
@@ -78,6 +79,7 @@ export class MainScreen {
                 this.setupEventListeners();
                 this.updateRecentWins();
                 this.updateSpinButtons();
+                this.testSynchronization(); // ДОБАВЛЕНО: тест синхронизации при запуске
                 this.initialized = true;
                 console.log('✅ Главный экран инициализирован');
             }, 100);
@@ -191,12 +193,6 @@ export class MainScreen {
             profilePic.removeEventListener('keydown', this.profileHandler);
         }
     }
-
-    // В файле public/js/screens/main.js замените функцию generateWheelSVG() на эту:
-
-    // В файле public/js/screens/main.js замените функцию generateWheelSVG() на эту:
-
-    // В файле public/js/screens/main.js замените функцию generateWheelSVG() на эту:
 
     generateWheelSVG() {
         const container = document.getElementById('wheel-segments');
@@ -414,9 +410,9 @@ export class MainScreen {
         console.log('✅ Чистое колесо без иконок с правильной ориентацией текста создано');
     }
 
-    // В файле public/js/screens/main.js замените функцию spinWheel на эту:
-
-    // 3. ИСПРАВЬТЕ spinWheel() - используйте правильные имена функций
+    // ============================================================================
+    // ИСПРАВЛЕННАЯ ФУНКЦИЯ ПРОКРУТКИ РУЛЕТКИ С ПОЛНОЙ ОБРАБОТКОЙ ОШИБОК
+    // ============================================================================
     async spinWheel(type) {
         if (this.isSpinning) {
             console.log('⏳ Рулетка уже крутится');
@@ -427,45 +423,54 @@ export class MainScreen {
         console.log(`🎮 Тип: ${type}`);
         this.lastSpinType = type;
 
-        // Проверки
-        if (type === 'stars' && this.app.gameData.stars < APP_CONFIG.wheel.starCost) {
-            this.app.showStatusMessage('Недостаточно звезд для прокрутки!', 'error');
-            return;
-        }
-
-        if (type === 'friend') {
-            const referralsCount = this.app.gameData.referrals || 0;
-            const friendSpinsUsed = this.app.gameData.friendSpinsUsed || 0;
-            
-            if (referralsCount === 0 || friendSpinsUsed >= referralsCount) {
-                this.showReferralLink();
-                return;
-            }
-        }
-
-        this.isSpinning = true;
-        this.updateSpinButtons();
-
-        // Списание ресурсов
-        if (type === 'stars') {
-            const success = await this.app.spendStars(APP_CONFIG.wheel.starCost);
-            if (!success) {
-                this.isSpinning = false;
-                this.updateSpinButtons();
+        // ИСПРАВЛЕНИЕ 1: Проверки в правильном порядке
+        try {
+            if (type === 'stars' && this.app.gameData.stars < APP_CONFIG.wheel.starCost) {
                 this.app.showStatusMessage('Недостаточно звезд для прокрутки!', 'error');
                 return;
             }
-            console.log(`💰 Списано ${APP_CONFIG.wheel.starCost} звезд`);
-        } else if (type === 'friend') {
-            this.app.gameData.friendSpinsUsed = (this.app.gameData.friendSpinsUsed || 0) + 1;
-            console.log(`❤️ Использована прокрутка за друга`);
-            this.app.updateUI();
-        }
 
-        try {
+            if (type === 'friend') {
+                const referralsCount = this.app.gameData.referrals || 0;
+                const friendSpinsUsed = this.app.gameData.friendSpinsUsed || 0;
+                
+                if (referralsCount === 0 || friendSpinsUsed >= referralsCount) {
+                    this.showReferralLink();
+                    return;
+                }
+            }
+
+            this.isSpinning = true;
+            this.updateSpinButtons();
+
+            // ИСПРАВЛЕНИЕ 2: Сохраняем исходные значения для возможного отката
+            const originalStars = this.app.gameData.stars;
+            const originalFriendSpins = this.app.gameData.friendSpinsUsed || 0;
+
+            // Списание ресурсов
+            if (type === 'stars') {
+                const success = await this.app.spendStars(APP_CONFIG.wheel.starCost);
+                if (!success) {
+                    this.isSpinning = false;
+                    this.updateSpinButtons();
+                    this.app.showStatusMessage('Недостаточно звезд для прокрутки!', 'error');
+                    return;
+                }
+                console.log(`💰 Списано ${APP_CONFIG.wheel.starCost} звезд`);
+            } else if (type === 'friend') {
+                this.app.gameData.friendSpinsUsed = (this.app.gameData.friendSpinsUsed || 0) + 1;
+                console.log(`❤️ Использована прокрутка за друга`);
+                this.app.updateUI();
+            }
+
             // ШАГ 1: Определяем приз (уже объединенный - визуальный + реальный)
             console.log('\n📋 ШАГ 1: Определение приза...');
             const winningPrize = await this.selectRandomPrize();
+            
+            // ИСПРАВЛЕНИЕ 3: Проверяем что приз найден
+            if (!winningPrize) {
+                throw new Error('Не удалось определить выигрышный приз');
+            }
             
             // ШАГ 2: Рассчитываем угол для остановки на этом призе
             console.log('\n📐 ШАГ 2: Расчет целевого угла...');
@@ -487,13 +492,147 @@ export class MainScreen {
         } catch (error) {
             console.error('❌ Ошибка прокрутки:', error);
             this.app.showStatusMessage('Ошибка при прокрутке рулетки', 'error');
+            
+            // ИСПРАВЛЕНИЕ 4: Возвращаем потраченные ресурсы при ошибке
+            if (type === 'stars') {
+                this.app.gameData.stars = originalStars; // Возвращаем звезды
+                console.log('💰 Возвращены звезды из-за ошибки');
+            } else if (type === 'friend') {
+                this.app.gameData.friendSpinsUsed = originalFriendSpins; // Возвращаем прокрутку
+                console.log('❤️ Возвращена прокрутка за друга из-за ошибки');
+            }
+            this.app.updateUI();
+            this.app.saveGameData();
         } finally {
             this.isSpinning = false;
             this.updateSpinButtons();
         }
     }
 
-    // 2. ИСПРАВЬТЕ calculateTargetAngleForPrize() - используйте правильное имя
+    // ============================================================================
+    // ИСПРАВЛЕННАЯ ЛОГИКА ОПРЕДЕЛЕНИЯ ПРИЗОВ
+    // ============================================================================
+    async selectRandomPrize() {
+        try {
+            console.log('🎯 Определяем приз по реальным шансам из БД...');
+            
+            // Получаем РЕАЛЬНЫЕ шансы из БД
+            const response = await fetch('/api/wheel-settings/normal');
+            let realChances = [];
+            
+            if (response.ok) {
+                const settings = await response.json();
+                if (settings.prizes && settings.prizes.length > 0) {
+                    realChances = settings.prizes;
+                    console.log('📊 Получены шансы из БД:', realChances);
+                } else {
+                    realChances = this.getRealDefaultChances();
+                    console.log('📊 Используем дефолтные шансы');
+                }
+            } else {
+                realChances = this.getRealDefaultChances();
+                console.log('📊 API недоступно, используем дефолтные');
+            }
+            
+            // ИСПРАВЛЕНИЕ 5: Правильная генерация случайного числа
+            const random = Math.random() * 100;
+            let cumulative = 0;
+            
+            console.log(`🎲 Случайное число: ${random.toFixed(2)}%`);
+            
+            for (const realChance of realChances) {
+                cumulative += realChance.probability;
+                console.log(`📈 ${realChance.name}: ${cumulative.toFixed(2)}%`);
+                
+                if (random < cumulative) {
+                    console.log(`✅ ВЫПАЛ РЕАЛЬНЫЙ ПРИЗ: ${realChance.name} (${realChance.type})`);
+                    
+                    // ИСПРАВЛЕНИЕ 6: Находим визуальный приз правильно
+                    const visualPrize = this.findVisualPrizeForRealChance(realChance);
+                    
+                    if (!visualPrize) {
+                        console.error('❌ Не удалось найти визуальный приз для:', realChance);
+                        return WHEEL_PRIZES.find(p => p.type === 'empty') || WHEEL_PRIZES[0];
+                    }
+                    
+                    console.log(`🎨 Найден визуальный приз:`, visualPrize);
+                    
+                    // ИСПРАВЛЕНИЕ 7: Правильное объединение данных
+                    const enhancedPrize = {
+                        ...visualPrize, // Все визуальные свойства (id, name, type, color, angle и т.д.)
+                        
+                        // Добавляем реальную информацию
+                        realType: realChance.type,
+                        realName: realChance.name,
+                        realValue: realChance.value || 0,
+                        realDescription: realChance.description,
+                        
+                        // ВАЖНО: Перезаписываем value на РЕАЛЬНОЕ значение!
+                        value: realChance.value || 0
+                    };
+                    
+                    console.log(`🔗 Создан объединенный приз:`, enhancedPrize);
+                    console.log(`👁️  ВИЗУАЛЬНО: ${enhancedPrize.name} (${enhancedPrize.type})`);
+                    console.log(`💰 РЕАЛЬНО: ${enhancedPrize.realName} (${enhancedPrize.realType}, ${enhancedPrize.value})`);
+                    
+                    return enhancedPrize;
+                }
+            }
+            
+            // Fallback - пустота
+            console.log('⚠️ Fallback на пустоту');
+            return WHEEL_PRIZES.find(p => p.type === 'empty') || WHEEL_PRIZES[0];
+            
+        } catch (error) {
+            console.error('❌ Ошибка определения приза:', error);
+            return WHEEL_PRIZES.find(p => p.type === 'empty') || WHEEL_PRIZES[0];
+        }
+    }
+
+    // ============================================================================
+    // ИСПРАВЛЕННАЯ ФУНКЦИЯ ПОИСКА ВИЗУАЛЬНОГО ПРИЗА
+    // ============================================================================
+    findVisualPrizeForRealChance(realChance) {
+        console.log(`🔍 Ищем визуальный сегмент для реального приза:`, realChance);
+        
+        if (realChance.type === 'empty') {
+            // Возвращаем пустой сегмент
+            const emptyPrize = WHEEL_PRIZES.find(p => p.type === 'empty');
+            console.log('🎯 Найден пустой сегмент:', emptyPrize);
+            return emptyPrize;
+        } 
+        else if (realChance.type === 'stars') {
+            // Возвращаем сегмент со звездами
+            const starsPrize = WHEEL_PRIZES.find(p => p.type === 'stars-20');
+            console.log('⭐ Найден сегмент звезд:', starsPrize);
+            return starsPrize;
+        } 
+        else if (realChance.type === 'certificate') {
+            // ИСПРАВЛЕНИЕ 8: Правильный поиск сертификатов
+            // Возвращаем СЛУЧАЙНЫЙ сегмент-сертификат (любой из визуальных)
+            const certificateSegments = WHEEL_PRIZES.filter(p => {
+                return p.type.includes('apple') || 
+                       p.type.includes('wildberries') || 
+                       p.name.includes('₽') ||
+                       p.name.includes('сертификат') ||
+                       p.name.includes('Сертификат');
+            });
+            
+            console.log('🏆 Найдено сегментов-сертификатов:', certificateSegments.length);
+            
+            if (certificateSegments.length > 0) {
+                const randomIndex = Math.floor(Math.random() * certificateSegments.length);
+                const selectedCert = certificateSegments[randomIndex];
+                console.log('🎫 Выбран случайный сертификат:', selectedCert);
+                return selectedCert;
+            }
+        }
+        
+        // Fallback - возвращаем первый сегмент
+        console.warn(`⚠️ Не найден визуальный сегмент для типа: ${realChance.type}`);
+        return WHEEL_PRIZES[0];
+    }
+
     calculateTargetAngleForPrize(targetPrize) {
         console.log(`📐 Рассчитываем угол для приза:`, targetPrize);
         
@@ -538,10 +677,12 @@ export class MainScreen {
         this.wheelRotation = (this.wheelRotation || 0) + finalRotation;
         
         const wheelSvg = document.getElementById('wheel-svg');
-        if (wheelSvg) {
-            wheelSvg.style.transition = `transform ${APP_CONFIG.animations.wheelSpinDuration}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
-            wheelSvg.style.transform = `rotate(${this.wheelRotation}deg)`;
+        if (!wheelSvg) {
+            throw new Error('Элемент wheel-svg не найден');
         }
+        
+        wheelSvg.style.transition = `transform ${APP_CONFIG.animations.wheelSpinDuration}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
+        wheelSvg.style.transform = `rotate(${this.wheelRotation}deg)`;
         
         console.log(`🌀 Анимация: поворот на ${finalRotation}° (итого: ${this.wheelRotation}°)`);
         
@@ -551,87 +692,9 @@ export class MainScreen {
         });
     }
 
-    // В файле public/js/screens/main.js замените всю функцию selectRandomPrize():
-
-    // 1. ИСПРАВЬТЕ метод selectRandomPrize() - он должен возвращать ВИЗУАЛЬНЫЙ приз
-    async selectRandomPrize() {
-        try {
-            console.log('🎯 Определяем приз по шансам из БД...');
-            
-            // Получаем РЕАЛЬНЫЕ шансы из БД
-            const response = await fetch('/api/wheel-settings/normal');
-            let realChances = [];
-            
-            if (response.ok) {
-                const settings = await response.json();
-                if (settings.prizes && settings.prizes.length > 0) {
-                    realChances = settings.prizes;
-                    console.log('📊 Получены шансы из БД:', realChances);
-                } else {
-                    realChances = this.getRealDefaultChances();
-                    console.log('📊 Используем дефолтные шансы');
-                }
-            } else {
-                realChances = this.getRealDefaultChances();
-                console.log('📊 API недоступно, используем дефолтные');
-            }
-            
-            // Определяем реальный приз по вероятностям
-            const random = Math.random() * 100;
-            let cumulative = 0;
-            
-            console.log(`🎲 Случайное число: ${random.toFixed(2)}%`);
-            
-            for (const realChance of realChances) {
-                cumulative += realChance.probability;
-                console.log(`📈 ${realChance.name}: ${cumulative.toFixed(2)}%`);
-                
-                if (random < cumulative) {
-                    console.log(`✅ ВЫПАЛ РЕАЛЬНЫЙ ПРИЗ: ${realChance.name} (${realChance.type})`);
-                    
-                    // КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Используем СУЩЕСТВУЮЩУЮ функцию!
-                    const visualPrize = this.findVisualPrizeForRealChance(realChance);
-                    
-                    if (!visualPrize) {
-                        console.error('❌ Не удалось найти визуальный приз!');
-                        return WHEEL_PRIZES[0]; // Fallback
-                    }
-                    
-                    console.log(`🎨 Найден визуальный приз:`, visualPrize);
-                    
-                    // Добавляем к визуальному призу РЕАЛЬНУЮ информацию
-                    const enhancedPrize = {
-                        ...visualPrize, // Все визуальные свойства (id, name, type, color, angle и т.д.)
-                        
-                        // Добавляем реальную информацию
-                        realType: realChance.type,
-                        realName: realChance.name,
-                        realValue: realChance.value || 0,
-                        realDescription: realChance.description,
-                        
-                        // ВАЖНО: Перезаписываем value на РЕАЛЬНОЕ значение!
-                        value: realChance.value || 0
-                    };
-                    
-                    console.log(`🔗 Создан объединенный приз:`, enhancedPrize);
-                    console.log(`👁️  ВИЗУАЛЬНО: ${enhancedPrize.name} (${enhancedPrize.type})`);
-                    console.log(`💰 РЕАЛЬНО: ${enhancedPrize.realName} (${enhancedPrize.realType}, ${enhancedPrize.value})`);
-                    
-                    return enhancedPrize;
-                }
-            }
-            
-            // Fallback - пустота
-            console.log('⚠️ Fallback на пустоту');
-            return WHEEL_PRIZES.find(p => p.type === 'empty') || WHEEL_PRIZES[0];
-            
-        } catch (error) {
-            console.error('❌ Ошибка определения приза:', error);
-            return WHEEL_PRIZES.find(p => p.type === 'empty') || WHEEL_PRIZES[0];
-        }
-    }
-
-    // 4. ИСПРАВЬТЕ handlePrizeWin() - используйте правильную логику
+    // ============================================================================
+    // ИСПРАВЛЕННАЯ ОБРАБОТКА ВЫИГРЫШЕЙ
+    // ============================================================================
     async handlePrizeWin(prize) {
         console.log(`🏆 Обработка выигрыша:`, prize);
         
@@ -693,6 +756,140 @@ export class MainScreen {
         console.log('✅ Выигрыш полностью обработан');
     }
 
+    // ============================================================================
+    // ИСПРАВЛЕННЫЕ ДЕФОЛТНЫЕ ШАНСЫ
+    // ============================================================================
+    getRealDefaultChances() {
+        return [
+            { 
+                id: 'empty', 
+                type: 'empty', 
+                probability: 94, // 94% - очень высокие шансы на пустоту
+                name: 'Пусто (черный раздел)', 
+                value: 0,
+                description: 'Попробуйте еще раз!'
+            },
+            { 
+                id: 'stars20', 
+                type: 'stars', 
+                probability: 5, // 5% - редкие звезды
+                name: '20 звезд', 
+                value: 20,
+                description: 'Получено 20 звезд'
+            },
+            { 
+                id: 'cert300', 
+                type: 'certificate', 
+                probability: 1, // 1% - очень редкие сертификаты
+                name: 'Сертификат 300₽ ЗЯ', 
+                value: 300,
+                description: 'Сертификат на 300 рублей в Золотое Яблоко'
+            }
+        ];
+    }
+
+    // ============================================================================
+    // НОВАЯ ФУНКЦИЯ ОТЛАДКИ СИНХРОНИЗАЦИИ
+    // ============================================================================
+    testSynchronization() {
+        console.log('🧪 ТЕСТ СИНХРОНИЗАЦИИ ВИЗУАЛЬНЫХ И РЕАЛЬНЫХ ШАНСОВ');
+        console.log('==================================================');
+        
+        // Тестируем каждый тип приза
+        const testCases = [
+            { type: 'empty', name: 'Пусто' },
+            { type: 'stars', name: '20 звезд' },
+            { type: 'certificate', name: 'Сертификат' }
+        ];
+        
+        testCases.forEach(testCase => {
+            console.log(`\n🔍 Тест для ${testCase.name}:`);
+            const visualPrize = this.findVisualPrizeForRealChance(testCase);
+            
+            if (visualPrize) {
+                console.log(`✅ Найден визуальный сегмент: ${visualPrize.name} (ID: ${visualPrize.id})`);
+                
+                const segmentIndex = WHEEL_PRIZES.findIndex(p => p.id === visualPrize.id);
+                if (segmentIndex !== -1) {
+                    console.log(`✅ Сегмент найден в WHEEL_PRIZES под индексом ${segmentIndex}`);
+                } else {
+                    console.error(`❌ Сегмент НЕ найден в WHEEL_PRIZES!`);
+                }
+            } else {
+                console.error(`❌ Не найден визуальный сегмент для ${testCase.name}`);
+            }
+        });
+        
+        console.log('\n📊 Проверка углов сегментов:');
+        const totalAngle = WHEEL_PRIZES.reduce((sum, p) => sum + (p.angle || 0), 0);
+        console.log(`Общая сумма углов: ${totalAngle}° (должно быть 360°)`);
+        
+        if (Math.abs(totalAngle - 360) > 1) {
+            console.warn('⚠️ Сумма углов не равна 360°! Это может вызвать проблемы с позиционированием');
+        } else {
+            console.log('✅ Углы сегментов корректны');
+        }
+    }
+
+    // ============================================================================
+    // ИСПРАВЛЕННАЯ ФУНКЦИЯ МОДАЛЬНОГО ОКНА
+    // ============================================================================
+    showResultModal(result) {
+        console.log('🎭 Показываем модальное окно результата:', result);
+        
+        // Удаляем существующие модальные окна
+        const existingModals = document.querySelectorAll('.prize-result-modal');
+        existingModals.forEach(modal => modal.remove());
+        
+        // Создаем новое модальное окно
+        const modal = document.createElement('div');
+        modal.className = 'prize-result-modal';
+        modal.innerHTML = `
+            <div class="prize-result-overlay"></div>
+            <div class="prize-result-content">
+                <div class="prize-result-icon">${result.icon}</div>
+                <h2 class="prize-result-title">${result.title}</h2>
+                <p class="prize-result-description">${result.description}</p>
+                <button class="prize-result-close" type="button">Понятно</button>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Анимация появления
+        setTimeout(() => {
+            modal.classList.add('show');
+        }, 50);
+        
+        // Обработчик закрытия
+        const closeBtn = modal.querySelector('.prize-result-close');
+        const overlay = modal.querySelector('.prize-result-overlay');
+        
+        const closeModal = () => {
+            modal.classList.remove('show');
+            setTimeout(() => {
+                if (document.body.contains(modal)) {
+                    modal.remove();
+                }
+            }, 300);
+        };
+        
+        closeBtn.addEventListener('click', closeModal);
+        overlay.addEventListener('click', closeModal);
+        
+        // Автоматическое закрытие через 5 секунд
+        setTimeout(closeModal, 5000);
+        
+        // Вибрация
+        if (this.app.tg && this.app.tg.HapticFeedback) {
+            if (result.type === 'empty') {
+                this.app.tg.HapticFeedback.notificationOccurred('error');
+            } else {
+                this.app.tg.HapticFeedback.notificationOccurred('success');
+            }
+        }
+    }
+
     updateLocalDataAfterPrize(prize) {
         console.log('📝 Обновление локальных данных после приза:', prize);
         
@@ -701,12 +898,6 @@ export class MainScreen {
         
         if (prize.type !== 'empty' && prize.value > 0) {
             this.app.gameData.prizesWon = (this.app.gameData.prizesWon || 0) + 1;
-            
-            // ИСПРАВЛЕНО: НЕ добавляем звезды локально - только сервер!
-            if (prize.type.includes('stars')) {
-                console.log(`⭐ Выигран приз: ${prize.value} звезд. Ожидаем подтверждения от сервера...`);
-                // Звезды будут начислены сервером после успешного savePrizeToServer
-            }
             
             // Добавляем приз в историю
             if (!this.app.gameData.prizes) {
@@ -735,82 +926,10 @@ export class MainScreen {
             this.app.gameData.recentWins = this.app.gameData.recentWins.slice(0, 10);
         }
         
-        // Показываем результат пользователю
-        this.showPrizeResult(prize);
-        
         console.log('✅ Локальные данные обновлены');
     }
-    
-    showPrizeResult(prize) {
-        console.log('🎉 Показываем результат приза:', prize);
-        
-        if (prize.type === 'empty' || prize.value === 0) {
-            // Показываем сообщение о неудаче
-            this.app.showStatusMessage('😔 В этот раз не повезло, попробуйте еще раз!', 'info', 4000);
-            return;
-        }
-        
-        // Создаем модальное окно с результатом
-        const resultModal = document.createElement('div');
-        resultModal.className = 'prize-result-modal';
-        
-        const isStars = prize.type.includes('stars');
-        const resultContent = isStars ? 
-            `<div class="prize-result-content">
-                <div class="prize-icon stars">${prize.icon}</div>
-                <h2>🎉 Поздравляем!</h2>
-                <h3>Вы выиграли ${prize.value} звезд!</h3>
-                <p>Звезды добавлены на ваш баланс</p>
-                <button class="prize-result-close">Отлично!</button>
-            </div>` :
-            `<div class="prize-result-content">
-                <div class="prize-icon certificate">${prize.icon}</div>
-                <h2>🎉 Поздравляем!</h2>
-                <h3>Вы выиграли:</h3>
-                <div class="prize-name">${prize.name}</div>
-                <p>Для получения приза обратитесь в поддержку</p>
-                <div class="prize-actions">
-                    <button class="prize-support-btn" onclick="window.mainScreen.openSupport()">
-                        <i class="fas fa-headset"></i>
-                        Связаться с поддержкой
-                    </button>
-                    <button class="prize-result-close">Понятно</button>
-                </div>
-            </div>`;
-        
-        resultModal.innerHTML = resultContent;
-        document.body.appendChild(resultModal);
-        
-        // Обработчик закрытия
-        const closeBtn = resultModal.querySelector('.prize-result-close');
-        closeBtn.addEventListener('click', () => {
-            resultModal.remove();
-        });
-        
-        // Обработчик кнопки поддержки
-        const supportBtn = resultModal.querySelector('.prize-support-btn');
-        if (supportBtn) {
-            supportBtn.addEventListener('click', () => {
-                this.openSupport();
-                resultModal.remove();
-            });
-        }
-        
-        // Автоматически закрываем через 8 секунд
-        setTimeout(() => {
-            if (document.body.contains(resultModal)) {
-                resultModal.remove();
-            }
-        }, 8000);
-        
-        // Вибрация если доступна
-        if (this.app.tg && this.app.tg.HapticFeedback) {
-            this.app.tg.HapticFeedback.notificationOccurred('success');
-        }
-    }
 
-    // Замените функцию savePrizeToServer в public/js/screens/main.js:
-
+    // ИСПРАВЛЕННАЯ функция savePrizeToServer
     async savePrizeToServer(prize) {
         console.log('🎁 Попытка сохранения приза на сервере:', prize);
         
@@ -827,7 +946,7 @@ export class MainScreen {
         try {
             // ИСПРАВЛЕНИЕ: Убеждаемся что данные корректны
             const spinData = {
-                spinType: 'normal', // ФИКСИРОВАННОЕ значение вместо this.lastSpinType
+                spinType: 'normal', // ФИКСИРОВАННОЕ значение
                 prize: {
                     id: prize.id || Math.floor(Math.random() * 1000000), // Генерируем ID если нет
                     name: prize.name || 'Неизвестный приз',
@@ -889,26 +1008,6 @@ export class MainScreen {
         }
     }
 
-    // ДОБАВЬТЕ эту функцию для диагностики:
-    async diagnosePrizeData(prize) {
-        console.log('🔍 Диагностика данных приза:');
-        console.log('  Prize object:', prize);
-        console.log('  Prize type:', typeof prize);
-        console.log('  Prize.id:', prize?.id, typeof prize?.id);
-        console.log('  Prize.name:', prize?.name, typeof prize?.name);
-        console.log('  Prize.type:', prize?.type, typeof prize?.type);
-        console.log('  Prize.value:', prize?.value, typeof prize?.value);
-        
-        console.log('🔍 Диагностика Telegram Integration:');
-        console.log('  telegramIntegration exists:', !!window.telegramIntegration);
-        console.log('  sendToServer exists:', !!window.telegramIntegration?.sendToServer);
-        console.log('  User exists:', !!window.telegramIntegration?.user);
-        console.log('  User ID:', window.telegramIntegration?.user?.id);
-        console.log('  User data:', window.telegramIntegration?.user);
-        
-        return true;
-    }
-
     updateSpinButtons() {
         const spinStarsBtn = document.getElementById('spin-button-stars');
         const spinFriendBtn = document.getElementById('spin-button-friend');
@@ -961,7 +1060,7 @@ export class MainScreen {
 
         container.innerHTML = recentWins.map(win => `
             <div class="recent-win-item">
-                <span>${win.prize.icon}</span>
+                <span>${win.prize.icon || '🎁'}</span>
                 <div class="win-description">${win.prize.name}</div>
                 <div class="win-time">${this.formatTime(win.timestamp)}</div>
             </div>
@@ -1109,98 +1208,4 @@ export class MainScreen {
             this.app.showStatusMessage('Поддержка: @kosmetichkasupport', 'info');
         }
     }
-
-    // Добавьте эти методы в класс MainScreen в main.js:
-
-    // 5. ДОБАВЬТЕ метод getRealDefaultChances() если его нет
-    getRealDefaultChances() {
-        return [
-            { 
-                id: 'empty', 
-                type: 'empty', 
-                probability: 94, 
-                name: 'Пусто',
-                description: 'Попробуйте еще раз!'
-            },
-            { 
-                id: 'stars20', 
-                type: 'stars', 
-                probability: 5, 
-                name: '20 звезд', 
-                value: 20,
-                description: 'Получено 20 звезд'
-            },
-            { 
-                id: 'cert300', 
-                type: 'certificate', 
-                probability: 1, 
-                name: 'Сертификат 300₽ ЗЯ', 
-                value: 300,
-                description: 'Сертификат на 300 рублей в Золотое Яблоко'
-            }
-        ];
-    }
-
-    // 6. ДОБАВЬТЕ отладочную функцию для проверки
-    testSynchronization() {
-        console.log('🧪 ТЕСТ СИНХРОНИЗАЦИИ');
-        console.log('====================');
-        
-        // Тестируем каждый тип приза
-        const testCases = [
-            { type: 'empty', name: 'Пусто' },
-            { type: 'stars', name: '20 звезд' },
-            { type: 'certificate', name: 'Сертификат' }
-        ];
-        
-        testCases.forEach(testCase => {
-            console.log(`\n🔍 Тест для ${testCase.name}:`);
-            const visualPrize = this.findVisualPrizeForRealChance(testCase);
-            
-            if (visualPrize) {
-                console.log(`✅ Найден визуальный сегмент: ${visualPrize.name} (ID: ${visualPrize.id})`);
-                
-                const segmentIndex = WHEEL_PRIZES.findIndex(p => p.id === visualPrize.id);
-                if (segmentIndex !== -1) {
-                    console.log(`✅ Сегмент найден в WHEEL_PRIZES под индексом ${segmentIndex}`);
-                } else {
-                    console.error(`❌ Сегмент НЕ найден в WHEEL_PRIZES!`);
-                }
-            } else {
-                console.error(`❌ Не найден визуальный сегмент для ${testCase.name}`);
-            }
-        });
-        
-        console.log('\n📊 Проверка углов:');
-        const totalAngle = WHEEL_PRIZES.reduce((sum, p) => sum + p.angle, 0);
-        console.log(`Общая сумма углов: ${totalAngle}° (должно быть 360°)`);
-    }
-
-    findVisualPrizeForRealChance(realChance) {
-        console.log(`🔍 Ищем визуальный сегмент для реального приза:`, realChance);
-        
-        if (realChance.type === 'empty') {
-            // Возвращаем пустой сегмент
-            return WHEEL_PRIZES.find(p => p.type === 'empty');
-        } 
-        else if (realChance.type === 'stars') {
-            // Возвращаем сегмент со звездами
-            return WHEEL_PRIZES.find(p => p.type === 'stars-20');
-        } 
-        else if (realChance.type === 'certificate') {
-            // Возвращаем СЛУЧАЙНЫЙ сегмент-сертификат (любой из визуальных)
-            const certificateSegments = WHEEL_PRIZES.filter(p => 
-                p.type.includes('apple') || p.type.includes('wildberries') || p.name.includes('₽')
-            );
-            
-            if (certificateSegments.length > 0) {
-                const randomIndex = Math.floor(Math.random() * certificateSegments.length);
-                return certificateSegments[randomIndex];
-            }
-        }
-        
-        // Fallback - возвращаем первый сегмент
-        console.warn(`⚠️ Не найден визуальный сегмент для типа: ${realChance.type}`);
-        return WHEEL_PRIZES[0];
-    }    
 }
