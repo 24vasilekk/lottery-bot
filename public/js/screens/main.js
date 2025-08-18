@@ -782,7 +782,7 @@ export class MainScreen {
         
         const realType = prize.realType || prize.type;
         const isRealCertificate = realType === 'certificate';
-        const isVisualCertificate = prize.type && (prize.type.startsWith('wildberries') || prize.type.startsWith('golden-apple'));
+        const isVisualCertificate = prize.type === 'certificate';
 
         console.log(`🔍 Анализ приза:`, {
             realType: realType,
@@ -1145,7 +1145,7 @@ export class MainScreen {
             this.app.gameData.prizes.push({
                 ...prize,
                 timestamp: Date.now(),
-                claimed: prize.type.includes('stars')
+                claimed: prize.type === 'stars' || prize.realType === 'stars'
             });
         }
         
@@ -1183,12 +1183,12 @@ export class MainScreen {
             let displayName = prize.name;
             
             // Если это сертификат, формируем правильное название
-            if (prize.type === 'certificate' || prize.visualType?.includes('wildberries') || prize.visualType?.includes('golden-apple')) {
+            if (prize.type === 'certificate' || prize.realType === 'certificate') {
                 const value = Number(prize.value) || 300;
                 
-                if (prize.visualName?.includes('WB') || prize.visualType?.includes('wildberries')) {
+                if (prize.name?.includes('WB') || prize.visualName?.includes('WB')) {
                     displayName = `WB ${value}₽`;
-                } else if (prize.visualName?.includes('ЗЯ') || prize.visualType?.includes('golden-apple')) {
+                } else if (prize.name?.includes('ЗЯ') || prize.visualName?.includes('ЗЯ')) {
                     displayName = `ЗЯ ${value}₽`;
                 } else {
                     displayName = `Сертификат ${value}₽`;
