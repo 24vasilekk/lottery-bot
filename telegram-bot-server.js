@@ -859,17 +859,17 @@ app.post('/api/telegram-webhook', async (req, res) => {  // Убрали spinLim
                 await handleChannelSubscription(userId, data);
                 break;
             case 'get_balance':
-                const userData = await db.getUser(userId);
-                if (!userData) {
+                const balanceUser = await db.getUser(userId);
+                if (!balanceUser) {
                     return res.status(404).json({ 
                         success: false, 
                         error: 'Пользователь не найден' 
                     });
                 }
-                console.log(`📊 Запрос баланса для пользователя ${userId}: ${userData.stars} звезд`);
+                console.log(`📊 Запрос баланса для пользователя ${userId}: ${balanceUser.stars} звезд`);
                 return res.json({
                     success: true,
-                    stars: userData.stars,
+                    stars: balanceUser.stars,
                     userId: userId
                 });
             default:
