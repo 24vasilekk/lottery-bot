@@ -711,7 +711,36 @@ export default class App {
         return true;
     }
 
-    // Обновите метод в app.js
+    // Получение актуального баланса с сервера
+    async syncBalanceFromServer() {
+        try {
+            if (!window.telegramIntegration?.sendToServer) {
+                console.warn('⚠️ telegramIntegration недоступен для синхронизации баланса');
+                return false;
+            }
+            
+            const response = await window.telegramIntegration.sendToServer('get_balance', {});
+            
+            if (response?.success && typeof response.stars === 'number') {
+                const oldBalance = this.gameData.stars;
+                this.gameData.stars = response.stars;
+                
+                console.log(`🔄 Баланс синхронизирован с сервера: ${oldBalance} → ${response.stars} звезд`);
+                
+                // Обновляем UI
+                this.updateInterface();
+                
+                return true;
+            } else {
+                console.error('❌ Не удалось получить баланс с сервера:', response);
+                return false;
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка синхронизации баланса с сервера:', error);
+            return false;
+        }
+    }
 
     async spendStars(amount) {
         if (this.gameData.stars < amount) {

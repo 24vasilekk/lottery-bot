@@ -858,6 +858,20 @@ app.post('/api/telegram-webhook', async (req, res) => {  // Убрали spinLim
             case 'subscribe_channel':
                 await handleChannelSubscription(userId, data);
                 break;
+            case 'get_balance':
+                const userData = await db.getUser(userId);
+                if (!userData) {
+                    return res.status(404).json({ 
+                        success: false, 
+                        error: 'Пользователь не найден' 
+                    });
+                }
+                console.log(`📊 Запрос баланса для пользователя ${userId}: ${userData.stars} звезд`);
+                return res.json({
+                    success: true,
+                    stars: userData.stars,
+                    userId: userId
+                });
             default:
                 console.log(`❓ Неизвестное действие: ${action}`);
         }
@@ -3920,9 +3934,13 @@ async function handleWheelSpin(userId, data) {
                 console.log('✅ Приз добавлен в БД с транзакцией');
                 
                 // Если это звезды - обновляем баланс
-                if (data.prize.type.includes('stars')) {
+                if (data.prize.type === 'stars' || data.prize.type.startsWith('stars')) {
                     const starsAmount = data.prize.value || 0;
-                    await db.addUserStars(userId, starsAmount);
+                    if (starsAmount > 0) {
+                        console.log(`⭐ Добавляем ${starsAmount} звезд пользователю ${userId}`);
+                        await db.addUserStars(userId, starsAmount);
+                        console.log(`✅ Баланс звезд обновлен на сервере`);
+                    }
                 }
                 
                 // Отправляем уведомление в телеграм
@@ -4098,6 +4116,45 @@ app.post('/api/update_stars', async (req, res) => {
         
     } catch (error) {
         console.error('❌ Ошибка обновления баланса:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка сервера' 
+        });
+    }
+});
+
+// Endpoint для получения актуального баланса пользователя
+app.post('/api/get_balance', async (req, res) => {
+    try {
+        const { user } = req.body;
+        
+        if (!user?.id) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'User ID отсутствует' 
+            });
+        }
+        
+        const userId = user.id;
+        const userData = await db.getUser(userId);
+        
+        if (!userData) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Пользователь не найден' 
+            });
+        }
+        
+        console.log(`📊 Получен баланс для пользователя ${userId}: ${userData.stars} звезд`);
+        
+        return res.json({
+            success: true,
+            stars: userData.stars,
+            userId: userId
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения баланса:', error);
         res.status(500).json({ 
             success: false, 
             error: 'Ошибка сервера' 

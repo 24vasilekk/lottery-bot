@@ -76,7 +76,13 @@ export class MainScreen {
         this.wheelRotation = 0;
         
         try {
-            setTimeout(() => {
+            setTimeout(async () => {
+                // Синхронизируем баланс при входе на главный экран
+                if (this.app.syncBalanceFromServer) {
+                    console.log('🔄 Синхронизация баланса при входе на главный экран...');
+                    await this.app.syncBalanceFromServer();
+                }
+                
                 this.generateWheelSVG();
                 this.setupEventListeners();
                 this.updateRecentWins();
@@ -810,25 +816,22 @@ export class MainScreen {
                 type: 'stars'
             });
             
-            // ИСПРАВЛЕНО: Используем метод addStars который сохраняет на сервер
-            if (this.app.addStars) {
-                await this.app.addStars(realValue);
-            } else {
-                // Fallback если метод не существует
-                const oldBalance = this.app.gameData.stars || 0;
-                this.app.gameData.stars = oldBalance + realValue;
-                
-                // Сохраняем на сервер
-                if (window.telegramIntegration?.sendToServer) {
-                    try {
-                        const response = await window.telegramIntegration.sendToServer('update_balance', {
-                            stars: this.app.gameData.stars
-                        });
-                        console.log('📡 Результат сохранения баланса:', response);
-                    } catch (error) {
-                        console.error('❌ Ошибка сохранения баланса:', error);
-                    }
+            // ИСПРАВЛЕНО: НЕ добавляем звезды локально, получаем актуальный баланс с сервера
+            // Сервер уже добавил звезды при обработке wheel_spin, получаем актуальный баланс
+            console.log('🔄 Синхронизируем баланс с сервера после выигрыша звезд...');
+            if (this.app.syncBalanceFromServer) {
+                const syncSuccess = await this.app.syncBalanceFromServer();
+                if (syncSuccess) {
+                    console.log(`✅ Баланс синхронизирован с сервера после выигрыша ${realValue} звезд`);
+                } else {
+                    console.error('❌ Не удалось синхронизировать баланс с сервера');
+                    // Fallback - добавляем локально если синхронизация не сработала
+                    this.app.gameData.stars = (this.app.gameData.stars || 0) + realValue;
                 }
+            } else {
+                // Если метод синхронизации недоступен - fallback на локальное добавление
+                console.warn('⚠️ syncBalanceFromServer недоступен, добавляем звезды локально');
+                this.app.gameData.stars = (this.app.gameData.stars || 0) + realValue;
             }
             
             console.log(`⭐ Новый баланс: ${this.app.gameData.stars} звезд`);
@@ -893,17 +896,8 @@ export class MainScreen {
         console.log(`💾 Сохраняем приз на сервер:`, serverPrize);
         await this.savePrizeToServer(serverPrize);
 
-        // ВАЖНО: Сохраняем финальный баланс на сервер после всех изменений
-        if (window.telegramIntegration?.sendToServer) {
-            try {
-                const finalBalance = await window.telegramIntegration.sendToServer('update_balance', {
-                    stars: this.app.gameData.stars
-                });
-                console.log(`✅ Финальный баланс синхронизирован: ${this.app.gameData.stars} звезд`);
-            } catch (error) {
-                console.error('❌ Ошибка финальной синхронизации баланса:', error);
-            }
-        }
+        // УБРАНО: Финальная синхронизация может перебить правильный баланс
+        // Баланс уже синхронизирован в каждом типе приза индивидуально
 
         this.updateLocalDataAfterPrize(prize);
         this.updateRecentWins();
