@@ -13,10 +13,10 @@ class Navigation {
         
         // Добавляем обработчики для навигационных кнопок
         this.navItems.forEach(item => {
-            item.addEventListener('click', (e) => {
+            item.addEventListener('click', async (e) => {
                 e.preventDefault();
                 const targetScreen = item.getAttribute('data-screen');
-                this.navigateToScreen(targetScreen);
+                await this.navigateToScreen(targetScreen);
             });
         });
 
@@ -24,7 +24,7 @@ class Navigation {
         this.updateActiveScreen();
     }
 
-    navigateToScreen(screenId) {
+    async navigateToScreen(screenId) {
         if (screenId === this.currentScreen) return;
 
         console.log(`📱 Переход на экран: ${screenId}`);
@@ -38,8 +38,8 @@ class Navigation {
         // Обновляем навигацию
         this.updateActiveNavItem(screenId);
 
-        // Загружаем контент экрана если необходимо
-        this.loadScreenContent(screenId);
+        // Загружаем контент экрана если необходимо (асинхронно)
+        await this.loadScreenContent(screenId);
 
         // Добавляем анимацию
         this.addScreenTransition();
@@ -67,8 +67,12 @@ class Navigation {
         });
     }
 
-    loadScreenContent(screenId) {
+    async loadScreenContent(screenId) {
         switch (screenId) {
+            case 'main-screen':
+                // КРИТИЧНО: Синхронизируем баланс при каждом возврате на главный экран
+                await this.loadMainScreen();
+                break;
             case 'tasks-screen':
                 this.loadTasksScreen();
                 break;
@@ -80,8 +84,29 @@ class Navigation {
                 this.loadMegaRouletteScreen();
                 break;
             default:
-                // Главный экран загружается по умолчанию
+                // Загружаем главный экран по умолчанию
+                await this.loadMainScreen();
                 break;
+        }
+    }
+
+    async loadMainScreen() {
+        console.log('🏠 Загрузка главного экрана с синхронизацией баланса...');
+        
+        // ВАЖНО: Синхронизируем баланс с сервером при каждом возврате на главный экран
+        if (window.app && window.app.syncBalanceFromServer) {
+            try {
+                console.log('💰 Синхронизация баланса при переходе на главный экран...');
+                await window.app.syncBalanceFromServer();
+                console.log('✅ Баланс синхронизирован с сервером');
+            } catch (error) {
+                console.error('❌ Ошибка синхронизации баланса:', error);
+            }
+        }
+
+        // Перезагружаем интерфейс главного экрана если есть mainScreen
+        if (window.app && window.app.mainScreen && window.app.mainScreen.updateSpinButtons) {
+            window.app.mainScreen.updateSpinButtons();
         }
     }
 

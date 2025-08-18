@@ -377,9 +377,20 @@ export default class App {
         });
 
         // Обработка изменения видимости
-        document.addEventListener('visibilitychange', () => {
+        document.addEventListener('visibilitychange', async () => {
             if (document.hidden) {
                 this.saveGameData();
+            } else {
+                // ВАЖНО: Синхронизируем баланс при возвращении в приложение
+                console.log('👁️ Приложение стало видимым, синхронизируем баланс...');
+                if (this.syncBalanceFromServer) {
+                    try {
+                        await this.syncBalanceFromServer();
+                        console.log('✅ Баланс синхронизирован при возвращении в приложение');
+                    } catch (error) {
+                        console.error('❌ Ошибка синхронизации баланса при возвращении:', error);
+                    }
+                }
             }
         });
 
