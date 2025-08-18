@@ -3,7 +3,7 @@ const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const path = require('path');
 const fs = require('fs');
-const Database = require('./database');
+const createDatabase = require('./database-selector');
 
 // Загружаем переменные окружения
 if (fs.existsSync('.env')) {
@@ -49,7 +49,7 @@ console.log(`   🔧 Порт: ${PORT}`);
 
 // Инициализация
 const app = express();
-const db = new Database();
+const db = createDatabase();
 let adminBot = null;
 
 // Middleware

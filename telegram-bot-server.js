@@ -7,7 +7,7 @@ const path = require('path');
 const cors = require('cors');
 const fs = require('fs');
 const rateLimit = require('express-rate-limit');
-const Database = require('./database');
+const createDatabase = require('./database-selector');
 const { validateRequest, validateTelegramId, validateSpinType, validateStarsAmount } = require('./utils/validation');
 
 // Загружаем переменные окружения
@@ -376,8 +376,8 @@ app.use(express.static(publicPath, {
     }
 }));
 
-// Инициализация базы данных
-const db = new Database();
+// Инициализация базы данных (автоматический выбор SQLite/PostgreSQL)
+const db = createDatabase();
 
 // Инициализируем реальные шансы рулетки при запуске
 db.initializeRealWheelChances().then(success => {
