@@ -3950,14 +3950,36 @@ async function handleWheelSpin(userId, data) {
                 await db.addUserPrizeWithTransaction(userId, data.prize, data.spinType || 'normal');
                 console.log('✅ Приз добавлен в БД с транзакцией');
                 
+                // Валидация и обработка типов призов
+                const prizeType = data.prize.type;
+                const prizeValue = data.prize.value || 0;
+                
+                console.log(`🔍 Валидация приза: тип="${prizeType}", значение=${prizeValue}`);
+                
+                // Валидируем допустимые типы призов
+                const validPrizeTypes = ['empty', 'stars', 'certificate'];
+                if (!validPrizeTypes.includes(prizeType)) {
+                    console.warn(`⚠️ Неизвестный тип приза: ${prizeType}, принимаем как certificate`);
+                    data.prize.type = 'certificate';
+                }
+                
                 // Если это звезды - обновляем баланс
-                if (data.prize.type === 'stars' || data.prize.type.startsWith('stars')) {
-                    const starsAmount = data.prize.value || 0;
-                    if (starsAmount > 0) {
-                        console.log(`⭐ Добавляем ${starsAmount} звезд пользователю ${userId}`);
-                        await db.addUserStars(userId, starsAmount);
-                        console.log(`✅ Баланс звезд обновлен на сервере`);
+                if (prizeType === 'stars') {
+                    if (prizeValue > 0 && prizeValue <= 1000) { // Ограничение на разумное количество звезд
+                        console.log(`⭐ Добавляем ${prizeValue} звезд пользователю ${userId}`);
+                        await db.addUserStars(userId, prizeValue);
+                        console.log(`✅ Баланс звезд обновлен на сервере: +${prizeValue}`);
+                    } else {
+                        console.warn(`⚠️ Подозрительное количество звезд: ${prizeValue}, пропускаем`);
                     }
+                }
+                
+                // Если это сертификат - валидируем стоимость
+                else if (prizeType === 'certificate') {
+                    if (prizeValue < 100 || prizeValue > 10000) {
+                        console.warn(`⚠️ Подозрительная стоимость сертификата: ${prizeValue}₽`);
+                    }
+                    console.log(`🎫 Получен сертификат на ${prizeValue}₽`);
                 }
                 
                 // Отправляем уведомление в телеграм

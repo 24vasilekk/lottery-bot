@@ -291,9 +291,9 @@ export class MainScreen {
             let fillUrl;
             if (prize.type === 'empty') {
                 fillUrl = 'url(#emptyPattern)';
-            } else if (prize.type.startsWith('stars')) {
+            } else if (prize.type === 'stars') {
                 fillUrl = 'url(#starsGradient)';
-            } else if (prize.type.startsWith('wildberries') || prize.type.startsWith('golden-apple')) {
+            } else if (prize.type === 'certificate') {
                 if (prize.name.includes('ЗЯ')) {
                     const appleValues = ['300₽', '500₽', '1000₽', '2000₽', '5000₽'];
                     const appleIndex = appleValues.findIndex(val => prize.name.includes(val));
@@ -442,8 +442,7 @@ export class MainScreen {
                 }
                 console.log(`💰 Списано ${APP_CONFIG.wheel.starCost} звезд`);
                 
-                // ИСПРАВЛЕНИЕ: Синхронизируем баланс после списания звезд
-                await this.syncStarsWithServer();
+                // УБРАНО: Избыточная синхронизация - баланс обновится после обработки выигрыша
             } else if (type === 'friend') {
                 this.app.gameData.friendSpinsUsed = (this.app.gameData.friendSpinsUsed || 0) + 1;
                 console.log(`❤️ Использована прокрутка за друга`);
@@ -485,8 +484,7 @@ export class MainScreen {
             this.app.updateUI();
             this.app.saveGameData();
             
-            // Синхронизируем возврат с сервером
-            await this.syncStarsWithServer();
+            // УБРАНО: Избыточная синхронизация - уже откатили локально
         } finally {
             this.isSpinning = false;
             this.updateSpinButtons();
@@ -616,12 +614,12 @@ export class MainScreen {
             console.log('✅ Найден пустой сегмент:', targetPrize);
             
         } else if (realChance.type === 'stars') {
-            targetPrize = WHEEL_PRIZES.find(p => p.type.startsWith('stars'));
+            targetPrize = WHEEL_PRIZES.find(p => p.type === 'stars');
             console.log('✅ Найден сегмент со звездами:', targetPrize);
             
         } else if (realChance.type === 'certificate') {
             const certificatePrizes = WHEEL_PRIZES.filter(p => 
-                p.type.startsWith('wildberries') || p.type.startsWith('golden-apple')
+                p.type === 'certificate'
             );
             
             if (certificatePrizes.length > 0) {
