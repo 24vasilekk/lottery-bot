@@ -317,9 +317,10 @@ const apiLimiter = rateLimit({
         error: 'Превышен лимит API запросов, попробуйте через минуту',
         retryAfter: 60
     },
-    // Добавляем более детальное логирование
-    onLimitReached: (req, res, options) => {
+    // Используем handler вместо deprecated onLimitReached
+    handler: (req, res, next, options) => {
         console.log(`⚠️ Rate limit достигнут для ${req.ip}, URL: ${req.url}, User: ${req.body?.userId || 'unknown'}`);
+        res.status(options.statusCode).json(options.message);
     }
 });
 
@@ -377,7 +378,16 @@ app.use(express.static(publicPath, {
 }));
 
 // Инициализация базы данных (автоматический выбор SQLite/PostgreSQL)
+console.log('🗄️ ========== ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ ==========');
+console.log('🌍 NODE_ENV:', process.env.NODE_ENV);
+console.log('🚂 RAILWAY_ENVIRONMENT:', process.env.RAILWAY_ENVIRONMENT);
+console.log('🔗 DATABASE_URL установлен:', !!process.env.DATABASE_URL);
+console.log('📊 DATABASE_URL тип:', typeof process.env.DATABASE_URL);
+
 const db = createDatabase();
+
+console.log('✅ База данных инициализирована');
+console.log('🗄️ ========== КОНЕЦ ИНИЦИАЛИЗАЦИИ БД ==========');
 
 // Инициализируем реальные шансы рулетки при запуске
 db.initializeRealWheelChances().then(success => {
