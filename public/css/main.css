@@ -840,6 +840,122 @@ body {
 }
 
 /* ========================================
+   8.5. МОДАЛЬНОЕ ОКНО ПРИЗА С КНОПКОЙ МЕНЕДЖЕРА
+   ======================================== */
+
+.prize-result-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.prize-result-modal.show {
+    opacity: 1;
+}
+
+.prize-result-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+}
+
+.prize-result-content {
+    background: var(--card-bg);
+    border-radius: var(--radius-large);
+    padding: 30px 25px;
+    max-width: 340px;
+    width: calc(100vw - 40px);
+    text-align: center;
+    box-shadow: var(--shadow-soft);
+    border: 1px solid rgba(239, 85, 165, 0.3);
+    position: relative;
+    transform: scale(0.8);
+    transition: transform 0.3s ease;
+}
+
+.prize-result-modal.show .prize-result-content {
+    transform: scale(1);
+}
+
+.prize-result-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+    display: block;
+}
+
+.prize-result-title {
+    color: var(--text-primary);
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.prize-result-description {
+    color: var(--text-secondary);
+    font-size: 16px;
+    margin-bottom: 25px;
+    line-height: 1.4;
+}
+
+.prize-result-manager {
+    background: var(--gradient-lime);
+    color: #1a1a1a;
+    border: none;
+    border-radius: var(--radius-medium);
+    padding: 14px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 15px;
+    width: 100%;
+    box-shadow: var(--shadow-lime);
+    transition: all var(--transition-medium);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.prize-result-manager:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(204, 213, 55, 0.5);
+}
+
+.prize-result-manager:active {
+    transform: translateY(0);
+}
+
+.prize-result-close {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-medium);
+    padding: 12px 20px;
+    font-size: 14px;
+    cursor: pointer;
+    width: 100%;
+    transition: all var(--transition-medium);
+}
+
+.prize-result-close:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--text-primary);
+}
+
+/* ========================================
    9. АДАПТИВНОСТЬ - ИСПРАВЛЕНА
    ======================================== */
 

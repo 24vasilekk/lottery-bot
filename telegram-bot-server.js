@@ -889,6 +889,71 @@ app.post('/api/telegram-webhook', async (req, res) => {  // Убрали spinLim
                     stars: newBalance,
                     userId: userId
                 });
+            case 'verify_prize':
+                console.log(`🔍 Верификация приза для пользователя ${userId}:`, data);
+                
+                try {
+                    // Получаем последние призы пользователя из БД
+                    const userPrizes = await db.getUserPrizes(userId, 10); // Последние 10 призов
+                    
+                    if (!userPrizes || userPrizes.length === 0) {
+                        console.warn(`⚠️ У пользователя ${userId} нет призов в БД`);
+                        return res.json({
+                            success: false,
+                            error: 'Призы не найдены'
+                        });
+                    }
+                    
+                    // Ищем приз по ID или по времени (последний приз)
+                    let verifiedPrize = null;
+                    
+                    if (data.prizeId) {
+                        verifiedPrize = userPrizes.find(p => p.id === data.prizeId);
+                    }
+                    
+                    // Если не найден по ID, берем последний приз
+                    if (!verifiedPrize) {
+                        verifiedPrize = userPrizes[0]; // Самый последний
+                        console.log('📋 Используем последний приз пользователя');
+                    }
+                    
+                    if (verifiedPrize) {
+                        console.log('✅ Приз найден в БД:', verifiedPrize);
+                        
+                        // Формируем данные для ответа
+                        const prizeData = {
+                            id: verifiedPrize.id,
+                            name: verifiedPrize.name,
+                            realName: verifiedPrize.name,
+                            type: verifiedPrize.type,
+                            realType: verifiedPrize.type,
+                            value: verifiedPrize.value,
+                            realValue: verifiedPrize.value,
+                            description: verifiedPrize.description,
+                            timestamp: verifiedPrize.created_at,
+                            verified: true
+                        };
+                        
+                        return res.json({
+                            success: true,
+                            prizeData: prizeData,
+                            message: 'Приз верифицирован из БД'
+                        });
+                    } else {
+                        console.warn(`⚠️ Приз не найден в БД для пользователя ${userId}`);
+                        return res.json({
+                            success: false,
+                            error: 'Приз не найден в базе данных'
+                        });
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Ошибка верификации приза:', error);
+                    return res.status(500).json({
+                        success: false,
+                        error: 'Ошибка сервера при верификации приза'
+                    });
+                }
             default:
                 console.log(`❓ Неизвестное действие: ${action}`);
         }

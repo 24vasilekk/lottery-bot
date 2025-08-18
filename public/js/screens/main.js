@@ -1046,12 +1046,27 @@ export class MainScreen {
         
         const modal = document.createElement('div');
         modal.className = 'prize-result-modal';
+        // Определяем нужна ли кнопка связи с менеджером
+        const isWinningCertificate = result.isWin && result.prize && 
+                                   (result.prize.realType === 'certificate' || 
+                                    result.prize.type === 'certificate');
+        
+        let managerButtonHtml = '';
+        if (isWinningCertificate) {
+            managerButtonHtml = `
+                <button class="prize-result-manager" type="button" id="contact-manager-btn">
+                    📞 Связаться с менеджером
+                </button>
+            `;
+        }
+        
         modal.innerHTML = `
             <div class="prize-result-overlay"></div>
             <div class="prize-result-content">
                 <div class="prize-result-icon">${result.icon}</div>
                 <h2 class="prize-result-title">${result.title}</h2>
                 <p class="prize-result-description">${result.description}</p>
+                ${managerButtonHtml}
                 <button class="prize-result-close" type="button">Понятно</button>
             </div>
         `;
@@ -1064,6 +1079,7 @@ export class MainScreen {
         
         const closeBtn = modal.querySelector('.prize-result-close');
         const overlay = modal.querySelector('.prize-result-overlay');
+        const managerBtn = modal.querySelector('#contact-manager-btn');
         
         const closeModal = () => {
             modal.classList.remove('show');
@@ -1076,6 +1092,32 @@ export class MainScreen {
         
         closeBtn.addEventListener('click', closeModal);
         overlay.addEventListener('click', closeModal);
+        
+        // Обработчик кнопки связи с менеджером
+        if (managerBtn && isWinningCertificate) {
+            managerBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('📞 Нажата кнопка связи с менеджером');
+                
+                try {
+                    // Получаем актуальную информацию о призе из БД
+                    const prizeInfo = await this.getPrizeFromDatabase(result.prize);
+                    const message = this.generatePrizeMessage(prizeInfo);
+                    
+                    // Открываем диалог с менеджером
+                    this.openManagerChat(message);
+                    
+                    // Закрываем модальное окно
+                    closeModal();
+                    
+                } catch (error) {
+                    console.error('❌ Ошибка при связи с менеджером:', error);
+                    this.app.showStatusMessage('Ошибка при открытии чата с менеджером', 'error');
+                }
+            });
+        }
         
         setTimeout(closeModal, 5000);
         
@@ -1552,6 +1594,95 @@ export class MainScreen {
             }
         } catch (error) {
             console.error('❌ API недоступно:', error.message);
+        }
+    }
+
+    // Получение информации о призе из базы данных для верификации
+    async getPrizeFromDatabase(prize) {
+        try {
+            console.log('🔍 Получаем информацию о призе из БД:', prize);
+            
+            if (!window.telegramIntegration?.sendToServer) {
+                console.warn('⚠️ telegramIntegration недоступен');
+                return prize; // Возвращаем оригинальный приз если нет связи
+            }
+            
+            // Запрашиваем информацию о призе с сервера для верификации
+            const response = await window.telegramIntegration.sendToServer('verify_prize', {
+                prizeId: prize.id,
+                userId: this.app.tg?.initDataUnsafe?.user?.id,
+                timestamp: Date.now()
+            });
+            
+            if (response?.success && response.prizeData) {
+                console.log('✅ Информация о призе получена из БД:', response.prizeData);
+                return response.prizeData;
+            } else {
+                console.warn('⚠️ Не удалось получить информацию из БД, используем локальные данные');
+                return prize;
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка получения информации о призе:', error);
+            return prize; // Fallback на оригинальные данные
+        }
+    }
+
+    // Генерация сообщения для менеджера с информацией о призе
+    generatePrizeMessage(prizeInfo) {
+        const userName = this.app.tg?.initDataUnsafe?.user?.first_name || 'Пользователь';
+        const userId = this.app.tg?.initDataUnsafe?.user?.id || 'неизвестен';
+        const currentTime = new Date().toLocaleString('ru-RU');
+        
+        let prizeName = prizeInfo.realName || prizeInfo.name || 'Сертификат';
+        let prizeValue = prizeInfo.realValue || prizeInfo.value || 'неизвестно';
+        
+        // Определяем тип сертификата для правильного сообщения
+        if (prizeName.includes('WB')) {
+            prizeName = `Сертификат Wildberries на ${prizeValue}₽`;
+        } else if (prizeName.includes('ЗЯ')) {
+            prizeName = `Сертификат Золотое Яблоко на ${prizeValue}₽`;
+        }
+        
+        const message = `🎉 Привет! Я выиграл ${prizeName} в лотерее Kosmetichka!
+
+👤 Имя: ${userName}
+🆔 ID: ${userId}
+🎁 Приз: ${prizeName}
+⏰ Время выигрыша: ${currentTime}
+
+Как мне получить мой приз? 😊`;
+
+        console.log('📝 Сгенерировано сообщение для менеджера:', message);
+        return message;
+    }
+
+    // Открытие чата с менеджером
+    openManagerChat(message) {
+        try {
+            const managerUsername = 'kosmetichkasupport';
+            const encodedMessage = encodeURIComponent(message);
+            const chatUrl = `https://t.me/${managerUsername}?text=${encodedMessage}`;
+            
+            console.log(`📞 Открываем чат с менеджером: @${managerUsername}`);
+            console.log(`💬 Сообщение: ${message}`);
+            
+            // Используем Telegram WebApp API для открытия ссылки
+            if (this.app.tg && this.app.tg.openTelegramLink) {
+                this.app.tg.openTelegramLink(chatUrl);
+                this.app.showStatusMessage('Открываем чат с менеджером...', 'info');
+            } else if (this.app.tg && this.app.tg.openLink) {
+                this.app.tg.openLink(chatUrl);
+                this.app.showStatusMessage('Открываем чат с менеджером...', 'info');
+            } else {
+                // Fallback для обычного браузера
+                window.open(chatUrl, '_blank');
+                this.app.showStatusMessage('Открываем чат с менеджером...', 'info');
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка открытия чата:', error);
+            this.app.showStatusMessage('Ошибка открытия чата с менеджером', 'error');
         }
     }
 }
