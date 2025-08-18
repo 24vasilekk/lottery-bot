@@ -196,10 +196,28 @@ class DatabasePostgres {
                 CREATE TABLE IF NOT EXISTS wheel_settings (
                     id SERIAL PRIMARY KEY,
                     wheel_type VARCHAR(50) UNIQUE NOT NULL,
-                    settings TEXT NOT NULL,
+                    settings_data TEXT NOT NULL,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             `);
+
+            // Миграция: переименовываем колонку settings в settings_data если нужно
+            try {
+                // Проверяем, есть ли старая колонка 'settings'
+                const checkColumn = await client.query(`
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'wheel_settings' AND column_name = 'settings'
+                `);
+                
+                if (checkColumn.rows.length > 0) {
+                    console.log('🔄 Миграция: переименовываем колонку settings → settings_data');
+                    await client.query('ALTER TABLE wheel_settings RENAME COLUMN settings TO settings_data');
+                    console.log('✅ Миграция wheel_settings завершена');
+                }
+            } catch (migrationError) {
+                console.log('ℹ️ Миграция wheel_settings не требуется или уже выполнена');
+            }
 
             // 10. Таблица лидерборда
             await client.query(`
