@@ -872,6 +872,23 @@ app.post('/api/telegram-webhook', async (req, res) => {  // Убрали spinLim
                     stars: balanceUser.stars,
                     userId: userId
                 });
+            case 'update_stars':
+                const newBalance = parseInt(data?.stars);
+                if (isNaN(newBalance) || newBalance < 0) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        error: 'Некорректный баланс звезд' 
+                    });
+                }
+                
+                console.log(`⭐ Обновление баланса пользователя ${userId}: ${newBalance} звезд`);
+                await db.updateUserStars(userId, newBalance);
+                
+                return res.json({
+                    success: true,
+                    stars: newBalance,
+                    userId: userId
+                });
             default:
                 console.log(`❓ Неизвестное действие: ${action}`);
         }
