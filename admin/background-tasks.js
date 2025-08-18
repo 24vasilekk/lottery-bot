@@ -10,6 +10,60 @@ class BackgroundTaskManager {
         this.startTasks();
     }
 
+    // Универсальные методы для работы с базой данных
+    async executeQuery(sql, params = []) {
+        if (this.db.query) {
+            // PostgreSQL версия
+            const result = await this.db.query(sql, params);
+            return result.rows || [];
+        } else if (this.db.db && this.db.db.all) {
+            // SQLite версия
+            return new Promise((resolve, reject) => {
+                this.db.db.all(sql, params, (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows || []);
+                });
+            });
+        } else {
+            throw new Error('Метод выполнения запросов не найден');
+        }
+    }
+
+    async executeUpdate(sql, params = []) {
+        if (this.db.query) {
+            // PostgreSQL версия
+            await this.db.query(sql, params);
+        } else if (this.db.db && this.db.db.run) {
+            // SQLite версия
+            return new Promise((resolve, reject) => {
+                this.db.db.run(sql, params, (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                });
+            });
+        } else {
+            throw new Error('Метод выполнения обновлений не найден');
+        }
+    }
+
+    async executeScalar(sql, params = []) {
+        if (this.db.query) {
+            // PostgreSQL версия
+            const result = await this.db.query(sql, params);
+            return result.rows[0] || null;
+        } else if (this.db.db && this.db.db.get) {
+            // SQLite версия
+            return new Promise((resolve, reject) => {
+                this.db.db.get(sql, params, (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row || null);
+                });
+            });
+        } else {
+            throw new Error('Метод выполнения скалярных запросов не найден');
+        }
+    }
+
     startTasks() {
         // Проверка истекших каналов каждую минуту
         this.scheduleTask('expiredChannels', this.checkExpiredChannels.bind(this), 60000);
@@ -72,30 +126,33 @@ class BackgroundTaskManager {
         try {
             console.log('⏰ Проверка истекших каналов...');
 
-            // Находим истекшие каналы
-            const expiredChannels = await new Promise((resolve, reject) => {
-                this.db.db.all(`
-                    SELECT * FROM partner_channels 
-                    WHERE is_active = 1 
-                    AND end_date IS NOT NULL 
-                    AND datetime(end_date) < datetime('now')
-                `, (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows);
-                });
-            });
+            // Находим истекшие каналы - используем универсальный SQL для обеих БД
+            const sqlPostgres = `
+                SELECT * FROM partner_channels 
+                WHERE is_active = true 
+                AND end_date IS NOT NULL 
+                AND end_date < NOW()
+            `;
+            
+            const sqlSQLite = `
+                SELECT * FROM partner_channels 
+                WHERE is_active = 1 
+                AND end_date IS NOT NULL 
+                AND datetime(end_date) < datetime('now')
+            `;
+            
+            const sql = this.db.query ? sqlPostgres : sqlSQLite;
+            const expiredChannels = await this.executeQuery(sql);
 
             for (const channel of expiredChannels) {
                 console.log(`⏰ Деактивация истекшего канала: @${channel.channel_username}`);
                 
                 // Деактивируем канал
-                await new Promise((resolve, reject) => {
-                    this.db.db.run(
-                        'UPDATE partner_channels SET is_active = 0 WHERE id = ?',
-                        [channel.id],
-                        (err) => err ? reject(err) : resolve()
-                    );
-                });
+                const updateSqlPostgres = 'UPDATE partner_channels SET is_active = false WHERE id = $1';
+                const updateSqlSQLite = 'UPDATE partner_channels SET is_active = 0 WHERE id = ?';
+                const updateSql = this.db.query ? updateSqlPostgres : updateSqlSQLite;
+                
+                await this.executeUpdate(updateSql, [channel.id]);
 
                 // Уведомляем админов
                 await this.notifyAdmins(`⏰ Канал @${channel.channel_username} автоматически деактивирован (истек срок)`);
@@ -114,6 +171,12 @@ class BackgroundTaskManager {
     async checkUserSubscriptions() {
         try {
             console.log('🔍 Массовая проверка подписок пользователей...');
+
+            // ВРЕМЕННО: безопасная проверка доступности методов БД
+            if (!this.db.query && (!this.db.db || !this.db.db.all)) {
+                console.log('⚠️ checkUserSubscriptions: метод БД недоступен, пропускаем');
+                return;
+            }
 
             // Получаем активные подписки старше 1 часа (чтобы не спамить API)
             const subscriptions = await new Promise((resolve, reject) => {
@@ -176,6 +239,12 @@ class BackgroundTaskManager {
     async updateChannelStats() {
         try {
             console.log('📊 Обновление статистики каналов...');
+
+            // ВРЕМЕННО: безопасная проверка доступности методов БД
+            if (!this.db.query && (!this.db.db || !this.db.db.all)) {
+                console.log('⚠️ updateChannelStats: метод БД недоступен, пропускаем');
+                return;
+            }
 
             const channels = await new Promise((resolve, reject) => {
                 this.db.db.all(
