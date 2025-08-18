@@ -433,16 +433,8 @@ export class MainScreen {
             const originalFriendSpins = this.app.gameData.friendSpinsUsed || 0;
 
             if (type === 'stars') {
-                const success = await this.app.spendStars(APP_CONFIG.wheel.starCost);
-                if (!success) {
-                    this.isSpinning = false;
-                    this.updateSpinButtons();
-                    this.app.showStatusMessage('Недостаточно звезд для прокрутки!', 'error');
-                    return;
-                }
-                console.log(`💰 Списано ${APP_CONFIG.wheel.starCost} звезд`);
-                
-                // УБРАНО: Избыточная синхронизация - баланс обновится после обработки выигрыша
+                // ИЗМЕНЕНО: НЕ списываем локально, сервер сам спишет и вернет обновленный баланс
+                console.log(`💰 Сервер спишет ${APP_CONFIG.wheel.starCost} звезд при обработке спина`);
             } else if (type === 'friend') {
                 this.app.gameData.friendSpinsUsed = (this.app.gameData.friendSpinsUsed || 0) + 1;
                 console.log(`❤️ Использована прокрутка за друга`);
@@ -475,16 +467,21 @@ export class MainScreen {
             this.app.showStatusMessage('Ошибка при прокрутке рулетки', 'error');
             
             if (type === 'stars') {
-                this.app.gameData.stars = originalStars;
-                console.log('💰 Возвращены звезды из-за ошибки');
+                // ИЗМЕНЕНО: Синхронизируем с сервером для получения актуального баланса
+                console.log('💰 Синхронизируем баланс с сервером из-за ошибки спина');
+                if (this.app.syncBalanceFromServer) {
+                    try {
+                        await this.app.syncBalanceFromServer();
+                    } catch (syncError) {
+                        console.error('❌ Ошибка синхронизации баланса после ошибки спина:', syncError);
+                    }
+                }
             } else if (type === 'friend') {
                 this.app.gameData.friendSpinsUsed = originalFriendSpins;
                 console.log('❤️ Возвращена прокрутка за друга из-за ошибки');
             }
             this.app.updateUI();
             this.app.saveGameData();
-            
-            // УБРАНО: Избыточная синхронизация - уже откатили локально
         } finally {
             this.isSpinning = false;
             this.updateSpinButtons();
@@ -1201,7 +1198,8 @@ export class MainScreen {
                            'Игрок';
             
             const spinData = {
-                spinType: 'normal',
+                spinType: this.lastSpinType || 'normal', // Передаем тип спина (stars/friend/normal)
+                spinCost: this.lastSpinType === 'stars' ? APP_CONFIG.wheel.starCost : 0, // Стоимость спина
                 prize: {
                     id: prize.id || Math.floor(Math.random() * 1000000),
                     name: displayName, // Используем правильное отображаемое имя
@@ -1223,6 +1221,17 @@ export class MainScreen {
             
             if (response && response.success === true) {
                 console.log('✅ Приз успешно сохранен на сервере');
+                
+                // ВАЖНО: Синхронизируем баланс с сервером после обработки спина
+                if (this.app.syncBalanceFromServer) {
+                    try {
+                        console.log('🔄 Синхронизируем баланс после обработки спина...');
+                        await this.app.syncBalanceFromServer();
+                        console.log('✅ Баланс синхронизирован после спина');
+                    } catch (syncError) {
+                        console.error('❌ Ошибка синхронизации баланса после спина:', syncError);
+                    }
+                }
                 
                 // Если это ценный приз, показываем дополнительное подтверждение
                 if (prize.type === 'certificate' && prize.value >= 300) {

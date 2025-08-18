@@ -759,6 +759,20 @@ app.post('/api/telegram-webhook', async (req, res) => {  // Убрали spinLim
         console.log(`📡 WebApp API: ${action} от пользователя ${user?.id}`);
         console.log('📋 Полученные данные:', JSON.stringify({ action, data, user }, null, 2));
         
+        // ОСОБОЕ внимание к wheel_spin запросам
+        if (action === 'wheel_spin') {
+            console.log('🎰 ========== WHEEL_SPIN ЗАПРОС ПОЛУЧЕН ==========');
+            console.log('🔍 Детали wheel_spin:', {
+                userId: user?.id,
+                spinType: data?.spinType,
+                prizeName: data?.prize?.name,
+                prizeType: data?.prize?.type,
+                prizeValue: data?.prize?.value,
+                spinCost: data?.spinCost
+            });
+            console.log('🎰 ===============================================');
+        }
+        
         // ДОПОЛНИТЕЛЬНАЯ ОТЛАДКА
         console.log('🔍 === ДЕТАЛЬНАЯ ОТЛАДКА ЗАПРОСА ===');
         console.log('Request body keys:', Object.keys(req.body));
@@ -4011,6 +4025,29 @@ async function handleWheelSpin(userId, data) {
         
         console.log(`🎰 Пользователь ${userId} крутит рулетку`);
         console.log('🎁 Данные приза:', JSON.stringify(data.prize, null, 2));
+        
+        // КРИТИЧНО: Сначала списываем стоимость спина (если это спин за звезды)
+        const spinType = data.spinType || 'normal';
+        if (spinType === 'stars' || (!data.spinType && data.spinCost)) {
+            const spinCost = data.spinCost || 20; // По умолчанию 20 звезд за спин
+            
+            console.log(`💰 Списываем ${spinCost} звезд за спин у пользователя ${userId}`);
+            console.log(`💰 Баланс ДО списания: ${user.stars} звезд`);
+            
+            // Проверяем, достаточно ли звезд
+            if (user.stars < spinCost) {
+                console.error(`❌ Недостаточно звезд для спина: ${user.stars} < ${spinCost}`);
+                throw new Error(`Недостаточно звезд для прокрутки. Нужно: ${spinCost}, есть: ${user.stars}`);
+            }
+            
+            // Списываем звезды
+            await db.subtractUserStars(userId, spinCost);
+            console.log(`✅ Списано ${spinCost} звезд за спин`);
+            
+            // Получаем обновленные данные пользователя
+            user = await db.getUser(userId);
+            console.log(`💰 Баланс ПОСЛЕ списания: ${user.stars} звезд`);
+        }
         
         // Обновляем статистику прокруток
         await db.updateUserSpinStats(userId);
