@@ -824,7 +824,7 @@ export class ProfileScreen {
                     </div>
                     <div class="referral-stat-card">
                         <div class="referral-stat-value">${starsFromReferrals}</div>
-                        <div class="referral-stat-label">⭐ Получено звезд</div>
+                        <div class="referral-stat-label">Получено звезд</div>
                     </div>
                 </div>
                 
