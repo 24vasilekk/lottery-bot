@@ -412,7 +412,7 @@ export default class App {
         try {
             console.log('🔄 Обновление интерфейса, текущий баланс:', this.gameData.stars);
             
-            // Обновляем отображение звезд
+            // 1. Обновляем отображение звезд
             const starCount = document.getElementById('star-count');
             if (starCount) {
                 starCount.textContent = this.gameData.stars || 0;
@@ -439,30 +439,78 @@ export default class App {
                 }
             }
             
-            // Обновляем экран депозита если он активен
+            // 2. НОВОЕ: Обновление имени пользователя на главном экране
+            const userName = document.querySelector('.user-name');
+            if (userName) {
+                // Получаем данные пользователя из Telegram WebApp
+                const telegramUser = this.tg?.initDataUnsafe?.user || 
+                                window.Telegram?.WebApp?.initDataUnsafe?.user ||
+                                this.gameData?.userData ||
+                                this.gameData?.user;
+                
+                if (telegramUser) {
+                    // Приоритет для главного экрана: username с @, потом first_name
+                    if (telegramUser.username) {
+                        userName.textContent = `@${telegramUser.username}`;
+                    } else if (telegramUser.first_name && telegramUser.first_name !== 'Пользователь') {
+                        userName.textContent = telegramUser.first_name;
+                    } else if (telegramUser.firstName) {
+                        userName.textContent = telegramUser.firstName;
+                    } else {
+                        userName.textContent = 'Игрок';
+                    }
+                    
+                    console.log('📝 Обновлено имя пользователя:', userName.textContent);
+                }
+            }
+            
+            // 3. Обновляем аватар пользователя если есть
+            const userAvatar = document.querySelector('.user-avatar, .profile-pic');
+            if (userAvatar) {
+                const telegramUser = this.tg?.initDataUnsafe?.user;
+                if (telegramUser?.photo_url) {
+                    userAvatar.style.backgroundImage = `url(${telegramUser.photo_url})`;
+                } else if (telegramUser?.first_name) {
+                    // Показываем первую букву имени если нет фото
+                    userAvatar.textContent = telegramUser.first_name.charAt(0).toUpperCase();
+                }
+            }
+            
+            // 4. Обновляем экран депозита если он активен
             const depositBalance = document.getElementById('current-balance');
             if (depositBalance) {
                 depositBalance.textContent = `${this.gameData.stars || 0} ⭐`;
             }
             
-            // Обновляем профиль если он активен
+            // 5. Обновляем профиль если он активен
             const profileStars = document.querySelector('#profile-screen .stat-value');
             if (profileStars) {
                 profileStars.textContent = this.gameData.stars || 0;
             }
             
-            // Обновляем экран заданий если он активен
+            // Обновляем имя в профиле
+            const profileName = document.querySelector('.profile-name');
+            if (profileName) {
+                const telegramUser = this.tg?.initDataUnsafe?.user || this.gameData?.userData;
+                if (telegramUser?.username) {
+                    profileName.textContent = `@${telegramUser.username}`;
+                } else if (telegramUser?.first_name) {
+                    profileName.textContent = telegramUser.first_name;
+                }
+            }
+            
+            // 6. Обновляем экран заданий если он активен
             const tasksStars = document.querySelector('#tasks-screen .header-stars');
             if (tasksStars) {
                 tasksStars.textContent = this.gameData.stars || 0;
             }
             
-            // Обновляем кнопки прокрутки если главный экран активен
+            // 7. Обновляем кнопки прокрутки если главный экран активен
             if (this.screens.main && typeof this.screens.main.updateSpinButtons === 'function') {
                 this.screens.main.updateSpinButtons();
             }
             
-            // Обновляем счетчик рефералов
+            // 8. Обновляем счетчик рефералов
             const referralElements = document.querySelectorAll('.referral-count, [data-referrals]');
             referralElements.forEach(el => {
                 if (el) {
@@ -470,7 +518,7 @@ export default class App {
                 }
             });
             
-            // Обновляем общую статистику
+            // 9. Обновляем общую статистику
             const totalSpinsElements = document.querySelectorAll('[data-total-spins]');
             totalSpinsElements.forEach(el => {
                 if (el) {
@@ -485,7 +533,7 @@ export default class App {
                 }
             });
             
-            // Обновляем бейдж заданий если есть
+            // 10. Обновляем бейдж заданий если есть
             if (this.screens.tasks && typeof this.screens.tasks.getAvailableTasksCount === 'function') {
                 const taskBadge = document.getElementById('tasks-badge');
                 if (taskBadge) {
@@ -499,7 +547,7 @@ export default class App {
                 }
             }
             
-            // Обновляем состояние кнопок в навигации
+            // 11. Обновляем состояние кнопок в навигации
             const navItems = document.querySelectorAll('.nav-item');
             navItems.forEach(item => {
                 const screen = item.dataset.screen;
@@ -510,9 +558,14 @@ export default class App {
                 }
             });
             
-            // Обновляем мега-рулетку если доступна
+            // 12. Обновляем мега-рулетку если доступна
             if (this.screens['mega-roulette'] && typeof this.screens['mega-roulette'].updateUI === 'function') {
                 this.screens['mega-roulette'].updateUI();
+            }
+            
+            // 13. Обновляем последние выигрыши на главном экране
+            if (this.screens.main && typeof this.screens.main.updateRecentWins === 'function') {
+                this.screens.main.updateRecentWins();
             }
             
             // Логируем финальное состояние
@@ -520,7 +573,8 @@ export default class App {
                 stars: this.gameData.stars,
                 referrals: this.gameData.referrals,
                 totalSpins: this.gameData.totalSpins,
-                prizesWon: this.gameData.prizesWon
+                prizesWon: this.gameData.prizesWon,
+                userName: document.querySelector('.user-name')?.textContent || 'не найдено'
             });
             
         } catch (error) {
