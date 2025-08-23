@@ -400,6 +400,21 @@ export class MainScreen {
         console.log('✅ Чистое колесо без иконок с правильной ориентацией текста создано');
     }
 
+    // Добавьте этот метод в класс MainScreen
+    getMainScreenUserName() {
+        const telegramUser = this.app.tg?.initDataUnsafe?.user || 
+                            window.Telegram?.WebApp?.initDataUnsafe?.user;
+        
+        // НА ГЛАВНОМ ЭКРАНЕ - приоритет у username с @
+        if (telegramUser?.username) {
+            return `@${telegramUser.username}`;
+        } else if (telegramUser?.first_name && telegramUser.first_name !== 'Пользователь') {
+            return telegramUser.first_name;
+        }
+        
+        return 'Игрок';
+    }
+
     async spinWheel(type) {
         if (this.isSpinning) {
             console.log('⏳ Рулетка уже крутится');
@@ -1128,38 +1143,26 @@ export class MainScreen {
     }
 
     updateLocalDataAfterPrize(prize) {
-        console.log('📝 Обновление локальных данных после приза:', prize);
-        
-        this.app.gameData.totalSpins = (this.app.gameData.totalSpins || 0) + 1;
-        
-        if (prize.type !== 'empty' && prize.value > 0) {
-            this.app.gameData.prizesWon = (this.app.gameData.prizesWon || 0) + 1;
-            
-            if (!this.app.gameData.prizes) {
-                this.app.gameData.prizes = [];
-            }
-            
-            this.app.gameData.prizes.push({
-                ...prize,
-                timestamp: Date.now(),
-                claimed: prize.type === 'stars' || prize.realType === 'stars'
-            });
-        }
+        console.log('📝 Обновление локальных данных после выигрыша');
         
         if (!this.app.gameData.recentWins) {
             this.app.gameData.recentWins = [];
         }
         
+        // Получаем имя пользователя для сохранения
+        const userName = this.getMainScreenUserName();
+        
         this.app.gameData.recentWins.unshift({
             prize: prize,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            userName: userName // Сохраняем имя пользователя
         });
         
         if (this.app.gameData.recentWins.length > 10) {
             this.app.gameData.recentWins = this.app.gameData.recentWins.slice(0, 10);
         }
         
-        console.log('✅ Локальные данные обновлены');
+        console.log('✅ Локальные данные обновлены с именем пользователя:', userName);
     }
 
     async savePrizeToServer(prize) {
@@ -1339,13 +1342,23 @@ export class MainScreen {
             return;
         }
 
-        container.innerHTML = recentWins.map(win => `
-            <div class="recent-win-item">
-                <span>${win.prize.icon || '🎁'}</span>
-                <div class="win-description">${win.prize.name}</div>
-                <div class="win-time">${this.formatTime(win.timestamp)}</div>
-            </div>
-        `).join('');
+        // Получаем имя текущего пользователя для отображения
+        const currentUserName = this.getMainScreenUserName();
+
+        container.innerHTML = recentWins.map(win => {
+            // Для каждого выигрыша используем имя текущего пользователя
+            const winnerName = win.userName || currentUserName;
+            
+            return `
+                <div class="recent-win-item">
+                    <span>${win.prize.icon || '🎁'}</span>
+                    <div class="win-info">
+                        <div class="win-description">${winnerName} выиграл: ${win.prize.name}</div>
+                        <div class="win-time">${this.formatTime(win.timestamp)}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 
     formatTime(timestamp) {
