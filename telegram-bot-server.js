@@ -2919,63 +2919,61 @@ if (bot) {
             // Обработка реферальной ссылки - ИСПРАВЛЕННАЯ ВЕРСИЯ
             if (startParam && startParam.startsWith('ref_')) {
                 const referrerId = parseInt(startParam.substring(4));
+                console.log(`🔗 Обработка реферальной ссылки: ref_${referrerId} для пользователя ${userId}`);
+                
                 if (referrerId && referrerId !== userId) {
                     try {
                         // Проверяем, что реферер существует
                         const referrer = await db.getUser(referrerId);
+                        console.log(`🔍 Поиск реферера ${referrerId}:`, referrer ? 'найден' : 'не найден');
+                        
                         if (referrer) {
                             // Проверяем, не был ли уже добавлен этот реферал
                             const existingReferral = await db.getReferral(referrerId, userId);
+                            console.log(`🔍 Проверка существующего реферала:`, existingReferral ? 'уже есть' : 'нет');
+                            
                             if (!existingReferral) {
                                 // Добавляем реферал
                                 const added = await db.addReferral(referrerId, userId);
+                                console.log(`📝 Результат добавления реферала:`, added ? 'успешно' : 'ошибка');
                                 
                                 if (added) {
                                     console.log(`🤝 Пользователь ${userId} приглашен пользователем ${referrerId}`);
                                     
                                     // Начисляем бонусы рефереру
-                                    await db.addUserStars(referrerId, 10);
+                                    await db.addUserStars(referrerId, 100); // 100 звезд за приглашение
+                                    console.log(`⭐ Начислено 100 звезд рефереру ${referrerId}`);
                                     
-                                    // Добавляем прокрутку за друга
-                                    await new Promise((resolve, reject) => {
-                                        db.db.run(
-                                            'UPDATE users SET available_friend_spins = available_friend_spins + 1 WHERE telegram_id = ?',
-                                            [referrerId],
-                                            (err) => err ? reject(err) : resolve()
-                                        );
-                                    });
-                                    
-                                    // Обновляем total_stars_earned
-                                    await db.incrementTotalStarsEarned(referrerId, 10);
-                                    
-                                    console.log(`⭐ Рефереру ${referrerId} начислено 10 звезд + 1 прокрутка за приглашение`);
+                                    // Обновляем счетчик рефералов
+                                    await db.updateReferralCount(referrerId);
+                                    console.log(`📊 Обновлен счетчик рефералов для ${referrerId}`);
                                     
                                     // Отправляем уведомления
                                     try {
                                         await bot.sendMessage(referrerId, 
-                                            `🎉 Поздравляем! Ваш друг ${user.first_name} присоединился к боту!\n` +
-                                            `Вы получили 10 звезд за приглашение!`
+                                            `🎉 Поздравляем! Ваш друг присоединился к боту!\n` +
+                                            `💎 Вы получили 100 звезд за приглашение!`
                                         );
                                         
                                         await bot.sendMessage(userId,
-                                            `👋 Добро пожаловать! Вы присоединились по приглашению от ${referrer.first_name}!\n` +
-                                            `🎁 Выполните задания, чтобы ваш друг получил дополнительные бонусы!`
+                                            `👋 Добро пожаловать!\n` +
+                                            `🎁 Вы присоединились по приглашению!`
                                         );
                                     } catch (notifyError) {
                                         console.warn('⚠️ Не удалось отправить уведомления:', notifyError.message);
                                     }
-                                } else {
-                                    console.log(`⚠️ Реферал уже существует: ${referrerId} -> ${userId}`);
                                 }
                             } else {
-                                console.log(`⚠️ Реферал уже был активирован ранее: ${referrerId} -> ${userId}`);
+                                console.log(`ℹ️ Реферал уже существует: ${referrerId} -> ${userId}`);
                             }
                         } else {
-                            console.log(`❌ Реферер не найден: ${referrerId}`);
+                            console.warn(`⚠️ Реферер ${referrerId} не найден в базе данных`);
                         }
                     } catch (error) {
-                        console.error('❌ Ошибка обработки реферальной ссылки:', error);
+                        console.error(`❌ Ошибка обработки реферальной ссылки:`, error);
                     }
+                } else {
+                    console.log(`⚠️ Некорректный реферальный код или самореферал: ${referrerId}`);
                 }
             }
         } catch (error) {
