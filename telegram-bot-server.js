@@ -4201,42 +4201,150 @@ async function handleChannelSubscription(userId, data) {
 // Синхронизация данных пользователя
 async function syncUserData(userId, webAppData) {
     try {
-        console.log(`🔄 syncUserData для userId: ${userId}`);
+        console.log(`🔍 ДИАГНОСТИКА syncUserData: вызван для userId: ${userId}, тип: ${typeof userId}`);
+        console.log(`📋 Входящие webAppData:`, JSON.stringify(webAppData, null, 2));
         
         let user = await db.getUser(userId);
+        console.log(`🔍 Результат db.getUser(${userId}):`, user ? {
+            id: user.id,
+            telegram_id: user.telegram_id,
+            stars: user.stars,
+            first_name: user.first_name,
+            username: user.username
+        } : 'null');
         
+        // Если пользователя нет в БД - создаем его
         if (!user) {
-            console.log(`👤 Создаем нового пользователя ${userId}`);
+            console.log(`👤 ВНИМАНИЕ: Пользователь ${userId} НЕ НАЙДЕН в БД - создаем нового`);
             
+            // Берем данные из Telegram WebApp если есть
+            const telegramUser = webAppData?.userData?.user || webAppData?.user || {};
             const userData = {
                 telegram_id: userId,
-                username: webAppData?.username || '',
-                first_name: webAppData?.first_name || 'Пользователь',
-                last_name: webAppData?.last_name || ''
+                username: telegramUser.username || webAppData?.username || '',
+                first_name: telegramUser.first_name || webAppData?.first_name || 'Пользователь',
+                last_name: telegramUser.last_name || webAppData?.last_name || ''
             };
             
+            console.log(`🔍 Создаем пользователя с данными:`, userData);
             await db.createUser(userData);
             user = await db.getUser(userId);
+            
+            if (!user) {
+                console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: Не удалось создать пользователя');
+                return webAppData;
+            } else {
+                console.log(`✅ ПОЛЬЗОВАТЕЛЬ СОЗДАН: ID ${user.id}, telegram_id: ${user.telegram_id}, stars: ${user.stars}`);
+            }
+        } else {
+            console.log(`✅ ПОЛЬЗОВАТЕЛЬ НАЙДЕН: ID ${user.id}, telegram_id: ${user.telegram_id}, баланс: ${user.stars} звезд`);
+            
+            // Обновляем профиль если изменились данные из webAppData
+            const telegramUser = webAppData?.userData?.user || webAppData?.user || {};
+            if (telegramUser.first_name || telegramUser.username) {
+                const needsUpdate = 
+                    (telegramUser.first_name && user.first_name !== telegramUser.first_name) ||
+                    (telegramUser.username && user.username !== telegramUser.username);
+                    
+                if (needsUpdate) {
+                    await db.updateUserProfile(userId, {
+                        username: telegramUser.username || user.username || '',
+                        first_name: telegramUser.first_name || user.first_name || 'Пользователь',
+                        last_name: telegramUser.last_name || user.last_name || ''
+                    });
+                    console.log(`📝 Обновлен профиль пользователя ${userId}`);
+                    // Перезагружаем данные после обновления
+                    user = await db.getUser(userId);
+                }
+            }
         }
         
-        console.log(`✅ Пользователь из БД: ID=${user.telegram_id}, stars=${user.stars}`);
+        console.log(`🔄 Синхронизация данных пользователя ${userId}`);
         
-        // ВСЕГДА возвращаем баланс из БД
+        // Обновляем активность пользователя
+        await db.updateUserActivity(userId);
+        
+        // Получаем актуальные данные из базы
+        const prizes = await db.getUserPrizes(userId);
+        const completedTasks = await db.getUserCompletedTasks(userId);
+        const subscriptions = await db.getUserSubscriptions(userId);
+        const actualReferralsCount = await db.getUserReferralsCount(userId);
+        
+        // ИСПРАВЛЕНО: Точная синхронизация всех данных
         const syncedData = {
+            ...webAppData,
+            // Основные данные из БД (без фолбэков!)
             stars: user.stars,
-            referrals: user.referrals || 0,
-            total_stars_earned: user.total_stars_earned || 20,
+            referrals: actualReferralsCount,
+            total_stars_earned: user.total_stars_earned,
             totalSpins: user.total_spins || 0,
             prizesWon: user.prizes_won || 0,
-            friendSpinsUsed: user.friend_spins_used || 0
+            friendSpinsUsed: user.friend_spins_used || 0,
+            
+            // Профиль пользователя с полными данными
+            profile: {
+                telegramId: userId,
+                verified: true,
+                name: user.first_name || 'Пользователь',
+                username: user.username || '',
+                firstName: user.first_name || 'Пользователь',
+                lastName: user.last_name || ''
+            },
+            
+            // Статистика
+            stats: {
+                stars: user.stars,
+                totalSpins: user.total_spins || 0,
+                prizesWon: user.prizes_won || 0,
+                referrals: actualReferralsCount,
+                totalStarsEarned: user.total_stars_earned || 0
+            },
+            
+            // Призы и задания
+            prizes: prizes || [],
+            tasks: {
+                completed: completedTasks || [],
+                subscriptions: subscriptions || {}
+            },
+            
+            // ВАЖНО: Добавляем данные пользователя для правильного отображения имен
+            userData: {
+                firstName: user.first_name,
+                username: user.username,
+                telegramId: user.telegram_id,
+                lastName: user.last_name
+            },
+            
+            // Для обратной совместимости
+            user: {
+                first_name: user.first_name,
+                username: user.username,
+                telegram_id: user.telegram_id
+            }
         };
         
-        console.log(`📤 Возвращаем данные: stars=${syncedData.stars}`);
+        console.log(`📤 Возвращаем синхронизированные данные:`, {
+            stars: syncedData.stars,
+            referrals: syncedData.referrals,
+            username: syncedData.userData.username,
+            firstName: syncedData.userData.firstName
+        });
+        
         return syncedData;
         
     } catch (error) {
         console.error('❌ Ошибка syncUserData:', error);
-        return { stars: 0 };
+        // В случае ошибки возвращаем минимальный набор данных
+        return {
+            ...webAppData,
+            stars: 0,
+            referrals: 0,
+            userData: {
+                firstName: 'Пользователь',
+                username: '',
+                telegramId: userId
+            }
+        };
     }
 }
 
