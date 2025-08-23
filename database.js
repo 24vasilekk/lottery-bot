@@ -18,7 +18,7 @@ class Database {
                 } else {
                     console.log('✅ База данных подключена');
                     this.createTables().then(resolve).catch(reject);
-                }
+                }а
             });
         });
     }
@@ -1416,33 +1416,43 @@ class Database {
 
     // ИСПРАВЛЕННЫЙ МЕТОД ДЛЯ ГЛОБАЛЬНОГО ЛИДЕРБОРДА ПО РЕФЕРАЛАМ
     // 3. ИСПРАВЬТЕ метод getGlobalReferralsLeaderboard():
-    async getGlobalReferralsLeaderboard(limit = 20) {
+    async getGlobalReferralsLeaderboard(limit = 50) {
         return new Promise((resolve, reject) => {
-            console.log(`🏆 Получение глобального лидерборда рефералов (лимит: ${limit})`);
-            
-            const query = `
-                SELECT 
-                    u.telegram_id,
-                    u.first_name,
-                    u.username,
-                    u.referrals as referrals_count,
-                    u.total_stars_earned,
-                    u.join_date
-                FROM users u
-                WHERE u.is_active = 1 AND u.referrals > 0
-                ORDER BY u.referrals DESC, u.total_stars_earned DESC, u.join_date ASC
-                LIMIT ?
-            `;
-            
-            this.db.all(query, [limit], (err, rows) => {
-                if (err) {
-                    console.error('❌ Ошибка получения лидерборда рефералов:', err);
-                    reject(err);
-                } else {
-                    console.log(`✅ Лидерборд рефералов получен: ${rows.length} записей`);
-                    resolve(rows || []);
+            this.db.all(
+                `SELECT 
+                    telegram_id,
+                    first_name,
+                    username,
+                    last_name,
+                    referrals as referrals_count,
+                    total_stars_earned
+                FROM users 
+                WHERE is_active = 1 
+                    AND telegram_id IS NOT NULL
+                    AND referrals > 0
+                ORDER BY referrals DESC, total_stars_earned DESC
+                LIMIT ?`,
+                [limit],
+                (err, rows) => {
+                    if (err) {
+                        console.error('❌ Ошибка получения лидерборда по рефералам:', err);
+                        reject(err);
+                    } else {
+                        console.log(`✅ Лидерборд по рефералам: ${rows ? rows.length : 0} записей`);
+                        
+                        // Логируем первые несколько записей для отладки
+                        if (rows && rows.length > 0) {
+                            console.log('📊 Топ-3 в лидерборде:', rows.slice(0, 3).map(r => ({
+                                name: r.first_name,
+                                username: r.username,
+                                referrals: r.referrals_count
+                            })));
+                        }
+                        
+                        resolve(rows || []);
+                    }
                 }
-            });
+            );
         });
     }
 
