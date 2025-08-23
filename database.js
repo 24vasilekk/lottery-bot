@@ -18,7 +18,7 @@ class Database {
                 } else {
                     console.log('✅ База данных подключена');
                     this.createTables().then(resolve).catch(reject);
-                }а
+                }
             });
         });
     }
