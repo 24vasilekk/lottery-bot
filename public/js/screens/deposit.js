@@ -19,10 +19,6 @@ export class DepositScreen {
             <div id="deposit-screen" class="screen">
                 <div class="header">
                     <h2>💰 Пополнить баланс</h2>
-                    <div class="current-balance">
-                        <span class="balance-label">Текущий баланс:</span>
-                        <span class="balance-amount" id="current-balance">${this.userBalance} ⭐</span>
-                    </div>
                 </div>
 
                 <div class="deposit-tabs">
@@ -43,17 +39,6 @@ export class DepositScreen {
                     ${this.renderTransactionHistory()}
                 </div>
 
-                <div class="deposit-info">
-                    <div class="info-card">
-                        <h4>ℹ️ О Telegram Stars</h4>
-                        <ul>
-                            <li>💫 1 Telegram Star = 1 игровая звезда</li>
-                            <li>🎰 20 звезд = 1 прокрутка рулетки</li>
-                            <li>🔒 Быстро и безопасно через Telegram</li>
-                            <li>🎁 Бонусы при крупных пополнениях</li>
-                        </ul>
-                    </div>
-                </div>
             </div>
         `;
     }
