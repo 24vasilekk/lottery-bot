@@ -1323,6 +1323,35 @@ body, html, .app-container, .screen, #main-screen {
     }
 }
 
+.recent-win-item {
+    background: var(--card-bg);
+    padding: 12px 15px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s ease;
+}
+
+.win-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.win-description {
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.win-time {
+    font-size: 12px;
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
 /* ========================================
    РЕЖИМ УМЕНЬШЕНИЯ ДВИЖЕНИЯ
    ======================================== */
