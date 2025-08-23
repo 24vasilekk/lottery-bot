@@ -5302,8 +5302,8 @@ async function handleChannelSubscriptionTask(userId, channelId, userData) {
                 );
             });
             
-            // Награждаем реферера 20 звездами
-            await db.addUserStars(user.referrer_id, 5);
+            // Награждаем реферера 10 звездами
+            await db.addUserStars(user.referrer_id, 10);
             
             console.log(`👥 Активирован реферер пользователя ${userId} после 2-й подписки, выдано 20 звезд`);
             
