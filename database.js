@@ -1198,73 +1198,86 @@ class Database {
     // 1. ЗАМЕНИТЕ метод addReferral() полностью:
     async addReferral(referrerTelegramId, referredTelegramId) {
         return new Promise((resolve, reject) => {
-            console.log(`🤝 Попытка добавить реферал: ${referrerTelegramId} -> ${referredTelegramId}`);
+            console.log(`🤝 Database.addReferral: пытаемся добавить ${referrerTelegramId} -> ${referredTelegramId}`);
             
-            // Получаем ID пользователей по их telegram_id
-            this.db.get(
-                'SELECT id FROM users WHERE telegram_id = ?',
-                [referrerTelegramId],
-                (err, referrer) => {
-                    if (err || !referrer) {
-                        console.error('❌ Реферер не найден:', referrerTelegramId);
-                        reject(err || new Error('Referrer not found'));
-                        return;
-                    }
-                    
-                    this.db.get(
-                        'SELECT id FROM users WHERE telegram_id = ?',
-                        [referredTelegramId],
-                        (err, referred) => {
-                            if (err || !referred) {
-                                console.error('❌ Приглашенный не найден:', referredTelegramId);
-                                reject(err || new Error('Referred user not found'));
-                                return;
-                            }
-                            
-                            // Проверяем, не существует ли уже такой реферал
-                            this.db.get(
-                                'SELECT id FROM referrals WHERE referrer_id = ? AND referred_id = ?',
-                                [referrer.id, referred.id],
-                                (err, existing) => {
-                                    if (err) {
-                                        reject(err);
-                                        return;
-                                    }
-                                    
-                                    if (existing) {
-                                        console.log(`⚠️ Реферал уже существует: ${referrerTelegramId} -> ${referredTelegramId}`);
-                                        resolve(false);
-                                        return;
-                                    }
-                                    
-                                    // Добавляем новый реферал
-                                    this.db.run(
-                                        'INSERT INTO referrals (referrer_id, referred_id) VALUES (?, ?)',
-                                        [referrer.id, referred.id],
-                                        async (err) => {
+            this.db.serialize(() => {
+                // Начинаем транзакцию
+                this.db.run('BEGIN TRANSACTION');
+                
+                // Проверяем, не существует ли уже такой реферал
+                this.db.get(
+                    `SELECT r.* FROM referrals r
+                    JOIN users u1 ON r.referrer_id = u1.id
+                    JOIN users u2 ON r.referred_id = u2.id
+                    WHERE u1.telegram_id = ? AND u2.telegram_id = ?`,
+                    [referrerTelegramId, referredTelegramId],
+                    (err, existing) => {
+                        if (err) {
+                            console.error('❌ Ошибка проверки существующего реферала:', err);
+                            this.db.run('ROLLBACK');
+                            reject(err);
+                            return;
+                        }
+                        
+                        if (existing) {
+                            console.log(`⚠️ Реферал уже существует`);
+                            this.db.run('ROLLBACK');
+                            resolve(false);
+                            return;
+                        }
+                        
+                        // Добавляем новый реферал
+                        this.db.run(
+                            `INSERT INTO referrals (referrer_id, referred_id)
+                            SELECT u1.id, u2.id FROM users u1, users u2
+                            WHERE u1.telegram_id = ? AND u2.telegram_id = ?`,
+                            [referrerTelegramId, referredTelegramId],
+                            function(err) {
+                                if (err) {
+                                    console.error('❌ Ошибка добавления реферала:', err);
+                                    this.db.run('ROLLBACK');
+                                    reject(err);
+                                    return;
+                                }
+                                
+                                if (this.changes === 0) {
+                                    console.warn('⚠️ Реферал не добавлен - пользователи не найдены');
+                                    this.db.run('ROLLBACK');
+                                    resolve(false);
+                                    return;
+                                }
+                                
+                                console.log(`✅ Реферал добавлен с ID: ${this.lastID}`);
+                                
+                                // Обновляем счетчик рефералов у реферера
+                                this.db.run(
+                                    'UPDATE users SET referrals = referrals + 1 WHERE telegram_id = ?',
+                                    [referrerTelegramId],
+                                    (err) => {
+                                        if (err) {
+                                            console.error('❌ Ошибка обновления счетчика:', err);
+                                            this.db.run('ROLLBACK');
+                                            reject(err);
+                                            return;
+                                        }
+                                        
+                                        // Коммитим транзакцию
+                                        this.db.run('COMMIT', (err) => {
                                             if (err) {
-                                                console.error('❌ Ошибка добавления реферала:', err);
+                                                console.error('❌ Ошибка коммита:', err);
                                                 reject(err);
                                             } else {
-                                                console.log(`✅ Реферал добавлен: ${referrerTelegramId} -> ${referredTelegramId}`);
-                                                
-                                                // КРИТИЧЕСКИ ВАЖНО: Обновляем счетчик рефералов
-                                                try {
-                                                    await this.updateReferralCount(referrerTelegramId);
-                                                    resolve(true);
-                                                } catch (updateErr) {
-                                                    console.error('❌ Ошибка обновления счетчика:', updateErr);
-                                                    resolve(true); // Реферал добавлен, но счетчик не обновился
-                                                }
+                                                console.log(`✅ Реферал успешно добавлен и счетчик обновлен`);
+                                                resolve(true);
                                             }
-                                        }
-                                    );
-                                }
-                            );
-                        }
-                    );
-                }
-            );
+                                        });
+                                    }
+                                );
+                            }.bind(this.db)
+                        );
+                    }
+                );
+            });
         });
     }
 
@@ -1274,39 +1287,40 @@ class Database {
     // 2. ЗАМЕНИТЕ метод updateReferralCount() полностью:
     async updateReferralCount(telegramId) {
         return new Promise((resolve, reject) => {
-            console.log(`📊 Обновление счетчика рефералов для пользователя: ${telegramId}`);
+            console.log(`📊 Обновление счетчика рефералов для ${telegramId}`);
             
-            // Получаем реальное количество рефералов
-            this.db.get(`
-                SELECT COUNT(r.id) as count 
-                FROM referrals r
+            // Подсчитываем фактическое количество рефералов
+            this.db.get(
+                `SELECT COUNT(*) as count FROM referrals r
                 JOIN users u ON r.referrer_id = u.id
-                WHERE u.telegram_id = ?
-            `, [telegramId], (err, result) => {
-                if (err) {
-                    console.error('❌ Ошибка подсчета рефералов:', err);
-                    reject(err);
-                    return;
-                }
-                
-                const actualCount = result?.count || 0;
-                console.log(`📊 Фактическое количество рефералов для ${telegramId}: ${actualCount}`);
-                
-                // Обновляем поле referrals в таблице users
-                this.db.run(
-                    'UPDATE users SET referrals = ? WHERE telegram_id = ?',
-                    [actualCount, telegramId],
-                    function(err) {
-                        if (err) {
-                            console.error('❌ Ошибка обновления поля referrals:', err);
-                            reject(err);
-                        } else {
-                            console.log(`✅ Счетчик рефералов обновлен для ${telegramId}: ${actualCount} (изменено строк: ${this.changes})`);
-                            resolve(actualCount);
-                        }
+                WHERE u.telegram_id = ?`,
+                [telegramId],
+                (err, result) => {
+                    if (err) {
+                        console.error('❌ Ошибка подсчета рефералов:', err);
+                        reject(err);
+                        return;
                     }
-                );
-            });
+                    
+                    const actualCount = result?.count || 0;
+                    console.log(`📊 Фактическое количество рефералов: ${actualCount}`);
+                    
+                    // Обновляем поле referrals в таблице users
+                    this.db.run(
+                        'UPDATE users SET referrals = ? WHERE telegram_id = ?',
+                        [actualCount, telegramId],
+                        function(err) {
+                            if (err) {
+                                console.error('❌ Ошибка обновления поля referrals:', err);
+                                reject(err);
+                            } else {
+                                console.log(`✅ Счетчик обновлен: ${actualCount} рефералов`);
+                                resolve(actualCount);
+                            }
+                        }
+                    );
+                }
+            );
         });
     }
 
