@@ -915,19 +915,21 @@ export class ProfileScreen {
     }
 
     getPlayerDisplayName(player) {
-        console.log('🔍 Определение имени для игрока:', player);
+        console.log('🔍 Определение имени для игрока в лидерборде:', player);
         
-        // Проверяем разные варианты имени
-        if (player.first_name && player.first_name.trim()) {
+        // ДЛЯ ЛИДЕРБОРДА - приоритет у first_name (имени)
+        if (player.first_name && player.first_name.trim() && player.first_name !== 'Пользователь') {
             console.log('✅ Используем first_name:', player.first_name);
             return player.first_name.trim();
         } 
         
+        // Если нет имени, используем username
         if (player.username && player.username.trim()) {
             console.log('✅ Используем username:', player.username);
             return `@${player.username.trim()}`;
         }
         
+        // Крайний случай - короткий ID
         if (player.telegram_id) {
             const shortId = player.telegram_id.toString().slice(-4);
             console.log('✅ Используем короткий ID:', shortId);
@@ -971,19 +973,17 @@ export class ProfileScreen {
         return '👤';
     }
 
-    // Методы для открытия ресурсов
     openChannel() {
         console.log('📢 Открытие канала проекта');
         
         if (this.app.tg?.openTelegramLink) {
-            // Используем ссылку на канал проекта (замените на актуальную)
-            this.app.tg.openTelegramLink('https://t.me/your_project_channel');
+            this.app.tg.openTelegramLink('https://t.me/kosmetichka_spin');
             this.app.showStatusMessage('Переход в канал проекта...', 'info');
         } else if (window.open) {
             // Fallback для браузера
-            window.open('https://t.me/your_project_channel', '_blank');
+            window.open('https://t.me/kosmetichka_spin', '_blank');
         } else {
-            this.app.showStatusMessage('Канал: @your_project_channel', 'info');
+            this.app.showStatusMessage('Канал: @kosmetichka_spin', 'info');
         }
     }
 
