@@ -172,7 +172,7 @@ export class TasksScreen {
             <div class="task-section-header">
                 <div class="section-info">
                     <h3>👥 Приглашай друзей</h3>
-                    <p>Поделитесь ссылкой и получайте 20 ⭐ за каждого друга</p>
+                    <p>Поделитесь ссылкой и получайте 10 ⭐ за каждого друга
                 </div>
             </div>
         `;
