@@ -711,7 +711,7 @@ class DatabasePostgres {
                 AND ucs.created_at >= NOW() - INTERVAL '24 hours'
             WHERE pc.is_active = true 
                 AND pc.created_at <= NOW() - INTERVAL '6 hours'
-            GROUP BY pc.id
+            GROUP BY pc.id, pc.created_at
             HAVING COUNT(ucs.id) < 2 AND EXTRACT(EPOCH FROM (NOW() - pc.created_at)) / 3600 >= 6
         `;
         const result = await this.pool.query(query);
@@ -723,7 +723,7 @@ class DatabasePostgres {
             SELECT * FROM partner_channels 
             WHERE placement_type = 'time' 
             AND is_active = true 
-            AND created_at + (placement_duration || ' hours')::INTERVAL <= NOW()
+            AND created_at + (placement_duration::text || ' hours')::INTERVAL <= NOW()
         `;
         const result = await this.pool.query(query);
         return result.rows;
@@ -749,10 +749,10 @@ class DatabasePostgres {
             LEFT JOIN user_channel_subscriptions ucs ON pc.id = ucs.channel_id
             WHERE pc.placement_type = 'time' 
                 AND pc.is_active = true
-                AND pc.created_at + (pc.placement_duration || ' hours')::INTERVAL <= NOW() + INTERVAL '2 hours'
+                AND pc.created_at + (pc.placement_duration::text || ' hours')::INTERVAL <= NOW() + INTERVAL '2 hours'
                 AND pc.auto_renewal = true
-            GROUP BY pc.id
-            HAVING COUNT(ucs.id) >= 10 OR (COUNT(ucs.id)::FLOAT / EXTRACT(EPOCH FROM (NOW() - pc.created_at)) * 3600) >= 0.5
+            GROUP BY pc.id, pc.created_at, pc.placement_duration, pc.placement_type, pc.is_active, pc.auto_renewal
+            HAVING COUNT(ucs.id) >= 10 OR (COUNT(ucs.id)::FLOAT / (EXTRACT(EPOCH FROM (NOW() - pc.created_at)) / 3600)) >= 0.5
         `;
         const result = await this.pool.query(query);
         return result.rows;
