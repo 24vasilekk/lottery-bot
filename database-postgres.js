@@ -333,9 +333,20 @@ class DatabasePostgres {
 
     async initializeData() {
         try {
-            // Добавляем начальные каналы
-            await this.addChannel('@kosmetichka', 'Косметичка', 5);
-            await this.addChannel('@dolcedeals', 'Dolce Deals', 10);
+            // Добавляем начальные каналы в partner_channels
+            await this.addChannel({
+                username: 'kosmetichka',
+                name: 'Косметичка',
+                stars: 50,
+                hours: 24
+            });
+            
+            await this.addChannel({
+                username: 'dolcedeals',
+                name: 'Dolce Deals', 
+                stars: 75,
+                hours: 48
+            });
             
             console.log('✅ Начальные данные инициализированы');
         } catch (error) {
