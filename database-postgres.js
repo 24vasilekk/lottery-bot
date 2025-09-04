@@ -28,7 +28,7 @@ class DatabasePostgres {
         this.pool = new Pool({
             connectionString,
             ssl: process.env.NODE_ENV === 'production' ? {
-                rejectUnauthorized: true
+                rejectUnauthorized: false  // Railway использует самоподписанные сертификаты
             } : {
                 rejectUnauthorized: false
             },
