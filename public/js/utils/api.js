@@ -1,5 +1,4 @@
-// api.js - HTTP API :;85=B 4;O 2708<>459AB28O A backend
-// @8B8G5A:8 206=K9 D09; 4;O @01>BK frontend
+// api.js - HTTP API клиент для взаимодействия с backend
 
 export class APIClient {
     constructor() {
@@ -28,7 +27,7 @@ export class APIClient {
         
         for (let attempt = 1; attempt <= this.retryCount; attempt++) {
             try {
-                console.log(`=� API Request: ${method} ${endpoint} (?>?KB:0 ${attempt})`);
+                console.log(`📡 API Request: ${method} ${endpoint} (попытка ${attempt})`);
                 
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), this.timeout);
@@ -46,15 +45,15 @@ export class APIClient {
                 }
 
                 const result = await response.json();
-                console.log(` API Success: ${method} ${endpoint}`);
+                console.log(`✅ API Success: ${method} ${endpoint}`);
                 return result;
                 
             } catch (error) {
                 lastError = error;
-                console.error(`L API Error (?>?KB:0 ${attempt}):`, error.message);
+                console.error(`❌ API Error (попытка ${attempt}):`, error.message);
                 
                 if (attempt < this.retryCount && this.shouldRetry(error)) {
-                    console.log(`� >2B>@ G5@57 ${this.retryDelay}ms...`);
+                    console.log(`🔄 Повтор через ${this.retryDelay}ms...`);
                     await this.delay(this.retryDelay * attempt);
                     continue;
                 }
@@ -63,7 +62,7 @@ export class APIClient {
             }
         }
         
-        console.error(`=� API Failed after ${this.retryCount} attempts:`, lastError.message);
+        console.error(`❌ API Failed after ${this.retryCount} attempts:`, lastError.message);
         throw lastError;
     }
 
@@ -77,7 +76,7 @@ export class APIClient {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    // === !+ HTTP "+ ===
+    // === ОСНОВНЫЕ HTTP МЕТОДЫ ===
 
     async get(endpoint, options = {}) {
         return this.request('GET', endpoint, null, options);
@@ -95,9 +94,9 @@ export class APIClient {
         return this.request('DELETE', endpoint, null, options);
     }
 
-    // === API "+ /  / ===
+    // === API МЕТОДЫ ДЛЯ ПРИЛОЖЕНИЯ ===
 
-    // >;L7>20B5;8
+    // Пользователи
     async getUserData(telegramId) {
         return this.get(`/api/user/${telegramId}`);
     }
@@ -106,7 +105,7 @@ export class APIClient {
         return this.post('/api/user/balance', { telegramId, newBalance });
     }
 
-    //  C;5B:0
+    // Рулетка
     async spinWheel(telegramId, spinType = 'normal') {
         return this.post('/api/spin', { telegramId, spinType });
     }
@@ -115,7 +114,7 @@ export class APIClient {
         return this.get(`/api/wheel/settings/${wheelType}`);
     }
 
-    // @87K
+    // Призы
     async getUserPrizes(telegramId) {
         return this.get(`/api/user/${telegramId}/prizes`);
     }
@@ -124,12 +123,12 @@ export class APIClient {
         return this.post('/api/user/claim-prize', { telegramId, prizeId });
     }
 
-    // "@0=70:F88
+    // Транзакции
     async getUserTransactions(telegramId) {
         return this.get(`/api/user/${telegramId}/transactions`);
     }
 
-    // 040=8O
+    // Задания
     async getUserTasks(telegramId) {
         return this.get(`/api/user/${telegramId}/tasks`);
     }
@@ -138,12 +137,12 @@ export class APIClient {
         return this.post('/api/task/complete', { telegramId, taskId });
     }
 
-    // >4?8A:8
+    // Подписки
     async checkSubscription(telegramId, channelId) {
         return this.post('/api/subscription/check', { telegramId, channelId });
     }
 
-    //  5D5@0;K
+    // Рефералы
     async getReferralInfo(telegramId) {
         return this.get(`/api/user/${telegramId}/referrals`);
     }
@@ -152,22 +151,22 @@ export class APIClient {
         return this.get(`/api/leaderboard/${type}`);
     }
 
-    // !B0B8AB8:0
+    // Статистика
     async getStats() {
         return this.get('/api/stats');
     }
 
-    // @><>:>4K
+    // Промокоды
     async usePromoCode(telegramId, promoCode) {
         return this.post('/api/promo/use', { telegramId, promoCode });
     }
 
-    // !8=E@>=870F8O 10;0=A0
+    // Синхронизация баланса
     async syncBalance(telegramId) {
         return this.get(`/api/user/${telegramId}/balance-sync`);
     }
 
-    // === ! API "+ ===
+    // === АДМИНСКИЕ API МЕТОДЫ ===
 
     async adminGetStats(adminToken) {
         return this.get('/api/admin/stats', {
@@ -190,12 +189,12 @@ export class APIClient {
     }
 }
 
-// !>7405< 548=AB25==K9 M:75<?;O@ API :;85=B0
+// Создаем единственный экземпляр API клиента
 export const api = new APIClient();
 
-// ;O backward compatibility (5A;8 345-B> 8A?>;L7C5BAO window.api)
+// Для backward compatibility (если где-то используется window.api)
 if (typeof window !== 'undefined') {
     window.api = api;
 }
 
-console.log(' API Client 8=8F80;878@>20=');
+console.log('✅ API Client инициализирован');
