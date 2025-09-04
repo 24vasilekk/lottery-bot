@@ -404,8 +404,47 @@ export default class App {
                 return false;
             });
         }
+        
+        // Автосинхронизация баланса каждые 30 секунд
+        this.startBalanceAutoSync();
 
         console.log('🛡️ Глобальные обработчики настроены');
+    }
+
+    startBalanceAutoSync() {
+        // Синхронизация баланса каждые 30 секунд (но только если пользователь активен)
+        this.balanceSyncInterval = setInterval(async () => {
+            // Синхронизируем только если приложение видимо и пользователь активен
+            if (!document.hidden && this.lastActivityTime && Date.now() - this.lastActivityTime < 60000) {
+                try {
+                    const balanceBefore = this.gameData.stars;
+                    await this.syncBalanceFromServer();
+                    
+                    // Если баланс изменился, показываем уведомление
+                    if (this.gameData.stars !== balanceBefore) {
+                        const diff = this.gameData.stars - balanceBefore;
+                        if (diff !== 0) {
+                            console.log(`🔄 Автосинхронизация: баланс изменился на ${diff} звезд`);
+                            this.showStatusMessage(`Баланс обновлен: ${diff > 0 ? '+' : ''}${diff} ⭐`, 'info', 2000);
+                        }
+                    }
+                } catch (error) {
+                    // Тихая ошибка - не беспокоим пользователя
+                    console.warn('⚠️ Тихая автосинхронизация не удалась:', error.message);
+                }
+            }
+        }, 30000);
+        
+        // Обновляем время активности при любом взаимодействии
+        this.lastActivityTime = Date.now();
+        document.addEventListener('click', () => {
+            this.lastActivityTime = Date.now();
+        });
+        document.addEventListener('touchstart', () => {
+            this.lastActivityTime = Date.now();
+        });
+        
+        console.log('🔄 Автосинхронизация баланса запущена');
     }
 
     updateInterface() {

@@ -291,6 +291,29 @@ class Database {
                     admin_id INTEGER,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY(target_user_id) REFERENCES users(id)
+                )`,
+
+                // Промокоды
+                `CREATE TABLE IF NOT EXISTS promo_codes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    code TEXT UNIQUE NOT NULL,
+                    stars_amount INTEGER NOT NULL,
+                    max_uses INTEGER DEFAULT NULL,
+                    current_uses INTEGER DEFAULT 0,
+                    is_active BOOLEAN DEFAULT 1,
+                    created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    expires_date DATETIME DEFAULT NULL
+                )`,
+
+                // Использование промокодов
+                `CREATE TABLE IF NOT EXISTS promo_usage (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    promo_code TEXT NOT NULL,
+                    used_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    stars_received INTEGER,
+                    FOREIGN KEY (user_id) REFERENCES users(id),
+                    UNIQUE(user_id, promo_code)
                 )`
             ];
 
@@ -947,21 +970,56 @@ class Database {
     }
 
     // Метод для добавления звезд к текущему балансу пользователя
-    async addUserStars(telegramId, amount) {
+    async addUserStars(telegramId, amount, transactionType = 'bonus', metadata = null) {
         return new Promise((resolve, reject) => {
-            this.db.run(
-                'UPDATE users SET stars = stars + ?, total_stars_earned = total_stars_earned + ?, last_activity = CURRENT_TIMESTAMP WHERE telegram_id = ?',
-                [amount, amount, telegramId],
-                function(err) {
-                    if (err) {
-                        console.error('❌ Ошибка добавления звезд:', err);
-                        reject(err);
-                    } else {
-                        console.log(`⭐ Пользователю ${telegramId} добавлено ${amount} звезд`);
-                        resolve(this.changes);
+            const db = this.db;
+            
+            db.serialize(() => {
+                // Получаем user_id
+                db.get(
+                    'SELECT id FROM users WHERE telegram_id = ?',
+                    [telegramId],
+                    (err, user) => {
+                        if (err || !user) {
+                            reject(err || new Error('Пользователь не найден'));
+                            return;
+                        }
+                        
+                        // Обновляем баланс
+                        db.run(
+                            'UPDATE users SET stars = stars + ?, total_stars_earned = total_stars_earned + ?, last_activity = CURRENT_TIMESTAMP WHERE telegram_id = ?',
+                            [amount, amount, telegramId],
+                            function(err) {
+                                if (err) {
+                                    console.error('❌ Ошибка добавления звезд:', err);
+                                    reject(err);
+                                    return;
+                                }
+                                
+                                console.log(`⭐ Пользователю ${telegramId} добавлено ${amount} звезд`);
+                                
+                                // Записываем транзакцию
+                                const metadataStr = metadata ? JSON.stringify(metadata) : null;
+                                db.run(
+                                    `INSERT INTO stars_transactions (user_id, amount, transaction_type, status, metadata)
+                                     VALUES (?, ?, ?, ?, ?)`,
+                                    [user.id, amount, transactionType, 'completed', metadataStr],
+                                    function(transErr) {
+                                        if (transErr) {
+                                            console.error('⚠️ Ошибка записи транзакции:', transErr);
+                                            // Не прерываем выполнение, так как баланс уже обновлен
+                                        } else {
+                                            console.log(`📝 Транзакция записана: +${amount} звезд (${transactionType})`);
+                                        }
+                                    }
+                                );
+                                
+                                resolve(this.changes);
+                            }
+                        );
                     }
-                }
-            );
+                );
+            });
         });
     }
 
@@ -1054,6 +1112,185 @@ class Database {
     }
 
     // Добавление приза с транзакцией (безопасно)
+    // Новый метод для обработки спина с полной транзакционностью
+    async processSpinWithTransaction(telegramId, spinCost, prizeData, spinType = 'normal') {
+        return new Promise((resolve, reject) => {
+            const db = this.db;
+            
+            db.serialize(() => {
+                db.run('BEGIN TRANSACTION');
+                
+                let prizeId = null;
+                let userBalance = null;
+                let completed = 0;
+                const totalOperations = spinCost > 0 ? 5 : 3; // Больше операций если есть списание
+                
+                // 1. Получаем текущий баланс пользователя
+                db.get(
+                    'SELECT id, stars FROM users WHERE telegram_id = ?',
+                    [telegramId],
+                    (err, row) => {
+                        if (err || !row) {
+                            console.error('❌ Ошибка получения пользователя:', err);
+                            db.run('ROLLBACK');
+                            reject(err || new Error('Пользователь не найден'));
+                            return;
+                        }
+                        
+                        userBalance = row.stars;
+                        const userId = row.id;
+                        
+                        // 2. Списываем звезды если это платный спин
+                        if (spinCost > 0) {
+                            if (userBalance < spinCost) {
+                                console.error(`❌ Недостаточно звезд: ${userBalance} < ${spinCost}`);
+                                db.run('ROLLBACK');
+                                reject(new Error('Недостаточно звезд'));
+                                return;
+                            }
+                            
+                            db.run(
+                                'UPDATE users SET stars = stars - ? WHERE telegram_id = ?',
+                                [spinCost, telegramId],
+                                function(err) {
+                                    if (err) {
+                                        console.error('❌ Ошибка списания звезд:', err);
+                                        db.run('ROLLBACK');
+                                        reject(err);
+                                        return;
+                                    }
+                                    completed++;
+                                    console.log(`💰 Списано ${spinCost} звезд`);
+                                    if (completed === totalOperations) commitTransaction();
+                                }
+                            );
+                            
+                            // 3. Записываем транзакцию списания
+                            db.run(
+                                `INSERT INTO stars_transactions (user_id, amount, transaction_type, status, metadata)
+                                 VALUES (?, ?, ?, ?, ?)`,
+                                [userId, -spinCost, 'spin_cost', 'completed', JSON.stringify({spinType, timestamp: Date.now()})],
+                                function(err) {
+                                    if (err) {
+                                        console.error('❌ Ошибка записи транзакции:', err);
+                                        db.run('ROLLBACK');
+                                        reject(err);
+                                        return;
+                                    }
+                                    completed++;
+                                    if (completed === totalOperations) commitTransaction();
+                                }
+                            );
+                        }
+                        
+                        // 4. Добавляем приз (если не пусто)
+                        if (prizeData.type !== 'empty') {
+                            db.run(
+                                `INSERT INTO user_prizes (user_id, prize_type, prize_name, prize_value) 
+                                 VALUES (?, ?, ?, ?)`,
+                                [userId, prizeData.type, prizeData.name, prizeData.value || 0],
+                                function(err) {
+                                    if (err) {
+                                        console.error('❌ Ошибка добавления приза:', err);
+                                        db.run('ROLLBACK');
+                                        reject(err);
+                                        return;
+                                    }
+                                    prizeId = this.lastID;
+                                    completed++;
+                                    console.log(`🎁 Приз добавлен: ${prizeData.name}`);
+                                    if (completed === totalOperations) commitTransaction();
+                                }
+                            );
+                            
+                            // 5. Если приз - звезды, начисляем их
+                            if (prizeData.type === 'stars' && prizeData.value > 0) {
+                                db.run(
+                                    'UPDATE users SET stars = stars + ? WHERE telegram_id = ?',
+                                    [prizeData.value, telegramId],
+                                    function(err) {
+                                        if (err) {
+                                            console.error('❌ Ошибка начисления призовых звезд:', err);
+                                            db.run('ROLLBACK');
+                                            reject(err);
+                                            return;
+                                        }
+                                        console.log(`⭐ Начислено ${prizeData.value} звезд`);
+                                    }
+                                );
+                                
+                                // Записываем транзакцию начисления
+                                db.run(
+                                    `INSERT INTO stars_transactions (user_id, amount, transaction_type, status, metadata)
+                                     VALUES (?, ?, ?, ?, ?)`,
+                                    [userId, prizeData.value, 'prize_won', 'completed', JSON.stringify({
+                                        prizeType: prizeData.type,
+                                        prizeName: prizeData.name,
+                                        timestamp: Date.now()
+                                     })],
+                                    function(err) {
+                                        if (err) {
+                                            console.error('❌ Ошибка записи транзакции приза:', err);
+                                        }
+                                    }
+                                );
+                            }
+                        }
+                        
+                        // 6. Обновляем статистику
+                        db.run(
+                            'UPDATE users SET total_spins = total_spins + 1, prizes_won = prizes_won + ? WHERE telegram_id = ?',
+                            [prizeData.type !== 'empty' ? 1 : 0, telegramId],
+                            function(err) {
+                                if (err) {
+                                    console.error('❌ Ошибка обновления статистики:', err);
+                                    db.run('ROLLBACK');
+                                    reject(err);
+                                    return;
+                                }
+                                completed++;
+                                if (completed === totalOperations) commitTransaction();
+                            }
+                        );
+                        
+                        // 7. Добавляем в историю спинов
+                        db.run(
+                            `INSERT INTO spin_history (user_id, prize_id, spin_type, won_prize) 
+                             VALUES (?, ?, ?, ?)`,
+                            [userId, prizeId, spinType, prizeData.name],
+                            function(err) {
+                                if (err) {
+                                    console.error('❌ Ошибка добавления в историю:', err);
+                                    db.run('ROLLBACK');
+                                    reject(err);
+                                    return;
+                                }
+                                completed++;
+                                if (completed === totalOperations) commitTransaction();
+                            }
+                        );
+                        
+                        function commitTransaction() {
+                            db.run('COMMIT', (err) => {
+                                if (err) {
+                                    console.error('❌ Ошибка коммита транзакции:', err);
+                                    reject(err);
+                                } else {
+                                    console.log('✅ Спин обработан в транзакции');
+                                    resolve({
+                                        success: true,
+                                        prizeId: prizeId,
+                                        newBalance: userBalance - spinCost + (prizeData.type === 'stars' ? prizeData.value : 0)
+                                    });
+                                }
+                            });
+                        }
+                    }
+                );
+            });
+        });
+    }
+
     async addUserPrizeWithTransaction(telegramId, prizeData, spinType = 'normal') {
         return new Promise((resolve, reject) => {
             const db = this.db; // Сохраняем ссылку на this.db
@@ -2072,6 +2309,376 @@ class Database {
                 } else {
                     resolve(rows || []);
                 }
+            });
+        });
+    }
+
+    // === ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ ДЛЯ АДМИН-БОТА ===
+
+    async searchUsers(searchTerm) {
+        return new Promise((resolve, reject) => {
+            const isNumeric = /^\d+$/.test(searchTerm);
+            
+            if (isNumeric) {
+                // Поиск по ID
+                this.db.all(
+                    'SELECT telegram_id, username, first_name, last_name, stars, is_active FROM users WHERE telegram_id = ? OR id = ?',
+                    [parseInt(searchTerm), parseInt(searchTerm)],
+                    (err, rows) => {
+                        if (err) reject(err);
+                        else resolve(rows || []);
+                    }
+                );
+            } else {
+                // Поиск по имени или username
+                this.db.all(
+                    'SELECT telegram_id, username, first_name, last_name, stars, is_active FROM users WHERE first_name LIKE ? OR username LIKE ? ORDER BY last_activity DESC LIMIT 20',
+                    [`%${searchTerm}%`, `%${searchTerm}%`],
+                    (err, rows) => {
+                        if (err) reject(err);
+                        else resolve(rows || []);
+                    }
+                );
+            }
+        });
+    }
+
+    async getAllUsers(limit = 100, offset = 0) {
+        return new Promise((resolve, reject) => {
+            this.db.all(`
+                SELECT telegram_id, username, first_name, last_name, stars, 
+                       total_stars_earned, referrals, total_spins, is_active,
+                       join_date, last_activity
+                FROM users 
+                ORDER BY join_date DESC
+                LIMIT ? OFFSET ?
+            `, [limit, offset], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows || []);
+            });
+        });
+    }
+
+    async getUsersCount() {
+        return new Promise((resolve, reject) => {
+            this.db.get('SELECT COUNT(*) as count FROM users', (err, result) => {
+                if (err) reject(err);
+                else resolve(parseInt(result.count));
+            });
+        });
+    }
+
+    async banUser(telegramId, reason = 'Нарушение правил') {
+        return new Promise((resolve, reject) => {
+            this.db.run(
+                `UPDATE users 
+                 SET is_active = 0, 
+                     violation_count = violation_count + 1,
+                     tasks_ban_until = datetime('now', '+7 days')
+                 WHERE telegram_id = ?`,
+                [telegramId],
+                function(err) {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        // Добавляем транзакцию блокировки
+                        resolve(this.changes);
+                    }
+                }
+            );
+        });
+    }
+
+    async unbanUser(telegramId) {
+        return new Promise((resolve, reject) => {
+            this.db.run(
+                `UPDATE users 
+                 SET is_active = 1, 
+                     tasks_ban_until = NULL
+                 WHERE telegram_id = ?`,
+                [telegramId],
+                function(err) {
+                    if (err) reject(err);
+                    else resolve(this.changes);
+                }
+            );
+        });
+    }
+
+    async getSystemStats() {
+        return new Promise((resolve, reject) => {
+            this.db.get(`
+                SELECT 
+                    COUNT(*) as total_users,
+                    COUNT(*) FILTER (WHERE is_active = 1) as active_users,
+                    COUNT(*) FILTER (WHERE is_active = 0) as banned_users,
+                    SUM(stars) as total_stars,
+                    SUM(total_spins) as total_spins,
+                    AVG(stars) as avg_stars
+                FROM users
+            `, (err, userStats) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                
+                this.db.get(`
+                    SELECT 
+                        COUNT(*) as count,
+                        SUM(amount) as total_amount
+                    FROM stars_transactions 
+                    WHERE date(transaction_date) = date('now')
+                `, (err2, todayStats) => {
+                    if (err2) {
+                        reject(err2);
+                    } else {
+                        resolve({
+                            users: userStats,
+                            today_transactions: todayStats
+                        });
+                    }
+                });
+            });
+        });
+    }
+
+    async getRecentActivity(limit = 10) {
+        return new Promise((resolve, reject) => {
+            this.db.all(`
+                SELECT u.telegram_id, u.username, u.first_name, 
+                       st.amount, st.transaction_type, st.transaction_date
+                FROM stars_transactions st
+                JOIN users u ON st.user_id = u.id
+                ORDER BY st.transaction_date DESC
+                LIMIT ?
+            `, [limit], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows || []);
+            });
+        });
+    }
+
+    async cleanupOldData(days = 30) {
+        return new Promise((resolve, reject) => {
+            this.db.serialize(() => {
+                this.db.run('BEGIN TRANSACTION');
+                
+                let transactionsDeleted = 0;
+                let spinsDeleted = 0;
+                
+                // Удаляем старые транзакции
+                this.db.run(
+                    `DELETE FROM stars_transactions 
+                     WHERE transaction_date < datetime('now', '-${days} days')`,
+                    function(err) {
+                        if (err) {
+                            this.db.run('ROLLBACK');
+                            reject(err);
+                            return;
+                        }
+                        transactionsDeleted = this.changes;
+                        
+                        // Удаляем старую историю спинов
+                        this.db.run(
+                            `DELETE FROM spin_history 
+                             WHERE spin_date < datetime('now', '-${days} days')`,
+                            function(err2) {
+                                if (err2) {
+                                    this.db.run('ROLLBACK');
+                                    reject(err2);
+                                    return;
+                                }
+                                spinsDeleted = this.changes;
+                                
+                                this.db.run('COMMIT', (err3) => {
+                                    if (err3) reject(err3);
+                                    else resolve({
+                                        transactions_deleted: transactionsDeleted,
+                                        spins_deleted: spinsDeleted
+                                    });
+                                });
+                            }
+                        );
+                    }
+                );
+            });
+        });
+    }
+
+    async backupUsers() {
+        return new Promise((resolve, reject) => {
+            this.db.all(`
+                SELECT telegram_id, username, first_name, stars, 
+                       total_stars_earned, referrals, total_spins, 
+                       join_date, is_active
+                FROM users 
+                ORDER BY join_date ASC
+            `, (err, rows) => {
+                if (err) {
+                    console.error('Ошибка создания бэкапа:', err);
+                    reject(err);
+                } else {
+                    resolve(rows || []);
+                }
+            });
+        });
+    }
+
+    // === МЕТОДЫ ДЛЯ ПРОМОКОДОВ ===
+
+    async createPromoCode(code, starsAmount, maxUses = null) {
+        return new Promise((resolve, reject) => {
+            this.db.run(
+                `INSERT INTO promo_codes (code, stars_amount, max_uses)
+                 VALUES (?, ?, ?)`,
+                [code.toUpperCase(), starsAmount, maxUses],
+                function(err) {
+                    if (err) {
+                        if (err.code === 'SQLITE_CONSTRAINT') {
+                            reject(new Error('Промокод уже существует'));
+                        } else {
+                            reject(err);
+                        }
+                    } else {
+                        resolve(this.lastID);
+                    }
+                }
+            );
+        });
+    }
+
+    async getActivePromoCodes() {
+        return new Promise((resolve, reject) => {
+            this.db.all(
+                `SELECT p.*, COUNT(pu.user_id) as used_count
+                 FROM promo_codes p
+                 LEFT JOIN promo_usage pu ON p.code = pu.promo_code
+                 WHERE p.is_active = 1
+                 GROUP BY p.code
+                 ORDER BY p.created_date DESC`,
+                (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows || []);
+                }
+            );
+        });
+    }
+
+    async usePromoCode(telegramId, promoCode) {
+        return new Promise((resolve, reject) => {
+            this.db.serialize(() => {
+                this.db.run('BEGIN TRANSACTION');
+                
+                // Получаем пользователя
+                this.db.get(
+                    'SELECT id FROM users WHERE telegram_id = ?',
+                    [telegramId],
+                    (err, user) => {
+                        if (err || !user) {
+                            this.db.run('ROLLBACK');
+                            reject(err || new Error('Пользователь не найден'));
+                            return;
+                        }
+                        
+                        const userId = user.id;
+                        
+                        // Проверяем промокод
+                        this.db.get(
+                            'SELECT * FROM promo_codes WHERE code = ? AND is_active = 1',
+                            [promoCode.toUpperCase()],
+                            (err2, promo) => {
+                                if (err2) {
+                                    this.db.run('ROLLBACK');
+                                    reject(err2);
+                                    return;
+                                }
+                                
+                                if (!promo) {
+                                    this.db.run('ROLLBACK');
+                                    reject(new Error('Промокод не найден или неактивен'));
+                                    return;
+                                }
+                                
+                                // Проверяем лимит использований
+                                if (promo.max_uses && promo.current_uses >= promo.max_uses) {
+                                    this.db.run('ROLLBACK');
+                                    reject(new Error('Промокод исчерпан'));
+                                    return;
+                                }
+                                
+                                // Проверяем, не использовал ли уже этот пользователь
+                                this.db.get(
+                                    'SELECT id FROM promo_usage WHERE user_id = ? AND promo_code = ?',
+                                    [userId, promoCode.toUpperCase()],
+                                    (err3, existing) => {
+                                        if (err3) {
+                                            this.db.run('ROLLBACK');
+                                            reject(err3);
+                                            return;
+                                        }
+                                        
+                                        if (existing) {
+                                            this.db.run('ROLLBACK');
+                                            reject(new Error('Промокод уже использован'));
+                                            return;
+                                        }
+                                        
+                                        // Записываем использование
+                                        this.db.run(
+                                            'INSERT INTO promo_usage (user_id, promo_code, stars_received) VALUES (?, ?, ?)',
+                                            [userId, promoCode.toUpperCase(), promo.stars_amount],
+                                            (err4) => {
+                                                if (err4) {
+                                                    this.db.run('ROLLBACK');
+                                                    reject(err4);
+                                                    return;
+                                                }
+                                                
+                                                // Обновляем счетчик использований промокода
+                                                this.db.run(
+                                                    'UPDATE promo_codes SET current_uses = current_uses + 1 WHERE code = ?',
+                                                    [promoCode.toUpperCase()],
+                                                    (err5) => {
+                                                        if (err5) {
+                                                            this.db.run('ROLLBACK');
+                                                            reject(err5);
+                                                            return;
+                                                        }
+                                                        
+                                                        // Начисляем звезды пользователю
+                                                        this.db.run(
+                                                            'UPDATE users SET stars = stars + ?, total_stars_earned = total_stars_earned + ? WHERE telegram_id = ?',
+                                                            [promo.stars_amount, promo.stars_amount, telegramId],
+                                                            (err6) => {
+                                                                if (err6) {
+                                                                    this.db.run('ROLLBACK');
+                                                                    reject(err6);
+                                                                    return;
+                                                                }
+                                                                
+                                                                this.db.run('COMMIT', (err7) => {
+                                                                    if (err7) {
+                                                                        reject(err7);
+                                                                    } else {
+                                                                        resolve({
+                                                                            success: true,
+                                                                            stars: promo.stars_amount,
+                                                                            code: promoCode.toUpperCase()
+                                                                        });
+                                                                    }
+                                                                });
+                                                            }
+                                                        );
+                                                    }
+                                                );
+                                            }
+                                        );
+                                    }
+                                );
+                            }
+                        );
+                    }
+                );
             });
         });
     }

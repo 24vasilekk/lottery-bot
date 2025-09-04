@@ -441,6 +441,9 @@ try {
         }
     });
     
+    // Экспортируем бота для использования в админ-боте
+    global.mainBot = bot;
+    
     // Устанавливаем минимальный уровень логирования
     if (bot.options) {
         bot.options.request = {
@@ -586,7 +589,7 @@ app.post('/api/activate-referral', async (req, res) => {
             console.log(`✅ Реферал успешно активирован: ${referrerId} -> ${userId}`);
             
             // Начисляем бонусы рефереру
-            await db.addUserStars(referrerId, 10);
+            await db.addUserStars(referrerId, 10, 'referral_bonus', {source: 'api_referral_activation', invitedUser: userId});
             
             // Добавляем прокрутку за друга
             await new Promise((resolve, reject) => {
@@ -1918,16 +1921,76 @@ app.post('/api/referral/activate', async (req, res) => {
 // Статическая раздача админки
 app.use('/admin', express.static('admin'));
 
-// Middleware для проверки прав админа (упрощенная версия)
+// API для просмотра транзакций пользователя
+app.get('/api/user/:userId/transactions', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const limit = parseInt(req.query.limit) || 50;
+        
+        const transactions = await new Promise((resolve, reject) => {
+            db.db.all(
+                `SELECT st.*, u.first_name 
+                 FROM stars_transactions st
+                 JOIN users u ON st.user_id = u.id
+                 WHERE u.telegram_id = ?
+                 ORDER BY st.transaction_date DESC
+                 LIMIT ?`,
+                [parseInt(userId), limit],
+                (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows || []);
+                }
+            );
+        });
+        
+        res.json({
+            success: true,
+            transactions: transactions.map(t => ({
+                id: t.id,
+                amount: t.amount,
+                type: t.transaction_type,
+                status: t.status,
+                date: t.transaction_date,
+                metadata: t.metadata ? JSON.parse(t.metadata) : null
+            }))
+        });
+    } catch (error) {
+        console.error('❌ Ошибка получения транзакций:', error);
+        res.status(500).json({ error: 'Ошибка получения истории транзакций' });
+    }
+});
+
+// Middleware для проверки прав админа
 function requireAdmin(req, res, next) {
-    // В продакшене здесь должна быть полноценная аутентификация
     const adminToken = req.headers['admin-token'] || req.query.token;
+    const expectedToken = process.env.ADMIN_TOKEN;
     
-    // Временно пропускаем всех (в продакшене нужна аутентификация)
-    // if (adminToken !== process.env.ADMIN_TOKEN) {
-    //     return res.status(403).json({ error: 'Доступ запрещен' });
-    // }
+    // Если ADMIN_TOKEN не установлен, создаем базовую защиту
+    if (!expectedToken) {
+        console.warn('⚠️ ADMIN_TOKEN не установлен! Используем базовую проверку по IP');
+        // В development режиме разрешаем localhost
+        if (process.env.NODE_ENV !== 'production') {
+            const clientIp = req.ip || req.connection.remoteAddress;
+            if (clientIp.includes('127.0.0.1') || clientIp.includes('::1')) {
+                return next();
+            }
+        }
+        return res.status(403).json({ 
+            error: 'Доступ запрещен: ADMIN_TOKEN не настроен',
+            setup: 'Установите ADMIN_TOKEN в переменных окружения' 
+        });
+    }
     
+    // Проверяем токен
+    if (adminToken !== expectedToken) {
+        console.warn(`🚫 Попытка неавторизованного доступа: ${req.ip}`);
+        return res.status(403).json({ 
+            error: 'Неверный админ токен',
+            required: 'Передайте admin-token в заголовке или ?token= в URL' 
+        });
+    }
+    
+    console.log(`✅ Авторизованный админ доступ: ${req.method} ${req.path}`);
     next();
 }
 
@@ -2507,7 +2570,7 @@ app.post('/api/admin/users/stars', requireAdmin, async (req, res) => {
         }
 
         // Обновляем баланс звезд
-        await db.addUserStars(validatedData.telegramId, starsChange);
+        await db.addUserStars(validatedData.telegramId, starsChange, 'admin_adjustment', {reason: validatedData.reason, admin: 'system'});
 
         // Добавляем запись в историю транзакций
         await db.addStarsTransaction({
@@ -2588,12 +2651,12 @@ app.post('/api/admin/manual-spin', requireAdmin, async (req, res) => {
         switch (spinType) {
             case 'normal':
                 // Добавляем 20 звезд для обычной прокрутки
-                await db.addUserStars(userId, 20);
+                await db.addUserStars(userId, 20, 'spin_reward', {spinType: 'normal'});
                 break;
                 
             case 'mega':
                 // Добавляем 5000 звезд для мега прокрутки
-                await db.addUserStars(userId, 5000);
+                await db.addUserStars(userId, 5000, 'spin_reward', {spinType: 'mega'});
                 break;
                 
             case 'friend':
@@ -2934,7 +2997,7 @@ if (bot) {
                                     console.log(`🤝 Пользователь ${userId} приглашен пользователем ${referrerId}`);
                                     
                                     // Начисляем бонусы рефереру
-                                    await db.addUserStars(referrerId, 10);
+                                    await db.addUserStars(referrerId, 10, 'referral_bonus', {source: 'start_command', invitedUser: userId});
                                     
                                     // Добавляем прокрутку за друга
                                     await new Promise((resolve, reject) => {
@@ -3152,7 +3215,7 @@ if (bot) {
             promo.used.add(userId);
             
             // Обновляем звезды в базе данных
-            await db.addUserStars(userId, promo.crystals);
+            await db.addUserStars(userId, promo.crystals, 'promo_code', {promoCode: promoCode});
             
             bot.sendMessage(chatId, `✅ Промокод активирован!\n⭐ Получено ${promo.crystals} звезд`);
             
@@ -3855,7 +3918,7 @@ if (bot) {
             const starsAmount = payload.amount;
             
             // Добавляем звезды пользователю
-            await db.addUserStars(userId, starsAmount);
+            await db.addUserStars(userId, starsAmount, 'deposit', {payment_id: payment.telegram_payment_charge_id});
             
             // Записываем транзакцию в БД
             await db.addStarsTransaction({
@@ -4026,47 +4089,24 @@ async function handleWheelSpin(userId, data) {
         console.log(`🎰 Пользователь ${userId} крутит рулетку`);
         console.log('🎁 Данные приза:', JSON.stringify(data.prize, null, 2));
         
-        // КРИТИЧНО: Сначала списываем стоимость спина (если это спин за звезды)
+        // НОВАЯ ТРАНЗАКЦИОННАЯ ОБРАБОТКА СПИНА
         const spinType = data.spinType || 'normal';
-        if (spinType === 'stars' || (!data.spinType && data.spinCost)) {
-            const spinCost = data.spinCost || 20; // По умолчанию 20 звезд за спин
-            
-            console.log(`💰 Списываем ${spinCost} звезд за спин у пользователя ${userId}`);
-            console.log(`💰 Баланс ДО списания: ${user.stars} звезд`);
-            
-            // Проверяем, достаточно ли звезд
-            if (user.stars < spinCost) {
-                console.error(`❌ Недостаточно звезд для спина: ${user.stars} < ${spinCost}`);
-                throw new Error(`Недостаточно звезд для прокрутки. Нужно: ${spinCost}, есть: ${user.stars}`);
-            }
-            
-            // Списываем звезды
-            await db.subtractUserStars(userId, spinCost);
-            console.log(`✅ Списано ${spinCost} звезд за спин`);
-            
-            // Получаем обновленные данные пользователя
-            user = await db.getUser(userId);
-            console.log(`💰 Баланс ПОСЛЕ списания: ${user.stars} звезд`);
-        }
+        const spinCost = (spinType === 'stars' || (!data.spinType && data.spinCost)) ? (data.spinCost || 20) : 0;
         
-        // Обновляем статистику прокруток
-        await db.updateUserSpinStats(userId);
-        console.log('✅ Статистика прокруток обновлена');
+        console.log(`🎰 Обрабатываем спин: тип=${spinType}, стоимость=${spinCost}, приз=${data.prize?.name || 'empty'}`);
         
-        // Обрабатываем приз
-        if (data.prize) {
-            if (data.prize.type !== 'empty') {
-                console.log('🏆 Обрабатываем выигрышный приз с транзакцией');
-                
-                // Используем безопасную транзакцию для добавления приза
-                await db.addUserPrizeWithTransaction(userId, data.prize, data.spinType || 'normal');
-                console.log('✅ Приз добавлен в БД с транзакцией');
-                
-                // Валидация и обработка типов призов
+        try {
+            // Используем новый транзакционный метод
+            const result = await db.processSpinWithTransaction(userId, spinCost, data.prize, spinType);
+            
+            console.log(`✅ Спин обработан успешно. Новый баланс: ${result.newBalance}`);
+            
+            // Валидация и дополнительная обработка призов
+            if (data.prize && data.prize.type !== 'empty') {
                 const prizeType = data.prize.type;
                 const prizeValue = data.prize.value || 0;
                 
-                console.log(`🔍 Валидация приза: тип="${prizeType}", значение=${prizeValue}`);
+                console.log(`🔍 Приз обработан: тип="${prizeType}", значение=${prizeValue}`);
                 
                 // Валидируем допустимые типы призов
                 const validPrizeTypes = ['empty', 'stars', 'certificate'];
@@ -4075,19 +4115,8 @@ async function handleWheelSpin(userId, data) {
                     data.prize.type = 'certificate';
                 }
                 
-                // Если это звезды - обновляем баланс
-                if (prizeType === 'stars') {
-                    if (prizeValue > 0 && prizeValue <= 1000) { // Ограничение на разумное количество звезд
-                        console.log(`⭐ Добавляем ${prizeValue} звезд пользователю ${userId}`);
-                        await db.addUserStars(userId, prizeValue);
-                        console.log(`✅ Баланс звезд обновлен на сервере: +${prizeValue}`);
-                    } else {
-                        console.warn(`⚠️ Подозрительное количество звезд: ${prizeValue}, пропускаем`);
-                    }
-                }
-                
-                // Если это сертификат - валидируем стоимость
-                else if (prizeType === 'certificate') {
+                // Дополнительная валидация для сертификатов
+                if (prizeType === 'certificate') {
                     if (prizeValue < 100 || prizeValue > 10000) {
                         console.warn(`⚠️ Подозрительная стоимость сертификата: ${prizeValue}₽`);
                     }
@@ -4112,6 +4141,9 @@ async function handleWheelSpin(userId, data) {
                     }
                 }
             }
+        } catch (spinError) {
+            console.error('❌ Ошибка обработки спина в транзакции:', spinError);
+            throw spinError; // Пробрасываем ошибку выше
         }
     } catch (error) {
         console.error('❌ Ошибка обработки прокрутки:', error);
@@ -4133,7 +4165,7 @@ async function handleTaskCompleted(userId, data) {
             // Обновляем звезды пользователя
             const rewardAmount = data.reward?.amount || 0;
             if (rewardAmount > 0) {
-                await db.addUserStars(userId, rewardAmount);
+                await db.addUserStars(userId, rewardAmount, 'task_reward', {taskId: data.taskId, taskType: data.taskType});
             }
             
             // Отправляем уведомление
@@ -4184,7 +4216,7 @@ async function handleChannelSubscription(userId, data) {
         await db.updateUserSubscription(userId, channelField, true);
         
         // Даем бонус за подписку
-        await db.addUserStars(userId, bonus);
+        await db.addUserStars(userId, bonus, 'channel_subscription', {channelField: channelField});
         
         if (bot) {
             try {
@@ -5169,7 +5201,7 @@ async function handleChannelSubscriptionTask(userId, channelId, userData) {
         await db.updatePartnerChannelSubscribers(channelId, 1);
         
         // Начисляем звезды пользователю
-        await db.addUserStars(userId, rewardStars);
+        await db.addUserStars(userId, rewardStars, 'partner_channel', {channelId: channelId, channelName: channel.channel_name});
         console.log(`⭐ Начислено ${rewardStars} звезд пользователю ${userId}`);
         
         // Проверяем и разблокируем достижения
@@ -5178,7 +5210,7 @@ async function handleChannelSubscriptionTask(userId, channelId, userData) {
         
         if (unlockedAchievements.length > 0) {
             achievementStars = unlockedAchievements.reduce((sum, ach) => sum + ach.stars, 0);
-            await db.addUserStars(userId, achievementStars);
+            await db.addUserStars(userId, achievementStars, 'achievement', {achievements: unlockedAchievements.map(a => a.key)});
             console.log(`🏆 Разблокированы достижения на ${achievementStars} звезд:`, unlockedAchievements.map(a => a.key));
         }
         
@@ -5195,7 +5227,7 @@ async function handleChannelSubscriptionTask(userId, channelId, userData) {
             });
             
             // Награждаем реферера 20 звездами
-            await db.addUserStars(user.referrer_id, 5);
+            await db.addUserStars(user.referrer_id, 5, 'referral_activation', {activatedUser: userId});
             
             console.log(`👥 Активирован реферер пользователя ${userId} после 2-й подписки, выдано 20 звезд`);
             
