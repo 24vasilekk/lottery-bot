@@ -10,6 +10,11 @@ class BackgroundTaskManager {
         this.startTasks();
     }
 
+    // Универсальная функция для дат в зависимости от типа БД
+    formatDateQuery(sqliteDate, postgresDate) {
+        return this.db.query ? postgresDate : sqliteDate;
+    }
+
     // Универсальные методы для работы с базой данных
     async executeQuery(sql, params = []) {
         if (this.db.query) {
@@ -172,28 +177,20 @@ class BackgroundTaskManager {
         try {
             console.log('🔍 Массовая проверка подписок пользователей...');
 
-            // ВРЕМЕННО: безопасная проверка доступности методов БД
-            if (!this.db.query && (!this.db.db || !this.db.db.all)) {
-                console.log('⚠️ checkUserSubscriptions: метод БД недоступен, пропускаем');
-                return;
-            }
-
             // Получаем активные подписки старше 1 часа (чтобы не спамить API)
-            const subscriptions = await new Promise((resolve, reject) => {
-                this.db.db.all(`
-                    SELECT ucs.*, pc.channel_username, u.telegram_id
-                    FROM user_channel_subscriptions ucs
-                    JOIN partner_channels pc ON ucs.channel_id = pc.id
-                    JOIN users u ON ucs.user_id = u.id
-                    WHERE ucs.is_active = 1
-                    AND datetime(ucs.subscribed_date) < datetime('now', '-1 hour')
-                    ORDER BY RANDOM()
-                    LIMIT 100
-                `, (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows);
-                });
-            });
+            const subscriptions = await this.executeQuery(`
+                SELECT ucs.*, pc.channel_username, u.telegram_id
+                FROM user_channel_subscriptions ucs
+                JOIN partner_channels pc ON ucs.channel_id = pc.id
+                JOIN users u ON ucs.user_id = u.id
+                WHERE ucs.is_active = 1
+                AND ${this.formatDateQuery(
+                    "datetime(ucs.subscribed_date) < datetime('now', '-1 hour')",
+                    "ucs.subscribed_date < NOW() - INTERVAL '1 hour'"
+                )}
+                ORDER BY RANDOM()
+                LIMIT 100
+            `);
 
             let violationsFound = 0;
 
@@ -209,13 +206,10 @@ class BackgroundTaskManager {
                         console.log(`❌ Пользователь ${subscription.telegram_id} отписался от @${subscription.channel_username}`);
                         
                         // Помечаем подписку как неактивную
-                        await new Promise((resolve, reject) => {
-                            this.db.db.run(
-                                'UPDATE user_channel_subscriptions SET is_active = 0, unsubscribed_date = CURRENT_TIMESTAMP WHERE id = ?',
-                                [subscription.id],
-                                (err) => err ? reject(err) : resolve()
-                            );
-                        });
+                        await this.executeUpdate(
+                            'UPDATE user_channel_subscriptions SET is_active = 0, unsubscribed_date = CURRENT_TIMESTAMP WHERE id = ?',
+                            [subscription.id]
+                        );
 
                         violationsFound++;
                         
@@ -240,56 +234,33 @@ class BackgroundTaskManager {
         try {
             console.log('📊 Обновление статистики каналов...');
 
-            // ВРЕМЕННО: безопасная проверка доступности методов БД
-            if (!this.db.query && (!this.db.db || !this.db.db.all)) {
-                console.log('⚠️ updateChannelStats: метод БД недоступен, пропускаем');
-                return;
-            }
-
-            const channels = await new Promise((resolve, reject) => {
-                this.db.db.all(
-                    'SELECT * FROM partner_channels WHERE is_active = 1 AND placement_type = "target"',
-                    (err, rows) => {
-                        if (err) reject(err);
-                        else resolve(rows);
-                    }
-                );
-            });
+            const channels = await this.executeQuery(
+                'SELECT * FROM partner_channels WHERE is_active = 1 AND placement_type = "target"'
+            );
 
             for (const channel of channels) {
                 // Подсчитываем текущее количество активных подписчиков
-                const currentSubscribers = await new Promise((resolve, reject) => {
-                    this.db.db.get(
-                        'SELECT COUNT(*) as count FROM user_channel_subscriptions WHERE channel_id = ? AND is_active = 1',
-                        [channel.id],
-                        (err, row) => {
-                            if (err) reject(err);
-                            else resolve(row.count);
-                        }
-                    );
-                });
+                const result = await this.executeScalar(
+                    'SELECT COUNT(*) as count FROM user_channel_subscriptions WHERE channel_id = ? AND is_active = 1',
+                    [channel.id]
+                );
+                const currentSubscribers = result ? result.count : 0;
 
                 // Обновляем статистику
-                await new Promise((resolve, reject) => {
-                    this.db.db.run(
-                        'UPDATE partner_channels SET current_subscribers = ? WHERE id = ?',
-                        [currentSubscribers, channel.id],
-                        (err) => err ? reject(err) : resolve()
-                    );
-                });
+                await this.executeUpdate(
+                    'UPDATE partner_channels SET current_subscribers = ? WHERE id = ?',
+                    [currentSubscribers, channel.id]
+                );
 
                 // Проверяем, достиг ли канал целевого количества
                 if (currentSubscribers >= channel.target_subscribers) {
                     console.log(`🎯 Канал @${channel.channel_username} достиг цели: ${currentSubscribers}/${channel.target_subscribers}`);
                     
                     // Деактивируем канал
-                    await new Promise((resolve, reject) => {
-                        this.db.db.run(
-                            'UPDATE partner_channels SET is_active = 0 WHERE id = ?',
-                            [channel.id],
-                            (err) => err ? reject(err) : resolve()
-                        );
-                    });
+                    await this.executeUpdate(
+                        'UPDATE partner_channels SET is_active = 0 WHERE id = ?',
+                        [channel.id]
+                    );
 
                     // Уведомляем админов
                     await this.notifyAdmins(`🎯 Канал @${channel.channel_username} достиг целевого количества подписчиков и деактивирован`);
@@ -309,28 +280,28 @@ class BackgroundTaskManager {
             console.log('🧹 Очистка старых данных...');
 
             // Удаляем старые нарушения (старше 30 дней)
-            await new Promise((resolve, reject) => {
-                this.db.db.run(
-                    'DELETE FROM subscription_violations WHERE datetime(created_at) < datetime("now", "-30 days")',
-                    (err) => err ? reject(err) : resolve()
-                );
-            });
+            await this.executeUpdate(
+                `DELETE FROM subscription_violations WHERE ${this.formatDateQuery(
+                    'datetime(created_at) < datetime("now", "-30 days")',
+                    "created_at < NOW() - INTERVAL '30 days'"
+                )}`
+            );
 
             // Очищаем старые неактивные подписки (старше 7 дней)
-            await new Promise((resolve, reject) => {
-                this.db.db.run(
-                    'DELETE FROM user_channel_subscriptions WHERE is_active = 0 AND datetime(unsubscribed_date) < datetime("now", "-7 days")',
-                    (err) => err ? reject(err) : resolve()
-                );
-            });
+            await this.executeUpdate(
+                `DELETE FROM user_channel_subscriptions WHERE is_active = 0 AND ${this.formatDateQuery(
+                    'datetime(unsubscribed_date) < datetime("now", "-7 days")',
+                    "unsubscribed_date < NOW() - INTERVAL '7 days'"
+                )}`
+            );
 
             // Очищаем старые горячие предложения (старше 24 часов)
-            await new Promise((resolve, reject) => {
-                this.db.db.run(
-                    'DELETE FROM hot_offers WHERE datetime(expires_at) < datetime("now", "-1 day")',
-                    (err) => err ? reject(err) : resolve()
-                );
-            });
+            await this.executeUpdate(
+                `DELETE FROM hot_offers WHERE ${this.formatDateQuery(
+                    'datetime(expires_at) < datetime("now", "-1 day")',
+                    "expires_at < NOW() - INTERVAL '1 day'"
+                )}`
+            );
 
             console.log('✅ Старые данные очищены');
 
@@ -343,18 +314,16 @@ class BackgroundTaskManager {
     async notifyAdminsAboutPrizes() {
         try {
             // Получаем призы, добавленные за последний час
-            const newPrizes = await new Promise((resolve, reject) => {
-                this.db.db.all(`
-                    SELECT COUNT(*) as count, type
-                    FROM prizes 
-                    WHERE is_given = 0 
-                    AND datetime(created_at) > datetime('now', '-1 hour')
-                    GROUP BY type
-                `, (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows);
-                });
-            });
+            const newPrizes = await this.executeQuery(`
+                SELECT COUNT(*) as count, type
+                FROM prizes 
+                WHERE is_given = 0 
+                AND ${this.formatDateQuery(
+                    "datetime(created_at) > datetime('now', '-1 hour')",
+                    "created_at > NOW() - INTERVAL '1 hour'"
+                )}
+                GROUP BY type
+            `);
 
             if (newPrizes.length > 0) {
                 const totalPrizes = newPrizes.reduce((sum, prize) => sum + prize.count, 0);
