@@ -1,12 +1,12 @@
 // sponsor-automation.js - Система автоматизации управления спонсорами
 // 🤖 Автоматизация каналов для Kosmetichka Lottery Bot
 
-const Database = require('./database');
+const createDatabase = require('./database-selector');
 
 class SponsorAutomation {
     constructor(bot) {
         this.bot = bot;
-        this.db = new Database();
+        this.db = createDatabase();
         this.checkInterval = 30 * 60 * 1000; // 30 минут
         this.adminChatId = process.env.ADMIN_CHAT_ID; // ID чата администратора
         
@@ -57,17 +57,7 @@ class SponsorAutomation {
     // 1. Проверка истекших каналов по времени
     async checkExpiredTimeChannels() {
         try {
-            const expiredChannels = await new Promise((resolve, reject) => {
-                this.db.db.all(`
-                    SELECT * FROM partner_channels 
-                    WHERE placement_type = 'time' 
-                    AND is_active = 1 
-                    AND datetime(created_at, '+' || placement_duration || ' hours') <= datetime('now')
-                `, (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows || []);
-                });
-            });
+            const expiredChannels = await this.db.getExpiredTimeChannels();
 
             for (const channel of expiredChannels) {
                 await this.deactivateChannel(channel, 'time_expired');
@@ -91,17 +81,7 @@ class SponsorAutomation {
     // 2. Проверка каналов, достигших цели
     async checkCompletedTargetChannels() {
         try {
-            const completedChannels = await new Promise((resolve, reject) => {
-                this.db.db.all(`
-                    SELECT * FROM partner_channels 
-                    WHERE placement_type = 'target' 
-                    AND is_active = 1 
-                    AND current_subscribers >= subscribers_target
-                `, (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows || []);
-                });
-            });
+            const completedChannels = await this.db.getCompletedTargetChannels();
 
             for (const channel of completedChannels) {
                 await this.deactivateChannel(channel, 'target_reached');
@@ -125,16 +105,7 @@ class SponsorAutomation {
     // 3. Обновление приоритетов каналов
     async updateChannelPriorities() {
         try {
-            const activeChannels = await new Promise((resolve, reject) => {
-                this.db.db.all(`
-                    SELECT * FROM partner_channels 
-                    WHERE is_active = 1
-                    ORDER BY created_at DESC
-                `, (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows || []);
-                });
-            });
+            const activeChannels = await this.db.getActiveChannels();
 
             for (const channel of activeChannels) {
                 const stats = await this.getChannelStats(channel.id);
@@ -161,23 +132,7 @@ class SponsorAutomation {
     // 4. Проверка каналов с низкой активностью
     async checkLowActivityChannels() {
         try {
-            const lowActivityChannels = await new Promise((resolve, reject) => {
-                this.db.db.all(`
-                    SELECT pc.*, 
-                           COUNT(ucs.id) as subscription_count,
-                           (julianday('now') - julianday(pc.created_at)) * 24 as hours_active
-                    FROM partner_channels pc
-                    LEFT JOIN user_channel_subscriptions ucs ON pc.id = ucs.channel_id 
-                        AND ucs.created_at >= datetime('now', '-24 hours')
-                    WHERE pc.is_active = 1 
-                        AND pc.created_at <= datetime('now', '-6 hours')
-                    GROUP BY pc.id
-                    HAVING subscription_count < 2 AND hours_active >= 6
-                `, (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows || []);
-                });
-            });
+            const lowActivityChannels = await this.db.getChannelsWithLowActivity();
 
             for (const channel of lowActivityChannels) {
                 // Проверим, не уведомляли ли уже об этом канале
@@ -203,24 +158,7 @@ class SponsorAutomation {
     // 5. Автоматическое продление эффективных каналов
     async autoRenewEffectiveChannels() {
         try {
-            const effectiveChannels = await new Promise((resolve, reject) => {
-                this.db.db.all(`
-                    SELECT pc.*, 
-                           COUNT(ucs.id) as total_subscriptions,
-                           (julianday('now') - julianday(pc.created_at)) * 24 as hours_active
-                    FROM partner_channels pc
-                    LEFT JOIN user_channel_subscriptions ucs ON pc.id = ucs.channel_id
-                    WHERE pc.placement_type = 'time' 
-                        AND pc.is_active = 1
-                        AND datetime(pc.created_at, '+' || pc.placement_duration || ' hours') <= datetime('now', '+2 hours')
-                        AND pc.auto_renewal = 1
-                    GROUP BY pc.id
-                    HAVING total_subscriptions >= 10 OR (total_subscriptions * 1.0 / hours_active) >= 0.5
-                `, (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows || []);
-                });
-            });
+            const effectiveChannels = await this.db.getEffectiveChannelsForRenewal();
 
             for (const channel of effectiveChannels) {
                 // Продлеваем на такой же период

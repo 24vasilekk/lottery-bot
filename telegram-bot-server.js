@@ -4632,19 +4632,7 @@ async function checkAllUsersSubscriptions() {
         console.log('🔍 Начало проверки всех подписок пользователей...');
         
         // Получаем всех пользователей с активными подписками
-        const activeSubscriptions = await new Promise((resolve, reject) => {
-            db.db.all(`
-                SELECT ucs.*, u.telegram_id, pc.channel_username, pc.channel_name
-                FROM user_channel_subscriptions ucs
-                JOIN users u ON ucs.user_id = u.id  
-                JOIN partner_channels pc ON ucs.channel_id = pc.id
-                WHERE ucs.is_active = 1 AND ucs.is_verified = 1
-                AND ucs.subscribed_date <= datetime('now', '-1 hour')
-            `, (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows || []);
-            });
-        });
+        const activeSubscriptions = await db.getActiveSubscriptions();
 
         console.log(`📊 Найдено ${activeSubscriptions.length} активных подписок для проверки`);
 
@@ -4684,17 +4672,8 @@ async function checkAndRewardActiveSubscriptions() {
         console.log('🎁 Проверка и начисление звезд за активные подписки...');
         
         // Получаем канал из заданий для проверки
-        const taskChannel = await new Promise((resolve, reject) => {
-            db.db.get(`
-                SELECT * FROM partner_channels 
-                WHERE channel_username = 'kosmetichka_spin' 
-                AND is_active = 1
-                LIMIT 1
-            `, (err, row) => {
-                if (err) reject(err);
-                else resolve(row);
-            });
-        });
+        const channels = await db.getActiveChannels();
+        const taskChannel = channels.find(c => c.channel_username === 'kosmetichka_spin');
 
         if (!taskChannel) {
             console.log('❌ Канал для задания не найден');
@@ -4702,15 +4681,7 @@ async function checkAndRewardActiveSubscriptions() {
         }
 
         // Получаем всех пользователей
-        const users = await new Promise((resolve, reject) => {
-            db.db.all(`
-                SELECT id, telegram_id FROM users 
-                WHERE is_active = 1
-            `, (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows || []);
-            });
-        });
+        const users = await db.getAllActiveUsers();
 
         let rewardedCount = 0;
         let checkCount = 0;

@@ -699,6 +699,94 @@ class DatabasePostgres {
         return parseInt(result.rows[0].count) || 0;
     }
 
+    // === МЕТОДЫ ДЛЯ АВТОМАТИЗАЦИИ ===
+
+    async getChannelsWithLowActivity() {
+        const query = `
+            SELECT pc.*, 
+                   COUNT(ucs.id) as subscription_count,
+                   EXTRACT(EPOCH FROM (NOW() - pc.created_at)) / 3600 as hours_active
+            FROM partner_channels pc
+            LEFT JOIN user_channel_subscriptions ucs ON pc.id = ucs.channel_id 
+                AND ucs.created_at >= NOW() - INTERVAL '24 hours'
+            WHERE pc.is_active = true 
+                AND pc.created_at <= NOW() - INTERVAL '6 hours'
+            GROUP BY pc.id
+            HAVING COUNT(ucs.id) < 2 AND EXTRACT(EPOCH FROM (NOW() - pc.created_at)) / 3600 >= 6
+        `;
+        const result = await this.pool.query(query);
+        return result.rows;
+    }
+
+    async getExpiredTimeChannels() {
+        const query = `
+            SELECT * FROM partner_channels 
+            WHERE placement_type = 'time' 
+            AND is_active = true 
+            AND created_at + (placement_duration || ' hours')::INTERVAL <= NOW()
+        `;
+        const result = await this.pool.query(query);
+        return result.rows;
+    }
+
+    async getCompletedTargetChannels() {
+        const query = `
+            SELECT * FROM partner_channels 
+            WHERE placement_type = 'target' 
+            AND is_active = true 
+            AND current_subscribers >= subscribers_target
+        `;
+        const result = await this.pool.query(query);
+        return result.rows;
+    }
+
+    async getEffectiveChannelsForRenewal() {
+        const query = `
+            SELECT pc.*, 
+                   COUNT(ucs.id) as total_subscriptions,
+                   EXTRACT(EPOCH FROM (NOW() - pc.created_at)) / 3600 as hours_active
+            FROM partner_channels pc
+            LEFT JOIN user_channel_subscriptions ucs ON pc.id = ucs.channel_id
+            WHERE pc.placement_type = 'time' 
+                AND pc.is_active = true
+                AND pc.created_at + (pc.placement_duration || ' hours')::INTERVAL <= NOW() + INTERVAL '2 hours'
+                AND pc.auto_renewal = true
+            GROUP BY pc.id
+            HAVING COUNT(ucs.id) >= 10 OR (COUNT(ucs.id)::FLOAT / EXTRACT(EPOCH FROM (NOW() - pc.created_at)) * 3600) >= 0.5
+        `;
+        const result = await this.pool.query(query);
+        return result.rows;
+    }
+
+    async getActiveChannels() {
+        const query = `
+            SELECT * FROM partner_channels 
+            WHERE is_active = true
+            ORDER BY created_at DESC
+        `;
+        const result = await this.pool.query(query);
+        return result.rows;
+    }
+
+    async getActiveSubscriptions() {
+        const query = `
+            SELECT ucs.*, u.telegram_id, pc.channel_username, pc.channel_name
+            FROM user_channel_subscriptions ucs
+            JOIN users u ON ucs.user_id = u.id  
+            JOIN partner_channels pc ON ucs.channel_id = pc.id
+            WHERE ucs.is_active = true AND ucs.is_verified = true
+            AND ucs.subscribed_date <= NOW() - INTERVAL '1 hour'
+        `;
+        const result = await this.pool.query(query);
+        return result.rows;
+    }
+
+    async getAllActiveUsers() {
+        const query = 'SELECT id, telegram_id FROM users WHERE is_active = true';
+        const result = await this.pool.query(query);
+        return result.rows;
+    }
+
     // === МЕТОДЫ ДЛЯ КАНАЛОВ ===
 
     async addChannel(channelId, channelName, bonusStars = 0) {
