@@ -444,12 +444,25 @@ console.log('📁 Admin path:', adminPath);
 console.log('📁 Admin files exist:', require('fs').existsSync(adminPath));
 console.log('📁 Admin login file exists:', require('fs').existsSync(path.join(adminPath, 'admin-login.html')));
 
-// Статические файлы для веб-админки
+// Отдельные обработчики для админских маршрутов (ПЕРЕД static middleware)
+app.get('/admin', (req, res) => {
+    console.log('🔍 GET /admin запрос получен (без слеша)');
+    res.redirect(301, '/admin/');
+});
+
+app.get('/admin/', (req, res) => {
+    console.log('🔍 GET /admin/ запрос получен (со слешем)');
+    const loginPath = path.join(adminPath, 'admin-login.html');
+    console.log('📁 Отправляем файл:', loginPath);
+    res.sendFile(loginPath);
+});
+
+// Статические файлы для веб-админки (для остальных путей)
 app.use('/admin', express.static(adminPath, {
     etag: false,
     maxAge: 0,
-    index: ['admin-login.html', 'index.html'], // Укажем явно какие index файлы использовать
     setHeaders: (res, filePath) => {
+        console.log('📄 Статический файл админки:', filePath);
         if (filePath.endsWith('.html')) {
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
         } else if (filePath.endsWith('.js')) {
@@ -460,18 +473,6 @@ app.use('/admin', express.static(adminPath, {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
 }));
-
-// Добавим отдельный обработчик для корня админки
-app.get('/admin/', (req, res) => {
-    console.log('🔍 GET /admin/ запрос получен');
-    const loginPath = path.join(adminPath, 'admin-login.html');
-    res.sendFile(loginPath);
-});
-
-app.get('/admin', (req, res) => {
-    console.log('🔍 GET /admin запрос получен (без слеша)');
-    res.redirect('/admin/');
-});
 
 // Статические файлы для основного WebApp
 app.use(express.static(publicPath, {
