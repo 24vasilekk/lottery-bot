@@ -435,6 +435,25 @@ app.use((req, res, next) => {
 
 // Настройка статических файлов
 const publicPath = path.join(__dirname, 'public');
+const adminPath = path.join(__dirname, 'admin');
+
+// Статические файлы для веб-админки
+app.use('/admin', express.static(adminPath, {
+    etag: false,
+    maxAge: 0,
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        } else if (filePath.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+        } else if (filePath.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css; charset=utf-8');
+        }
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+}));
+
+// Статические файлы для основного WebApp
 app.use(express.static(publicPath, {
     etag: false,
     maxAge: 0,
