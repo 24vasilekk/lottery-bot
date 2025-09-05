@@ -183,7 +183,7 @@ class BackgroundTaskManager {
                 FROM user_channel_subscriptions ucs
                 JOIN partner_channels pc ON ucs.channel_id = pc.id
                 JOIN users u ON ucs.user_id = u.id
-                WHERE ucs.is_active = 1
+                WHERE ucs.is_active = true
                 AND ${this.formatDateQuery(
                     "datetime(ucs.subscribed_date) < datetime('now', '-1 hour')",
                     "ucs.subscribed_date < NOW() - INTERVAL '1 hour'"

@@ -5171,6 +5171,87 @@ app.get('/api/channel-info/:username', async (req, res) => {
     }
 });
 
+// === ADMIN API ENDPOINTS ===
+
+// Получить статистику для дашборда
+app.get('/api/admin/stats', async (req, res) => {
+    try {
+        console.log('📊 Admin API: Запрос статистики');
+        
+        const stats = await db.getGeneralStats();
+        
+        res.json({
+            success: true,
+            stats: {
+                totalUsers: stats.total_users || 0,
+                activeUsers: stats.active_users || 0,
+                totalStars: stats.total_stars || 0,
+                totalSpins: stats.total_spins || 0,
+                todayUsers: stats.today_users || 0,
+                todaySpins: stats.today_spins || 0,
+                topChannels: [],
+                system: {
+                    uptime: Math.floor(process.uptime()),
+                    memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+                    version: '1.0.0'
+                }
+            }
+        });
+    } catch (error) {
+        console.error('❌ Ошибка получения статистики:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка получения статистики' 
+        });
+    }
+});
+
+// Получить список пользователей
+app.get('/api/admin/users', async (req, res) => {
+    try {
+        const { page = 1, limit = 20, search = '' } = req.query;
+        console.log('👥 Admin API: Запрос пользователей', { page, limit, search });
+        
+        const users = await db.getAllUsers(parseInt(limit), parseInt(page), search);
+        
+        res.json({
+            success: true,
+            users: users || [],
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total: users.length
+            }
+        });
+    } catch (error) {
+        console.error('❌ Ошибка получения пользователей:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка получения пользователей' 
+        });
+    }
+});
+
+// Получить список каналов
+app.get('/api/admin/channels', async (req, res) => {
+    try {
+        console.log('📺 Admin API: Запрос каналов');
+        
+        const channels = await db.getActivePartnerChannels();
+        
+        res.json({
+            success: true,
+            channels: channels || []
+        });
+    } catch (error) {
+        console.error('❌ Ошибка получения каналов:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка получения каналов' 
+        });
+    }
+});
+
 // === ФУНКЦИИ ДЛЯ СИСТЕМЫ ЗАДАНИЙ ===
 
 // Проверка подписки пользователя на канал через Bot API
