@@ -392,7 +392,7 @@ class NotificationManager {
 }
 
 // Глобальный экземпляр
-const NotificationManager = new NotificationManager();
+window.NotificationManager = new NotificationManager();
 
 // Упрощенные глобальные функции
 window.showSuccess = (title, message, options) => NotificationManager.showSuccess(title, message, options);
