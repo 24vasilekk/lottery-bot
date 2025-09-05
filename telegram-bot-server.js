@@ -446,10 +446,18 @@ console.log('📁 Admin login file exists:', require('fs').existsSync(path.join(
 
 // Простые обработчики для админки без циклических редиректов
 app.get(/^\/+admin\/*$/, (req, res) => {
-    console.log('🔍 Admin запрос:', req.originalUrl);
+    console.log('🔍 Admin корень запрос:', req.originalUrl);
     const loginPath = path.join(adminPath, 'admin-login.html');
     console.log('📁 Отправляем admin-login.html:', loginPath);
     res.sendFile(loginPath);
+});
+
+// Основная страница админки
+app.get('/admin/admin.html', (req, res) => {
+    console.log('🔍 Admin.html запрос');
+    const adminHtmlPath = path.join(adminPath, 'admin.html');
+    console.log('📁 Отправляем admin.html:', adminHtmlPath);
+    res.sendFile(adminHtmlPath);
 });
 
 // Статические файлы для веб-админки (для остальных путей)
