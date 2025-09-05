@@ -437,6 +437,10 @@ app.use((req, res, next) => {
 const publicPath = path.join(__dirname, 'public');
 const adminPath = path.join(__dirname, 'admin');
 
+console.log('📁 Admin path:', adminPath);
+console.log('📁 Admin files exist:', require('fs').existsSync(adminPath));
+console.log('📁 Admin login file exists:', require('fs').existsSync(path.join(adminPath, 'admin-login.html')));
+
 // Статические файлы для веб-админки
 app.use('/admin', express.static(adminPath, {
     etag: false,
@@ -749,11 +753,6 @@ app.get('/api/user-referral-rank/:userId', async (req, res) => {
 // === МАРШРУТЫ ===
 
 // Главная страница
-// Редирект для админки
-app.get('/admin', (req, res) => {
-    res.redirect('/admin/admin-login.html');
-});
-
 app.get('/', (req, res) => {
     console.log('🏠 Запрос главной страницы');
     
