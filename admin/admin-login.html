@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в админ панель - Kosmetichka Lottery</title>
+    
+    <!-- CSS -->
+    <link href="css/admin.css" rel="stylesheet">
+    <link href="css/components.css" rel="stylesheet">
+    <link href="css/responsive.css" rel="stylesheet">
+    
+    <!-- Иконки Lucide -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+    <div class="login-page">
+        <div class="login-container">
+            <div class="login-logo">
+                <i data-lucide="sparkles" class="logo-icon"></i>
+                <h1 class="login-title">Kosmetichka Admin</h1>
+                <p class="login-subtitle">Войдите в панель администратора</p>
+            </div>
+
+            <div class="login-methods">
+                <!-- Вход для разработки -->
+                <div class="login-method active" id="dev-method">
+                    <i data-lucide="terminal" class="method-icon"></i>
+                    <div class="method-title">Тестовый вход</div>
+                    <div class="method-description">Для демонстрации админки</div>
+                    
+                    <div class="dev-login-form active" id="dev-form">
+                        <form id="dev-login-form-element">
+                            <div class="form-group">
+                                <label class="form-label">Имя пользователя</label>
+                                <input type="text" class="form-input" id="dev-username" value="admin" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Пароль</label>
+                                <input type="password" class="form-input" id="dev-password" value="admin" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                                <span id="dev-login-text">Войти в админку</span>
+                                <div class="loader" id="dev-login-loader" style="display: none; margin-left: 10px;"></div>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-indicator" id="status-indicator">
+                <i data-lucide="wifi"></i>
+                <span>Готов к входу</span>
+            </div>
+
+            <div class="login-footer">
+                <p>© 2024 Kosmetichka Lottery Bot</p>
+                <p>Панель администратора</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast контейнер для уведомлений -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- JavaScript -->
+    <script src="js/utils/notifications.js"></script>
+    
+    <script>
+        // Простая имитация входа для демонстрации
+        document.getElementById('dev-login-form-element').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('dev-username').value;
+            const password = document.getElementById('dev-password').value;
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const btnText = document.getElementById('dev-login-text');
+            const loader = document.getElementById('dev-login-loader');
+            
+            // Показать загрузку
+            submitBtn.disabled = true;
+            btnText.textContent = 'Входим...';
+            loader.style.display = 'inline-block';
+            
+            // Имитация загрузки
+            setTimeout(() => {
+                if (username === 'admin' && password === 'admin') {
+                    // Успешный вход
+                    NotificationManager.showSuccess('Добро пожаловать!', 'Перенаправление в админ панель...');
+                    
+                    // Сохранить фиктивный токен
+                    localStorage.setItem('admin-token', 'demo-token-' + Date.now());
+                    localStorage.setItem('admin-token-expiry', (Date.now() + 24*60*60*1000).toString());
+                    localStorage.setItem('admin-user', JSON.stringify({
+                        id: 1,
+                        name: 'Администратор',
+                        username: 'admin',
+                        isAdmin: true
+                    }));
+                    
+                    setTimeout(() => {
+                        window.location.href = 'admin.html';
+                    }, 1000);
+                } else {
+                    // Ошибка входа
+                    NotificationManager.showError('Ошибка входа', 'Неверные учетные данные');
+                    
+                    // Скрыть загрузку
+                    submitBtn.disabled = false;
+                    btnText.textContent = 'Войти в админку';
+                    loader.style.display = 'none';
+                }
+            }, 1500);
+        });
+        
+        // Инициализировать иконки
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        });
+    </script>
+    
+    <style>
+        /* Стили для страницы входа */
+        .login-page {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: var(--bg-primary);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            padding: 40px;
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+        }
+
+        .login-logo {
+            margin-bottom: 30px;
+        }
+
+        .login-logo .logo-icon {
+            width: 60px;
+            height: 60px;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+        }
+
+        .login-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .login-subtitle {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 30px;
+        }
+
+        .login-methods {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .login-method {
+            background: var(--bg-secondary);
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid var(--primary-color);
+        }
+
+        .method-icon {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 15px;
+            color: var(--primary-color);
+        }
+
+        .method-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 5px;
+        }
+
+        .method-description {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        .dev-login-form {
+            text-align: left;
+        }
+
+        .login-footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            color: var(--success-color);
+            margin-top: 20px;
+        }
+
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 30px 20px;
+                margin: 10px;
+            }
+            
+            .login-title {
+                font-size: 24px;
+            }
+            
+            .method-title {
+                font-size: 16px;
+            }
+        }
+    </style>
+</body>
+</html>
