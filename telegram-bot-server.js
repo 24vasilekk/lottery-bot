@@ -749,6 +749,11 @@ app.get('/api/user-referral-rank/:userId', async (req, res) => {
 // === МАРШРУТЫ ===
 
 // Главная страница
+// Редирект для админки
+app.get('/admin', (req, res) => {
+    res.redirect('/admin/admin-login.html');
+});
+
 app.get('/', (req, res) => {
     console.log('🏠 Запрос главной страницы');
     
