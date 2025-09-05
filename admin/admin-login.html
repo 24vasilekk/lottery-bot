@@ -67,8 +67,10 @@
     <script src="/admin/js/utils/notifications.js"></script>
     
     <script>
-        // Простая авторизация для браузера
-        document.getElementById('dev-login-form-element').addEventListener('submit', function(e) {
+        // Ждем загрузки всех скриптов
+        document.addEventListener('DOMContentLoaded', function() {
+            // Простая авторизация для браузера
+            document.getElementById('dev-login-form-element').addEventListener('submit', function(e) {
             e.preventDefault();
             
             const username = document.getElementById('dev-username').value;
@@ -88,7 +90,10 @@
                     sessionStorage.setItem('admin-logged-in', 'true');
                     localStorage.setItem('admin-logged-in', 'true');
                     
-                    NotificationManager.showSuccess('Добро пожаловать!', 'Перенаправление в админ панель...');
+                    // Простое уведомление об успехе
+                    if (window.NotificationManager && window.NotificationManager.showSuccess) {
+                        window.NotificationManager.showSuccess('Добро пожаловать!', 'Перенаправление в админ панель...');
+                    }
                     
                     setTimeout(() => {
                         window.location.href = '/admin/admin.html';
@@ -96,7 +101,11 @@
                     
                 } else {
                     // Ошибка входа
-                    NotificationManager.showError('Ошибка входа', 'Неверные учетные данные');
+                    if (window.NotificationManager && window.NotificationManager.showError) {
+                        window.NotificationManager.showError('Ошибка входа', 'Неверные учетные данные');
+                    } else {
+                        alert('Неверные учетные данные');
+                    }
                     
                     // Скрыть загрузку
                     submitBtn.disabled = false;
@@ -104,10 +113,9 @@
                     loader.style.display = 'none';
                 }
             }, 800);
-        });
-        
-        // Инициализировать иконки
-        document.addEventListener('DOMContentLoaded', () => {
+            });
+            
+            // Инициализировать иконки
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             }
