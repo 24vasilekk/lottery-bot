@@ -501,9 +501,10 @@ const PROMO_CODES = {
 // ID администраторов
 const ADMIN_IDS = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',').map(id => parseInt(id.trim())) : [];
 if (ADMIN_IDS.length === 0) {
-    console.error('❌ ADMIN_IDS environment variable is required for Railway deployment');
-    console.error('Set ADMIN_IDS=your_telegram_id in Railway dashboard');
-    process.exit(1);
+    console.warn('⚠️ ADMIN_IDS environment variable not set - admin functions disabled');
+    console.warn('Set ADMIN_IDS=your_telegram_id in Railway dashboard to enable admin functions');
+} else {
+    console.log(`👑 Администраторы: ${ADMIN_IDS.join(', ')}`);
 }
 
 // Создаем и настраиваем бота
