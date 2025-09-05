@@ -444,27 +444,11 @@ console.log('📁 Admin path:', adminPath);
 console.log('📁 Admin files exist:', require('fs').existsSync(adminPath));
 console.log('📁 Admin login file exists:', require('fs').existsSync(path.join(adminPath, 'admin-login.html')));
 
-// Исправляем URL с двойными слешами
-app.use((req, res, next) => {
-    const originalUrl = req.originalUrl;
-    if (originalUrl.includes('//')) {
-        const fixedUrl = originalUrl.replace(/\/+/g, '/');
-        console.log('🔧 Исправляем двойной слеш:', originalUrl, '→', fixedUrl);
-        return res.redirect(301, fixedUrl);
-    }
-    next();
-});
-
-// Отдельные обработчики для админских маршрутов (ПЕРЕД static middleware)
-app.get('/admin', (req, res) => {
-    console.log('🔍 GET /admin запрос получен (без слеша)');
-    res.redirect(301, '/admin/');
-});
-
-app.get('/admin/', (req, res) => {
-    console.log('🔍 GET /admin/ запрос получен (со слешем)');
+// Простые обработчики для админки без циклических редиректов
+app.get(/^\/+admin\/*$/, (req, res) => {
+    console.log('🔍 Admin запрос:', req.originalUrl);
     const loginPath = path.join(adminPath, 'admin-login.html');
-    console.log('📁 Отправляем файл:', loginPath);
+    console.log('📁 Отправляем admin-login.html:', loginPath);
     res.sendFile(loginPath);
 });
 
