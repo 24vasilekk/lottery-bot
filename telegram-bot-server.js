@@ -9,6 +9,8 @@ const fs = require('fs');
 const rateLimit = require('express-rate-limit');
 const createDatabase = require('./database-selector');
 const { validateRequest, validateTelegramId, validateSpinType, validateStarsAmount } = require('./utils/validation');
+const { requireAuth, authEndpoint, checkAuthEndpoint, logoutEndpoint, isAdmin } = require('./admin/auth-middleware');
+const ReferralManager = require('./referral-manager');
 
 // Загружаем переменные окружения
 if (fs.existsSync('.env')) {
@@ -103,6 +105,51 @@ app.use(cors({
     maxAge: 86400 // 24 часа кеширования preflight запросов
 }));
 
+// Rate Limiting для API эндпоинтов
+const generalApiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 минут
+    max: 100, // максимум 100 запросов с IP за 15 минут
+    message: {
+        error: 'Слишком много запросов',
+        message: 'Попробуйте снова через 15 минут'
+    },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
+const strictApiLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000, // 5 минут
+    max: 10, // максимум 10 запросов за 5 минут
+    message: {
+        error: 'Превышен лимит запросов',
+        message: 'Попробуйте снова через 5 минут'
+    },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
+const referralActivationLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 минута
+    max: 3, // максимум 3 активации реферала в минуту
+    message: {
+        error: 'Слишком частая активация рефералов',
+        message: 'Подождите минуту перед следующей попыткой'
+    },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
+const adminApiLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 минута
+    max: 30, // максимум 30 запросов в минуту для админов
+    message: {
+        error: 'Превышен лимит запросов администратора',
+        message: 'Подождите минуту'
+    },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
 // Content Security Policy и заголовки безопасности
 app.use((req, res, next) => {
     res.setHeader('Content-Security-Policy', 
@@ -127,6 +174,12 @@ app.use((req, res, next) => {
     
     next();
 });
+
+// Применяем общие ограничения для всех API эндпоинтов
+app.use('/api', generalApiLimiter);
+
+// Применяем админские ограничения для админ API
+app.use('/api/admin', adminApiLimiter);
 
 // Добавить эти endpoints в telegram-bot-server.js для исправления лидерборда
 
@@ -386,6 +439,9 @@ console.log('📊 DATABASE_URL тип:', typeof process.env.DATABASE_URL);
 
 const db = createDatabase();
 
+// Создаем менеджер рефералов
+const referralManager = new ReferralManager(db);
+
 console.log('✅ База данных инициализирована');
 console.log('🗄️ ========== КОНЕЦ ИНИЦИАЛИЗАЦИИ БД ==========');
 
@@ -542,7 +598,7 @@ app.get('/api/debug/referrals', async (req, res) => {
 });
 
 // 1. ЗАМЕНИТЕ endpoint для активации реферала:
-app.post('/api/activate-referral', async (req, res) => {
+app.post('/api/activate-referral', referralActivationLimiter, async (req, res) => {
     try {
         const { userId, referralCode } = req.body;
         
@@ -564,82 +620,36 @@ app.post('/api/activate-referral', async (req, res) => {
             });
         }
         
-        // Проверяем существование реферера
-        const referrer = await db.getUser(referrerId);
-        if (!referrer) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Пользователь-реферер не найден' 
-            });
-        }
+        // Используем менеджер рефералов для безопасной активации
+        const result = await referralManager.activateReferral(referrerId, userId, bot);
         
-        // Проверяем существование приглашенного
-        const user = await db.getUser(userId);
-        if (!user) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Пользователь не найден' 
-            });
-        }
+        console.log(`✅ Реферал успешно активирован: ${referrerId} -> ${userId}`);
         
-        // Пытаемся добавить реферал
-        const added = await db.addReferral(referrerId, userId);
-        
-        if (added) {
-            console.log(`✅ Реферал успешно активирован: ${referrerId} -> ${userId}`);
-            
-            // Начисляем бонусы рефереру
-            await db.addUserStars(referrerId, 10, 'referral_bonus', {source: 'api_referral_activation', invitedUser: userId});
-            
-            // Добавляем прокрутку за друга
-            await new Promise((resolve, reject) => {
-                db.db.run(
-                    'UPDATE users SET available_friend_spins = available_friend_spins + 1 WHERE telegram_id = ?',
-                    [referrerId],
-                    (err) => err ? reject(err) : resolve()
-                );
-            });
-            
-            // Обновляем total_stars_earned
-            await db.incrementTotalStarsEarned(referrerId, 10);
-            
-            // ВАЖНО: Принудительно обновляем счетчик рефералов
-            await db.updateReferralCount(referrerId);
-            
-            console.log(`⭐ Рефереру ${referrerId} начислено 10 звезд + 1 прокрутка`);
-            
-            // Отправляем уведомления через бота
-            try {
-                await bot.sendMessage(referrerId, 
-                    `🎉 Поздравляем! Ваш друг ${user.first_name} присоединился к боту!\n` +
-                    `Вы получили 10 звезд за приглашение!`
-                );
-                
-                await bot.sendMessage(userId,
-                    `👋 Добро пожаловать! Вы присоединились по приглашению от ${referrer.first_name}!\n` +
-                    `🎁 Выполните задания, чтобы ваш друг получил дополнительные бонусы!`
-                );
-            } catch (notifyError) {
-                console.warn('⚠️ Не удалось отправить уведомления:', notifyError.message);
-            }
-            
-            res.json({
-                success: true,
-                message: 'Реферал успешно активирован',
-                starsEarned: 10
-            });
-        } else {
-            res.json({
-                success: false,
-                message: 'Реферал уже был активирован ранее'
-            });
-        }
+        res.json(result);
         
     } catch (error) {
         console.error('❌ Ошибка активации реферала:', error);
+        
+        // Различные типы ошибок
+        if (error.message.includes('уже был приглашен') || 
+            error.message.includes('уже в процессе')) {
+            return res.status(409).json({ 
+                success: false, 
+                message: error.message
+            });
+        }
+        
+        if (error.message.includes('не найден') || 
+            error.message.includes('самого себя')) {
+            return res.status(400).json({ 
+                success: false, 
+                message: error.message
+            });
+        }
+        
         res.status(500).json({ 
             success: false, 
-            error: 'Internal server error' 
+            message: 'Внутренняя ошибка сервера' 
         });
     }
 });
@@ -997,7 +1007,7 @@ app.post('/api/telegram-webhook', async (req, res) => {  // Убрали spinLim
 });
 
 // ВРЕМЕННЫЙ ENDPOINT для отладки без лимитеров
-app.post('/api/debug/wheel-spin', async (req, res) => {
+app.post('/api/debug/wheel-spin', strictApiLimiter, async (req, res) => {
     console.log('🚨 === DEBUG ENDPOINT ВЫЗВАН ===');
     console.log('Body:', req.body);
     console.log('Headers:', req.headers);
@@ -1887,7 +1897,7 @@ app.get('/api/referral/stats/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
         
-        const stats = await db.getReferralStats(parseInt(userId));
+        const stats = await referralManager.getReferralStats(parseInt(userId));
         
         res.json({ stats });
     } catch (error) {
@@ -1918,8 +1928,73 @@ app.post('/api/referral/activate', async (req, res) => {
 
 // ===================== ADMIN API ENDPOINTS =====================
 
-// Статическая раздача админки
-app.use('/admin', express.static('admin'));
+// API эндпоинты для авторизации
+app.post('/api/admin/auth/login', authEndpoint);
+app.get('/api/admin/auth/check', checkAuthEndpoint);
+app.post('/api/admin/auth/logout', logoutEndpoint);
+
+// Ручная авторизация (только для разработки!)
+if (process.env.NODE_ENV !== 'production') {
+    app.post('/api/admin/auth/manual', async (req, res) => {
+        const { telegramId, adminToken } = req.body;
+        
+        // Проверяем админ токен если он установлен
+        if (process.env.ADMIN_TOKEN && adminToken !== process.env.ADMIN_TOKEN) {
+            return res.status(403).json({ error: 'Неверный админ токен' });
+        }
+        
+        // Проверяем админские права
+        if (!isAdmin(telegramId)) {
+            return res.status(403).json({ 
+                error: 'Доступ запрещен',
+                message: 'У вас нет прав администратора' 
+            });
+        }
+        
+        // Создаем сессию
+        const { createSession } = require('./admin/auth-middleware');
+        const token = createSession(telegramId);
+        
+        res.json({
+            success: true,
+            token,
+            user: {
+                id: telegramId,
+                firstName: 'Admin',
+                username: 'admin'
+            }
+        });
+    });
+}
+
+// Статическая раздача админки - защищаем страницу входа
+app.use('/admin/login.html', express.static('admin/login.html'));
+app.use('/admin', (req, res, next) => {
+    // Разрешаем доступ к странице входа и статическим ресурсам
+    if (req.path === '/login.html' || 
+        req.path.endsWith('.css') || 
+        req.path.endsWith('.js') ||
+        req.path.endsWith('.png') ||
+        req.path.endsWith('.jpg')) {
+        return express.static('admin')(req, res, next);
+    }
+    
+    // Для главной страницы проверяем авторизацию
+    const token = req.headers['x-auth-token'] || 
+                  req.cookies?.authToken || 
+                  req.query.token;
+    
+    if (!token) {
+        // Перенаправляем на страницу входа
+        return res.redirect('/admin/login.html');
+    }
+    
+    // Проверяем токен
+    const { requireAuth } = require('./admin/auth-middleware');
+    requireAuth(req, res, () => {
+        express.static('admin')(req, res, next);
+    });
+});
 
 // API для просмотра транзакций пользователя
 app.get('/api/user/:userId/transactions', async (req, res) => {
@@ -1995,7 +2070,7 @@ function requireAdmin(req, res, next) {
 }
 
 // Получение общей статистики
-app.get('/api/admin/stats', requireAdmin, async (req, res) => {
+app.get('/api/admin/stats', requireAuth, async (req, res) => {
     try {
         console.log('📊 Админ: запрос общей статистики');
 
@@ -2091,7 +2166,7 @@ app.get('/api/admin/stats', requireAdmin, async (req, res) => {
 });
 
 // Получение списка каналов
-app.get('/api/admin/channels', requireAdmin, async (req, res) => {
+app.get('/api/admin/channels', requireAuth, async (req, res) => {
     try {
         console.log('📺 Админ: запрос списка каналов');
 
@@ -2117,7 +2192,7 @@ app.get('/api/admin/channels', requireAdmin, async (req, res) => {
 });
 
 // Добавление нового канала
-app.post('/api/admin/channels', requireAdmin, async (req, res) => {
+app.post('/api/admin/channels', requireAuth, async (req, res) => {
     try {
         const {
             channel_username,
@@ -2160,7 +2235,7 @@ app.post('/api/admin/channels', requireAdmin, async (req, res) => {
 });
 
 // Переключение горячего предложения
-app.patch('/api/admin/channels/:id/hot-offer', requireAdmin, async (req, res) => {
+app.patch('/api/admin/channels/:id/hot-offer', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const { is_hot_offer } = req.body;
@@ -2186,7 +2261,7 @@ app.patch('/api/admin/channels/:id/hot-offer', requireAdmin, async (req, res) =>
 });
 
 // Деактивация канала
-app.delete('/api/admin/channels/:id', requireAdmin, async (req, res) => {
+app.delete('/api/admin/channels/:id', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -2211,7 +2286,7 @@ app.delete('/api/admin/channels/:id', requireAdmin, async (req, res) => {
 });
 
 // API для автоматизации спонсоров
-app.get('/api/admin/automation/stats', requireAdmin, async (req, res) => {
+app.get('/api/admin/automation/stats', requireAuth, async (req, res) => {
     try {
         const stats = await db.get(`
             SELECT 
@@ -2243,7 +2318,7 @@ app.get('/api/admin/automation/stats', requireAdmin, async (req, res) => {
 });
 
 // Получение каналов для автоматизации  
-app.get('/api/admin/automation/channels', requireAdmin, async (req, res) => {
+app.get('/api/admin/automation/channels', requireAuth, async (req, res) => {
     try {
         const channels = await db.all(`
             SELECT * FROM partner_channels 
@@ -2258,7 +2333,7 @@ app.get('/api/admin/automation/channels', requireAdmin, async (req, res) => {
 });
 
 // Получение уведомлений автоматизации
-app.get('/api/admin/automation/notifications', requireAdmin, async (req, res) => {
+app.get('/api/admin/automation/notifications', requireAuth, async (req, res) => {
     try {
         const notifications = await db.all(`
             SELECT an.*, pc.channel_username 
@@ -2282,7 +2357,7 @@ app.get('/api/admin/automation/notifications', requireAdmin, async (req, res) =>
 });
 
 // Переключение автопродления канала
-app.patch('/api/admin/automation/channels/:id/auto-renewal', requireAdmin, async (req, res) => {
+app.patch('/api/admin/automation/channels/:id/auto-renewal', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const { auto_renewal } = req.body;
@@ -2301,7 +2376,7 @@ app.patch('/api/admin/automation/channels/:id/auto-renewal', requireAdmin, async
     }
 });
 
-app.post('/api/admin/automation/force-check', requireAdmin, async (req, res) => {
+app.post('/api/admin/automation/force-check', requireAuth, async (req, res) => {
     try {
         console.log('🔄 Админ: принудительная проверка автоматизации');
         
@@ -2324,7 +2399,7 @@ app.post('/api/admin/automation/force-check', requireAdmin, async (req, res) => 
 });
 
 // API для канала выигрышей
-app.get('/api/admin/wins-channel/stats', requireAdmin, async (req, res) => {
+app.get('/api/admin/wins-channel/stats', requireAuth, async (req, res) => {
     try {
         if (!winsChannelManager) {
             return res.status(503).json({ error: 'Система постинга выигрышей не инициализирована' });
@@ -2338,7 +2413,7 @@ app.get('/api/admin/wins-channel/stats', requireAdmin, async (req, res) => {
     }
 });
 
-app.get('/api/admin/wins-channel/recent', requireAdmin, async (req, res) => {
+app.get('/api/admin/wins-channel/recent', requireAuth, async (req, res) => {
     try {
         if (!winsChannelManager) {
             return res.status(503).json({ error: 'Система постинга выигрышей не инициализирована' });
@@ -2352,7 +2427,7 @@ app.get('/api/admin/wins-channel/recent', requireAdmin, async (req, res) => {
     }
 });
 
-app.post('/api/admin/wins-channel/post/:prizeId', requireAdmin, async (req, res) => {
+app.post('/api/admin/wins-channel/post/:prizeId', requireAuth, async (req, res) => {
     try {
         const { prizeId } = req.params;
         
@@ -2370,7 +2445,7 @@ app.post('/api/admin/wins-channel/post/:prizeId', requireAdmin, async (req, res)
     }
 });
 
-app.post('/api/admin/wins-channel/test', requireAdmin, async (req, res) => {
+app.post('/api/admin/wins-channel/test', requireAuth, async (req, res) => {
     try {
         if (!winsChannelManager) {
             return res.status(503).json({ error: 'Система постинга выигрышей не инициализирована' });
@@ -2387,7 +2462,7 @@ app.post('/api/admin/wins-channel/test', requireAdmin, async (req, res) => {
 });
 
 // Получение призов ожидающих выдачи
-app.get('/api/admin/pending-prizes', requireAdmin, async (req, res) => {
+app.get('/api/admin/pending-prizes', requireAuth, async (req, res) => {
     try {
         console.log('🎁 Админ: запрос призов ожидающих выдачи');
 
@@ -2412,7 +2487,7 @@ app.get('/api/admin/pending-prizes', requireAdmin, async (req, res) => {
 });
 
 // Отметка приза как выданного
-app.patch('/api/admin/prizes/:id/given', requireAdmin, async (req, res) => {
+app.patch('/api/admin/prizes/:id/given', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -2437,7 +2512,7 @@ app.patch('/api/admin/prizes/:id/given', requireAdmin, async (req, res) => {
 });
 
 // Получение списка пользователей
-app.get('/api/admin/users', requireAdmin, async (req, res) => {
+app.get('/api/admin/users', requireAuth, async (req, res) => {
     try {
         console.log('👥 Админ: запрос списка пользователей');
 
@@ -2466,7 +2541,7 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
 });
 
 // Получение аналитики
-app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
+app.get('/api/admin/analytics', requireAuth, async (req, res) => {
     try {
         console.log('📈 Админ: запрос аналитики');
 
@@ -2513,7 +2588,7 @@ app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
 });
 
 // Endpoint для управления звездами пользователей
-app.post('/api/admin/users/stars', requireAdmin, async (req, res) => {
+app.post('/api/admin/users/stars', requireAuth, async (req, res) => {
     const { telegramId, operation, amount, reason } = req.body;
     
     // Валидация входных данных
@@ -2598,7 +2673,7 @@ app.post('/api/admin/users/stars', requireAdmin, async (req, res) => {
 });
 
 // API для ручных подкруток пользователям
-app.post('/api/admin/manual-spin', requireAdmin, async (req, res) => {
+app.post('/api/admin/manual-spin', requireAuth, async (req, res) => {
     const { userId, spinType, reason } = req.body;
     
     // Валидация входных данных
@@ -2710,7 +2785,7 @@ app.post('/api/admin/manual-spin', requireAdmin, async (req, res) => {
 });
 
 // API для получения недавних ручных подкруток
-app.get('/api/admin/manual-spins/recent', requireAdmin, async (req, res) => {
+app.get('/api/admin/manual-spins/recent', requireAuth, async (req, res) => {
     try {
         const spins = await new Promise((resolve, reject) => {
             db.db.all(`
@@ -2745,7 +2820,7 @@ app.get('/api/admin/manual-spins/recent', requireAdmin, async (req, res) => {
 });
 
 // Endpoints для настроек рулетки
-app.get('/api/admin/wheel-settings/mega', requireAdmin, async (req, res) => {
+app.get('/api/admin/wheel-settings/mega', requireAuth, async (req, res) => {
     try {
         // Получаем настройки мега рулетки из файла конфигурации или БД
         const settings = await db.getWheelSettings('mega');
@@ -2756,7 +2831,7 @@ app.get('/api/admin/wheel-settings/mega', requireAdmin, async (req, res) => {
     }
 });
 
-app.post('/api/admin/wheel-settings/mega', requireAdmin, async (req, res) => {
+app.post('/api/admin/wheel-settings/mega', requireAuth, async (req, res) => {
     const { prizes } = req.body;
     
     if (!prizes || !Array.isArray(prizes)) {
@@ -2788,7 +2863,7 @@ app.post('/api/admin/wheel-settings/mega', requireAdmin, async (req, res) => {
     }
 });
 
-app.get('/api/admin/wheel-settings/normal', requireAdmin, async (req, res) => {
+app.get('/api/admin/wheel-settings/normal', requireAuth, async (req, res) => {
     try {
         // Получаем настройки обычной рулетки из файла конфигурации или БД
         const settings = await db.getWheelSettings('normal');
@@ -2799,7 +2874,7 @@ app.get('/api/admin/wheel-settings/normal', requireAdmin, async (req, res) => {
     }
 });
 
-app.post('/api/admin/wheel-settings/normal', requireAdmin, async (req, res) => {
+app.post('/api/admin/wheel-settings/normal', requireAuth, async (req, res) => {
     const { prizes } = req.body;
     
     if (!prizes || !Array.isArray(prizes)) {

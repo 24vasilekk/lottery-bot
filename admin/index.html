@@ -184,9 +184,12 @@
                     <small class="text-muted">Управление системой заданий и призов</small>
                 </div>
                 <div class="col-auto">
-                    <span class="badge bg-success fs-6">
+                    <span class="badge bg-success fs-6 me-3">
                         <i class="fas fa-circle"></i> Онлайн
                     </span>
+                    <button class="btn btn-danger btn-sm" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i> Выход
+                    </button>
                 </div>
             </div>
         </div>
@@ -845,5 +848,34 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>
     <script src="admin-security.js"></script>
     <script src="admin.js"></script>
+    <script>
+        // Функция выхода
+        async function logout() {
+            if (!confirm('Вы действительно хотите выйти?')) return;
+            
+            try {
+                const token = localStorage.getItem('adminAuthToken');
+                
+                // Отправляем запрос на выход
+                await fetch('/api/admin/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'x-auth-token': token
+                    }
+                });
+                
+                // Удаляем токен
+                localStorage.removeItem('adminAuthToken');
+                
+                // Перенаправляем на страницу входа
+                window.location.href = '/admin/login.html';
+            } catch (error) {
+                console.error('Ошибка выхода:', error);
+                // Все равно перенаправляем
+                localStorage.removeItem('adminAuthToken');
+                window.location.href = '/admin/login.html';
+            }
+        }
+    </script>
 </body>
 </html>

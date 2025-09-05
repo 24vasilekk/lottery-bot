@@ -2,11 +2,39 @@
 class AdminPanel {
     constructor() {
         this.apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+        this.authToken = localStorage.getItem('adminAuthToken');
         this.init();
     }
 
     async init() {
         console.log('🔧 Инициализация админ-панели...');
+        
+        // Проверяем авторизацию
+        if (!this.authToken) {
+            window.location.href = '/admin/login.html';
+            return;
+        }
+        
+        // Проверяем валидность токена
+        try {
+            const response = await fetch('/api/admin/auth/check', {
+                headers: {
+                    'x-auth-token': this.authToken
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (!data.authenticated) {
+                localStorage.removeItem('adminAuthToken');
+                window.location.href = '/admin/login.html';
+                return;
+            }
+        } catch (error) {
+            console.error('Ошибка проверки авторизации:', error);
+            window.location.href = '/admin/login.html';
+            return;
+        }
         
         // Загружаем данные при старте
         await this.loadDashboardData();
@@ -458,6 +486,7 @@ class AdminPanel {
             method,
             headers: {
                 'Content-Type': 'application/json',
+                'x-auth-token': this.authToken
             }
         };
 
@@ -466,6 +495,13 @@ class AdminPanel {
         }
 
         const response = await fetch(this.apiUrl + endpoint, options);
+        
+        // Если токен невалидный - перенаправляем на страницу входа
+        if (response.status === 401 || response.status === 403) {
+            localStorage.removeItem('adminAuthToken');
+            window.location.href = '/admin/login.html';
+            return;
+        }
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
