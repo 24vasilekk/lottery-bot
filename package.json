@@ -5,11 +5,7 @@
   "main": "telegram-bot-server.js",
   "scripts": {
     "start": "node telegram-bot-server.js",
-    "admin": "node admin-bot.js",
-    "both": "node start-both.js",
     "dev": "nodemon telegram-bot-server.js",
-    "dev-admin": "nodemon admin-bot.js",
-    "dev-both": "concurrently \"npm run dev\" \"npm run dev-admin\"",
     "build": "echo 'Build completed - static files ready'",
     "test": "node -e \"console.log('Test passed')\"",
     "deploy": "npm install && npm start",

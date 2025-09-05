@@ -1,0 +1,722 @@
+// Основной модуль приложения админ панели
+class AdminApp {
+    constructor() {
+        this.currentUser = null;
+        this.currentPage = 'dashboard';
+        this.isLoading = false;
+        this.notifications = [];
+        
+        this.init();
+    }
+
+    async init() {
+        try {
+            // Показать загрузчик
+            this.showLoader();
+            
+            // Проверить аутентификацию
+            const isAuthenticated = await AuthManager.checkAuth();
+            
+            if (!isAuthenticated) {
+                // Перенаправить на страницу входа
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Получить данные пользователя
+            this.currentUser = await AuthManager.getCurrentUser();
+            
+            // Инициализировать компоненты
+            this.initializeComponents();
+            
+            // Настроить роутинг
+            this.setupRouting();
+            
+            // Загрузить начальную страницу
+            await this.loadPage(this.getCurrentPageFromURL());
+            
+            // Скрыть загрузчик и показать приложение
+            this.hideLoader();
+            
+            // Запустить периодические обновления
+            this.startPeriodicUpdates();
+            
+        } catch (error) {
+            console.error('Ошибка инициализации:', error);
+            NotificationManager.showError('Ошибка загрузки админ панели', error.message);
+            this.hideLoader();
+        }
+    }
+
+    initializeComponents() {
+        // Настроить боковое меню
+        this.setupSidebar();
+        
+        // Настроить верхнюю панель
+        this.setupTopBar();
+        
+        // Настроить модальные окна
+        this.setupModals();
+        
+        // Настроить переключатель темы
+        this.setupThemeToggle();
+        
+        // Обновить информацию о пользователе
+        this.updateUserInfo();
+        
+        // Инициализировать иконки Lucide
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
+
+    setupSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const menuItems = document.querySelectorAll('.menu-item');
+
+        // Переключение сайдбара
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+        });
+
+        // Восстановить состояние сайдбара
+        if (localStorage.getItem('sidebar-collapsed') === 'true') {
+            sidebar.classList.add('collapsed');
+        }
+
+        // Навигация по меню
+        menuItems.forEach(item => {
+            const link = item.querySelector('.menu-link');
+            link.addEventListener('click', async (e) => {
+                e.preventDefault();
+                
+                const page = item.getAttribute('data-page');
+                if (page && page !== this.currentPage) {
+                    await this.loadPage(page);
+                    this.updateURL(page);
+                }
+            });
+        });
+
+        // Мобильное меню
+        this.setupMobileMenu();
+    }
+
+    setupMobileMenu() {
+        // Создать оверлей для мобильного меню
+        const overlay = document.createElement('div');
+        overlay.className = 'sidebar-overlay';
+        overlay.id = 'sidebar-overlay';
+        document.body.appendChild(overlay);
+
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+
+        // Открытие/закрытие мобильного меню
+        const toggleMobileMenu = () => {
+            if (window.innerWidth <= 768) {
+                sidebar.classList.toggle('mobile-open');
+                overlay.classList.toggle('active');
+                document.body.style.overflow = sidebar.classList.contains('mobile-open') ? 'hidden' : '';
+            }
+        };
+
+        sidebarToggle.addEventListener('click', toggleMobileMenu);
+        overlay.addEventListener('click', toggleMobileMenu);
+
+        // Закрывать меню при изменении размера экрана
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768 && sidebar.classList.contains('mobile-open')) {
+                sidebar.classList.remove('mobile-open');
+                overlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        });
+    }
+
+    setupTopBar() {
+        // Уведомления
+        const notificationsBtn = document.getElementById('notifications-btn');
+        const notificationsMenu = document.getElementById('notifications-menu');
+        
+        if (notificationsBtn && notificationsMenu) {
+            notificationsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                notificationsMenu.classList.toggle('active');
+            });
+
+            document.addEventListener('click', () => {
+                notificationsMenu.classList.remove('active');
+            });
+        }
+
+        // Быстрые действия
+        const quickActionsBtn = document.getElementById('quick-actions-btn');
+        const quickActionsMenu = document.getElementById('quick-actions-menu');
+        
+        if (quickActionsBtn && quickActionsMenu) {
+            quickActionsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                quickActionsMenu.classList.toggle('active');
+            });
+
+            document.addEventListener('click', () => {
+                quickActionsMenu.classList.remove('active');
+            });
+
+            // Обработчики быстрых действий
+            const quickActions = document.querySelectorAll('.quick-action');
+            quickActions.forEach(action => {
+                action.addEventListener('click', (e) => {
+                    const actionType = action.getAttribute('data-action');
+                    this.handleQuickAction(actionType);
+                });
+            });
+        }
+
+        // Выход
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                this.logout();
+            });
+        }
+    }
+
+    setupModals() {
+        const modalOverlay = document.getElementById('modal-overlay');
+        
+        if (modalOverlay) {
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) {
+                    this.closeModal();
+                }
+            });
+
+            // Закрытие по Escape
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modalOverlay.classList.contains('active')) {
+                    this.closeModal();
+                }
+            });
+        }
+    }
+
+    setupThemeToggle() {
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = themeToggle?.querySelector('.theme-icon');
+        
+        // Загрузить сохраненную тему
+        const savedTheme = localStorage.getItem('admin-theme') || 'light';
+        this.setTheme(savedTheme);
+
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                this.setTheme(newTheme);
+            });
+        }
+    }
+
+    setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('admin-theme', theme);
+        
+        const themeIcon = document.querySelector('.theme-icon');
+        if (themeIcon) {
+            themeIcon.setAttribute('data-lucide', theme === 'light' ? 'moon' : 'sun');
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }
+    }
+
+    updateUserInfo() {
+        if (this.currentUser) {
+            const userName = document.getElementById('user-name');
+            const userRole = document.getElementById('user-role');
+            
+            if (userName) {
+                userName.textContent = this.currentUser.name || 'Администратор';
+            }
+            
+            if (userRole) {
+                userRole.textContent = this.currentUser.role || 'Admin';
+            }
+        }
+    }
+
+    setupRouting() {
+        // Обработка изменения URL
+        window.addEventListener('popstate', (e) => {
+            const page = this.getCurrentPageFromURL();
+            this.loadPage(page);
+        });
+    }
+
+    getCurrentPageFromURL() {
+        const hash = window.location.hash.substring(1);
+        return hash || 'dashboard';
+    }
+
+    updateURL(page) {
+        window.history.pushState({ page }, '', `#${page}`);
+    }
+
+    async loadPage(page) {
+        if (this.isLoading) return;
+        
+        try {
+            this.isLoading = true;
+            this.showPageLoader();
+            
+            // Обновить активный пункт меню
+            this.updateActiveMenuItem(page);
+            
+            // Обновить заголовок страницы
+            this.updatePageTitle(page);
+            
+            // Загрузить компонент страницы
+            await this.loadPageComponent(page);
+            
+            this.currentPage = page;
+            
+        } catch (error) {
+            console.error(`Ошибка загрузки страницы ${page}:`, error);
+            NotificationManager.showError('Ошибка загрузки страницы', error.message);
+        } finally {
+            this.isLoading = false;
+            this.hidePageLoader();
+        }
+    }
+
+    updateActiveMenuItem(page) {
+        const menuItems = document.querySelectorAll('.menu-item');
+        menuItems.forEach(item => {
+            item.classList.remove('active');
+            if (item.getAttribute('data-page') === page) {
+                item.classList.add('active');
+            }
+        });
+    }
+
+    updatePageTitle(page) {
+        const titles = {
+            dashboard: 'Дашборд',
+            users: 'Пользователи',
+            channels: 'Каналы',
+            wheel: 'Настройки рулетки',
+            prizes: 'Призы',
+            analytics: 'Аналитика',
+            broadcasts: 'Рассылки',
+            settings: 'Настройки'
+        };
+        
+        const pageTitle = document.getElementById('current-page-title');
+        if (pageTitle) {
+            pageTitle.textContent = titles[page] || 'Админ панель';
+        }
+        
+        document.title = `${titles[page] || 'Админ панель'} - Kosmetichka Lottery`;
+    }
+
+    async loadPageComponent(page) {
+        const pageContent = document.getElementById('page-content');
+        
+        try {
+            let component;
+            
+            switch (page) {
+                case 'dashboard':
+                    component = new DashboardComponent();
+                    break;
+                case 'users':
+                    component = new UsersComponent();
+                    break;
+                case 'channels':
+                    component = new ChannelsComponent();
+                    break;
+                case 'wheel':
+                    component = new WheelComponent();
+                    break;
+                case 'prizes':
+                    component = new PrizesComponent();
+                    break;
+                case 'analytics':
+                    component = new AnalyticsComponent();
+                    break;
+                case 'broadcasts':
+                    component = new BroadcastsComponent();
+                    break;
+                case 'settings':
+                    component = new SettingsComponent();
+                    break;
+                default:
+                    throw new Error(`Неизвестная страница: ${page}`);
+            }
+            
+            await component.render(pageContent);
+            
+            // Обновить иконки после рендеринга
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+            
+        } catch (error) {
+            pageContent.innerHTML = `
+                <div class="empty-state">
+                    <i data-lucide="alert-circle" class="empty-state-icon"></i>
+                    <h3 class="empty-state-title">Ошибка загрузки</h3>
+                    <p class="empty-state-message">Не удалось загрузить страницу: ${error.message}</p>
+                    <button class="btn btn-primary" onclick="app.loadPage('${page}')">Попробовать снова</button>
+                </div>
+            `;
+            throw error;
+        }
+    }
+
+    async handleQuickAction(actionType) {
+        switch (actionType) {
+            case 'add-channel':
+                // Открыть модальное окно добавления канала
+                if (typeof ChannelsComponent !== 'undefined') {
+                    const channelsComponent = new ChannelsComponent();
+                    channelsComponent.showAddChannelModal();
+                }
+                break;
+                
+            case 'manual-spin':
+                // Открыть модальное окно ручной прокрутки
+                this.showManualSpinModal();
+                break;
+                
+            case 'broadcast':
+                // Перейти на страницу рассылок
+                await this.loadPage('broadcasts');
+                this.updateURL('broadcasts');
+                break;
+                
+            case 'add-prize':
+                // Открыть модальное окно выдачи приза
+                this.showAddPrizeModal();
+                break;
+        }
+    }
+
+    showManualSpinModal() {
+        const modalContent = `
+            <div class="modal-header">
+                <h3 class="modal-title">Ручная прокрутка</h3>
+                <button class="modal-close" onclick="app.closeModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="manual-spin-form">
+                    <div class="form-group">
+                        <label class="form-label">Telegram ID пользователя</label>
+                        <input type="text" class="form-input" id="spin-user-id" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Причина</label>
+                        <input type="text" class="form-input" id="spin-reason" placeholder="Например: Компенсация за ошибку">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="app.closeModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="app.executeManualSpin()">Выдать прокрутку</button>
+            </div>
+        `;
+        
+        this.showModal(modalContent);
+    }
+
+    async executeManualSpin() {
+        const userId = document.getElementById('spin-user-id').value;
+        const reason = document.getElementById('spin-reason').value;
+        
+        if (!userId) {
+            NotificationManager.showError('Ошибка', 'Введите Telegram ID пользователя');
+            return;
+        }
+        
+        try {
+            await APIClient.post('/api/admin/manual-spin', {
+                userId: userId,
+                reason: reason || 'Ручная выдача администратором'
+            });
+            
+            NotificationManager.showSuccess('Успешно', 'Прокрутка выдана пользователю');
+            this.closeModal();
+            
+        } catch (error) {
+            NotificationManager.showError('Ошибка', 'Не удалось выдать прокрутку: ' + error.message);
+        }
+    }
+
+    showAddPrizeModal() {
+        const modalContent = `
+            <div class="modal-header">
+                <h3 class="modal-title">Выдать приз</h3>
+                <button class="modal-close" onclick="app.closeModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="add-prize-form">
+                    <div class="form-group">
+                        <label class="form-label">Telegram ID пользователя</label>
+                        <input type="text" class="form-input" id="prize-user-id" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Тип приза</label>
+                        <select class="form-select" id="prize-type" required>
+                            <option value="">Выберите тип приза</option>
+                            <option value="stars">Звезды</option>
+                            <option value="certificate">Сертификат</option>
+                            <option value="custom">Кастомный приз</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="prize-amount-group" style="display: none;">
+                        <label class="form-label">Количество звезд</label>
+                        <input type="number" class="form-input" id="prize-amount" min="1">
+                    </div>
+                    <div class="form-group" id="prize-description-group" style="display: none;">
+                        <label class="form-label">Описание приза</label>
+                        <input type="text" class="form-input" id="prize-description" placeholder="Например: Сертификат на 1000 рублей">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="app.closeModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="app.executeAddPrize()">Выдать приз</button>
+            </div>
+        `;
+        
+        this.showModal(modalContent);
+        
+        // Обработчик изменения типа приза
+        document.getElementById('prize-type').addEventListener('change', (e) => {
+            const amountGroup = document.getElementById('prize-amount-group');
+            const descriptionGroup = document.getElementById('prize-description-group');
+            
+            if (e.target.value === 'stars') {
+                amountGroup.style.display = 'block';
+                descriptionGroup.style.display = 'none';
+            } else if (e.target.value === 'certificate' || e.target.value === 'custom') {
+                amountGroup.style.display = 'none';
+                descriptionGroup.style.display = 'block';
+            } else {
+                amountGroup.style.display = 'none';
+                descriptionGroup.style.display = 'none';
+            }
+        });
+    }
+
+    async executeAddPrize() {
+        const userId = document.getElementById('prize-user-id').value;
+        const prizeType = document.getElementById('prize-type').value;
+        const prizeAmount = document.getElementById('prize-amount').value;
+        const prizeDescription = document.getElementById('prize-description').value;
+        
+        if (!userId || !prizeType) {
+            NotificationManager.showError('Ошибка', 'Заполните все обязательные поля');
+            return;
+        }
+        
+        try {
+            let prizeData = {
+                userId: userId,
+                type: prizeType
+            };
+            
+            if (prizeType === 'stars') {
+                prizeData.amount = parseInt(prizeAmount);
+            } else {
+                prizeData.description = prizeDescription;
+            }
+            
+            await APIClient.post('/api/admin/prizes/give', prizeData);
+            
+            NotificationManager.showSuccess('Успешно', 'Приз выдан пользователю');
+            this.closeModal();
+            
+        } catch (error) {
+            NotificationManager.showError('Ошибка', 'Не удалось выдать приз: ' + error.message);
+        }
+    }
+
+    showModal(content) {
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        
+        modalContent.innerHTML = content;
+        modalOverlay.classList.add('active');
+        
+        // Обновить иконки в модальном окне
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
+
+    closeModal() {
+        const modalOverlay = document.getElementById('modal-overlay');
+        modalOverlay.classList.remove('active');
+    }
+
+    showLoader() {
+        document.getElementById('loading-screen').style.display = 'flex';
+        document.getElementById('app').style.display = 'none';
+    }
+
+    hideLoader() {
+        document.getElementById('loading-screen').style.display = 'none';
+        document.getElementById('app').style.display = 'flex';
+    }
+
+    showPageLoader() {
+        const pageContent = document.getElementById('page-content');
+        pageContent.innerHTML = `
+            <div class="loader-overlay">
+                <div class="loader"></div>
+            </div>
+        `;
+    }
+
+    hidePageLoader() {
+        // Содержимое страницы будет заменено компонентом
+    }
+
+    async logout() {
+        try {
+            await AuthManager.logout();
+            window.location.href = 'login.html';
+        } catch (error) {
+            console.error('Ошибка выхода:', error);
+            window.location.href = 'login.html';
+        }
+    }
+
+    startPeriodicUpdates() {
+        // Обновлять уведомления каждые 30 секунд
+        setInterval(() => {
+            this.updateNotifications();
+        }, 30000);
+
+        // Обновлять бейджи каждые 60 секунд
+        setInterval(() => {
+            this.updateBadges();
+        }, 60000);
+    }
+
+    async updateNotifications() {
+        try {
+            const notifications = await APIClient.get('/api/admin/notifications');
+            this.updateNotificationBadge(notifications.length);
+            this.renderNotifications(notifications);
+        } catch (error) {
+            console.error('Ошибка загрузки уведомлений:', error);
+        }
+    }
+
+    async updateBadges() {
+        try {
+            const stats = await APIClient.get('/api/admin/quick-stats');
+            
+            // Обновить бейджи пользователей
+            const usersBadge = document.getElementById('users-badge');
+            if (usersBadge && stats.newUsers) {
+                usersBadge.textContent = stats.newUsers;
+                usersBadge.style.display = stats.newUsers > 0 ? 'inline' : 'none';
+            }
+            
+            // Обновить бейджи призов
+            const prizesBadge = document.getElementById('prizes-badge');
+            if (prizesBadge && stats.pendingPrizes) {
+                prizesBadge.textContent = stats.pendingPrizes;
+                prizesBadge.style.display = stats.pendingPrizes > 0 ? 'inline' : 'none';
+            }
+            
+        } catch (error) {
+            console.error('Ошибка обновления бейджей:', error);
+        }
+    }
+
+    updateNotificationBadge(count) {
+        const badge = document.getElementById('notifications-count');
+        if (badge) {
+            badge.textContent = count;
+            badge.style.display = count > 0 ? 'inline' : 'none';
+        }
+    }
+
+    renderNotifications(notifications) {
+        const container = document.getElementById('notifications-list');
+        if (!container) return;
+        
+        if (notifications.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p class="empty-state-message">Нет новых уведомлений</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = notifications.map(notification => `
+            <div class="notification-item">
+                <div class="notification-content">
+                    <h5 class="notification-title">${notification.title}</h5>
+                    <p class="notification-message">${notification.message}</p>
+                    <small class="notification-time">${this.formatDate(notification.created_at)}</small>
+                </div>
+                <button class="notification-close" onclick="app.markNotificationRead(${notification.id})">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+        `).join('');
+        
+        // Обновить иконки
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
+
+    async markNotificationRead(notificationId) {
+        try {
+            await APIClient.post(`/api/admin/notifications/${notificationId}/read`);
+            await this.updateNotifications();
+        } catch (error) {
+            console.error('Ошибка отметки уведомления:', error);
+        }
+    }
+
+    formatDate(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diff = now - date;
+        
+        if (diff < 60000) return 'только что';
+        if (diff < 3600000) return `${Math.floor(diff / 60000)} мин назад`;
+        if (diff < 86400000) return `${Math.floor(diff / 3600000)} ч назад`;
+        
+        return date.toLocaleDateString('ru-RU');
+    }
+}
+
+// Инициализация приложения
+let app;
+
+document.addEventListener('DOMContentLoaded', () => {
+    app = new AdminApp();
+});
+
+// Глобальная обработка ошибок
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('Необработанная ошибка:', event.reason);
+    NotificationManager.showError('Системная ошибка', 'Произошла неожиданная ошибка');
+});

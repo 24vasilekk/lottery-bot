@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kosmetichka Lottery - Админ Панель</title>
+    
+    <!-- CSS -->
+    <link href="css/admin.css" rel="stylesheet">
+    <link href="css/components.css" rel="stylesheet">
+    <link href="css/responsive.css" rel="stylesheet">
+    
+    <!-- Chart.js для графиков -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    
+    <!-- Иконки Lucide -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+    <!-- Экран загрузки -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Загрузка админ панели...</p>
+        </div>
+    </div>
+
+    <!-- Главное приложение -->
+    <div id="app" class="app" style="display: none;">
+        
+        <!-- Боковое меню -->
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i data-lucide="sparkles" class="logo-icon"></i>
+                    <span class="logo-text">Kosmetichka Admin</span>
+                </div>
+                <button id="sidebar-toggle" class="sidebar-toggle">
+                    <i data-lucide="menu" class="sidebar-toggle-icon"></i>
+                </button>
+            </div>
+            
+            <div class="sidebar-menu">
+                <ul class="menu-list">
+                    <li class="menu-item active" data-page="dashboard">
+                        <a href="#dashboard" class="menu-link">
+                            <i data-lucide="home" class="menu-icon"></i>
+                            <span class="menu-text">Дашборд</span>
+                        </a>
+                    </li>
+                    <li class="menu-item" data-page="users">
+                        <a href="#users" class="menu-link">
+                            <i data-lucide="users" class="menu-icon"></i>
+                            <span class="menu-text">Пользователи</span>
+                            <span id="users-badge" class="menu-badge">0</span>
+                        </a>
+                    </li>
+                    <li class="menu-item" data-page="channels">
+                        <a href="#channels" class="menu-link">
+                            <i data-lucide="tv" class="menu-icon"></i>
+                            <span class="menu-text">Каналы</span>
+                        </a>
+                    </li>
+                    <li class="menu-item" data-page="wheel">
+                        <a href="#wheel" class="menu-link">
+                            <i data-lucide="target" class="menu-icon"></i>
+                            <span class="menu-text">Рулетка</span>
+                        </a>
+                    </li>
+                    <li class="menu-item" data-page="prizes">
+                        <a href="#prizes" class="menu-link">
+                            <i data-lucide="gift" class="menu-icon"></i>
+                            <span class="menu-text">Призы</span>
+                            <span id="prizes-badge" class="menu-badge">0</span>
+                        </a>
+                    </li>
+                    <li class="menu-item" data-page="analytics">
+                        <a href="#analytics" class="menu-link">
+                            <i data-lucide="bar-chart-3" class="menu-icon"></i>
+                            <span class="menu-text">Аналитика</span>
+                        </a>
+                    </li>
+                    <li class="menu-item" data-page="broadcasts">
+                        <a href="#broadcasts" class="menu-link">
+                            <i data-lucide="send" class="menu-icon"></i>
+                            <span class="menu-text">Рассылки</span>
+                        </a>
+                    </li>
+                    <li class="menu-item" data-page="settings">
+                        <a href="#settings" class="menu-link">
+                            <i data-lucide="settings" class="menu-icon"></i>
+                            <span class="menu-text">Настройки</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i data-lucide="user" class="user-icon"></i>
+                    </div>
+                    <div class="user-details">
+                        <span id="user-name" class="user-name">Администратор</span>
+                        <span id="user-role" class="user-role">Admin</span>
+                    </div>
+                </div>
+                <button id="logout-btn" class="logout-btn">
+                    <i data-lucide="log-out" class="logout-icon"></i>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Основной контент -->
+        <main id="main-content" class="main-content">
+            
+            <!-- Верхняя панель -->
+            <header class="top-bar">
+                <div class="breadcrumb">
+                    <span id="current-page-title">Дашборд</span>
+                </div>
+                
+                <div class="top-bar-actions">
+                    <!-- Уведомления -->
+                    <div class="notifications-dropdown">
+                        <button id="notifications-btn" class="notifications-btn">
+                            <i data-lucide="bell" class="notification-icon"></i>
+                            <span id="notifications-count" class="notification-count">0</span>
+                        </button>
+                        <div id="notifications-menu" class="notifications-menu">
+                            <div class="notifications-header">
+                                <h4>Уведомления</h4>
+                                <button id="mark-all-read" class="mark-all-read">Отметить все</button>
+                            </div>
+                            <div id="notifications-list" class="notifications-list">
+                                <!-- Уведомления будут добавлены динамически -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Переключатель темы -->
+                    <button id="theme-toggle" class="theme-toggle">
+                        <i data-lucide="sun" class="theme-icon"></i>
+                    </button>
+                    
+                    <!-- Быстрые действия -->
+                    <div class="quick-actions-dropdown">
+                        <button id="quick-actions-btn" class="quick-actions-btn">
+                            <i data-lucide="plus" class="quick-icon"></i>
+                            <span>Действия</span>
+                        </button>
+                        <div id="quick-actions-menu" class="quick-actions-menu">
+                            <button class="quick-action" data-action="add-channel">
+                                <i data-lucide="tv" class="quick-action-icon"></i>
+                                Добавить канал
+                            </button>
+                            <button class="quick-action" data-action="manual-spin">
+                                <i data-lucide="rotate-cw" class="quick-action-icon"></i>
+                                Ручная прокрутка
+                            </button>
+                            <button class="quick-action" data-action="broadcast">
+                                <i data-lucide="send" class="quick-action-icon"></i>
+                                Создать рассылку
+                            </button>
+                            <button class="quick-action" data-action="add-prize">
+                                <i data-lucide="gift" class="quick-action-icon"></i>
+                                Выдать приз
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Контент страниц -->
+            <div id="page-content" class="page-content">
+                <!-- Контент будет загружаться динамически -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Модальные окна -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div id="modal-content" class="modal-content">
+            <!-- Содержимое модальных окон -->
+        </div>
+    </div>
+
+    <!-- Уведомления Toast -->
+    <div id="toast-container" class="toast-container">
+        <!-- Toast уведомления будут добавляться динамически -->
+    </div>
+
+    <!-- JavaScript модули -->
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/router.js"></script>
+    <script src="js/utils/formatters.js"></script>
+    <script src="js/utils/validators.js"></script>
+    <script src="js/utils/notifications.js"></script>
+    <script src="js/components/dashboard.js"></script>
+    <script src="js/components/users.js"></script>
+    <script src="js/components/channels.js"></script>
+    <script src="js/components/wheel.js"></script>
+    <script src="js/components/prizes.js"></script>
+    <script src="js/components/analytics.js"></script>
+    <script src="js/components/broadcasts.js"></script>
+    <script src="js/components/settings.js"></script>
+    <script src="js/app.js"></script>
+
+</body>
+</html>
