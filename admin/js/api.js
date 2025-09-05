@@ -10,11 +10,12 @@ class APIClient {
 
     // Получить заголовки с авторизацией
     async getHeaders(customHeaders = {}) {
-        await this.authManager.ensureValidToken();
+        const token = this.authManager.getToken();
+        const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
         
         return {
             ...this.defaultHeaders,
-            ...this.authManager.getAuthHeaders(),
+            ...authHeaders,
             ...customHeaders
         };
     }
@@ -25,7 +26,7 @@ class APIClient {
         if (response.status === 401) {
             // Токен недействителен - перенаправить на страницу входа
             this.authManager.clearAuth();
-            window.location.href = 'login.html';
+            window.location.href = 'admin-login.html';
             throw new Error('Сессия истекла. Войдите заново.');
         }
 

@@ -15,16 +15,17 @@ class AdminApp {
             this.showLoader();
             
             // Проверить аутентификацию
-            const isAuthenticated = await AuthManager.checkAuth();
+            const authManager = new AuthManager();
+            const isAuthenticated = await authManager.checkAuth();
             
             if (!isAuthenticated) {
                 // Перенаправить на страницу входа
-                window.location.href = 'login.html';
+                window.location.href = 'admin-login.html';
                 return;
             }
 
             // Получить данные пользователя
-            this.currentUser = await AuthManager.getCurrentUser();
+            this.currentUser = await authManager.getCurrentUser();
             
             // Инициализировать компоненты
             this.initializeComponents();
@@ -47,6 +48,7 @@ class AdminApp {
             this.hideLoader();
         }
     }
+
 
     initializeComponents() {
         // Настроить боковое меню
@@ -672,11 +674,12 @@ class AdminApp {
 
     async logout() {
         try {
-            await AuthManager.logout();
-            window.location.href = 'login.html';
+            const authManager = new AuthManager();
+            await authManager.logout();
+            window.location.href = 'admin-login.html';
         } catch (error) {
             console.error('Ошибка выхода:', error);
-            window.location.href = 'login.html';
+            window.location.href = 'admin-login.html';
         }
     }
 
