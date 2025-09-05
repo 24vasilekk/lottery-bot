@@ -26,6 +26,30 @@ if (!BOT_TOKEN) {
 }
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true' || false;
 
+// Защита от избыточного логирования в production
+if (process.env.NODE_ENV === 'production') {
+    // Принудительно отключаем DEBUG для всех модулей в production
+    process.env.DEBUG = '';
+    
+    // Переопределяем console.log в production для критически важных случаев
+    const originalLog = console.log;
+    const logCount = { count: 0, lastReset: Date.now() };
+    
+    console.log = function(...args) {
+        // Ограничиваем логирование до 50 в минуту в production
+        const now = Date.now();
+        if (now - logCount.lastReset > 60000) {
+            logCount.count = 0;
+            logCount.lastReset = now;
+        }
+        
+        if (logCount.count < 50) {
+            logCount.count++;
+            originalLog.apply(console, args);
+        }
+    };
+}
+
 // Определяем URL для Railway
 let WEBAPP_URL = process.env.WEBAPP_URL;
 if (!WEBAPP_URL) {

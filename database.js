@@ -1,5 +1,5 @@
 // database.js - База данных для lottery-bot
-const sqlite3 = require('sqlite3').verbose();
+const sqlite3 = require('sqlite3');
 const path = require('path');
 
 class Database {

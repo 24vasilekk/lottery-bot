@@ -57,7 +57,21 @@ let adminBot = null;
 
 // Инициализация бота
 try {
-    adminBot = new TelegramBot(ADMIN_BOT_TOKEN, { polling: true });
+    adminBot = new TelegramBot(ADMIN_BOT_TOKEN, { 
+        polling: {
+            interval: 2000, // Увеличиваем интервал до 2 секунд
+            autoStart: true,
+            params: {
+                timeout: 10
+            }
+        },
+        request: {
+            agentOptions: {
+                keepAlive: true,
+                family: 4
+            }
+        }
+    });
     console.log('✅ Админ-бот инициализирован');
 } catch (error) {
     console.error('❌ Ошибка инициализации админ-бота:', error.message);
