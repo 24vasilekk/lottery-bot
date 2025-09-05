@@ -11,17 +11,25 @@ class AdminApp {
 
     async init() {
         try {
+            console.log('🚀 Инициализация админ панели...');
+            
             // Показать загрузчик
             this.showLoader();
             
             // Простая проверка аутентификации для браузера
-            const isAuthenticated = sessionStorage.getItem('admin-logged-in') === 'true';
+            const sessionAuth = sessionStorage.getItem('admin-logged-in');
+            const localAuth = localStorage.getItem('admin-logged-in');
+            const isAuthenticated = sessionAuth === 'true' || localAuth === 'true';
+            
+            console.log('🔐 Проверка аутентификации:', { sessionAuth, localAuth, isAuthenticated });
             
             if (!isAuthenticated) {
-                // Перенаправить на страницу входа
+                console.log('❌ Не авторизован, перенаправляем на страницу входа');
                 window.location.href = 'admin-login.html';
                 return;
             }
+            
+            console.log('✅ Пользователь авторизован, продолжаем загрузку...');
 
             // Получить данные пользователя
             this.currentUser = {
@@ -41,10 +49,13 @@ class AdminApp {
             await this.loadPage(this.getCurrentPageFromURL());
             
             // Скрыть загрузчик и показать приложение
+            console.log('🎨 Скрываем загрузчик и показываем приложение...');
             this.hideLoader();
             
             // Запустить периодические обновления
             this.startPeriodicUpdates();
+            
+            console.log('🎉 Админ панель полностью загружена!');
             
         } catch (error) {
             console.error('Ошибка инициализации:', error);
@@ -330,6 +341,7 @@ class AdminApp {
     }
 
     async loadPageComponent(page) {
+        console.log(`📄 Загружаем компонент страницы: ${page}`);
         const pageContent = document.getElementById('page-content');
         
         try {
@@ -337,18 +349,22 @@ class AdminApp {
             
             switch (page) {
                 case 'dashboard':
-                    component = new DashboardPage();
+                    console.log('📊 Создаем DashboardComponent...');
+                    component = new DashboardComponent();
                     window.dashboardPage = component;
                     break;
                 case 'users':
+                    console.log('👥 Создаем UsersPage...');
                     component = new UsersPage();
                     window.usersPage = component;
                     break;
                 case 'channels':
+                    console.log('📺 Создаем ChannelsPage...');
                     component = new ChannelsPage();
                     window.channelsPage = component;
                     break;
                 case 'prizes':
+                    console.log('🎁 Создаем PrizesPage...');
                     component = new PrizesPage();
                     window.prizesPage = component;
                     break;
@@ -368,12 +384,20 @@ class AdminApp {
             }
             
             // Рендер компонента
-            const content = await component.render();
-            pageContent.innerHTML = content;
-            
-            // Инициализация компонента
-            if (component.init) {
-                await component.init();
+            if (page === 'dashboard') {
+                // DashboardComponent работает по-старому (принимает container)
+                console.log('📊 Рендерим Dashboard через container...');
+                await component.render(pageContent);
+            } else {
+                // Новые компоненты возвращают HTML
+                console.log(`📄 Рендерим ${page} через HTML...`);
+                const content = await component.render();
+                pageContent.innerHTML = content;
+                
+                // Инициализация компонента
+                if (component.init) {
+                    await component.init();
+                }
             }
             
             // Обновить иконки после рендеринга
