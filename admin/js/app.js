@@ -14,9 +14,8 @@ class AdminApp {
             // Показать загрузчик
             this.showLoader();
             
-            // Проверить аутентификацию
-            const authManager = new AuthManager();
-            const isAuthenticated = await authManager.checkAuth();
+            // Простая проверка аутентификации для браузера
+            const isAuthenticated = sessionStorage.getItem('admin-logged-in') === 'true';
             
             if (!isAuthenticated) {
                 // Перенаправить на страницу входа
@@ -25,7 +24,12 @@ class AdminApp {
             }
 
             // Получить данные пользователя
-            this.currentUser = await authManager.getCurrentUser();
+            this.currentUser = {
+                id: 1,
+                name: 'Администратор',
+                username: 'admin',
+                isAdmin: true
+            };
             
             // Инициализировать компоненты
             this.initializeComponents();
@@ -674,8 +678,9 @@ class AdminApp {
 
     async logout() {
         try {
-            const authManager = new AuthManager();
-            await authManager.logout();
+            // Очистить сессию
+            sessionStorage.removeItem('admin-logged-in');
+            localStorage.removeItem('admin-logged-in');
             window.location.href = 'admin-login.html';
         } catch (error) {
             console.error('Ошибка выхода:', error);
