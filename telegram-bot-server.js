@@ -788,6 +788,48 @@ app.get('/debug', (req, res) => {
     res.json(debugInfo);
 });
 
+// Синхронизация данных пользователя
+async function syncUserData(userId, webAppData) {
+    try {
+        console.log(`🔄 syncUserData для userId: ${userId}`);
+        
+        let user = await db.getUser(userId);
+        
+        if (!user) {
+            console.log(`👤 Создаем нового пользователя ${userId}`);
+            
+            const userData = {
+                telegram_id: userId,
+                username: webAppData?.username || '',
+                first_name: webAppData?.first_name || 'Пользователь',
+                last_name: webAppData?.last_name || ''
+            };
+            
+            await db.createUser(userData);
+            user = await db.getUser(userId);
+        }
+        
+        console.log(`✅ Пользователь из БД: ID=${user.telegram_id}, stars=${user.stars}`);
+        
+        // ВСЕГДА возвращаем баланс из БД
+        const syncedData = {
+            stars: user.stars,
+            referrals: user.referrals || 0,
+            total_stars_earned: user.total_stars_earned || 20,
+            totalSpins: user.total_spins || 0,
+            prizesWon: user.prizes_won || 0,
+            friendSpinsUsed: user.friend_spins_used || 0
+        };
+        
+        console.log(`📤 Возвращаем данные: stars=${syncedData.stars}`);
+        return syncedData;
+        
+    } catch (error) {
+        console.error('❌ Ошибка syncUserData:', error);
+        return { stars: 0 };
+    }
+}
+
 // API для взаимодействия с WebApp
 // API для взаимодействия с WebApp - ОТКЛЮЧАЕМ ЛИМИТЕР ДЛЯ ДИАГНОСТИКИ
 app.post('/api/telegram-webhook', async (req, res) => {  // Убрали spinLimiter
@@ -4286,48 +4328,6 @@ async function handleChannelSubscription(userId, data) {
         }
     } catch (error) {
         console.error('❌ Ошибка обработки подписки:', error);
-    }
-}
-
-// Синхронизация данных пользователя
-async function syncUserData(userId, webAppData) {
-    try {
-        console.log(`🔄 syncUserData для userId: ${userId}`);
-        
-        let user = await db.getUser(userId);
-        
-        if (!user) {
-            console.log(`👤 Создаем нового пользователя ${userId}`);
-            
-            const userData = {
-                telegram_id: userId,
-                username: webAppData?.username || '',
-                first_name: webAppData?.first_name || 'Пользователь',
-                last_name: webAppData?.last_name || ''
-            };
-            
-            await db.createUser(userData);
-            user = await db.getUser(userId);
-        }
-        
-        console.log(`✅ Пользователь из БД: ID=${user.telegram_id}, stars=${user.stars}`);
-        
-        // ВСЕГДА возвращаем баланс из БД
-        const syncedData = {
-            stars: user.stars,
-            referrals: user.referrals || 0,
-            total_stars_earned: user.total_stars_earned || 20,
-            totalSpins: user.total_spins || 0,
-            prizesWon: user.prizes_won || 0,
-            friendSpinsUsed: user.friend_spins_used || 0
-        };
-        
-        console.log(`📤 Возвращаем данные: stars=${syncedData.stars}`);
-        return syncedData;
-        
-    } catch (error) {
-        console.error('❌ Ошибка syncUserData:', error);
-        return { stars: 0 };
     }
 }
 
