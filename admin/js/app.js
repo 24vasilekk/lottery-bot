@@ -331,34 +331,44 @@ class AdminApp {
             
             switch (page) {
                 case 'dashboard':
-                    component = new DashboardComponent();
+                    component = new DashboardPage();
+                    window.dashboardPage = component;
                     break;
                 case 'users':
-                    component = new UsersComponent();
+                    component = new UsersPage();
+                    window.usersPage = component;
                     break;
                 case 'channels':
-                    component = new ChannelsComponent();
-                    break;
-                case 'wheel':
-                    component = new WheelComponent();
+                    component = new ChannelsPage();
+                    window.channelsPage = component;
                     break;
                 case 'prizes':
-                    component = new PrizesComponent();
+                    component = new PrizesPage();
+                    window.prizesPage = component;
                     break;
+                case 'wheel':
                 case 'analytics':
-                    component = new AnalyticsComponent();
-                    break;
                 case 'broadcasts':
-                    component = new BroadcastsComponent();
-                    break;
                 case 'settings':
-                    component = new SettingsComponent();
-                    break;
+                    // Заглушки для страниц в разработке
+                    const placeholderContent = this.renderPlaceholderPage(page);
+                    pageContent.innerHTML = placeholderContent;
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                    return;
                 default:
                     throw new Error(`Неизвестная страница: ${page}`);
             }
             
-            await component.render(pageContent);
+            // Рендер компонента
+            const content = await component.render();
+            pageContent.innerHTML = content;
+            
+            // Инициализация компонента
+            if (component.init) {
+                await component.init();
+            }
             
             // Обновить иконки после рендеринга
             if (typeof lucide !== 'undefined') {
@@ -376,6 +386,75 @@ class AdminApp {
             `;
             throw error;
         }
+    }
+
+    renderPlaceholderPage(page) {
+        const titles = {
+            wheel: 'Настройки рулетки',
+            analytics: 'Аналитика',
+            broadcasts: 'Рассылки',
+            settings: 'Настройки системы'
+        };
+        
+        const icons = {
+            wheel: 'target',
+            analytics: 'bar-chart-3',
+            broadcasts: 'send',
+            settings: 'settings'
+        };
+        
+        const features = {
+            wheel: [
+                'Настройка секторов рулетки',
+                'Управление вероятностями выпадения',
+                'Тестирование настроек',
+                'Статистика крутов'
+            ],
+            analytics: [
+                'Графики активности пользователей',
+                'Аналитика по каналам',
+                'Отчеты по выручке',
+                'Экспорт данных'
+            ],
+            broadcasts: [
+                'Создание рассылок',
+                'Шаблоны сообщений',
+                'Планировщик отправки',
+                'Статистика доставки'
+            ],
+            settings: [
+                'Общие настройки бота',
+                'Управление промокодами',
+                'Настройки канала выигрышей',
+                'Резервное копирование'
+            ]
+        };
+        
+        const title = titles[page] || 'Страница';
+        const icon = icons[page] || 'help-circle';
+        const featureList = (features[page] || []).map(f => `<li>${f}</li>`).join('');
+        
+        return `
+            <div class="placeholder-page">
+                <div class="placeholder-content">
+                    <div class="placeholder-icon">
+                        <i data-lucide="${icon}" class="placeholder-icon-element"></i>
+                    </div>
+                    <h1 class="placeholder-title">${title}</h1>
+                    <p class="placeholder-subtitle">Эта страница находится в разработке</p>
+                    <div class="placeholder-features">
+                        <h3>Планируемые возможности:</h3>
+                        <ul class="placeholder-list">
+                            ${featureList}
+                        </ul>
+                    </div>
+                    <button class="btn btn-primary" onclick="app.loadPage('dashboard')">
+                        <i data-lucide="home" class="btn-icon"></i>
+                        На главную
+                    </button>
+                </div>
+            </div>
+        `;
     }
 
     async handleQuickAction(actionType) {
