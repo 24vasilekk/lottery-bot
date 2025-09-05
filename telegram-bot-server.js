@@ -1928,72 +1928,29 @@ app.post('/api/referral/activate', async (req, res) => {
 
 // ===================== ADMIN API ENDPOINTS =====================
 
-// API эндпоинты для авторизации
-app.post('/api/admin/auth/login', authEndpoint);
-app.get('/api/admin/auth/check', checkAuthEndpoint);
-app.post('/api/admin/auth/logout', logoutEndpoint);
-
-// Ручная авторизация (только для разработки!)
-if (process.env.NODE_ENV !== 'production') {
-    app.post('/api/admin/auth/manual', async (req, res) => {
-        const { telegramId, adminToken } = req.body;
-        
-        // Проверяем админ токен если он установлен
-        if (process.env.ADMIN_TOKEN && adminToken !== process.env.ADMIN_TOKEN) {
-            return res.status(403).json({ error: 'Неверный админ токен' });
-        }
-        
-        // Проверяем админские права
-        if (!isAdmin(telegramId)) {
-            return res.status(403).json({ 
-                error: 'Доступ запрещен',
-                message: 'У вас нет прав администратора' 
-            });
-        }
-        
-        // Создаем сессию
-        const { createSession } = require('./admin/auth-middleware');
-        const token = createSession(telegramId);
-        
-        res.json({
-            success: true,
-            token,
-            user: {
-                id: telegramId,
-                firstName: 'Admin',
-                username: 'admin'
-            }
-        });
-    });
-}
-
-// Статическая раздача админки - защищаем страницу входа
-app.use('/admin/login.html', express.static('admin/login.html'));
-app.use('/admin', (req, res, next) => {
-    // Разрешаем доступ к странице входа и статическим ресурсам
-    if (req.path === '/login.html' || 
-        req.path.endsWith('.css') || 
-        req.path.endsWith('.js') ||
-        req.path.endsWith('.png') ||
-        req.path.endsWith('.jpg')) {
-        return express.static('admin')(req, res, next);
-    }
-    
-    // Для главной страницы проверяем авторизацию
-    const token = req.headers['x-auth-token'] || 
-                  req.cookies?.authToken || 
-                  req.query.token;
-    
-    if (!token) {
-        // Перенаправляем на страницу входа
-        return res.redirect('/admin/login.html');
-    }
-    
-    // Проверяем токен
-    const { requireAuth } = require('./admin/auth-middleware');
-    requireAuth(req, res, () => {
-        express.static('admin')(req, res, next);
-    });
+// Веб-админка отключена - используется только Telegram управление
+// Для просмотра базовой статистики оставляем простой эндпоинт
+app.get('/admin', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Админка отключена</title>
+            <style>
+                body { font-family: Arial; text-align: center; padding: 50px; }
+                .info { background: #e3f2fd; padding: 20px; border-radius: 10px; margin: 20px; }
+            </style>
+        </head>
+        <body>
+            <h1>🤖 Админка через Telegram</h1>
+            <div class="info">
+                <p>Веб-панель отключена</p>
+                <p>Все управление происходит через Telegram бот-администратор</p>
+                <p>Используйте команды бота для управления системой</p>
+            </div>
+        </body>
+        </html>
+    `);
 });
 
 // API для просмотра транзакций пользователя
@@ -2069,6 +2026,8 @@ function requireAdmin(req, res, next) {
     next();
 }
 
+// ВСЕ АДМИНСКИЕ API ОТКЛЮЧЕНЫ - используется только Telegram бот
+/*
 // Получение общей статистики
 app.get('/api/admin/stats', requireAuth, async (req, res) => {
     try {
@@ -4596,6 +4555,8 @@ app.use((req, res) => {
         timestamp: new Date().toISOString()
     });
 });
+
+*/
 
 // === ЗАПУСК СЕРВЕРА ===
 

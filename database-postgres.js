@@ -1292,6 +1292,13 @@ class DatabasePostgres {
             INSERT INTO partner_channels 
             (channel_username, channel_name, reward_stars, placement_duration, placement_type, is_active) 
             VALUES ($1, $2, $3, $4, 'time', true)
+            ON CONFLICT (channel_username) 
+            DO UPDATE SET 
+                channel_name = EXCLUDED.channel_name,
+                reward_stars = EXCLUDED.reward_stars,
+                placement_duration = EXCLUDED.placement_duration,
+                is_active = true,
+                updated_at = NOW()
             RETURNING *
         `;
         

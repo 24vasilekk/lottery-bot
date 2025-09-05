@@ -53,16 +53,7 @@ let adminBot = null;
 
 // НЕ создаем отдельный Express сервер - админка уже интегрирована в основной сервер
 
-// ВСЕ Express API маршруты отключены - переходим к инициализации Telegram бота
-app.get('/api/admin/stats', async (req, res) => {
-    try {
-        const stats = await getQuickStats();
-        res.json(stats);
-    } catch (error) {
-        console.error('Ошибка получения статистики:', error);
-        res.status(500).json({ error: 'Ошибка получения статистики' });
-    }
-});
+// ВСЕ Express API маршруты отключены - только Telegram бот
 
 // Инициализация бота
 try {
