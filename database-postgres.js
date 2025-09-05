@@ -319,6 +319,34 @@ class DatabasePostgres {
                 )
             `);
 
+            // МИГРАЦИЯ: Добавляем недостающие колонки если их нет
+            try {
+                console.log('🔄 Проверка миграций...');
+                
+                // Проверяем существование колонки updated_at в partner_channels
+                const checkUpdatedAt = await client.query(`
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'partner_channels' 
+                    AND column_name = 'updated_at'
+                `);
+                
+                if (checkUpdatedAt.rows.length === 0) {
+                    console.log('📝 Добавляем колонку updated_at в partner_channels...');
+                    await client.query(`
+                        ALTER TABLE partner_channels 
+                        ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    `);
+                    console.log('✅ Колонка updated_at добавлена');
+                } else {
+                    console.log('✅ Колонка updated_at уже существует');
+                }
+                
+                console.log('✅ Миграции завершены');
+            } catch (migrationError) {
+                console.warn('⚠️ Ошибка миграции (может быть не критично):', migrationError.message);
+            }
+
             // Коммитим транзакцию
             await client.query('COMMIT');
             console.log('✅ Все таблицы PostgreSQL созданы успешно');
