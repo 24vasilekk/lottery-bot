@@ -496,7 +496,7 @@ class SystemAPI {
 }
 
 // Глобальный экземпляр API клиента
-const APIClient = new AdminAPI();
+window.APIClient = new AdminAPI();
 
 // Экспорт для использования в других модулях
 if (typeof module !== 'undefined' && module.exports) {
