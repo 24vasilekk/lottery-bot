@@ -6,7 +6,7 @@
 
 В **Settings → Deploy → Start Command** укажите:
 ```
-npm run both
+npm start
 ```
 
 ### 2. Добавьте переменные окружения

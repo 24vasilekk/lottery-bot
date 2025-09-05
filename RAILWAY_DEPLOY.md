@@ -55,7 +55,7 @@ ADMIN_PORT=3001
 
 2. В Settings → Deploy → Start Command укажите:
 ```
-npm run both
+npm start
 ```
 
 ## ⚠️ Важно для Railway
