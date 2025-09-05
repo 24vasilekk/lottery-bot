@@ -4,7 +4,7 @@
   "description": "Telegram бот с веб-приложением рулетки для женской аудитории с призами и заданиями",
   "main": "telegram-bot-server.js",
   "scripts": {
-    "start": "node health-check.js && node telegram-bot-server.js",
+    "start": "node telegram-bot-server.js",
     "check": "node health-check.js",
     "dev": "nodemon telegram-bot-server.js",
     "build": "echo 'Build completed - static files ready'",
