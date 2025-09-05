@@ -260,6 +260,7 @@ class DatabasePostgres {
                     deactivation_reason TEXT,
                     deactivated_at TIMESTAMP,
                     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     start_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     end_date TIMESTAMP,
                     UNIQUE(channel_username)
