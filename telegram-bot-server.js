@@ -92,6 +92,9 @@ if (!process.env.BOT_TOKEN || !process.env.ADMIN_IDS) {
 // Создаем Express приложение
 const app = express();
 
+// Настройка для работы за прокси (Railway)
+app.set('trust proxy', 1);
+
 // Middleware
 // Безопасная CORS конфигурация
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
@@ -445,6 +448,7 @@ console.log('📁 Admin login file exists:', require('fs').existsSync(path.join(
 app.use('/admin', express.static(adminPath, {
     etag: false,
     maxAge: 0,
+    index: ['admin-login.html', 'index.html'], // Укажем явно какие index файлы использовать
     setHeaders: (res, filePath) => {
         if (filePath.endsWith('.html')) {
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -456,6 +460,18 @@ app.use('/admin', express.static(adminPath, {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
 }));
+
+// Добавим отдельный обработчик для корня админки
+app.get('/admin/', (req, res) => {
+    console.log('🔍 GET /admin/ запрос получен');
+    const loginPath = path.join(adminPath, 'admin-login.html');
+    res.sendFile(loginPath);
+});
+
+app.get('/admin', (req, res) => {
+    console.log('🔍 GET /admin запрос получен (без слеша)');
+    res.redirect('/admin/');
+});
 
 // Статические файлы для основного WebApp
 app.use(express.static(publicPath, {
