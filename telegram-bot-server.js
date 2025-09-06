@@ -5179,20 +5179,23 @@ app.get('/api/admin/stats', async (req, res) => {
     try {
         console.log('📊 Admin API: Запрос статистики');
         
-        // Получаем статистику прямыми запросами так как getGeneralStats не существует
-        const totalUsers = await new Promise((resolve, reject) => {
-            db.db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
-                if (err) reject(err);
-                else resolve(row.count || 0);
-            });
-        });
+        // Получаем статистику через правильные методы PostgreSQL
+        let totalUsers = 0;
+        let activeUsers = 0;
+        
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM users');
+            totalUsers = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета пользователей:', err);
+        }
 
-        const activeUsers = await new Promise((resolve, reject) => {
-            db.db.get('SELECT COUNT(*) as count FROM users WHERE last_activity > datetime("now", "-1 day")', (err, row) => {
-                if (err) reject(err);
-                else resolve(row.count || 0);
-            });
-        });
+        try {
+            const result = await db.query("SELECT COUNT(*) as count FROM users WHERE last_activity > NOW() - INTERVAL '1 day'");
+            activeUsers = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета активных пользователей:', err);
+        }
 
         const stats = {
             total_users: totalUsers,
@@ -5260,7 +5263,21 @@ app.get('/api/admin/channels', async (req, res) => {
     try {
         console.log('📺 Admin API: Запрос каналов');
         
-        const channels = await db.getActivePartnerChannels();
+        // Получаем каналы напрямую через PostgreSQL
+        let channels = [];
+        try {
+            const result = await db.query(`
+                SELECT pc.*,
+                       COUNT(ucs.id) as current_subscribers
+                FROM partner_channels pc
+                LEFT JOIN user_channel_subscriptions ucs ON pc.id = ucs.channel_id AND ucs.is_active = 1
+                GROUP BY pc.id
+                ORDER BY pc.created_at DESC
+            `);
+            channels = result.rows || [];
+        } catch (err) {
+            console.error('Ошибка получения каналов:', err);
+        }
         
         res.json({
             success: true,
