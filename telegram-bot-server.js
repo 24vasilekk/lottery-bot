@@ -2584,28 +2584,84 @@ app.patch('/api/admin/prizes/:id/given', requireAuth, async (req, res) => {
 app.get('/api/admin/users', requireAuth, async (req, res) => {
     try {
         console.log('👥 Админ: запрос списка пользователей');
-
-        const users = await new Promise((resolve, reject) => {
-            db.db.all(`
-                SELECT u.*,
-                       COUNT(DISTINCT ucs.id) as subscription_count,
-                       COUNT(DISTINCT p.id) as prizes_won
-                FROM users u
-                LEFT JOIN user_channel_subscriptions ucs ON u.id = ucs.user_id
-                LEFT JOIN prizes p ON u.id = p.user_id
-                GROUP BY u.id
-                ORDER BY u.created_date DESC
-                LIMIT 100
-            `, (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows);
-            });
+        const { search, page = 1, limit = 20 } = req.query;
+        const offset = (page - 1) * limit;
+        
+        let query = `
+            SELECT 
+                u.id,
+                u.telegram_id,
+                u.username,
+                u.first_name,
+                u.last_name,
+                u.stars,
+                u.total_stars_earned,
+                u.referrals,
+                u.total_spins,
+                u.prizes_won,
+                u.join_date as created_at,
+                u.last_activity,
+                u.is_active,
+                u.win_chance,
+                0 as subscription_count
+            FROM users u
+            WHERE 1=1
+        `;
+        
+        const params = [];
+        
+        // Добавляем поиск если есть
+        if (search) {
+            query += ` AND (
+                u.telegram_id::text ILIKE $${params.length + 1} OR
+                u.username ILIKE $${params.length + 1} OR
+                u.first_name ILIKE $${params.length + 1} OR
+                u.last_name ILIKE $${params.length + 1}
+            )`;
+            params.push(`%${search}%`);
+        }
+        
+        query += ` ORDER BY u.join_date DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+        params.push(parseInt(limit), parseInt(offset));
+        
+        const users = await db.query(query, params);
+        
+        // Получаем общее количество для пагинации
+        let countQuery = `SELECT COUNT(*) as total FROM users u WHERE 1=1`;
+        const countParams = [];
+        
+        if (search) {
+            countQuery += ` AND (
+                u.telegram_id::text ILIKE $1 OR
+                u.username ILIKE $1 OR
+                u.first_name ILIKE $1 OR
+                u.last_name ILIKE $1
+            )`;
+            countParams.push(`%${search}%`);
+        }
+        
+        const totalResult = await db.query(countQuery, countParams);
+        const total = parseInt(totalResult.rows?.[0]?.total) || 0;
+        
+        console.log(`👥 Найдено пользователей: ${users.rows?.length || 0} из ${total}`);
+        
+        res.json({
+            success: true,
+            users: users.rows || [],
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total: total,
+                pages: Math.ceil(total / limit)
+            }
         });
-
-        res.json(users);
     } catch (error) {
         console.error('❌ Ошибка получения пользователей:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error',
+            details: error.message 
+        });
     }
 });
 

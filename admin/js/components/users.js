@@ -272,12 +272,16 @@ class UsersPage {
             const response = await fetch(`/api/admin/users?${params.toString()}`);
             const data = await response.json();
             
-            this.renderUsersTable(data.users || []);
-            this.renderPagination(data.pagination?.total || 0);
-            
-            // Обновить информацию о таблице
-            document.getElementById('table-info').textContent = 
-                `Показано ${data.users?.length || 0} из ${data.pagination?.total || 0} пользователей`;
+            if (data.success) {
+                this.renderUsersTable(data.users || []);
+                this.renderPagination(data.pagination?.total || 0);
+                
+                // Обновить информацию о таблице
+                document.getElementById('table-info').textContent = 
+                    `Показано ${data.users?.length || 0} из ${data.pagination?.total || 0} пользователей`;
+            } else {
+                throw new Error(data.error || 'Неизвестная ошибка');
+            }
 
         } catch (error) {
             console.error('Ошибка загрузки пользователей:', error);
@@ -333,9 +337,9 @@ class UsersPage {
 
     renderUserRow(user) {
         const isSelected = this.selectedUsers.has(user.id);
-        const statusClass = user.is_banned ? 'banned' : 'active';
-        const statusText = user.is_banned ? 'Заблокирован' : 'Активен';
-        const statusIcon = user.is_banned ? 'user-x' : 'user-check';
+        const statusClass = !user.is_active ? 'banned' : 'active';
+        const statusText = !user.is_active ? 'Заблокирован' : 'Активен';
+        const statusIcon = !user.is_active ? 'user-x' : 'user-check';
 
         return `
             <tr class="table-row ${isSelected ? 'selected' : ''}" data-user-id="${user.id}">
@@ -372,7 +376,11 @@ class UsersPage {
                     </div>
                     <div class="stat-item">
                         <i data-lucide="users" class="stat-icon"></i>
-                        <span>${Formatters.formatNumber(user.referrals_count || 0)}</span>
+                        <span>${Formatters.formatNumber(user.referrals || 0)}</span>
+                    </div>
+                    <div class="stat-item">
+                        <i data-lucide="percent" class="stat-icon"></i>
+                        <span>${user.win_chance || 0}%</span>
                     </div>
                 </td>
                 
