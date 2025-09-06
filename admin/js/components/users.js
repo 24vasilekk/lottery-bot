@@ -240,10 +240,20 @@ class UsersPage {
 
     async loadUsers() {
         try {
-            // Сначала проверим доступность API
+            // Сначала проверим доступность API и БД
             try {
                 const testResponse = await fetch('/api/admin/test');
                 console.log('API тест:', testResponse.status, testResponse.ok ? '✅' : '❌');
+                
+                const dbTestResponse = await fetch('/api/admin/db-test');
+                if (dbTestResponse.ok) {
+                    const dbData = await dbTestResponse.json();
+                    console.log('БД тест:', dbData.success ? '✅' : '❌', 
+                        `${dbData.userCount} пользователей в БД`);
+                    console.log('Примеры пользователей:', dbData.sampleUsers);
+                } else {
+                    console.warn('БД тест не прошел:', dbTestResponse.status);
+                }
             } catch (testError) {
                 console.warn('API тест не прошел:', testError);
             }
@@ -258,7 +268,10 @@ class UsersPage {
                 params.append('search', this.filters.search);
             }
             
-            const response = await fetch(`/api/admin/users?${params.toString()}`);
+            const apiUrl = `/api/admin/users?${params.toString()}`;
+            console.log('📞 Запрос к API:', apiUrl);
+            const response = await fetch(apiUrl);
+            console.log('📥 Ответ API:', response.status, response.statusText);
             
             if (!response.ok) {
                 // Если API недоступен, используем моковые данные
@@ -301,6 +314,7 @@ class UsersPage {
             }
             
             const data = await response.json();
+            console.log('📋 Данные пользователей:', data);
             
             if (data.success) {
                 this.renderUsersTable(data.users || []);

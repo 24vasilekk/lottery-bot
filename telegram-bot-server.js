@@ -4820,6 +4820,39 @@ app.get('/api/admin/test', requireAuth, (req, res) => {
     });
 });
 
+// Тест подключения к базе данных
+app.get('/api/admin/db-test', requireAuth, async (req, res) => {
+    try {
+        console.log('🔍 Тестируем подключение к БД...');
+        
+        // Тест 1: Подсчет пользователей
+        const countResult = await db.query('SELECT COUNT(*) as total FROM users');
+        const userCount = parseInt(countResult.rows?.[0]?.total) || 0;
+        
+        // Тест 2: Получение первых 3 пользователей
+        const usersResult = await db.query('SELECT telegram_id, first_name, username, stars FROM users LIMIT 3');
+        const users = usersResult.rows || [];
+        
+        console.log(`📊 В БД найдено ${userCount} пользователей`);
+        console.log('👥 Первые пользователи:', users);
+        
+        res.json({
+            success: true,
+            database: 'connected',
+            userCount: userCount,
+            sampleUsers: users,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('❌ Ошибка подключения к БД:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            database: 'error'
+        });
+    }
+});
+
 // === ЗАПУСК СЕРВЕРА ===
 
 // Переменная для фоновых задач
