@@ -4905,6 +4905,187 @@ app.get('/api/admin/users', requireAuth, async (req, res) => {
     }
 });
 
+// Управление звездами пользователей
+app.post('/api/admin/users/stars', requireAuth, async (req, res) => {
+    const { telegramId, operation, amount, reason } = req.body;
+    
+    if (!telegramId || !operation || !amount || !reason) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Отсутствуют обязательные поля' 
+        });
+    }
+
+    try {
+        const user = await db.getUser(telegramId);
+        if (!user) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Пользователь не найден' 
+            });
+        }
+
+        const currentStars = user.stars || 0;
+        let newStars = 0;
+
+        switch (operation) {
+            case 'add':
+                newStars = currentStars + amount;
+                break;
+            case 'subtract':
+                newStars = Math.max(0, currentStars - amount);
+                break;
+            case 'set':
+                newStars = amount;
+                break;
+            default:
+                return res.status(400).json({ 
+                    success: false, 
+                    error: 'Неверная операция' 
+                });
+        }
+
+        await db.addUserStars(telegramId, newStars - currentStars, 'admin_adjustment', { reason });
+        
+        console.log(`✅ Админ изменил баланс пользователя ${telegramId}: ${currentStars} → ${newStars} (${reason})`);
+        
+        res.json({ 
+            success: true, 
+            oldBalance: currentStars,
+            newBalance: newStars,
+            operation: operation,
+            amount: amount
+        });
+    } catch (error) {
+        console.error('❌ Ошибка изменения баланса:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка при изменении баланса' 
+        });
+    }
+});
+
+// История баланса пользователя
+app.get('/api/admin/users/:userId/balance-history', requireAuth, async (req, res) => {
+    const { userId } = req.params;
+    const { limit = 50, offset = 0 } = req.query;
+    
+    if (!userId || isNaN(parseInt(userId))) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Неверный ID пользователя' 
+        });
+    }
+
+    try {
+        const telegramId = parseInt(userId);
+        
+        const user = await db.getUser(telegramId);
+        if (!user) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Пользователь не найден' 
+            });
+        }
+
+        // Получаем историю транзакций
+        const history = await db.query(`
+            SELECT 
+                id,
+                amount,
+                transaction_type,
+                description,
+                created_date
+            FROM stars_transactions 
+            WHERE user_id = $1
+            ORDER BY created_date DESC
+            LIMIT $2 OFFSET $3
+        `, [telegramId, parseInt(limit), parseInt(offset)]);
+
+        const totalResult = await db.query(`
+            SELECT COUNT(*) as total 
+            FROM stars_transactions 
+            WHERE user_id = $1
+        `, [telegramId]);
+
+        res.json({ 
+            success: true,
+            userId: telegramId,
+            currentBalance: user.stars || 0,
+            history: history.rows || [],
+            pagination: {
+                total: totalResult.rows?.[0]?.total || 0,
+                limit: parseInt(limit),
+                offset: parseInt(offset)
+            }
+        });
+    } catch (error) {
+        console.error('❌ Ошибка получения истории баланса:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка при получении истории баланса' 
+        });
+    }
+});
+
+// Получить статистику для дашборда
+app.get('/api/admin/stats', requireAuth, async (req, res) => {
+    try {
+        console.log('📊 Admin API: Запрос статистики');
+        
+        // Получаем статистику через правильные методы PostgreSQL
+        let totalUsers = 0;
+        let activeUsers = 0;
+        
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM users');
+            totalUsers = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета пользователей:', err);
+        }
+
+        try {
+            const result = await db.query("SELECT COUNT(*) as count FROM users WHERE last_activity > NOW() - INTERVAL '1 day'");
+            activeUsers = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета активных пользователей:', err);
+        }
+
+        const stats = {
+            total_users: totalUsers,
+            active_users: activeUsers,
+            total_stars: 0,
+            total_spins: 0,
+            today_users: 0,
+            today_spins: 0
+        };
+        
+        res.json({
+            success: true,
+            stats: {
+                totalUsers: stats.total_users || 0,
+                activeUsers: stats.active_users || 0,
+                totalStars: stats.total_stars || 0,
+                totalSpins: stats.total_spins || 0,
+                todayUsers: stats.today_users || 0,
+                todaySpins: stats.today_spins || 0,
+                topChannels: [],
+                system: {
+                    uptime: Math.floor(process.uptime()),
+                    memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+                    version: '1.0.0'
+                }
+            }
+        });
+    } catch (error) {
+        console.error('❌ Ошибка получения статистики:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка при получении статистики' 
+        });
+    }
+});
+
 // === ТЕСТОВЫЕ ЭНДПОИНТЫ ===
 
 // Простой тест API
