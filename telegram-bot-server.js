@@ -208,6 +208,12 @@ app.use('/api', generalApiLimiter);
 // Применяем админские ограничения для админ API
 app.use('/api/admin', adminApiLimiter);
 
+// Отладочный middleware для всех админ запросов
+app.use('/api/admin', (req, res, next) => {
+    console.log(`🔥 ADMIN API: ${req.method} ${req.originalUrl} - Query:`, req.query);
+    next();
+});
+
 // Добавить эти endpoints в telegram-bot-server.js для исправления лидерборда
 
 // ДОБАВИТЬ или ЗАМЕНИТЬ endpoint:
@@ -2580,6 +2586,12 @@ app.patch('/api/admin/prizes/:id/given', requireAuth, async (req, res) => {
     }
 });
 
+// Отладочный middleware для /api/admin/users
+app.use('/api/admin/users', (req, res, next) => {
+    console.log(`🔍 MIDDLEWARE: ${req.method} ${req.path} - Query:`, req.query);
+    next();
+});
+
 // Получение списка пользователей
 app.get('/api/admin/users', requireAuth, async (req, res) => {
     try {
@@ -4851,6 +4863,16 @@ app.get('/api/admin/db-test', requireAuth, async (req, res) => {
             database: 'error'
         });
     }
+});
+
+// 404 обработчик для админ API
+app.use('/api/admin/*', (req, res) => {
+    console.log(`❌ 404 для админ API: ${req.method} ${req.originalUrl}`);
+    res.status(404).json({
+        success: false,
+        error: 'Admin API endpoint not found',
+        path: req.originalUrl
+    });
 });
 
 // === ЗАПУСК СЕРВЕРА ===
