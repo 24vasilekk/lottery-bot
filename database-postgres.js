@@ -185,19 +185,7 @@ class DatabasePostgres {
                 )
             `);
 
-            // 8. Таблица подписок пользователей
-            await client.query(`
-                CREATE TABLE IF NOT EXISTS user_channel_subscriptions (
-                    id SERIAL PRIMARY KEY,
-                    user_id INTEGER REFERENCES users(id),
-                    channel_id VARCHAR(100),
-                    subscribed_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    last_check TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    is_valid BOOLEAN DEFAULT TRUE,
-                    check_count INTEGER DEFAULT 0,
-                    UNIQUE(user_id, channel_id)
-                )
-            `);
+            // 8. Таблица подписок пользователей (удалена, заменена на таблицу ниже)
 
             // 9. Таблица настроек рулетки
             await client.query(`
@@ -360,6 +348,36 @@ class DatabasePostgres {
                     console.log('✅ Колонка win_chance добавлена');
                 } else {
                     console.log('✅ Колонка win_chance уже существует');
+                }
+
+                // Исправляем тип данных channel_id в user_channel_subscriptions если нужно
+                const checkChannelIdType = await client.query(`
+                    SELECT data_type 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'user_channel_subscriptions' 
+                    AND column_name = 'channel_id'
+                `);
+                
+                if (checkChannelIdType.rows.length > 0 && checkChannelIdType.rows[0].data_type === 'character varying') {
+                    console.log('📝 Исправляем тип данных channel_id в user_channel_subscriptions...');
+                    try {
+                        await client.query(`
+                            ALTER TABLE user_channel_subscriptions 
+                            ALTER COLUMN channel_id TYPE INTEGER USING channel_id::integer
+                        `);
+                        console.log('✅ Тип данных channel_id исправлен на INTEGER');
+                    } catch (typeError) {
+                        // Если не удается преобразовать, очищаем таблицу и меняем тип
+                        console.log('⚠️ Не удалось преобразовать тип, очищаем таблицу...');
+                        await client.query('DELETE FROM user_channel_subscriptions');
+                        await client.query(`
+                            ALTER TABLE user_channel_subscriptions 
+                            ALTER COLUMN channel_id TYPE INTEGER USING 1
+                        `);
+                        console.log('✅ Тип данных channel_id исправлен (таблица очищена)');
+                    }
+                } else {
+                    console.log('✅ Тип данных channel_id уже корректен');
                 }
                 
                 console.log('✅ Миграции завершены');
