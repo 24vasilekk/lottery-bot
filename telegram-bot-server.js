@@ -5414,31 +5414,7 @@ app.get('/api/admin/stats', async (req, res) => {
     }
 });
 
-// Получить список пользователей
-app.get('/api/admin/users', async (req, res) => {
-    try {
-        const { page = 1, limit = 20, search = '' } = req.query;
-        console.log('👥 Admin API: Запрос пользователей', { page, limit, search });
-        
-        const users = await db.getAllUsers(parseInt(limit), parseInt(page), search);
-        
-        res.json({
-            success: true,
-            users: users || [],
-            pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
-                total: users.length
-            }
-        });
-    } catch (error) {
-        console.error('❌ Ошибка получения пользователей:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Ошибка получения пользователей' 
-        });
-    }
-});
+// Дублирующий эндпоинт удален - используется версия с requireAuth выше
 
 // Получить список каналов
 app.get('/api/admin/channels', async (req, res) => {
