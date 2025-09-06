@@ -4808,6 +4808,18 @@ app.use((req, res) => {
 
 */
 
+// === ТЕСТОВЫЕ ЭНДПОИНТЫ ===
+
+// Простой тест API
+app.get('/api/admin/test', requireAuth, (req, res) => {
+    res.json({ 
+        success: true, 
+        message: 'API работает!', 
+        timestamp: new Date().toISOString(),
+        user: req.user || null
+    });
+});
+
 // === ЗАПУСК СЕРВЕРА ===
 
 // Переменная для фоновых задач
