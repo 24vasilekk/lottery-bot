@@ -670,16 +670,16 @@ class ChannelsPage {
 
     // Действия с каналами
     async showAddChannelModal() {
-        this.showNotification('Info'('В разработке', 'Функция добавления канала в разработке');
+        this.showNotification('Info', 'В разработке', 'Функция добавления канала в разработке');
     }
 
     async forceCheckChannels() {
         try {
-            this.showNotification('Info'('Проверка', 'Запуск принудительной проверки подписок...');
+            this.showNotification('Info', 'Проверка', 'Запуск принудительной проверки подписок...');
             
             await APIClient.channels.forceCheck();
             
-            this.showNotification('Success'('Успех', 'Проверка подписок запущена');
+            this.showNotification('Success', 'Успех', 'Проверка подписок запущена');
             
             // Обновляем статистику через несколько секунд
             setTimeout(() => {
@@ -689,65 +689,65 @@ class ChannelsPage {
             
         } catch (error) {
             console.error('Ошибка принудительной проверки:', error);
-            this.showNotification('Error'('Ошибка', 'Не удалось запустить проверку подписок');
+            this.showNotification('Error', 'Ошибка', 'Не удалось запустить проверку подписок');
         }
     }
 
     async showCreateHotOfferModal() {
-        this.showNotification('Info'('В разработке', 'Функция создания горячих предложений в разработке');
+        this.showNotification('Info', 'В разработке', 'Функция создания горячих предложений в разработке');
     }
 
     async viewChannelStats(channelId) {
-        this.showNotification('Info'('В разработке', 'Функция просмотра статистики канала в разработке');
+        this.showNotification('Info', 'В разработке', 'Функция просмотра статистики канала в разработке');
     }
 
     async editChannel(channelId) {
-        this.showNotification('Info'('В разработке', 'Функция редактирования канала в разработке');
+        this.showNotification('Info', 'В разработке', 'Функция редактирования канала в разработке');
     }
 
     async toggleChannelStatus(channelId, activate) {
         try {
             const action = activate ? 'активации' : 'деактивации';
-            this.showNotification('Info'('Обновление', `Процесс ${action} канала...`);
+            this.showNotification('Info', 'Обновление', `Процесс ${action} канала...`);
             
             await APIClient.channels.updateChannel(channelId, { is_active: activate });
             
-            this.showNotification('Success'('Успех', `Канал ${activate ? 'активирован' : 'деактивирован'}`);
+            this.showNotification('Success', 'Успех', `Канал ${activate ? 'активирован' : 'деактивирован'}`);
             this.loadChannels();
             this.loadChannelsStats();
             
         } catch (error) {
             console.error('Ошибка изменения статуса канала:', error);
-            this.showNotification('Error'('Ошибка', 'Не удалось изменить статус канала');
+            this.showNotification('Error', 'Ошибка', 'Не удалось изменить статус канала');
         }
     }
 
     async removeHotOffer(channelId) {
         try {
             await APIClient.channels.setHotOffer(channelId, false);
-            this.showNotification('Success'('Успех', 'Горячее предложение удалено');
+            this.showNotification('Success', 'Успех', 'Горячее предложение удалено');
             this.loadHotOffers();
             this.loadChannels();
         } catch (error) {
             console.error('Ошибка удаления горячего предложения:', error);
-            this.showNotification('Error'('Ошибка', 'Не удалось удалить горячее предложение');
+            this.showNotification('Error', 'Ошибка', 'Не удалось удалить горячее предложение');
         }
     }
 
     async showChannelActions(channelId) {
-        this.showNotification('Info'('В разработке', 'Дополнительные действия с каналами в разработке');
+        this.showNotification('Info', 'В разработке', 'Дополнительные действия с каналами в разработке');
     }
 
     async bulkActivateChannels() {
         try {
             const channels = Array.from(this.selectedChannels);
-            this.showNotification('Info'('Обновление', `Активация ${channels.length} каналов...`);
+            this.showNotification('Info', 'Обновление', `Активация ${channels.length} каналов...`);
             
             await Promise.all(channels.map(id => 
                 APIClient.channels.updateChannel(id, { is_active: true })
             ));
             
-            this.showNotification('Success'('Успех', `Активировано ${channels.length} каналов`);
+            this.showNotification('Success', 'Успех', `Активировано ${channels.length} каналов`);
             this.selectedChannels.clear();
             this.loadChannels();
             this.loadChannelsStats();
@@ -755,20 +755,20 @@ class ChannelsPage {
             
         } catch (error) {
             console.error('Ошибка массовой активации:', error);
-            this.showNotification('Error'('Ошибка', 'Не удалось активировать все каналы');
+            this.showNotification('Error', 'Ошибка', 'Не удалось активировать все каналы');
         }
     }
 
     async bulkDeactivateChannels() {
         try {
             const channels = Array.from(this.selectedChannels);
-            this.showNotification('Info'('Обновление', `Деактивация ${channels.length} каналов...`);
+            this.showNotification('Info', 'Обновление', `Деактивация ${channels.length} каналов...`);
             
             await Promise.all(channels.map(id => 
                 APIClient.channels.updateChannel(id, { is_active: false })
             ));
             
-            this.showNotification('Success'('Успех', `Деактивировано ${channels.length} каналов`);
+            this.showNotification('Success', 'Успех', `Деактивировано ${channels.length} каналов`);
             this.selectedChannels.clear();
             this.loadChannels();
             this.loadChannelsStats();
@@ -776,7 +776,7 @@ class ChannelsPage {
             
         } catch (error) {
             console.error('Ошибка массовой деактивации:', error);
-            this.showNotification('Error'('Ошибка', 'Не удалось деактивировать все каналы');
+            this.showNotification('Error', 'Ошибка', 'Не удалось деактивировать все каналы');
         }
     }
 

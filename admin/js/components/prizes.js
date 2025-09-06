@@ -367,7 +367,7 @@ class PrizesPage {
 
         } catch (error) {
             console.error('Ошибка загрузки статистики призов:', error);
-            this.showNotification('Error'('Ошибка', 'Не удалось загрузить статистику призов');
+            this.showNotification('Error', 'Ошибка', 'Не удалось загрузить статистику призов');
         }
     }
 
@@ -427,7 +427,7 @@ class PrizesPage {
 
         } catch (error) {
             console.error('Ошибка загрузки ожидающих призов:', error);
-            this.showNotification('Error'('Ошибка', 'Не удалось загрузить ожидающие призы');
+            this.showNotification('Error', 'Ошибка', 'Не удалось загрузить ожидающие призы');
             
             document.getElementById('pending-prizes-table-body').innerHTML = `
                 <tr>
@@ -557,7 +557,7 @@ class PrizesPage {
 
         } catch (error) {
             console.error('Ошибка загрузки выданных призов:', error);
-            this.showNotification('Error'('Ошибка', 'Не удалось загрузить выданные призы');
+            this.showNotification('Error', 'Ошибка', 'Не удалось загрузить выданные призы');
         }
     }
 
@@ -643,7 +643,7 @@ class PrizesPage {
 
     async loadPrizesStatistics() {
         // В данном случае показываем заглушку для статистики
-        this.showNotification('Info'('В разработке', 'Детальная статистика призов находится в разработке');
+        this.showNotification('Info', 'В разработке', 'Детальная статистика призов находится в разработке');
     }
 
     getPrizeInfo(prize) {
@@ -765,23 +765,23 @@ class PrizesPage {
     async markAsGiven(prizeId) {
         try {
             await APIClient.prizes.markPrizeAsGiven(prizeId);
-            this.showNotification('Success'('Успех', 'Приз отмечен как выданный');
+            this.showNotification('Success', 'Успех', 'Приз отмечен как выданный');
             this.loadTabContent();
             this.loadPrizesStats();
         } catch (error) {
             console.error('Ошибка отметки приза как выданного:', error);
-            this.showNotification('Error'('Ошибка', 'Не удалось отметить приз как выданный');
+            this.showNotification('Error', 'Ошибка', 'Не удалось отметить приз как выданный');
         }
     }
 
     async bulkMarkAsGiven() {
         try {
             const prizeIds = Array.from(this.selectedPrizes);
-            this.showNotification('Info'('Обновление', `Отмечаем ${prizeIds.length} призов как выданные...`);
+            this.showNotification('Info', 'Обновление', `Отмечаем ${prizeIds.length} призов как выданные...`);
             
             await Promise.all(prizeIds.map(id => APIClient.prizes.markPrizeAsGiven(id)));
             
-            this.showNotification('Success'('Успех', `Отмечено ${prizeIds.length} призов как выданные`);
+            this.showNotification('Success', 'Успех', `Отмечено ${prizeIds.length} призов как выданные`);
             this.selectedPrizes.clear();
             this.loadTabContent();
             this.loadPrizesStats();
@@ -789,30 +789,30 @@ class PrizesPage {
             
         } catch (error) {
             console.error('Ошибка массовой отметки призов:', error);
-            this.showNotification('Error'('Ошибка', 'Не удалось отметить все призы как выданные');
+            this.showNotification('Error', 'Ошибка', 'Не удалось отметить все призы как выданные');
         }
     }
 
     async showGiveCustomPrizeModal() {
-        this.showNotification('Info'('В разработке', 'Функция выдачи пользовательских призов в разработке');
+        this.showNotification('Info', 'В разработке', 'Функция выдачи пользовательских призов в разработке');
     }
 
     async viewPrizeDetails(prizeId) {
-        this.showNotification('Info'('В разработке', 'Функция просмотра деталей приза в разработке');
+        this.showNotification('Info', 'В разработке', 'Функция просмотра деталей приза в разработке');
     }
 
     async contactUser(telegramId) {
-        this.showNotification('Info'('В разработке', 'Функция связи с пользователем в разработке');
+        this.showNotification('Info', 'В разработке', 'Функция связи с пользователем в разработке');
     }
 
     async exportPrizes() {
         try {
-            this.showNotification('Info'('Экспорт', 'Подготовка файла для экспорта...');
+            this.showNotification('Info', 'Экспорт', 'Подготовка файла для экспорта...');
             await APIClient.analytics.exportData('prizes', 'csv');
-            this.showNotification('Success'('Успех', 'Файл призов успешно экспортирован');
+            this.showNotification('Success', 'Успех', 'Файл призов успешно экспортирован');
         } catch (error) {
             console.error('Ошибка экспорта призов:', error);
-            this.showNotification('Error'('Ошибка', 'Не удалось экспортировать призы');
+            this.showNotification('Error', 'Ошибка', 'Не удалось экспортировать призы');
         }
     }
 

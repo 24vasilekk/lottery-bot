@@ -12,6 +12,15 @@ class UsersPage {
         this.selectedUsers = new Set();
     }
 
+    // Безопасный вызов уведомлений
+    showNotification(type, title, message) {
+        if (window.NotificationManager && typeof window.NotificationManager[`show${type}`] === 'function') {
+            window.NotificationManager[`show${type}`](title, message);
+        } else {
+            console.log(`${type}: ${title} - ${message}`);
+        }
+    }
+
     async render() {
         return `
             <div class="users-page">
@@ -241,7 +250,7 @@ class UsersPage {
         } catch (error) {
             console.error('Ошибка загрузки статистики пользователей:', error);
             if (window.NotificationManager && typeof window.NotificationManager.showError === 'function') {
-                window.NotificationManager.showError('Ошибка', 'Не удалось загрузить статистику пользователей');
+                window.this.showNotification('Error', 'Ошибка', 'Не удалось загрузить статистику пользователей');
             } else {
                 console.error('Не удалось загрузить статистику пользователей');
             }
@@ -273,7 +282,7 @@ class UsersPage {
         } catch (error) {
             console.error('Ошибка загрузки пользователей:', error);
             if (window.NotificationManager && typeof window.NotificationManager.showError === 'function') {
-                window.NotificationManager.showError('Ошибка', 'Не удалось загрузить список пользователей');
+                window.this.showNotification('Error', 'Ошибка', 'Не удалось загрузить список пользователей');
             } else {
                 console.error('Не удалось загрузить список пользователей');
             }
@@ -505,45 +514,45 @@ class UsersPage {
     // Модальные окна и действия
     async viewUser(userId) {
         // Реализация просмотра пользователя
-        NotificationManager.showInfo('В разработке', 'Функция просмотра пользователя в разработке');
+        this.showNotification('Info', 'В разработке', 'Функция просмотра пользователя в разработке');
     }
 
     async editUser(userId) {
         // Реализация редактирования пользователя
-        NotificationManager.showInfo('В разработке', 'Функция редактирования пользователя в разработке');
+        this.showNotification('Info', 'В разработке', 'Функция редактирования пользователя в разработке');
     }
 
     async messageUser(userId) {
         // Реализация отправки сообщения пользователю
-        NotificationManager.showInfo('В разработке', 'Функция отправки сообщения в разработке');
+        this.showNotification('Info', 'В разработке', 'Функция отправки сообщения в разработке');
     }
 
     async showUserActions(userId) {
         // Показать дополнительные действия
-        NotificationManager.showInfo('В разработке', 'Дополнительные действия в разработке');
+        this.showNotification('Info', 'В разработке', 'Дополнительные действия в разработке');
     }
 
     async showAddUserModal() {
-        NotificationManager.showInfo('В разработке', 'Функция добавления пользователя в разработке');
+        this.showNotification('Info', 'В разработке', 'Функция добавления пользователя в разработке');
     }
 
     async showBulkMessageModal() {
-        NotificationManager.showInfo('В разработке', 'Функция массовой рассылки в разработке');
+        this.showNotification('Info', 'В разработке', 'Функция массовой рассылки в разработке');
     }
 
     async showBulkBanModal() {
-        NotificationManager.showInfo('В разработке', 'Функция массовой блокировки в разработке');
+        this.showNotification('Info', 'В разработке', 'Функция массовой блокировки в разработке');
     }
 
     async exportUsers() {
         try {
-            NotificationManager.showInfo('Экспорт', 'Подготовка файла для экспорта...');
+            this.showNotification('Info', 'Экспорт', 'Подготовка файла для экспорта...');
             // Временная заглушка для экспорта
             await new Promise(resolve => setTimeout(resolve, 1000));
-            NotificationManager.showSuccess('Успех', 'Файл пользователей успешно экспортирован');
+            this.showNotification('Success', 'Успех', 'Файл пользователей успешно экспортирован');
         } catch (error) {
             console.error('Ошибка экспорта пользователей:', error);
-            NotificationManager.showError('Ошибка', 'Не удалось экспортировать пользователей');
+            this.showNotification('Error', 'Ошибка', 'Не удалось экспортировать пользователей');
         }
     }
 
