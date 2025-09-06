@@ -411,6 +411,14 @@ class UsersPage {
                                 title="Сообщение">
                             <i data-lucide="message-circle"></i>
                         </button>
+                        <button class="btn btn-sm btn-ghost" onclick="window.usersPage.showBalanceModal(${user.telegram_id})" 
+                                title="Управление балансом">
+                            <i data-lucide="wallet"></i>
+                        </button>
+                        <button class="btn btn-sm btn-ghost" onclick="window.usersPage.showWinChanceModal(${user.telegram_id})" 
+                                title="Шанс победы">
+                            <i data-lucide="percent"></i>
+                        </button>
                         <button class="btn btn-sm btn-ghost" onclick="window.usersPage.showUserActions(${user.id})" 
                                 title="Еще">
                             <i data-lucide="more-horizontal"></i>
@@ -553,6 +561,238 @@ class UsersPage {
         } catch (error) {
             console.error('Ошибка экспорта пользователей:', error);
             this.showNotification('Error', 'Ошибка', 'Не удалось экспортировать пользователей');
+        }
+    }
+
+    async showBalanceModal(telegramId) {
+        // Получаем данные пользователя
+        const response = await fetch(`/api/admin/users?search=${telegramId}`);
+        const data = await response.json();
+        const user = data.users?.find(u => u.telegram_id == telegramId);
+        
+        if (!user) {
+            this.showNotification('Error', 'Ошибка', 'Пользователь не найден');
+            return;
+        }
+
+        const modalContent = `
+            <div class="modal-header">
+                <h3 class="modal-title">Управление балансом</h3>
+                <p class="modal-subtitle">
+                    ${user.first_name} ${user.last_name || ''} (@${user.username || 'нет'}) - ID: ${telegramId}
+                </p>
+                <button class="modal-close" onclick="window.app.closeModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="balance-info">
+                    <div class="current-balance">
+                        <i data-lucide="star" class="balance-icon"></i>
+                        <span>Текущий баланс: <strong>${user.stars || 0} звезд</strong></span>
+                    </div>
+                </div>
+                
+                <form id="balance-form">
+                    <div class="form-group">
+                        <label class="form-label">Операция</label>
+                        <select class="form-select" id="balance-operation" required>
+                            <option value="">Выберите операцию</option>
+                            <option value="add">Добавить звезды</option>
+                            <option value="subtract">Списать звезды</option>
+                            <option value="set">Установить баланс</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Количество звезд</label>
+                        <input type="number" class="form-input" id="balance-amount" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Причина изменения</label>
+                        <input type="text" class="form-input" id="balance-reason" 
+                               placeholder="Например: Компенсация за ошибку" required>
+                    </div>
+                </form>
+                
+                <div class="balance-history">
+                    <h4>История операций</h4>
+                    <div id="balance-history-content" class="loading">Загрузка...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="window.app.closeModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="window.usersPage.executeBalanceChange(${telegramId})">
+                    Применить изменения
+                </button>
+            </div>
+        `;
+        
+        // Показываем модальное окно
+        window.app.showModal(modalContent);
+        
+        // Загружаем историю баланса
+        this.loadBalanceHistory(telegramId);
+    }
+
+    async showWinChanceModal(telegramId) {
+        // Получаем данные пользователя
+        const response = await fetch(`/api/admin/users?search=${telegramId}`);
+        const data = await response.json();
+        const user = data.users?.find(u => u.telegram_id == telegramId);
+        
+        if (!user) {
+            this.showNotification('Error', 'Ошибка', 'Пользователь не найден');
+            return;
+        }
+
+        const modalContent = `
+            <div class="modal-header">
+                <h3 class="modal-title">Управление шансом победы</h3>
+                <p class="modal-subtitle">
+                    ${user.first_name} ${user.last_name || ''} (@${user.username || 'нет'}) - ID: ${telegramId}
+                </p>
+                <button class="modal-close" onclick="window.app.closeModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="win-chance-info">
+                    <div class="current-chance">
+                        <i data-lucide="percent" class="chance-icon"></i>
+                        <span>Текущий шанс: <strong>${user.win_chance || 0}%</strong></span>
+                    </div>
+                </div>
+                
+                <form id="win-chance-form">
+                    <div class="form-group">
+                        <label class="form-label">Новый шанс победы (%)</label>
+                        <input type="number" class="form-input" id="win-chance-percentage" 
+                               min="0" max="100" step="0.1" value="${user.win_chance || 0}" required>
+                        <small class="form-help">От 0.0% до 100.0%</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Причина изменения</label>
+                        <input type="text" class="form-input" id="win-chance-reason" 
+                               placeholder="Например: VIP статус" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="window.app.closeModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="window.usersPage.executeWinChanceChange(${telegramId})">
+                    Установить шанс
+                </button>
+            </div>
+        `;
+        
+        // Показываем модальное окно
+        window.app.showModal(modalContent);
+    }
+
+    async loadBalanceHistory(telegramId) {
+        try {
+            const response = await fetch(`/api/admin/users/${telegramId}/balance-history?limit=10`);
+            const data = await response.json();
+            
+            const historyContainer = document.getElementById('balance-history-content');
+            
+            if (data.success && data.history.length > 0) {
+                historyContainer.innerHTML = data.history.map(record => `
+                    <div class="history-record">
+                        <div class="record-info">
+                            <span class="record-amount ${record.amount >= 0 ? 'positive' : 'negative'}">
+                                ${record.amount >= 0 ? '+' : ''}${record.amount} звезд
+                            </span>
+                            <span class="record-type">${record.transaction_type}</span>
+                        </div>
+                        <div class="record-description">${record.description}</div>
+                        <div class="record-date">${new Date(record.created_date).toLocaleString('ru-RU')}</div>
+                    </div>
+                `).join('');
+            } else {
+                historyContainer.innerHTML = '<div class="empty-history">История операций пуста</div>';
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки истории баланса:', error);
+            document.getElementById('balance-history-content').innerHTML = 
+                '<div class="error-history">Ошибка загрузки истории</div>';
+        }
+    }
+
+    async executeBalanceChange(telegramId) {
+        const operation = document.getElementById('balance-operation').value;
+        const amount = parseInt(document.getElementById('balance-amount').value);
+        const reason = document.getElementById('balance-reason').value;
+        
+        if (!operation || !amount || !reason) {
+            this.showNotification('Error', 'Ошибка', 'Заполните все обязательные поля');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/admin/users/stars', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    telegramId: telegramId,
+                    operation: operation,
+                    amount: amount,
+                    reason: reason
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showNotification('Success', 'Успешно', 
+                    `Баланс изменен: ${data.oldBalance} → ${data.newBalance} звезд`);
+                window.app.closeModal();
+                this.loadUsers(); // Обновляем таблицу пользователей
+            } else {
+                this.showNotification('Error', 'Ошибка', data.error || 'Не удалось изменить баланс');
+            }
+        } catch (error) {
+            console.error('Ошибка изменения баланса:', error);
+            this.showNotification('Error', 'Ошибка', 'Не удалось изменить баланс');
+        }
+    }
+
+    async executeWinChanceChange(telegramId) {
+        const percentage = parseFloat(document.getElementById('win-chance-percentage').value);
+        const reason = document.getElementById('win-chance-reason').value;
+        
+        if (isNaN(percentage) || percentage < 0 || percentage > 100 || !reason) {
+            this.showNotification('Error', 'Ошибка', 'Заполните все поля корректно');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/admin/users/${telegramId}/win-chance`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    percentage: percentage,
+                    reason: reason
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showNotification('Success', 'Успешно', 
+                    `Шанс победы установлен: ${data.newWinChance}%`);
+                window.app.closeModal();
+                this.loadUsers(); // Обновляем таблицу пользователей
+            } else {
+                this.showNotification('Error', 'Ошибка', data.error || 'Не удалось установить шанс');
+            }
+        } catch (error) {
+            console.error('Ошибка установки шанса победы:', error);
+            this.showNotification('Error', 'Ошибка', 'Не удалось установить шанс победы');
         }
     }
 

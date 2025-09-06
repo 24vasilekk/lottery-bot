@@ -106,7 +106,8 @@ class DatabasePostgres {
                     is_active BOOLEAN DEFAULT TRUE,
                     completed_tasks TEXT DEFAULT '[]',
                     task_statuses TEXT DEFAULT '{}',
-                    friend_spins_used INTEGER DEFAULT 0
+                    friend_spins_used INTEGER DEFAULT 0,
+                    win_chance DECIMAL(5,2) DEFAULT 0.0
                 )
             `);
 
@@ -340,6 +341,25 @@ class DatabasePostgres {
                     console.log('✅ Колонка updated_at добавлена');
                 } else {
                     console.log('✅ Колонка updated_at уже существует');
+                }
+
+                // Проверяем существование колонки win_chance в users
+                const checkWinChance = await client.query(`
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'users' 
+                    AND column_name = 'win_chance'
+                `);
+                
+                if (checkWinChance.rows.length === 0) {
+                    console.log('📝 Добавляем колонку win_chance в users...');
+                    await client.query(`
+                        ALTER TABLE users 
+                        ADD COLUMN win_chance DECIMAL(5,2) DEFAULT 0.0
+                    `);
+                    console.log('✅ Колонка win_chance добавлена');
+                } else {
+                    console.log('✅ Колонка win_chance уже существует');
                 }
                 
                 console.log('✅ Миграции завершены');
@@ -955,6 +975,39 @@ class DatabasePostgres {
             return result.rows[0];
         }
         return null;
+    }
+
+    async setUserWinChance(telegramId, winChance, reason) {
+        const query = `
+            UPDATE users 
+            SET win_chance = $2
+            WHERE telegram_id = $1
+            RETURNING *
+        `;
+        
+        const result = await this.pool.query(query, [telegramId, winChance]);
+        
+        if (result.rows.length > 0) {
+            // Записываем лог изменения шанса победы
+            await this.addStarsTransaction({
+                user_id: telegramId,
+                amount: 0,
+                transaction_type: 'win_chance_change',
+                description: `Изменение шанса победы на ${winChance}%. Причина: ${reason}`
+            });
+            return result.rows[0];
+        }
+        return null;
+    }
+
+    async getUserWinChance(telegramId) {
+        const query = 'SELECT win_chance FROM users WHERE telegram_id = $1';
+        const result = await this.pool.query(query, [telegramId]);
+        
+        if (result.rows.length > 0) {
+            return parseFloat(result.rows[0].win_chance) || 0.0;
+        }
+        return 0.0;
     }
 
     // === МЕТОДЫ ДЛЯ НАСТРОЕК РУЛЕТКИ ===

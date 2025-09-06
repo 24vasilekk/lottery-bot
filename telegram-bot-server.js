@@ -2741,6 +2741,132 @@ app.post('/api/admin/users/stars', requireAuth, async (req, res) => {
     }
 });
 
+// Endpoint для управления шансами победы пользователя
+app.post('/api/admin/users/:userId/win-chance', requireAuth, async (req, res) => {
+    const { userId } = req.params;
+    const { percentage, reason } = req.body;
+    
+    // Валидация входных данных
+    if (!userId || isNaN(parseInt(userId))) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Неверный ID пользователя' 
+        });
+    }
+    
+    if (!percentage || isNaN(parseFloat(percentage)) || percentage < 0 || percentage > 100) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Шанс победы должен быть числом от 0 до 100' 
+        });
+    }
+    
+    if (!reason || reason.trim().length < 3) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Причина изменения обязательна (минимум 3 символа)' 
+        });
+    }
+
+    try {
+        const telegramId = parseInt(userId);
+        
+        // Получаем пользователя
+        const user = await db.getUser(telegramId);
+        if (!user) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Пользователь не найден' 
+            });
+        }
+
+        // Устанавливаем новый шанс победы
+        const winChance = parseFloat(percentage);
+        await db.setUserWinChance(telegramId, winChance, reason.trim());
+        
+        // Логируем изменение
+        console.log(`✅ Админ установил шанс победы для пользователя ${telegramId}: ${winChance}% (причина: ${reason})`);
+        
+        res.json({ 
+            success: true, 
+            userId: telegramId,
+            newWinChance: winChance,
+            reason: reason.trim()
+        });
+    } catch (error) {
+        console.error('❌ Ошибка установки шанса победы:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка при установке шанса победы' 
+        });
+    }
+});
+
+// Endpoint для получения истории изменения баланса пользователя
+app.get('/api/admin/users/:userId/balance-history', requireAuth, async (req, res) => {
+    const { userId } = req.params;
+    const { limit = 50, offset = 0 } = req.query;
+    
+    if (!userId || isNaN(parseInt(userId))) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Неверный ID пользователя' 
+        });
+    }
+
+    try {
+        const telegramId = parseInt(userId);
+        
+        // Получаем пользователя
+        const user = await db.getUser(telegramId);
+        if (!user) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Пользователь не найден' 
+            });
+        }
+
+        // Получаем историю транзакций
+        const history = await db.query(`
+            SELECT 
+                id,
+                amount,
+                transaction_type,
+                description,
+                created_date
+            FROM stars_transactions 
+            WHERE user_id = ?
+            ORDER BY created_date DESC
+            LIMIT ? OFFSET ?
+        `, [telegramId, parseInt(limit), parseInt(offset)]);
+
+        // Получаем общее количество записей для пагинации
+        const totalResult = await db.query(`
+            SELECT COUNT(*) as total 
+            FROM stars_transactions 
+            WHERE user_id = ?
+        `, [telegramId]);
+
+        res.json({ 
+            success: true,
+            userId: telegramId,
+            currentBalance: user.stars || 0,
+            history: history.rows || [],
+            pagination: {
+                total: totalResult.rows?.[0]?.total || 0,
+                limit: parseInt(limit),
+                offset: parseInt(offset)
+            }
+        });
+    } catch (error) {
+        console.error('❌ Ошибка получения истории баланса:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка при получении истории баланса' 
+        });
+    }
+});
+
 // API для ручных подкруток пользователям
 app.post('/api/admin/manual-spin', requireAuth, async (req, res) => {
     const { userId, spinType, reason } = req.body;
