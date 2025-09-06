@@ -482,3 +482,184 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--text-muted);
 }
+
+/* Стили для таблицы пользователей */
+.user-stats {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    min-width: 200px;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.stat-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.user-activity {
+    min-width: 160px;
+}
+
+.activity-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.activity-date {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.user-status {
+    min-width: 100px;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-badge.status-active {
+    background: rgba(34, 197, 94, 0.1);
+    color: rgb(34, 197, 94);
+}
+
+.status-badge.status-banned {
+    background: rgba(239, 68, 68, 0.1);
+    color: rgb(239, 68, 68);
+}
+
+.status-icon {
+    width: 12px;
+    height: 12px;
+}
+
+.actions-column {
+    min-width: 200px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.action-buttons .btn {
+    padding: 6px 8px;
+}
+
+.action-buttons .btn i {
+    width: 14px;
+    height: 14px;
+}
+
+/* Модальные окна для управления пользователями */
+.balance-info,
+.win-chance-info {
+    background: var(--bg-secondary);
+    padding: 15px;
+    border-radius: var(--border-radius);
+    margin-bottom: 20px;
+}
+
+.current-balance,
+.current-chance {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.balance-icon,
+.chance-icon {
+    width: 20px;
+    height: 20px;
+    color: var(--primary-color);
+}
+
+.balance-history {
+    margin-top: 20px;
+}
+
+.balance-history h4 {
+    margin-bottom: 15px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.history-record {
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    margin-bottom: 8px;
+    background: var(--bg-primary);
+}
+
+.record-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.record-amount {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.record-amount.positive {
+    color: rgb(34, 197, 94);
+}
+
+.record-amount.negative {
+    color: rgb(239, 68, 68);
+}
+
+.record-type {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.record-description {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.record-date {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.empty-history,
+.error-history {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted);
+}

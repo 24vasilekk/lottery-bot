@@ -838,6 +838,7 @@ let app;
 
 document.addEventListener('DOMContentLoaded', () => {
     app = new AdminApp();
+    window.app = app; // Экспортируем в window для доступа из других компонентов
 });
 
 // Глобальная обработка ошибок

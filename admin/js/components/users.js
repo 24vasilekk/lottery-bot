@@ -350,7 +350,7 @@ class UsersPage {
                 
                 <td class="user-info">
                     <div class="user-avatar">
-                        <img src="${user.avatar_url || '/admin/images/default-avatar.png'}" 
+                        <img src="${user.avatar_url || '/admin/images/default-avatar.svg'}" 
                              alt="Avatar" class="avatar-img">
                     </div>
                     <div class="user-details">
