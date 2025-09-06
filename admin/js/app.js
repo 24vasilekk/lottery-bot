@@ -9,6 +9,15 @@ class AdminApp {
         this.init();
     }
 
+    // Безопасный вызов уведомлений
+    showNotification(type, title, message) {
+        if (window.NotificationManager && typeof window.NotificationManager[`show${type}`] === 'function') {
+            window.NotificationManager[`show${type}`](title, message);
+        } else {
+            console.log(`${type}: ${title} - ${message}`);
+        }
+    }
+
     async init() {
         try {
             console.log('🚀 Инициализация админ панели...');
@@ -59,7 +68,7 @@ class AdminApp {
             
         } catch (error) {
             console.error('Ошибка инициализации:', error);
-            NotificationManager.showError('Ошибка загрузки админ панели', error.message);
+            this.showNotification('Error', 'Ошибка загрузки админ панели', error.message);
             this.hideLoader();
         }
     }
@@ -303,7 +312,7 @@ class AdminApp {
             
         } catch (error) {
             console.error(`Ошибка загрузки страницы ${page}:`, error);
-            NotificationManager.showError('Ошибка загрузки страницы', error.message);
+            this.showNotification('Error', 'Ошибка загрузки страницы', error.message);
         } finally {
             this.isLoading = false;
             this.hidePageLoader();
@@ -549,7 +558,7 @@ class AdminApp {
         const reason = document.getElementById('spin-reason').value;
         
         if (!userId) {
-            NotificationManager.showError('Ошибка', 'Введите Telegram ID пользователя');
+            this.showNotification('Error', 'Ошибка', 'Введите Telegram ID пользователя');
             return;
         }
         
@@ -559,11 +568,11 @@ class AdminApp {
                 reason: reason || 'Ручная выдача администратором'
             });
             
-            NotificationManager.showSuccess('Успешно', 'Прокрутка выдана пользователю');
+            this.showNotification('Success', 'Успешно', 'Прокрутка выдана пользователю');
             this.closeModal();
             
         } catch (error) {
-            NotificationManager.showError('Ошибка', 'Не удалось выдать прокрутку: ' + error.message);
+            this.showNotification('Error', 'Ошибка', 'Не удалось выдать прокрутку: ' + error.message);
         }
     }
 
@@ -633,7 +642,7 @@ class AdminApp {
         const prizeDescription = document.getElementById('prize-description').value;
         
         if (!userId || !prizeType) {
-            NotificationManager.showError('Ошибка', 'Заполните все обязательные поля');
+            this.showNotification('Error', 'Ошибка', 'Заполните все обязательные поля');
             return;
         }
         
@@ -651,11 +660,11 @@ class AdminApp {
             
             await APIClient.post('/api/admin/prizes/give', prizeData);
             
-            NotificationManager.showSuccess('Успешно', 'Приз выдан пользователю');
+            this.showNotification('Success', 'Успешно', 'Приз выдан пользователю');
             this.closeModal();
             
         } catch (error) {
-            NotificationManager.showError('Ошибка', 'Не удалось выдать приз: ' + error.message);
+            this.showNotification('Error', 'Ошибка', 'Не удалось выдать приз: ' + error.message);
         }
     }
 
@@ -829,5 +838,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // Глобальная обработка ошибок
 window.addEventListener('unhandledrejection', (event) => {
     console.error('Необработанная ошибка:', event.reason);
-    NotificationManager.showError('Системная ошибка', 'Произошла неожиданная ошибка');
+    if (window.app && typeof window.app.showNotification === 'function') {
+        window.app.showNotification('Error', 'Системная ошибка', 'Произошла неожиданная ошибка');
+    } else {
+        console.error('Системная ошибка: Произошла неожиданная ошибка');
+    }
 });

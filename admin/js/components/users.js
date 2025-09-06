@@ -240,7 +240,11 @@ class UsersPage {
 
         } catch (error) {
             console.error('Ошибка загрузки статистики пользователей:', error);
-            NotificationManager.showError('Ошибка', 'Не удалось загрузить статистику пользователей');
+            if (window.NotificationManager && typeof window.NotificationManager.showError === 'function') {
+                window.NotificationManager.showError('Ошибка', 'Не удалось загрузить статистику пользователей');
+            } else {
+                console.error('Не удалось загрузить статистику пользователей');
+            }
         }
     }
 
@@ -268,7 +272,11 @@ class UsersPage {
 
         } catch (error) {
             console.error('Ошибка загрузки пользователей:', error);
-            NotificationManager.showError('Ошибка', 'Не удалось загрузить список пользователей');
+            if (window.NotificationManager && typeof window.NotificationManager.showError === 'function') {
+                window.NotificationManager.showError('Ошибка', 'Не удалось загрузить список пользователей');
+            } else {
+                console.error('Не удалось загрузить список пользователей');
+            }
             
             // Показать сообщение об ошибке в таблице
             document.getElementById('users-table-body').innerHTML = `

@@ -5179,7 +5179,29 @@ app.get('/api/admin/stats', async (req, res) => {
     try {
         console.log('📊 Admin API: Запрос статистики');
         
-        const stats = await db.getGeneralStats();
+        // Получаем статистику прямыми запросами так как getGeneralStats не существует
+        const totalUsers = await new Promise((resolve, reject) => {
+            db.db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
+                if (err) reject(err);
+                else resolve(row.count || 0);
+            });
+        });
+
+        const activeUsers = await new Promise((resolve, reject) => {
+            db.db.get('SELECT COUNT(*) as count FROM users WHERE last_activity > datetime("now", "-1 day")', (err, row) => {
+                if (err) reject(err);
+                else resolve(row.count || 0);
+            });
+        });
+
+        const stats = {
+            total_users: totalUsers,
+            active_users: activeUsers,
+            total_stars: 0,
+            total_spins: 0,
+            today_users: 0,
+            today_spins: 0
+        };
         
         res.json({
             success: true,

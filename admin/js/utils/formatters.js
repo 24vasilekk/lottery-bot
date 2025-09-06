@@ -363,6 +363,27 @@ class Formatters {
         
         return 'Другой';
     }
+
+    // Экранирование HTML
+    static escapeHtml(text) {
+        if (!text || typeof text !== 'string') return '';
+        
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Безопасное отображение HTML
+    static sanitizeHtml(html) {
+        if (!html || typeof html !== 'string') return '';
+        
+        return html
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
 }
 
 // Экспорт для использования в других модулях
