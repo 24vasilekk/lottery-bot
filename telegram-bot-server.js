@@ -5369,7 +5369,7 @@ app.get('/api/channel-info/:username', async (req, res) => {
 
 
 // Получить статистику для дашборда
-app.get('/api/admin/stats', async (req, res) => {
+app.get('/api/admin/stats', requireAuth, async (req, res) => {
     try {
         console.log('📊 Admin API: Запрос статистики');
         

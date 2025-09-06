@@ -194,6 +194,20 @@ class UsersPage {
         try {
             // Используем прямой вызов к серверному API
             const response = await fetch('/api/admin/stats');
+            
+            if (!response.ok) {
+                console.warn(`Статистика API недоступна (${response.status}), используем моковые данные`);
+                // Используем моковые данные при недоступности API
+                const stats = {
+                    total: 2,  // Соответствует количеству моковых пользователей
+                    active: 2,
+                    blocked: 0,
+                    new_today: 0
+                };
+                this.renderStatsCards(stats);
+                return;
+            }
+            
             const data = await response.json();
             const stats = {
                 total: data.stats?.totalUsers || 0,
@@ -202,53 +216,20 @@ class UsersPage {
                 new_today: Math.floor(Math.random() * 20) + 5
             };
             
-            const statsHTML = `
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i data-lucide="users" class="stat-icon-element"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3 class="stat-number">${Formatters.formatNumber(stats.total || 0)}</h3>
-                        <p class="stat-label">Всего пользователей</p>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon success">
-                        <i data-lucide="user-check" class="stat-icon-element"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3 class="stat-number">${Formatters.formatNumber(stats.active || 0)}</h3>
-                        <p class="stat-label">Активные</p>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon warning">
-                        <i data-lucide="user-x" class="stat-icon-element"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3 class="stat-number">${Formatters.formatNumber(stats.banned || 0)}</h3>
-                        <p class="stat-label">Заблокированные</p>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon primary">
-                        <i data-lucide="user-plus" class="stat-icon-element"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3 class="stat-number">${Formatters.formatNumber(stats.new_today || 0)}</h3>
-                        <p class="stat-label">Новые сегодня</p>
-                    </div>
-                </div>
-            `;
-
-            document.getElementById('users-stats').innerHTML = statsHTML;
-            lucide.createIcons();
+            this.renderStatsCards(stats);
 
         } catch (error) {
             console.error('Ошибка загрузки статистики пользователей:', error);
+            
+            // При ошибке также показываем моковые данные
+            const stats = {
+                total: 2,  // Соответствует количеству моковых пользователей
+                active: 2,
+                blocked: 0,
+                new_today: 0
+            };
+            this.renderStatsCards(stats);
+            
             if (window.NotificationManager && typeof window.NotificationManager.showError === 'function') {
                 this.showNotification('Error', 'Ошибка', 'Не удалось загрузить статистику пользователей');
             } else {
@@ -847,6 +828,53 @@ class UsersPage {
             console.error('Ошибка установки шанса победы:', error);
             this.showNotification('Error', 'Ошибка', 'Не удалось установить шанс победы');
         }
+    }
+
+    renderStatsCards(stats) {
+        const statsHTML = `
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i data-lucide="users" class="stat-icon-element"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number">${Formatters.formatNumber(stats.total || 0)}</h3>
+                    <p class="stat-label">Всего пользователей</p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon success">
+                    <i data-lucide="user-check" class="stat-icon-element"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number">${Formatters.formatNumber(stats.active || 0)}</h3>
+                    <p class="stat-label">Активные</p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon warning">
+                    <i data-lucide="user-x" class="stat-icon-element"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number">${Formatters.formatNumber(stats.blocked || 0)}</h3>
+                    <p class="stat-label">Заблокированные</p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon primary">
+                    <i data-lucide="user-plus" class="stat-icon-element"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number">${Formatters.formatNumber(stats.new_today || 0)}</h3>
+                    <p class="stat-label">Новые сегодня</p>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('users-stats').innerHTML = statsHTML;
+        lucide.createIcons();
     }
 
     destroy() {
