@@ -259,6 +259,14 @@ class UsersPage {
 
     async loadUsers() {
         try {
+            // Сначала проверим доступность API
+            try {
+                const testResponse = await fetch('/api/admin/test');
+                console.log('API тест:', testResponse.status, testResponse.ok ? '✅' : '❌');
+            } catch (testError) {
+                console.warn('API тест не прошел:', testError);
+            }
+            
             // Используем прямой вызов к серверному API  
             const params = new URLSearchParams({
                 page: this.currentPage.toString(),
@@ -273,7 +281,7 @@ class UsersPage {
             
             if (!response.ok) {
                 // Если API недоступен, используем моковые данные
-                console.warn('API недоступен, используем моковые данные');
+                console.warn(`API недоступен (${response.status}), используем моковые данные:`, response.statusText);
                 const mockUsers = [
                     {
                         id: 1,
