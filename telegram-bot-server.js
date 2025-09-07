@@ -434,6 +434,117 @@ app.use('/api/', apiLimiter);
 
 app.use(express.json({ limit: '10mb' }));
 
+// ТЕСТОВЫЙ endpoint для отладки win-chance (без авторизации)
+app.post('/api/debug/win-chance/:userId', async (req, res) => {
+    const { userId } = req.params;
+    const { winChance, reason } = req.body;
+    
+    try {
+        console.log(`🐛 DEBUG: Попытка изменить win_chance для пользователя ${userId}: ${winChance}% (причина: ${reason})`);
+        
+        // Проверяем базовые данные
+        if (!userId || isNaN(parseInt(userId))) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Неверный ID пользователя',
+                debug: { userId, type: typeof userId }
+            });
+        }
+        
+        if (winChance === undefined || isNaN(parseFloat(winChance)) || winChance < 0 || winChance > 100) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Шанс победы должен быть числом от 0 до 100',
+                debug: { winChance, type: typeof winChance }
+            });
+        }
+        
+        if (!reason || reason.trim().length < 3) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Причина изменения обязательна (минимум 3 символа)',
+                debug: { reason, length: reason?.length }
+            });
+        }
+        
+        console.log('🐛 DEBUG: Валидация прошла, получаем пользователя...');
+        
+        // Проверяем существование пользователя
+        const user = await db.getUser(userId);
+        if (!user) {
+            console.log('🐛 DEBUG: Пользователь не найден');
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Пользователь не найден',
+                debug: { userId, userFound: false }
+            });
+        }
+        
+        console.log('🐛 DEBUG: Пользователь найден:', {
+            telegramId: user.telegram_id,
+            currentWinChance: user.win_chance,
+            hasSetUserWinChanceMethod: typeof db.setUserWinChance
+        });
+        
+        // Проверяем наличие метода
+        if (typeof db.setUserWinChance !== 'function') {
+            console.log('🐛 DEBUG: Метод setUserWinChance не найден!');
+            return res.status(500).json({
+                success: false,
+                error: 'Метод setUserWinChance не реализован в текущей версии БД',
+                debug: { 
+                    dbType: db.constructor.name,
+                    availableMethods: Object.getOwnPropertyNames(db).filter(name => name.includes('Win') || name.includes('Chance'))
+                }
+            });
+        }
+        
+        console.log('🐛 DEBUG: Вызываем setUserWinChance...');
+        
+        // Изменяем win_chance
+        const updatedUser = await db.setUserWinChance(userId, parseFloat(winChance), reason);
+        
+        console.log('🐛 DEBUG: Результат setUserWinChance:', updatedUser);
+        
+        if (!updatedUser) {
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Не удалось обновить шанс победы',
+                debug: { updatedUser }
+            });
+        }
+        
+        console.log(`🐛 DEBUG: Успешно обновлен win_chance для пользователя ${userId}: ${winChance}%`);
+        
+        res.json({ 
+            success: true, 
+            message: 'Шанс победы обновлен успешно (DEBUG)',
+            data: {
+                userId: userId,
+                oldWinChance: user.win_chance || 6.0,
+                newWinChance: parseFloat(winChance),
+                reason: reason
+            },
+            debug: {
+                dbType: db.constructor.name,
+                methodExists: typeof db.setUserWinChance === 'function'
+            }
+        });
+        
+    } catch (error) {
+        console.error('🐛 DEBUG: Ошибка изменения win_chance:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Внутренняя ошибка сервера при изменении win_chance',
+            debug: {
+                errorMessage: error.message,
+                errorStack: error.stack,
+                dbType: db.constructor.name
+            }
+        });
+    }
+});
+
 // API endpoint для определения результата спина с учетом win_chance пользователя
 app.post('/api/spin/determine-result', async (req, res) => {
     try {
