@@ -944,28 +944,50 @@ export class MainScreen {
             // Используем реальное имя приза от сервера вместо визуального
             const nameToCheck = prize.realName || prize.name;
             
+            console.log(`🎫 Анализируем сертификат:`, {
+                realType: realType,
+                visualType: prize.type,
+                realName: prize.realName,
+                visualName: prize.name,
+                nameToCheck: nameToCheck,
+                certificateValue: certificateValue
+            });
+            
             if (prize.type && prize.type.startsWith('wildberries')) {
                 certificateName = `WB ${certificateValue}₽`;
+                console.log(`🔍 Используем visual type для WB: ${certificateName}`);
             } else if (prize.type && prize.type.startsWith('golden-apple')) {
                 certificateName = `ЗЯ ${certificateValue}₽`;
+                console.log(`🔍 Используем visual type для ЗЯ: ${certificateName}`);
             } else {
                 if (nameToCheck.includes('WB')) {
                     certificateName = `WB ${certificateValue}₽`;
+                    console.log(`🔍 Определили WB по имени "${nameToCheck}": ${certificateName}`);
                 } else if (nameToCheck.includes('ЗЯ')) {
                     certificateName = `ЗЯ ${certificateValue}₽`;
+                    console.log(`🔍 Определили ЗЯ по имени "${nameToCheck}": ${certificateName}`);
                 } else {
                     certificateName = `Сертификат ${certificateValue}₽`;
+                    console.log(`🔍 Fallback сертификат по имени "${nameToCheck}": ${certificateName}`);
                 }
             }
             
+            console.log(`✅ ИТОГОВОЕ ИМЯ СЕРТИФИКАТА: "${certificateName}"`);
+            console.log(`🎫 Данные приза перед отправкой в модальное окно:`, prize);
+            
             console.log(`🎫 Показываем результат: ${certificateName}`);
-            this.showResultModal({
+            
+            const modalData = {
                 icon: '🎫',
                 title: 'Поздравляем!',
                 description: `Вы выиграли ${certificateName}!`,
                 isWin: true,
                 prize: prize
-            });
+            };
+            
+            console.log(`🎭 ОТПРАВЛЯЕМ В МОДАЛЬНОЕ ОКНО:`, modalData);
+            
+            this.showResultModal(modalData);
             
             this.saveWinToHistory({
                 type: 'certificate',
@@ -1774,11 +1796,23 @@ export class MainScreen {
         let prizeName = prizeInfo.realName || prizeInfo.name || 'Сертификат';
         let prizeValue = prizeInfo.realValue || prizeInfo.value || 'неизвестно';
         
+        console.log(`📞 Генерируем сообщение менеджеру:`, {
+            originalPrizeInfo: prizeInfo,
+            realName: prizeInfo.realName,
+            visualName: prizeInfo.name,
+            prizeName: prizeName,
+            prizeValue: prizeValue
+        });
+        
         // Определяем тип сертификата для правильного сообщения
         if (prizeName.includes('WB')) {
             prizeName = `Сертификат Wildberries на ${prizeValue}₽`;
+            console.log(`📞 Определили WB для менеджера: ${prizeName}`);
         } else if (prizeName.includes('ЗЯ')) {
             prizeName = `Сертификат Золотое Яблоко на ${prizeValue}₽`;
+            console.log(`📞 Определили ЗЯ для менеджера: ${prizeName}`);
+        } else {
+            console.log(`📞 Оставили как есть для менеджера: ${prizeName}`);
         }
         
         const message = `🎉 Привет! Я выиграл ${prizeName} в лотерее Kosmetichka!
