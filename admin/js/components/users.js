@@ -929,7 +929,7 @@ class UsersPage {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    percentage: percentage,
+                    winChance: percentage,
                     reason: reason
                 })
             });
@@ -938,7 +938,7 @@ class UsersPage {
             
             if (data.success) {
                 this.showNotification('Success', 'Успешно', 
-                    `Шанс победы установлен: ${data.newWinChance}%`);
+                    `Шанс победы установлен: ${data.data.newWinChance}%`);
                 window.app.closeModal();
                 this.loadUsers(); // Обновляем таблицу пользователей
             } else {
