@@ -490,7 +490,92 @@ export class MainScreen {
 
     async selectRandomPrize() {
         try {
-            console.log('🎯 Определяем приз по реальным шансам из БД...');
+            console.log('🎯 Запрашиваем результат спина с сервера (с учетом win_chance)...');
+            
+            // Получаем user ID из приложения
+            const userId = this.app.gameData.userId || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+            
+            if (!userId) {
+                console.error('❌ Не удалось получить userId для запроса к серверу');
+                // Fallback на старую логику
+                return this.selectRandomPrizeFallback();
+            }
+            
+            try {
+                const response = await fetch('/api/spin/determine-result', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ userId: userId })
+                });
+                
+                console.log('📡 Статус серверного определения приза:', response.status, response.ok);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('🎲 Результат от сервера:', result);
+                    
+                    if (result.success && result.result) {
+                        const serverPrize = result.result;
+                        console.log(`✅ СЕРВЕР ОПРЕДЕЛИЛ ПРИЗ: ${serverPrize.name} (${serverPrize.type}) с win_chance=${result.userWinChance}%`);
+                        
+                        // Находим соответствующий визуальный приз
+                        const visualPrize = this.findVisualPrizeForRealChance(serverPrize);
+                        
+                        if (!visualPrize) {
+                            console.error('❌ Не удалось найти визуальный приз для серверного результата:', serverPrize);
+                            return this.createFallbackPrize(serverPrize);
+                        }
+                        
+                        console.log(`🎨 Найден визуальный приз:`, visualPrize);
+                        
+                        const enhancedPrize = {
+                            ...visualPrize,
+                            realType: serverPrize.type,
+                            realName: serverPrize.name,
+                            realValue: serverPrize.value || 0,
+                            realDescription: serverPrize.description,
+                            value: serverPrize.value || 0,
+                            isRealPrize: true,
+                            serverDetermined: true,
+                            userWinChance: result.userWinChance,
+                            debugInfo: {
+                                originalVisualType: visualPrize.type,
+                                realType: serverPrize.type,
+                                serverDetermined: true
+                            }
+                        };
+                        
+                        console.log(`🔗 Создан объединенный приз (серверный):`, enhancedPrize);
+                        console.log(`👁️  ВИЗУАЛЬНО: ${enhancedPrize.name} (${enhancedPrize.type})`);
+                        console.log(`💰 РЕАЛЬНО: ${enhancedPrize.realName} (${enhancedPrize.realType}, ${enhancedPrize.value}) - win_chance: ${result.userWinChance}%`);
+                        
+                        return enhancedPrize;
+                    } else {
+                        console.error('❌ Сервер вернул некорректный результат:', result);
+                    }
+                } else {
+                    console.warn('⚠️ Сервер недоступен для определения приза, статус:', response.status);
+                }
+            } catch (apiError) {
+                console.error('❌ Ошибка запроса к серверу для определения приза:', apiError);
+            }
+            
+            // Fallback на старую клиентскую логику
+            console.log('🔄 Переходим на клиентскую логику определения приза');
+            return this.selectRandomPrizeFallback();
+            
+        } catch (error) {
+            console.error('❌ Ошибка определения приза:', error);
+            const emptyPrize = WHEEL_PRIZES.find(p => p.type === 'empty') || WHEEL_PRIZES[0];
+            return this.createFallbackPrize({ type: 'empty', name: 'Пусто', value: 0 }, emptyPrize);
+        }
+    }
+
+    async selectRandomPrizeFallback() {
+        try {
+            console.log('🎯 Определяем приз по клиентским шансам (fallback)...');
             
             let realChances = [];
             let apiWorking = false;
@@ -555,7 +640,7 @@ export class MainScreen {
                 console.log(`📈 ${realChance.name}: ${cumulative.toFixed(2)}% (тип: ${realChance.type})`);
                 
                 if (random < cumulative) {
-                    console.log(`✅ ВЫПАЛ РЕАЛЬНЫЙ ПРИЗ: ${realChance.name} (${realChance.type})`);
+                    console.log(`✅ ВЫПАЛ РЕАЛЬНЫЙ ПРИЗ (клиентский fallback): ${realChance.name} (${realChance.type})`);
                     
                     const visualPrize = this.findVisualPrizeForRealChance(realChance);
                     

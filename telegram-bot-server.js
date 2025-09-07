@@ -433,6 +433,96 @@ app.use(generalLimiter);
 app.use('/api/', apiLimiter);
 
 app.use(express.json({ limit: '10mb' }));
+
+// API endpoint для определения результата спина с учетом win_chance пользователя
+app.post('/api/spin/determine-result', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        
+        if (!userId) {
+            return res.status(400).json({ error: 'userId is required' });
+        }
+        
+        console.log(`🎯 Определяем результат спина для пользователя ${userId}...`);
+        
+        // Получаем данные пользователя
+        const user = await db.getUser(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const userWinChance = user.win_chance || 6.0; // Дефолтный шанс победы 6%
+        console.log(`📊 Win chance пользователя: ${userWinChance}%`);
+        
+        // Загружаем базовые настройки призов
+        let basePrizes;
+        try {
+            const settings = await db.getWheelSettings('normal');
+            basePrizes = settings.prizes || [];
+        } catch (error) {
+            console.warn('⚠️ Не удалось получить настройки призов, используем дефолтные');
+            basePrizes = [
+                { id: 'empty', type: 'empty', probability: 94, name: 'Пусто', value: 0 },
+                { id: 'stars20', type: 'stars', probability: 5, name: '20 звезд', value: 20 },
+                { id: 'cert300', type: 'certificate', probability: 1, name: 'Сертификат 300₽', value: 300 }
+            ];
+        }
+        
+        // Модифицируем вероятности на основе win_chance пользователя
+        const modifiedPrizes = basePrizes.map(prize => {
+            if (prize.type === 'empty') {
+                // Для пустых призов уменьшаем вероятность
+                const newProbability = Math.max(0, prize.probability - (userWinChance - 6.0));
+                return { ...prize, probability: newProbability };
+            } else {
+                // Для призов увеличиваем вероятность пропорционально
+                const multiplier = userWinChance / 6.0;
+                const newProbability = prize.probability * multiplier;
+                return { ...prize, probability: newProbability };
+            }
+        });
+        
+        // Нормализуем вероятности до 100%
+        const totalProbability = modifiedPrizes.reduce((sum, prize) => sum + prize.probability, 0);
+        const normalizedPrizes = modifiedPrizes.map(prize => ({
+            ...prize,
+            probability: (prize.probability / totalProbability) * 100
+        }));
+        
+        console.log('🎲 Модифицированные вероятности:', normalizedPrizes);
+        
+        // Определяем результат
+        const random = Math.random() * 100;
+        let cumulative = 0;
+        let selectedPrize = null;
+        
+        for (const prize of normalizedPrizes) {
+            cumulative += prize.probability;
+            if (random < cumulative) {
+                selectedPrize = prize;
+                break;
+            }
+        }
+        
+        // Fallback на пустоту если что-то пошло не так
+        if (!selectedPrize) {
+            selectedPrize = normalizedPrizes.find(p => p.type === 'empty') || normalizedPrizes[0];
+        }
+        
+        console.log(`🎯 Выбран приз: ${selectedPrize.name} (случайное число: ${random.toFixed(2)}%)`);
+        
+        res.json({
+            success: true,
+            result: selectedPrize,
+            userWinChance: userWinChance,
+            modifiedProbabilities: normalizedPrizes
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка определения результата спина:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Логирование запросов
@@ -5082,6 +5172,77 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Ошибка при получении статистики' 
+        });
+    }
+});
+
+// Endpoint для управления шансами победы пользователя  
+app.post('/api/admin/users/:userId/win-chance', requireAuth, async (req, res) => {
+    const { userId } = req.params;
+    const { winChance, reason } = req.body;
+    
+    // Валидация входных данных
+    if (!userId || isNaN(parseInt(userId))) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Неверный ID пользователя' 
+        });
+    }
+    
+    if (winChance === undefined || isNaN(parseFloat(winChance)) || winChance < 0 || winChance > 100) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Шанс победы должен быть числом от 0 до 100' 
+        });
+    }
+    
+    if (!reason || reason.trim().length < 3) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Причина изменения обязательна (минимум 3 символа)' 
+        });
+    }
+
+    try {
+        console.log(`🎯 Админ изменяет win_chance для пользователя ${userId}: ${winChance}% (причина: ${reason})`);
+        
+        // Проверяем существование пользователя
+        const user = await db.getUser(userId);
+        if (!user) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Пользователь не найден' 
+            });
+        }
+        
+        // Изменяем win_chance
+        const updatedUser = await db.setUserWinChance(userId, parseFloat(winChance), reason);
+        
+        if (!updatedUser) {
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Не удалось обновить шанс победы' 
+            });
+        }
+        
+        console.log(`✅ Win chance обновлен для пользователя ${userId}: ${winChance}%`);
+        
+        res.json({ 
+            success: true, 
+            message: 'Шанс победы обновлен успешно',
+            data: {
+                userId: userId,
+                oldWinChance: user.win_chance || 6.0,
+                newWinChance: parseFloat(winChance),
+                reason: reason
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка изменения win_chance:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Внутренняя ошибка сервера при изменении win_chance' 
         });
     }
 });
