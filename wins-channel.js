@@ -1,12 +1,12 @@
 // wins-channel.js - Система автоматического постинга выигрышей
 // 🏆 Канал постинга выигрышей для Kosmetichka Lottery Bot
 
-const Database = require('./database');
+const createDatabase = require('./database-selector');
 
 class WinsChannelManager {
     constructor(bot) {
         this.bot = bot;
-        this.db = new Database();
+        this.db = createDatabase();
         this.channelId = process.env.WINS_CHANNEL_ID; // ID канала для постинга выигрышей
         this.checkInterval = 2 * 60 * 1000; // Проверяем каждые 2 минуты
         

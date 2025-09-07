@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // clear-database.js - Скрипт для очистки базы данных
 
-const Database = require('./database');
+const createDatabase = require('./database-selector');
 const readline = require('readline');
 
 const rl = readline.createInterface({
@@ -27,7 +27,7 @@ async function clearDatabase() {
     }
 
     try {
-        const db = new Database();
+        const db = createDatabase();
         
         console.log('🔄 Очистка таблиц...');
         
@@ -64,17 +64,6 @@ async function clearDatabase() {
     process.exit(0);
 }
 
-// Добавляем метод run в класс Database если его нет
-Database.prototype.run = function(sql, params = []) {
-    return new Promise((resolve, reject) => {
-        this.db.run(sql, params, function(err) {
-            if (err) {
-                reject(err);
-            } else {
-                resolve({ lastID: this.lastID, changes: this.changes });
-            }
-        });
-    });
-};
+// Метод run уже есть в PostgreSQL версии базы данных
 
 clearDatabase();

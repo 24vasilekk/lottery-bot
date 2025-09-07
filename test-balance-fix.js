@@ -1,10 +1,10 @@
 // Тестовый скрипт для проверки исправления баланса
-const Database = require('./database.js');
+const createDatabase = require('./database-selector');
 
 async function testBalanceFix() {
     console.log('🧪 Тестирование исправления баланса\n');
     
-    const db = new Database();
+    const db = createDatabase();
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     const YOUR_ID = 418684940;

@@ -17,11 +17,12 @@ class DatabasePostgres {
             process.exit(1);
         }
 
-        // Для локальной разработки используем SQLite
+        // Требуем настройку PostgreSQL
         if (!connectionString) {
-            console.log('⚠️  Используем SQLite для локальной разработки');
-            const Database = require('./database.js');
-            return new Database();
+            console.error('❌ DATABASE_URL не установлен!');
+            console.error('Для работы требуется PostgreSQL база данных.');
+            console.error('Установите DATABASE_URL или настройте переменные окружения PG_*');
+            throw new Error('DATABASE_URL required for PostgreSQL connection');
         }
 
         // Настройка пула соединений
