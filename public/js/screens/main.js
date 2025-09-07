@@ -706,6 +706,9 @@ export class MainScreen {
 
     findVisualPrizeForRealChance(realChance) {
         console.log(`🔍 Ищем визуальный сегмент для реального приза:`, realChance);
+        console.log(`🔍 Доступные визуальные сегменты WHEEL_PRIZES:`, WHEEL_PRIZES.map(p => ({
+            id: p.id, name: p.name, type: p.type
+        })));
         
         let targetPrize = null;
         
@@ -938,14 +941,17 @@ export class MainScreen {
             const certificateValue = prize.realValue || prize.value || 300;
             let certificateName = '';
             
+            // Используем реальное имя приза от сервера вместо визуального
+            const nameToCheck = prize.realName || prize.name;
+            
             if (prize.type && prize.type.startsWith('wildberries')) {
                 certificateName = `WB ${certificateValue}₽`;
             } else if (prize.type && prize.type.startsWith('golden-apple')) {
                 certificateName = `ЗЯ ${certificateValue}₽`;
             } else {
-                if (prize.name.includes('WB')) {
+                if (nameToCheck.includes('WB')) {
                     certificateName = `WB ${certificateValue}₽`;
-                } else if (prize.name.includes('ЗЯ')) {
+                } else if (nameToCheck.includes('ЗЯ')) {
                     certificateName = `ЗЯ ${certificateValue}₽`;
                 } else {
                     certificateName = `Сертификат ${certificateValue}₽`;
