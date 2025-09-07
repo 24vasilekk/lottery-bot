@@ -214,6 +214,106 @@ app.use('/api/admin', (req, res, next) => {
     next();
 });
 
+// === HELPER FUNCTIONS ===
+
+// Обработка прокрутки рулетки
+async function handleWheelSpin(userId, data) {
+    try {
+        console.log('🎰 HANDLE_WHEEL_SPIN - Начало обработки:', {
+            userId: userId,
+            hasData: !!data,
+            hasPrize: !!data?.prize,
+            prizeType: data?.prize?.type,
+            prizeName: data?.prize?.name,
+            spinType: data?.spinType
+        });
+        
+        let user = await db.getUser(userId);
+        
+        // Если пользователя нет в БД - создаем его
+        if (!user) {
+            console.log(`👤 Создание пользователя ${userId} при прокрутке рулетки`);
+            
+            const userData = {
+                telegram_id: userId,
+                username: data.user?.username || '',
+                first_name: data.user?.first_name || 'Пользователь',
+                last_name: data.user?.last_name || ''
+            };
+            
+            await db.createUser(userData);
+            user = await db.getUser(userId);
+            
+            if (!user) {
+                console.error('❌ Не удалось создать пользователя');
+                return;
+            }
+        }
+        
+        console.log(`🎰 Пользователь ${userId} крутит рулетку`);
+        console.log('🎁 Данные приза:', JSON.stringify(data.prize, null, 2));
+        
+        // НОВАЯ ТРАНЗАКЦИОННАЯ ОБРАБОТКА СПИНА
+        const spinType = data.spinType || 'normal';
+        const spinCost = (spinType === 'stars' || (!data.spinType && data.spinCost)) ? (data.spinCost || 20) : 0;
+        
+        console.log(`🎰 Обрабатываем спин: тип=${spinType}, стоимость=${spinCost}, приз=${data.prize?.name || 'empty'}`);
+        
+        try {
+            // Используем новый транзакционный метод
+            const result = await db.processSpinWithTransaction(userId, spinCost, data.prize, spinType);
+            
+            console.log(`✅ Спин обработан успешно. Новый баланс: ${result.newBalance}`);
+            
+            // Валидация и дополнительная обработка призов
+            if (data.prize && data.prize.type !== 'empty') {
+                const prizeType = data.prize.type;
+                const prizeValue = data.prize.value || 0;
+                
+                console.log(`🔍 Приз обработан: тип="${prizeType}", значение=${prizeValue}`);
+                
+                // Валидируем допустимые типы призов
+                const validPrizeTypes = ['empty', 'stars', 'certificate'];
+                if (!validPrizeTypes.includes(prizeType)) {
+                    console.warn(`⚠️ Неизвестный тип приза: ${prizeType}, принимаем как certificate`);
+                    data.prize.type = 'certificate';
+                }
+                
+                // Дополнительная валидация для сертификатов
+                if (prizeType === 'certificate') {
+                    if (prizeValue < 100 || prizeValue > 10000) {
+                        console.warn(`⚠️ Подозрительная стоимость сертификата: ${prizeValue}₽`);
+                    }
+                    console.log(`🎫 Получен сертификат на ${prizeValue}₽`);
+                }
+                
+                // Отправляем уведомление в телеграм
+                if (bot) {
+                    try {
+                        await bot.sendMessage(userId, `🎉 Поздравляем!\n🎁 Вы выиграли: ${data.prize.description || data.prize.name}!`);
+                        
+                        // Уведомляем админов о крупных призах (сертификаты)
+                        if (data.prize.type.includes('golden-apple') || data.prize.type.includes('dolce')) {
+                            // Используем красиво оформленное уведомление
+                            notifyAdmins(`Пользователь ${user.first_name} (${userId}) выиграл: ${data.prize.name}`);
+                            
+                            // Или простое уведомление (если хотите оставить старый формат):
+                            // notifyAdmins(`Пользователь ${user.first_name} (${userId}) выиграл: ${data.prize.name}`);
+                        }
+                    } catch (error) {
+                        console.error('Ошибка отправки уведомления:', error);
+                    }
+                }
+            }
+        } catch (spinError) {
+            console.error('❌ Ошибка обработки спина в транзакции:', spinError);
+            throw spinError; // Пробрасываем ошибку выше
+        }
+    } catch (error) {
+        console.error('❌ Ошибка обработки прокрутки:', error);
+    }
+}
+
 // Добавить эти endpoints в telegram-bot-server.js для исправления лидерборда
 
 // ДОБАВИТЬ или ЗАМЕНИТЬ endpoint:
@@ -4707,104 +4807,6 @@ function createBasicHTML() {
     </script>
 </body>
 </html>`;
-}
-
-// Обработка прокрутки рулетки
-async function handleWheelSpin(userId, data) {
-    try {
-        console.log('🎰 HANDLE_WHEEL_SPIN - Начало обработки:', {
-            userId: userId,
-            hasData: !!data,
-            hasPrize: !!data?.prize,
-            prizeType: data?.prize?.type,
-            prizeName: data?.prize?.name,
-            spinType: data?.spinType
-        });
-        
-        let user = await db.getUser(userId);
-        
-        // Если пользователя нет в БД - создаем его
-        if (!user) {
-            console.log(`👤 Создание пользователя ${userId} при прокрутке рулетки`);
-            
-            const userData = {
-                telegram_id: userId,
-                username: data.user?.username || '',
-                first_name: data.user?.first_name || 'Пользователь',
-                last_name: data.user?.last_name || ''
-            };
-            
-            await db.createUser(userData);
-            user = await db.getUser(userId);
-            
-            if (!user) {
-                console.error('❌ Не удалось создать пользователя');
-                return;
-            }
-        }
-        
-        console.log(`🎰 Пользователь ${userId} крутит рулетку`);
-        console.log('🎁 Данные приза:', JSON.stringify(data.prize, null, 2));
-        
-        // НОВАЯ ТРАНЗАКЦИОННАЯ ОБРАБОТКА СПИНА
-        const spinType = data.spinType || 'normal';
-        const spinCost = (spinType === 'stars' || (!data.spinType && data.spinCost)) ? (data.spinCost || 20) : 0;
-        
-        console.log(`🎰 Обрабатываем спин: тип=${spinType}, стоимость=${spinCost}, приз=${data.prize?.name || 'empty'}`);
-        
-        try {
-            // Используем новый транзакционный метод
-            const result = await db.processSpinWithTransaction(userId, spinCost, data.prize, spinType);
-            
-            console.log(`✅ Спин обработан успешно. Новый баланс: ${result.newBalance}`);
-            
-            // Валидация и дополнительная обработка призов
-            if (data.prize && data.prize.type !== 'empty') {
-                const prizeType = data.prize.type;
-                const prizeValue = data.prize.value || 0;
-                
-                console.log(`🔍 Приз обработан: тип="${prizeType}", значение=${prizeValue}`);
-                
-                // Валидируем допустимые типы призов
-                const validPrizeTypes = ['empty', 'stars', 'certificate'];
-                if (!validPrizeTypes.includes(prizeType)) {
-                    console.warn(`⚠️ Неизвестный тип приза: ${prizeType}, принимаем как certificate`);
-                    data.prize.type = 'certificate';
-                }
-                
-                // Дополнительная валидация для сертификатов
-                if (prizeType === 'certificate') {
-                    if (prizeValue < 100 || prizeValue > 10000) {
-                        console.warn(`⚠️ Подозрительная стоимость сертификата: ${prizeValue}₽`);
-                    }
-                    console.log(`🎫 Получен сертификат на ${prizeValue}₽`);
-                }
-                
-                // Отправляем уведомление в телеграм
-                if (bot) {
-                    try {
-                        await bot.sendMessage(userId, `🎉 Поздравляем!\n🎁 Вы выиграли: ${data.prize.description || data.prize.name}!`);
-                        
-                        // Уведомляем админов о крупных призах (сертификаты)
-                        if (data.prize.type.includes('golden-apple') || data.prize.type.includes('dolce')) {
-                            // Используем красиво оформленное уведомление
-                            notifyAdmins(`Пользователь ${user.first_name} (${userId}) выиграл: ${data.prize.name}`);
-                            
-                            // Или простое уведомление (если хотите оставить старый формат):
-                            // notifyAdmins(`Пользователь ${user.first_name} (${userId}) выиграл: ${data.prize.name}`);
-                        }
-                    } catch (error) {
-                        console.error('Ошибка отправки уведомления:', error);
-                    }
-                }
-            }
-        } catch (spinError) {
-            console.error('❌ Ошибка обработки спина в транзакции:', spinError);
-            throw spinError; // Пробрасываем ошибку выше
-        }
-    } catch (error) {
-        console.error('❌ Ошибка обработки прокрутки:', error);
-    }
 }
 
 // Обработка выполнения задания
