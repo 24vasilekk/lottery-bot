@@ -252,6 +252,11 @@ async function handleWheelSpin(userId, data) {
         
         console.log(`🎰 Пользователь ${userId} крутит рулетку`);
         console.log('🎁 Данные приза:', JSON.stringify(data.prize, null, 2));
+        console.log('💰 Полученные данные спина:', {
+            spinType: data.spinType, 
+            spinCost: data.spinCost,
+            hasSpinCost: data.hasOwnProperty('spinCost')
+        });
         
         // НОВАЯ ТРАНЗАКЦИОННАЯ ОБРАБОТКА СПИНА
         const spinType = data.spinType || 'normal';

@@ -641,9 +641,9 @@ class DatabasePostgres {
             // 5. Добавляем в историю спинов
             await client.query(
                 `INSERT INTO spin_history 
-                 (user_id, prize_id, spin_type, won_prize)
-                 VALUES ($1, $2, $3, $4)`,
-                [userId, prizeId, spinType, prizeData.name]
+                 (user_id, spin_type, prize_name, prize_type, prize_value)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [userId, spinType, prizeData.name || prizeData.description, prizeData.type, prizeData.value || 0]
             );
             
             await client.query('COMMIT');
