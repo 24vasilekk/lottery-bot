@@ -649,10 +649,19 @@ class DatabasePostgres {
             await client.query('COMMIT');
             console.log('✅ Транзакция спина успешно завершена');
             
+            // Получаем актуальный баланс после всех операций
+            const actualBalanceResult = await client.query(
+                'SELECT stars FROM users WHERE telegram_id = $1',
+                [telegramId]
+            );
+            const actualBalance = actualBalanceResult.rows[0]?.stars || 0;
+            
+            console.log(`🔍 Финальная проверка баланса: расчетный=${finalBalance}, актуальный=${actualBalance}`);
+            
             return {
                 success: true,
                 prizeId: prizeId,
-                newBalance: finalBalance
+                newBalance: actualBalance // Возвращаем актуальный баланс из БД
             };
             
         } catch (error) {
@@ -899,7 +908,7 @@ class DatabasePostgres {
         
         const query = `
             INSERT INTO stars_transactions 
-            (user_id, amount, transaction_type, description, balance_after)
+            (user_id, amount, transaction_type, status, metadata)
             VALUES ($1, $2, $3, $4, $5)
             RETURNING *
         `;
@@ -908,8 +917,12 @@ class DatabasePostgres {
             user.id,
             amount,
             type,
-            description,
-            newBalance
+            'completed',
+            JSON.stringify({ 
+                description: description,
+                balance_after: newBalance,
+                timestamp: Date.now()
+            })
         ]);
         
         return result.rows[0];
@@ -920,7 +933,7 @@ class DatabasePostgres {
         if (!user) return [];
 
         const query = `
-            SELECT amount, transaction_type, description, transaction_date, balance_after, status
+            SELECT amount, transaction_type, transaction_date, status, metadata
             FROM stars_transactions 
             WHERE user_id = $1 
             ORDER BY transaction_date DESC

@@ -255,7 +255,7 @@ async function handleWheelSpin(userId, data) {
         
         // НОВАЯ ТРАНЗАКЦИОННАЯ ОБРАБОТКА СПИНА
         const spinType = data.spinType || 'normal';
-        const spinCost = (spinType === 'stars' || (!data.spinType && data.spinCost)) ? (data.spinCost || 20) : 0;
+        const spinCost = data.spinCost || 0; // Берем стоимость напрямую из данных фронтенда
         
         console.log(`🎰 Обрабатываем спин: тип=${spinType}, стоимость=${spinCost}, приз=${data.prize?.name || 'empty'}`);
         
