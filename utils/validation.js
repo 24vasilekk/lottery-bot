@@ -19,7 +19,7 @@ function validateTelegramId(id) {
  * Валидация типа прокрутки
  */
 function validateSpinType(type) {
-    const validTypes = ['normal', 'mega', 'friend'];
+    const validTypes = ['normal', 'mega', 'friend', 'stars'];
     
     return {
         isValid: typeof type === 'string' && validTypes.includes(type),

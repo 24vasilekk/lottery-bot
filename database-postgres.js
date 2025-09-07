@@ -590,10 +590,10 @@ class DatabasePostgres {
             if (prizeData.type !== 'empty') {
                 const prizeResult = await client.query(
                     `INSERT INTO user_prizes 
-                     (user_id, prize_type, prize_name, prize_value)
+                     (user_id, prize_type, description, prize_value)
                      VALUES ($1, $2, $3, $4)
                      RETURNING id`,
-                    [userId, prizeData.type, prizeData.name, prizeData.value || 0]
+                    [userId, prizeData.type, prizeData.name || prizeData.description, prizeData.value || 0]
                 );
                 prizeId = prizeResult.rows[0].id;
                 console.log(`🎁 Приз добавлен: ${prizeData.name} (ID: ${prizeId})`);
