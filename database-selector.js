@@ -7,16 +7,17 @@ module.exports = function() {
         railway_detected: !!process.env.RAILWAY_ENVIRONMENT || !!process.env.RAILWAY_PROJECT_NAME
     });
     
-    // Если есть DATABASE_URL или явно Railway - используем PostgreSQL
-    if (process.env.DATABASE_URL || process.env.RAILWAY_ENVIRONMENT) {
-        console.log('🐘 Используется PostgreSQL (Railway)');
-        console.log('📡 DATABASE_URL длина:', process.env.DATABASE_URL?.length || 0);
-        
-        const DatabasePostgres = require('./database-postgres.js');
-        return new DatabasePostgres();
-    } else {
-        console.log('📦 Используется SQLite (локальная разработка)');
-        const Database = require('./database.js');
-        return new Database();
+    // ПРИНУДИТЕЛЬНО используем PostgreSQL для всех сред
+    console.log('🐘 Принудительно используется PostgreSQL');
+    console.log('📡 DATABASE_URL длина:', process.env.DATABASE_URL?.length || 0);
+    
+    // Если DATABASE_URL не установлен, используем значение по умолчанию для разработки
+    if (!process.env.DATABASE_URL) {
+        console.log('⚠️ DATABASE_URL не установлен - требуется настройка PostgreSQL');
+        // Не падаем, пытаемся подключиться к PostgreSQL с пустым URL
+        // Это заставит использовать переменные среды или значения по умолчанию
     }
+    
+    const DatabasePostgres = require('./database-postgres.js');
+    return new DatabasePostgres();
 };

@@ -819,12 +819,15 @@ app.use(express.static(publicPath, {
     }
 }));
 
-// Инициализация базы данных (автоматический выбор SQLite/PostgreSQL)
+// Инициализация базы данных (ТОЛЬКО PostgreSQL)
 console.log('🗄️ ========== ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ ==========');
 console.log('🌍 NODE_ENV:', process.env.NODE_ENV);
 console.log('🚂 RAILWAY_ENVIRONMENT:', process.env.RAILWAY_ENVIRONMENT);
 console.log('🔗 DATABASE_URL установлен:', !!process.env.DATABASE_URL);
 console.log('📊 DATABASE_URL тип:', typeof process.env.DATABASE_URL);
+
+// ПРИНУДИТЕЛЬНО используем только PostgreSQL
+console.log('🐘 ПРИНУДИТЕЛЬНОЕ ИСПОЛЬЗОВАНИЕ POSTGRESQL');
 
 const db = createDatabase();
 
