@@ -727,7 +727,8 @@ app.post('/api/spin/determine-result', async (req, res) => {
                 result: selectedPrize,
                 userWinChance: userWinChance,
                 modifiedProbabilities: normalizedPrizes,
-                processed: true // Флаг что спин полностью обработан
+                processed: true, // Флаг что спин полностью обработан
+                newBalance: result.newBalance // Обновленный баланс после спина
             });
             
         } catch (wheelError) {

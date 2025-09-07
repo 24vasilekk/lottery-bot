@@ -503,8 +503,8 @@ export class MainScreen {
             
             try {
                 // Определяем тип спина и стоимость на основе текущего контекста
-                const spinType = this.currentSpinType || 'normal';
-                const spinCost = this.currentSpinType === 'stars' ? 20 : 0;
+                const spinType = this.lastSpinType || 'normal';
+                const spinCost = this.lastSpinType === 'stars' ? 20 : 0;
                 
                 const response = await fetch('/api/spin/determine-result', {
                     method: 'POST',
@@ -527,6 +527,14 @@ export class MainScreen {
                     if (result.success && result.result) {
                         const serverPrize = result.result;
                         console.log(`✅ СЕРВЕР ОПРЕДЕЛИЛ ПРИЗ: ${serverPrize.name} (${serverPrize.type}) с win_chance=${result.userWinChance}%`);
+                        
+                        // Если сервер обновил баланс, синхронизируем его немедленно
+                        if (result.processed && typeof result.newBalance === 'number') {
+                            console.log(`💰 Сервер обработал спин. Обновляем баланс: ${this.app.gameData.stars} → ${result.newBalance}`);
+                            this.app.gameData.stars = result.newBalance;
+                            this.app.updateUI();
+                            this.app.saveGameData();
+                        }
                         
                         // Находим соответствующий визуальный приз
                         const visualPrize = this.findVisualPrizeForRealChance(serverPrize);
