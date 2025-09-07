@@ -656,13 +656,69 @@ app.post('/api/spin/determine-result', async (req, res) => {
         
         console.log(`🎯 Выбран приз: ${selectedPrize.name} (случайное число: ${random.toFixed(2)}%)`);
         
-        // НОВОЕ: Полностью обрабатываем спин через handleWheelSpin
+        // НОВОЕ: Полностью обрабатываем спин через внутренний вызов webhook API
         try {
-            await handleWheelSpin(userId, {
-                prize: selectedPrize,
-                spinType: spinType,
-                spinCost: spinCost
-            });
+            // Создаем mock запрос для внутреннего вызова
+            const mockReq = {
+                body: {
+                    action: 'wheel_spin',
+                    userId: userId,
+                    data: {
+                        prize: selectedPrize,
+                        spinType: spinType,
+                        spinCost: spinCost
+                    }
+                }
+            };
+            
+            // Используем существующую логику обработки webhook
+            console.log('🔄 Обрабатываем спин через внутренний webhook...');
+            
+            // Находим пользователя или создаем если не существует
+            let user = await db.getUser(userId);
+            if (!user) {
+                console.log('👤 Создаем нового пользователя...');
+                user = await db.createUser({
+                    telegram_id: userId,
+                    first_name: 'User',
+                    username: '',
+                    referrer_id: null
+                });
+                
+                if (!user) {
+                    throw new Error('Не удалось создать пользователя');
+                }
+            }
+            
+            console.log(`🎰 Пользователь ${userId} крутит рулетку`);
+            console.log('🎁 Данные приза:', JSON.stringify(selectedPrize, null, 2));
+            
+            // Используем новый транзакционный метод из handleWheelSpin
+            const result = await db.processSpinWithTransaction(userId, spinCost, selectedPrize, spinType);
+            console.log(`✅ Спин обработан успешно. Новый баланс: ${result.newBalance}`);
+            
+            // Валидация и дополнительная обработка призов
+            if (selectedPrize && selectedPrize.type !== 'empty') {
+                const prizeType = selectedPrize.type;
+                const prizeValue = selectedPrize.value || 0;
+                
+                console.log(`🔍 Приз обработан: тип="${prizeType}", значение=${prizeValue}`);
+                
+                // Валидируем допустимые типы призов
+                const validPrizeTypes = ['empty', 'stars', 'certificate'];
+                if (!validPrizeTypes.includes(prizeType)) {
+                    console.warn(`⚠️ Неизвестный тип приза: ${prizeType}, принимаем как certificate`);
+                    selectedPrize.type = 'certificate';
+                }
+                
+                // Дополнительная валидация для сертификатов
+                if (prizeType === 'certificate') {
+                    if (prizeValue < 100 || prizeValue > 10000) {
+                        console.warn(`⚠️ Подозрительная стоимость сертификата: ${prizeValue}₽`);
+                    }
+                    console.log(`🎫 Получен сертификат на ${prizeValue}₽`);
+                }
+            }
             
             console.log('✅ Спин полностью обработан - баланс списан, приз начислен');
             
