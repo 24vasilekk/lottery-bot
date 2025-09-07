@@ -169,8 +169,15 @@ class DatabasePostgres {
                     transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     balance_after INTEGER,
                     telegram_payment_charge_id VARCHAR(255),
-                    status VARCHAR(50) DEFAULT 'completed'
+                    status VARCHAR(50) DEFAULT 'completed',
+                    metadata JSONB
                 )
+            `);
+
+            // Миграция: добавляем колонку metadata если её нет
+            await client.query(`
+                ALTER TABLE stars_transactions 
+                ADD COLUMN IF NOT EXISTS metadata JSONB
             `);
 
             // 7. Таблица каналов
@@ -601,11 +608,11 @@ class DatabasePostgres {
                 // Если приз - звезды, начисляем их
                 if (prizeData.type === 'stars' && prizeData.value > 0) {
                     await client.query(
-                        'UPDATE users SET stars = stars + $1 WHERE telegram_id = $2',
+                        'UPDATE users SET stars = stars + $1, total_stars_earned = total_stars_earned + $1 WHERE telegram_id = $2',
                         [prizeData.value, telegramId]
                     );
                     finalBalance += prizeData.value;
-                    console.log(`⭐ Начислено ${prizeData.value} звезд`);
+                    console.log(`⭐ Начислено ${prizeData.value} звезд, новый баланс: ${finalBalance}`);
                     
                     // Записываем транзакцию начисления
                     await client.query(
@@ -1580,6 +1587,43 @@ class DatabasePostgres {
         `;
         const result = await this.pool.query(query, [telegramId]);
         return result.rows[0]?.rank || null;
+    }
+
+    async updateReferralCount(telegramId) {
+        try {
+            const user = await this.getUser(telegramId);
+            if (!user) {
+                console.log(`⚠️ Пользователь ${telegramId} не найден для обновления рефералов`);
+                return 0;
+            }
+
+            // Подсчитываем актуальное количество рефералов
+            const countQuery = `
+                SELECT COUNT(*) as total_referrals
+                FROM referrals r
+                JOIN users u ON r.referred_id = u.id
+                WHERE r.referrer_id = $1 AND u.is_active = true
+            `;
+            
+            const countResult = await this.pool.query(countQuery, [user.id]);
+            const actualCount = parseInt(countResult.rows[0].total_referrals) || 0;
+
+            // Обновляем счетчик в таблице users
+            const updateQuery = `
+                UPDATE users 
+                SET referrals = $1, last_activity = CURRENT_TIMESTAMP 
+                WHERE telegram_id = $2
+                RETURNING referrals
+            `;
+            
+            const updateResult = await this.pool.query(updateQuery, [actualCount, telegramId]);
+            
+            console.log(`📊 Обновлен счетчик рефералов для ${telegramId}: ${actualCount}`);
+            return actualCount;
+        } catch (error) {
+            console.error('❌ Ошибка обновления счетчика рефералов:', error);
+            return 0;
+        }
     }
 
     async debugUserReferrals(telegramId) {
