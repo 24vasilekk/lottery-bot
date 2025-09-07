@@ -579,16 +579,16 @@ app.post('/api/admin/reset-all-win-chances', async (req, res) => {
     }
 });
 
-// API endpoint для определения результата спина с учетом win_chance пользователя
+// API endpoint для полной обработки спина с учетом win_chance пользователя
 app.post('/api/spin/determine-result', async (req, res) => {
     try {
-        const { userId } = req.body;
+        const { userId, spinType = 'normal', spinCost = 20 } = req.body;
         
         if (!userId) {
             return res.status(400).json({ error: 'userId is required' });
         }
         
-        console.log(`🎯 Определяем результат спина для пользователя ${userId}...`);
+        console.log(`🎯 Полная обработка спина для пользователя ${userId} (тип: ${spinType}, стоимость: ${spinCost})...`);
         
         // Получаем данные пользователя
         const user = await db.getUser(userId);
@@ -656,12 +656,36 @@ app.post('/api/spin/determine-result', async (req, res) => {
         
         console.log(`🎯 Выбран приз: ${selectedPrize.name} (случайное число: ${random.toFixed(2)}%)`);
         
-        res.json({
-            success: true,
-            result: selectedPrize,
-            userWinChance: userWinChance,
-            modifiedProbabilities: normalizedPrizes
-        });
+        // НОВОЕ: Полностью обрабатываем спин через handleWheelSpin
+        try {
+            await handleWheelSpin(userId, {
+                prize: selectedPrize,
+                spinType: spinType,
+                spinCost: spinCost
+            });
+            
+            console.log('✅ Спин полностью обработан - баланс списан, приз начислен');
+            
+            res.json({
+                success: true,
+                result: selectedPrize,
+                userWinChance: userWinChance,
+                modifiedProbabilities: normalizedPrizes,
+                processed: true // Флаг что спин полностью обработан
+            });
+            
+        } catch (wheelError) {
+            console.error('❌ Ошибка обработки спина:', wheelError);
+            // Возвращаем только результат без обработки, если есть ошибка
+            res.json({
+                success: true,
+                result: selectedPrize,
+                userWinChance: userWinChance,
+                modifiedProbabilities: normalizedPrizes,
+                processed: false,
+                error: wheelError.message
+            });
+        }
         
     } catch (error) {
         console.error('❌ Ошибка определения результата спина:', error);

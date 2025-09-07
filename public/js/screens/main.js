@@ -502,12 +502,20 @@ export class MainScreen {
             }
             
             try {
+                // Определяем тип спина и стоимость на основе текущего контекста
+                const spinType = this.currentSpinType || 'normal';
+                const spinCost = this.currentSpinType === 'stars' ? 20 : 0;
+                
                 const response = await fetch('/api/spin/determine-result', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ userId: userId })
+                    body: JSON.stringify({ 
+                        userId: userId,
+                        spinType: spinType,
+                        spinCost: spinCost
+                    })
                 });
                 
                 console.log('📡 Статус серверного определения приза:', response.status, response.ok);
@@ -539,11 +547,13 @@ export class MainScreen {
                             value: serverPrize.value || 0,
                             isRealPrize: true,
                             serverDetermined: true,
+                            serverProcessed: result.processed, // Флаг что спин уже обработан на сервере
                             userWinChance: result.userWinChance,
                             debugInfo: {
                                 originalVisualType: visualPrize.type,
                                 realType: serverPrize.type,
-                                serverDetermined: true
+                                serverDetermined: true,
+                                processed: result.processed
                             }
                         };
                         
@@ -1296,6 +1306,24 @@ export class MainScreen {
                 // Добавляем имя пользователя для уведомлений (без ID)
                 userName: userName
             };
+            
+            // Проверяем, был ли спин уже обработан на сервере
+            if (prize.serverProcessed) {
+                console.log('✅ Спин уже обработан на сервере - пропускаем повторную отправку');
+                
+                // Только синхронизируем баланс
+                if (this.app.syncBalanceFromServer) {
+                    try {
+                        console.log('🔄 Синхронизируем баланс после серверного спина...');
+                        await this.app.syncBalanceFromServer();
+                        console.log('✅ Баланс синхронизирован после серверного спина');
+                    } catch (syncError) {
+                        console.error('❌ Ошибка синхронизации баланса после серверного спина:', syncError);
+                    }
+                }
+                
+                return true; // Считаем успешным
+            }
             
             console.log('📤 Отправляемые данные на сервер:', spinData);
             console.log('👤 Пользователь:', userName);
