@@ -1007,12 +1007,9 @@ class DatabasePostgres {
         
         if (result.rows.length > 0) {
             // Записываем лог изменения шанса победы
-            await this.addStarsTransaction({
-                user_id: telegramId,
-                amount: 0,
-                transaction_type: 'win_chance_change',
-                description: `Изменение шанса победы на ${winChance}%. Причина: ${reason}`
-            });
+            await this.addTransaction(telegramId, 0, 'win_chance_change', 
+                `Изменение шанса победы на ${winChance}%. Причина: ${reason}`
+            );
             return result.rows[0];
         }
         return null;
