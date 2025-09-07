@@ -545,6 +545,40 @@ app.post('/api/debug/win-chance/:userId', async (req, res) => {
     }
 });
 
+// МАССОВЫЙ сброс win_chance к дефолтным значениям (только для настройки)
+app.post('/api/admin/reset-all-win-chances', async (req, res) => {
+    try {
+        console.log('🔄 Массовый сброс win_chance к дефолтным значениям (6%)...');
+        
+        // Получаем всех пользователей с нестандартным win_chance
+        const result = await db.pool.query(`
+            UPDATE users 
+            SET win_chance = 6.0 
+            WHERE win_chance != 6.0 OR win_chance IS NULL
+            RETURNING telegram_id, win_chance
+        `);
+        
+        const updatedUsers = result.rows;
+        
+        console.log(`✅ Обновлено пользователей: ${updatedUsers.length}`);
+        
+        res.json({
+            success: true,
+            message: `Сброшено win_chance для ${updatedUsers.length} пользователей к дефолту 6%`,
+            updatedCount: updatedUsers.length,
+            updatedUsers: updatedUsers.map(u => u.telegram_id)
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка массового сброса win_chance:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка массового сброса win_chance',
+            details: error.message
+        });
+    }
+});
+
 // API endpoint для определения результата спина с учетом win_chance пользователя
 app.post('/api/spin/determine-result', async (req, res) => {
     try {
