@@ -212,8 +212,8 @@ class UsersPage {
             const stats = {
                 total: data.stats?.totalUsers || 0,
                 active: data.stats?.activeUsers || 0,
-                blocked: 0,
-                new_today: Math.floor(Math.random() * 20) + 5
+                blocked: data.stats?.bannedUsers || 0,
+                new_today: data.stats?.todayUsers || 0
             };
             
             this.renderStatsCards(stats);
@@ -447,29 +447,30 @@ class UsersPage {
                 
                 <td class="actions-column">
                     <div class="action-buttons">
-                        <button class="btn btn-sm btn-ghost" onclick="window.usersPage.viewUser(${user.id})" 
-                                title="Просмотр">
-                            <i data-lucide="eye"></i>
-                        </button>
-                        <button class="btn btn-sm btn-ghost" onclick="window.usersPage.editUser(${user.id})" 
-                                title="Редактировать">
-                            <i data-lucide="edit"></i>
-                        </button>
-                        <button class="btn btn-sm btn-ghost" onclick="window.usersPage.messageUser(${user.id})" 
-                                title="Сообщение">
-                            <i data-lucide="message-circle"></i>
-                        </button>
-                        <button class="btn btn-sm btn-ghost" onclick="window.usersPage.showBalanceModal(${user.telegram_id})" 
+                        <button class="btn btn-sm btn-primary" onclick="window.usersPage.showBalanceModal(${user.telegram_id})" 
                                 title="Управление балансом">
                             <i data-lucide="wallet"></i>
+                            <span class="btn-text">Баланс</span>
                         </button>
-                        <button class="btn btn-sm btn-ghost" onclick="window.usersPage.showWinChanceModal(${user.telegram_id})" 
+                        <button class="btn btn-sm btn-warning" onclick="window.usersPage.showWinChanceModal(${user.telegram_id})" 
                                 title="Шанс победы">
                             <i data-lucide="percent"></i>
+                            <span class="btn-text">Шанс</span>
                         </button>
-                        <button class="btn btn-sm btn-ghost" onclick="window.usersPage.showUserActions(${user.id})" 
-                                title="Еще">
-                            <i data-lucide="more-horizontal"></i>
+                        <button class="btn btn-sm btn-secondary" onclick="window.usersPage.viewUser(${user.id})" 
+                                title="Просмотр профиля">
+                            <i data-lucide="eye"></i>
+                            <span class="btn-text">Профиль</span>
+                        </button>
+                        <button class="btn btn-sm btn-ghost" onclick="window.usersPage.messageUser(${user.id})" 
+                                title="Отправить сообщение">
+                            <i data-lucide="message-circle"></i>
+                            <span class="btn-text">Сообщение</span>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="window.usersPage.toggleUserStatus(${user.id})" 
+                                title="${user.is_active ? 'Заблокировать' : 'Разблокировать'}">
+                            <i data-lucide="${user.is_active ? 'user-x' : 'user-check'}"></i>
+                            <span class="btn-text">${user.is_active ? 'Блок' : 'Актив'}</span>
                         </button>
                     </div>
                 </td>
@@ -569,8 +570,113 @@ class UsersPage {
 
     // Модальные окна и действия
     async viewUser(userId) {
-        // Реализация просмотра пользователя
-        this.showNotification('Info', 'В разработке', 'Функция просмотра пользователя в разработке');
+        try {
+            // Ищем пользователя в текущих данных
+            const currentUsers = document.querySelectorAll('.table-row');
+            let user = null;
+            
+            // Найдем пользователя из DOM или сделаем запрос
+            currentUsers.forEach(row => {
+                if (row.getAttribute('data-user-id') == userId) {
+                    const cells = row.querySelectorAll('td');
+                    // Извлекаем данные из DOM
+                    user = {
+                        id: userId,
+                        name: cells[1]?.querySelector('.user-name')?.textContent?.trim() || 'Неизвестно',
+                        username: cells[1]?.querySelector('.user-meta')?.textContent?.match(/@(\w+)/)?.[1] || 'нет',
+                        telegram_id: cells[1]?.querySelector('.user-meta')?.textContent?.match(/ID: (\d+)/)?.[1] || 'неизвестен',
+                        stars: cells[2]?.querySelector('.stat-item')?.textContent?.trim() || '0',
+                        spins: cells[2]?.querySelectorAll('.stat-item')?.[1]?.textContent?.trim() || '0',
+                        referrals: cells[2]?.querySelectorAll('.stat-item')?.[2]?.textContent?.trim() || '0',
+                        win_chance: cells[2]?.querySelectorAll('.stat-item')?.[3]?.textContent?.trim() || '0%',
+                        status: cells[4]?.textContent?.includes('Активен') ? 'Активен' : 'Заблокирован'
+                    };
+                }
+            });
+            
+            if (!user) {
+                this.showNotification('Error', 'Ошибка', 'Пользователь не найден');
+                return;
+            }
+
+            const modalContent = `
+                <div class="modal-header">
+                    <h3 class="modal-title">Профиль пользователя</h3>
+                    <button class="modal-close" onclick="window.app.closeModal()">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="user-profile">
+                        <div class="profile-header">
+                            <div class="user-avatar">
+                                <img src="/admin/images/default-avatar.svg" alt="Avatar" class="avatar-img">
+                            </div>
+                            <div class="user-info">
+                                <h4>${user.name}</h4>
+                                <p>@${user.username} • ID: ${user.telegram_id}</p>
+                                <span class="status-badge status-${user.status.toLowerCase()}">${user.status}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="profile-stats">
+                            <div class="stat-row">
+                                <div class="stat-item">
+                                    <i data-lucide="star" class="stat-icon"></i>
+                                    <div>
+                                        <span class="stat-value">${user.stars}</span>
+                                        <span class="stat-label">Звезды</span>
+                                    </div>
+                                </div>
+                                <div class="stat-item">
+                                    <i data-lucide="rotate-cw" class="stat-icon"></i>
+                                    <div>
+                                        <span class="stat-value">${user.spins}</span>
+                                        <span class="stat-label">Крутов</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="stat-row">
+                                <div class="stat-item">
+                                    <i data-lucide="users" class="stat-icon"></i>
+                                    <div>
+                                        <span class="stat-value">${user.referrals}</span>
+                                        <span class="stat-label">Рефералы</span>
+                                    </div>
+                                </div>
+                                <div class="stat-item">
+                                    <i data-lucide="percent" class="stat-icon"></i>
+                                    <div>
+                                        <span class="stat-value">${user.win_chance}</span>
+                                        <span class="stat-label">Шанс победы</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="profile-actions">
+                            <button class="btn btn-primary" onclick="window.usersPage.showBalanceModal(${user.telegram_id})">
+                                <i data-lucide="wallet"></i>
+                                Управление балансом
+                            </button>
+                            <button class="btn btn-warning" onclick="window.usersPage.showWinChanceModal(${user.telegram_id})">
+                                <i data-lucide="percent"></i>
+                                Изменить шанс
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="window.app.closeModal()">Закрыть</button>
+                </div>
+            `;
+            
+            window.app.showModal(modalContent);
+            
+        } catch (error) {
+            console.error('Ошибка просмотра пользователя:', error);
+            this.showNotification('Error', 'Ошибка', 'Не удалось загрузить профиль пользователя');
+        }
     }
 
     async editUser(userId) {
@@ -841,6 +947,82 @@ class UsersPage {
         } catch (error) {
             console.error('Ошибка установки шанса победы:', error);
             this.showNotification('Error', 'Ошибка', 'Не удалось установить шанс победы');
+        }
+    }
+
+    async toggleUserStatus(userId) {
+        try {
+            // Ищем пользователя в текущих данных
+            const row = document.querySelector(`[data-user-id="${userId}"]`);
+            if (!row) {
+                this.showNotification('Error', 'Ошибка', 'Пользователь не найден');
+                return;
+            }
+            
+            const statusBadge = row.querySelector('.status-badge');
+            const isActive = statusBadge.textContent.includes('Активен');
+            const action = isActive ? 'ban' : 'unban';
+            const actionText = isActive ? 'заблокировать' : 'разблокировать';
+            
+            if (!confirm(`Вы уверены, что хотите ${actionText} этого пользователя?`)) {
+                return;
+            }
+
+            // Извлекаем telegram_id из DOM
+            const userMeta = row.querySelector('.user-meta').textContent;
+            const telegramId = userMeta.match(/ID: (\d+)/)?.[1];
+            
+            if (!telegramId) {
+                this.showNotification('Error', 'Ошибка', 'Не удалось определить ID пользователя');
+                return;
+            }
+
+            const response = await fetch('/api/admin/users/status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    telegramId: parseInt(telegramId),
+                    action: action,
+                    reason: `${actionText[0].toUpperCase() + actionText.slice(1)}ирован администратором`
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showNotification('Success', 'Успешно', 
+                    `Пользователь ${isActive ? 'заблокирован' : 'разблокирован'}`);
+                
+                // Обновляем статус в таблице
+                const newStatus = isActive ? 'banned' : 'active';
+                const newStatusText = isActive ? 'Заблокирован' : 'Активен';
+                const newStatusIcon = isActive ? 'user-x' : 'user-check';
+                
+                statusBadge.className = `status-badge status-${newStatus}`;
+                statusBadge.innerHTML = `<i data-lucide="${newStatusIcon}" class="status-icon"></i>${newStatusText}`;
+                
+                // Обновляем кнопку действия
+                const toggleBtn = row.querySelector('.btn-danger');
+                if (toggleBtn) {
+                    const newAction = isActive ? 'Актив' : 'Блок';
+                    const newIcon = isActive ? 'user-check' : 'user-x';
+                    toggleBtn.innerHTML = `<i data-lucide="${newIcon}"></i><span class="btn-text">${newAction}</span>`;
+                    toggleBtn.setAttribute('title', isActive ? 'Разблокировать' : 'Заблокировать');
+                }
+                
+                // Обновляем иконки
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+                
+            } else {
+                this.showNotification('Error', 'Ошибка', data.error || 'Не удалось изменить статус пользователя');
+            }
+        } catch (error) {
+            console.error('Ошибка изменения статуса пользователя:', error);
+            this.showNotification('Error', 'Ошибка', 'Не удалось изменить статус пользователя');
         }
     }
 

@@ -5086,6 +5086,60 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
     }
 });
 
+// Изменение статуса пользователя (блокировка/разблокировка)
+app.post('/api/admin/users/status', requireAuth, async (req, res) => {
+    const { telegramId, action, reason } = req.body;
+    
+    if (!telegramId || !action || !reason) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Отсутствуют обязательные поля' 
+        });
+    }
+
+    try {
+        const user = await db.getUser(telegramId);
+        if (!user) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Пользователь не найден' 
+            });
+        }
+
+        let newStatus;
+        switch (action) {
+            case 'ban':
+                newStatus = false;
+                await db.query('UPDATE users SET is_active = $1 WHERE telegram_id = $2', [false, telegramId]);
+                break;
+            case 'unban':
+                newStatus = true;
+                await db.query('UPDATE users SET is_active = $1 WHERE telegram_id = $2', [true, telegramId]);
+                break;
+            default:
+                return res.status(400).json({ 
+                    success: false, 
+                    error: 'Неверное действие' 
+                });
+        }
+
+        console.log(`✅ Админ изменил статус пользователя ${telegramId}: ${action} (${reason})`);
+        
+        res.json({ 
+            success: true, 
+            userId: telegramId,
+            newStatus: newStatus,
+            action: action
+        });
+    } catch (error) {
+        console.error('❌ Ошибка изменения статуса пользователя:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка при изменении статуса пользователя' 
+        });
+    }
+});
+
 // === ТЕСТОВЫЕ ЭНДПОИНТЫ ===
 
 // Простой тест API
@@ -5688,7 +5742,8 @@ app.get('/api/channel-info/:username', async (req, res) => {
 
 // === ADMIN API ENDPOINTS ===
 
-
+/*
+// СТАРЫЙ ДУБЛИРУЮЩИЙ ЭНДПОИНТ - УДАЛЕН
 // Получить статистику для дашборда
 app.get('/api/admin/stats', requireAuth, async (req, res) => {
     try {
@@ -5746,6 +5801,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
         });
     }
 });
+*/
 
 // Дублирующий эндпоинт удален - используется версия с requireAuth выше
 
