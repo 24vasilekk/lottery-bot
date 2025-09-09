@@ -2669,21 +2669,20 @@ app.get('/api/admin/channels', requireAuth, async (req, res) => {
     try {
         console.log('📺 Админ: запрос списка каналов');
 
-        const channels = await new Promise((resolve, reject) => {
-            db.db.all(`
-                SELECT pc.*,
-                       COUNT(ucs.id) as current_subscribers
-                FROM partner_channels pc
-                LEFT JOIN user_channel_subscriptions ucs ON pc.id = ucs.channel_id AND ucs.is_active = 1
-                GROUP BY pc.id
-                ORDER BY pc.created_date DESC
-            `, (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows);
-            });
-        });
+        // Используем правильный PostgreSQL API
+        const channels = await db.query(`
+            SELECT pc.*,
+                   COUNT(ucs.id) as current_subscribers
+            FROM partner_channels pc
+            LEFT JOIN user_channel_subscriptions ucs ON pc.id = ucs.channel_id AND ucs.is_active = true
+            GROUP BY pc.id
+            ORDER BY pc.created_at DESC
+        `);
 
-        res.json(channels);
+        res.json({
+            success: true,
+            channels: channels.rows || []
+        });
     } catch (error) {
         console.error('❌ Ошибка получения каналов:', error);
         res.status(500).json({ error: 'Internal server error' });
