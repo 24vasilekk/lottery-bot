@@ -851,11 +851,16 @@ class ChannelsPage {
                 body: JSON.stringify({ username })
             });
 
-            const data = await response.json();
-            
             if (!response.ok) {
-                throw new Error(data.error || 'Ошибка проверки канала');
+                const errorData = await response.json();
+                const error = new Error(errorData.error || 'Ошибка проверки канала');
+                error.details = errorData.details;
+                error.suggestion = errorData.suggestion;
+                error.code = errorData.code;
+                throw error;
             }
+
+            const data = await response.json();
 
             // Показываем информацию о канале
             const channelInfo = modal.querySelector('#channel-link').parentElement;
@@ -895,12 +900,31 @@ class ChannelsPage {
                 existingInfo.remove();
             }
 
+            // Извлекаем информацию об ошибке
+            let errorMessage = error.message || 'Неизвестная ошибка';
+            let errorDetails = error.details;
+            let suggestion = error.suggestion;
+
             const infoDiv = document.createElement('div');
             infoDiv.className = 'channel-check-info error';
-            infoDiv.innerHTML = `
+            
+            let innerHTML = `
                 <i data-lucide="alert-circle" class="info-icon"></i>
-                <span>${error.message}</span>
+                <div>
+                    <div><strong>${errorMessage}</strong></div>
             `;
+
+            if (errorDetails) {
+                innerHTML += `<div style="margin-top: 4px; font-size: 12px; opacity: 0.8;">${errorDetails}</div>`;
+            }
+
+            if (suggestion) {
+                innerHTML += `<div style="margin-top: 4px; font-size: 12px; color: #1a73e8;"><i data-lucide="lightbulb" style="width: 12px; height: 12px; margin-right: 4px;"></i>${suggestion}</div>`;
+            }
+
+            innerHTML += `</div>`;
+            infoDiv.innerHTML = innerHTML;
+            
             channelInfo.appendChild(infoDiv);
             
             lucide.createIcons();

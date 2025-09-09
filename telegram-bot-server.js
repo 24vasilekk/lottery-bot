@@ -2690,22 +2690,109 @@ app.get('/api/admin/channels', requireAuth, async (req, res) => {
     }
 });
 
+// Тестовый эндпоинт для проверки Telegram Bot API
+app.get('/api/admin/bot/test', requireAuth, async (req, res) => {
+    try {
+        if (!bot) {
+            return res.status(500).json({ 
+                error: 'Telegram Bot не инициализирован',
+                available: false
+            });
+        }
+
+        // Тестируем getMe
+        const botInfo = await bot.getMe();
+        
+        res.json({
+            success: true,
+            bot: {
+                id: botInfo.id,
+                username: botInfo.username,
+                first_name: botInfo.first_name,
+                is_bot: botInfo.is_bot,
+                can_join_groups: botInfo.can_join_groups,
+                can_read_all_group_messages: botInfo.can_read_all_group_messages,
+                supports_inline_queries: botInfo.supports_inline_queries
+            },
+            available: true,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('❌ Ошибка тестирования Bot API:', error);
+        res.status(500).json({ 
+            error: error.message,
+            available: false,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
 // Проверка канала перед добавлением
 app.post('/api/admin/channels/check', requireAuth, async (req, res) => {
     try {
         const { username } = req.body;
         
         if (!username) {
+            console.log('❌ Проверка канала: отсутствует username');
             return res.status(400).json({ error: 'Username обязателен' });
         }
 
         console.log(`🔍 Админ: проверка канала @${username}`);
+        console.log(`🤖 Состояние бота:`, { 
+            available: !!bot, 
+            botInfo: bot?.botInfo,
+            hasGetMe: typeof bot?.getMe === 'function'
+        });
+
+        // Проверяем что бот инициализирован
+        if (!bot) {
+            console.log('❌ Проверка канала: бот не инициализирован');
+            return res.status(500).json({ 
+                error: 'Telegram Bot не инициализирован',
+                details: 'Сервер не смог подключиться к Telegram Bot API'
+            });
+        }
+
+        // Получаем информацию о боте если её нет
+        let botId = bot.botInfo?.id;
+        if (!botId) {
+            console.log('🔄 Получаем информацию о боте через getMe()...');
+            try {
+                const me = await bot.getMe();
+                botId = me.id;
+                // Сохраняем информацию о боте для последующих запросов
+                bot.botInfo = me;
+                console.log(`✅ Получили ID бота: ${botId} (@${me.username})`);
+            } catch (err) {
+                console.error('❌ Ошибка получения информации о боте:', {
+                    message: err.message,
+                    code: err.code,
+                    response: err.response?.body
+                });
+                return res.status(500).json({ 
+                    error: 'Не удалось получить информацию о боте',
+                    details: err.message,
+                    suggestion: 'Проверьте корректность BOT_TOKEN и доступность Telegram API'
+                });
+            }
+        } else {
+            console.log(`✅ Используем сохранённую информацию о боте: ${botId}`);
+        }
 
         // Пытаемся получить информацию о канале через Telegram Bot API
         try {
-            // Проверяем, является ли бот администратором канала
+            console.log(`📡 Получаем информацию о канале @${username}...`);
             const chat = await bot.getChat(`@${username}`);
-            const chatMember = await bot.getChatMember(`@${username}`, bot.botInfo.id);
+            console.log(`✅ Канал найден:`, { 
+                id: chat.id, 
+                title: chat.title, 
+                type: chat.type, 
+                member_count: chat.member_count 
+            });
+            
+            console.log(`👤 Проверяем статус бота (${botId}) в канале @${username}...`);
+            const chatMember = await bot.getChatMember(`@${username}`, botId);
+            console.log(`📊 Статус бота:`, chatMember);
             
             const isBotAdmin = ['administrator', 'creator'].includes(chatMember.status);
             const channelInfo = {
@@ -2713,7 +2800,8 @@ app.post('/api/admin/channels/check', requireAuth, async (req, res) => {
                 channelId: chat.id,
                 subscribersCount: chat.member_count,
                 isBotAdmin: isBotAdmin,
-                type: chat.type
+                type: chat.type,
+                botStatus: chatMember.status
             };
 
             console.log(`✅ Канал @${username} найден:`, channelInfo);
@@ -2721,19 +2809,86 @@ app.post('/api/admin/channels/check', requireAuth, async (req, res) => {
             res.json(channelInfo);
         } catch (error) {
             console.error(`❌ Ошибка проверки канала @${username}:`, error);
+            console.error('Детали ошибки:', {
+                message: error.message,
+                code: error.code,
+                response: error.response?.body
+            });
             
-            // Если канал не найден или бот не имеет доступа
-            if (error.response && error.response.body && error.response.body.error_code === 400) {
-                return res.status(400).json({ 
-                    error: 'Канал не найден или бот не является участником канала' 
+            // Обработка различных типов ошибок Telegram API
+            if (error.response && error.response.body) {
+                const telegramError = error.response.body;
+                console.log(`📋 Ошибка Telegram API: ${telegramError.error_code} - ${telegramError.description}`);
+                
+                switch (telegramError.error_code) {
+                    case 400:
+                        if (telegramError.description.includes('chat not found')) {
+                            return res.status(400).json({ 
+                                error: 'Канал не найден',
+                                details: 'Проверьте правильность username канала. Убедитесь, что канал публичный или бот был добавлен в канал.',
+                                suggestion: 'Попробуйте указать полное имя канала, например: mychannel (без @)'
+                            });
+                        } else if (telegramError.description.includes('not enough rights')) {
+                            return res.status(400).json({ 
+                                error: 'Недостаточно прав',
+                                details: 'У бота недостаточно прав для получения информации о канале.',
+                                suggestion: 'Добавьте бота в канал как администратора'
+                            });
+                        } else {
+                            return res.status(400).json({ 
+                                error: 'Неверные параметры запроса',
+                                details: telegramError.description,
+                                suggestion: 'Проверьте правильность username канала'
+                            });
+                        }
+                        break;
+                    case 403:
+                        return res.status(400).json({ 
+                            error: 'Доступ запрещён',
+                            details: 'Бот не является участником канала или заблокирован',
+                            suggestion: 'Добавьте бота в канал как администратора и убедитесь, что он не заблокирован'
+                        });
+                    case 429:
+                        return res.status(429).json({ 
+                            error: 'Слишком много запросов',
+                            details: 'Превышен лимит запросов к Telegram API',
+                            suggestion: 'Попробуйте через несколько минут'
+                        });
+                    default:
+                        return res.status(500).json({ 
+                            error: 'Ошибка Telegram API',
+                            details: telegramError.description,
+                            code: telegramError.error_code
+                        });
+                }
+            }
+            
+            // Обработка сетевых ошибок
+            if (error.code === 'ETELEGRAM' || error.code === 'EFATAL' || error.code === 'ECONNRESET') {
+                return res.status(500).json({ 
+                    error: 'Проблема с подключением к Telegram API',
+                    details: 'Не удалось установить соединение с серверами Telegram',
+                    suggestion: 'Проверьте интернет соединение и попробуйте позже'
                 });
             }
             
-            throw error;
+            // Общая ошибка сервера
+            return res.status(500).json({
+                error: 'Внутренняя ошибка сервера',
+                details: error.message,
+                suggestion: 'Попробуйте позже или обратитесь к администратору'
+            });
         }
     } catch (error) {
-        console.error('❌ Ошибка проверки канала:', error);
-        res.status(500).json({ error: 'Ошибка проверки канала' });
+        console.error('❌ Необработанная ошибка проверки канала:', {
+            message: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({ 
+            error: 'Внутренняя ошибка сервера',
+            details: 'Произошла неожиданная ошибка при проверке канала',
+            suggestion: 'Попробуйте позже или обратитесь к администратору'
+        });
     }
 });
 
@@ -5718,12 +5873,23 @@ let backgroundTasks = null;
 let sponsorAutomation = null;
 let winsChannelManager = null;
 
-const server = app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', async () => {
     console.log('\n🎉 KOSMETICHKA LOTTERY BOT ЗАПУЩЕН!');
     console.log('=====================================');
     console.log(`   📡 Порт: ${PORT}`);
     console.log(`   🌐 URL: ${WEBAPP_URL}`);
     console.log(`   🤖 Бот: ${bot ? '✅ Подключен' : '❌ Ошибка'}`);
+    
+    // Инициализация информации о боте
+    if (bot && !bot.botInfo) {
+        try {
+            bot.botInfo = await bot.getMe();
+            console.log(`   🤖 Bot Info: @${bot.botInfo.username} (ID: ${bot.botInfo.id})`);
+        } catch (error) {
+            console.log(`   🤖 Bot Info: ❌ Ошибка получения (${error.message})`);
+        }
+    }
+    
     console.log(`   📁 Static: ${fs.existsSync(publicPath) ? '✅' : '❌'}`);
     console.log(`   👑 Admin: ${WEBAPP_URL}/admin`);
     console.log(`   ⚡ Готов к работе!`);
@@ -6320,40 +6486,6 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 */
 
 // Дублирующий эндпоинт удален - используется версия с requireAuth выше
-
-// Получить список каналов
-app.get('/api/admin/channels', async (req, res) => {
-    try {
-        console.log('📺 Admin API: Запрос каналов');
-        
-        // Получаем каналы напрямую через PostgreSQL
-        let channels = [];
-        try {
-            const result = await db.query(`
-                SELECT pc.*,
-                       COUNT(ucs.id) as current_subscribers
-                FROM partner_channels pc
-                LEFT JOIN user_channel_subscriptions ucs ON pc.id = ucs.channel_id AND ucs.is_active = 1
-                GROUP BY pc.id
-                ORDER BY pc.created_at DESC
-            `);
-            channels = result.rows || [];
-        } catch (err) {
-            console.error('Ошибка получения каналов:', err);
-        }
-        
-        res.json({
-            success: true,
-            channels: channels || []
-        });
-    } catch (error) {
-        console.error('❌ Ошибка получения каналов:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Ошибка получения каналов' 
-        });
-    }
-});
 
 // === ФУНКЦИИ ДЛЯ СИСТЕМЫ ЗАДАНИЙ ===
 
