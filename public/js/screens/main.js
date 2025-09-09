@@ -977,12 +977,22 @@ export class MainScreen {
             
             console.log(`🎫 Показываем результат: ${certificateName}`);
             
+            // Создаем правильный объект приза для модального окна и менеджера
+            const correctPrizeData = {
+                ...prize,
+                displayName: certificateName, // Правильное отображаемое имя
+                realName: certificateName,    // Обновляем realName правильным именем
+                realValue: certificateValue,  // Обновляем realValue правильным значением
+                correctName: certificateName, // Дополнительно для ясности
+                correctValue: certificateValue
+            };
+            
             const modalData = {
                 icon: '🎫',
                 title: 'Поздравляем!',
                 description: `Вы выиграли ${certificateName}!`,
                 isWin: true,
-                prize: prize
+                prize: correctPrizeData
             };
             
             console.log(`🎭 ОТПРАВЛЯЕМ В МОДАЛЬНОЕ ОКНО:`, modalData);
@@ -1793,15 +1803,18 @@ export class MainScreen {
         const userId = this.app.tg?.initDataUnsafe?.user?.id || 'неизвестен';
         const currentTime = new Date().toLocaleString('ru-RU');
         
-        let prizeName = prizeInfo.realName || prizeInfo.name || 'Сертификат';
-        let prizeValue = prizeInfo.realValue || prizeInfo.value || 'неизвестно';
+        // Приоритетно используем правильно вычисленные данные
+        let prizeName = prizeInfo.displayName || prizeInfo.correctName || prizeInfo.realName || prizeInfo.name || 'Сертификат';
+        let prizeValue = prizeInfo.correctValue || prizeInfo.realValue || prizeInfo.value || 'неизвестно';
         
         console.log(`📞 Генерируем сообщение менеджеру:`, {
             originalPrizeInfo: prizeInfo,
+            displayName: prizeInfo.displayName,
+            correctName: prizeInfo.correctName,
             realName: prizeInfo.realName,
             visualName: prizeInfo.name,
-            prizeName: prizeName,
-            prizeValue: prizeValue
+            finalPrizeName: prizeName,
+            finalPrizeValue: prizeValue
         });
         
         // Определяем тип сертификата для правильного сообщения
