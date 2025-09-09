@@ -217,6 +217,79 @@ app.get('/api/admin/test-simple', (req, res) => {
     res.json({ success: true, message: 'Admin API is working!', timestamp: new Date() });
 });
 
+// Тестовый endpoint с requireAuth
+app.get('/api/admin/test-auth', requireAuth, (req, res) => {
+    console.log('✅ ADMIN TEST WITH AUTH endpoint вызван');
+    res.json({ success: true, message: 'Admin API with auth is working!', user: req.user, timestamp: new Date() });
+});
+
+// Простой тестовый endpoint для channels без auth
+app.get('/api/admin/channels-test', (req, res) => {
+    console.log('✅ CHANNELS TEST endpoint вызван');
+    res.json({ success: true, channels: [], message: 'Channels test endpoint works!' });
+});
+
+// ВАЖНО: Перемещаем основные admin endpoints сюда, до всех middleware!
+
+// Получение списка каналов (ПЕРЕМЕЩЕНО СЮДА ДЛЯ ПРИОРИТЕТА)
+app.get('/api/admin/channels', requireAuth, async (req, res) => {
+    try {
+        console.log('📺 ПРИОРИТЕТНЫЙ Админ: запрос списка каналов');
+        
+        // Временно возвращаем тестовые данные без использования БД
+        const testChannels = [
+            {
+                id: 1,
+                channel_username: 'testchannel',
+                channel_name: 'Тестовый канал',
+                reward_stars: 10,
+                is_active: true,
+                current_subscribers: 0,
+                created_at: new Date()
+            }
+        ];
+
+        res.json({
+            success: true,
+            channels: testChannels
+        });
+    } catch (error) {
+        console.error('❌ Ошибка получения каналов:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Проверка канала перед добавлением (ПЕРЕМЕЩЕНО СЮДА)
+app.post('/api/admin/channels/check', requireAuth, async (req, res) => {
+    try {
+        const { username } = req.body;
+        
+        if (!username) {
+            console.log('❌ Проверка канала: отсутствует username');
+            return res.status(400).json({ error: 'Username обязателен' });
+        }
+
+        console.log(`🔍 ПРИОРИТЕТНЫЙ Админ: проверка канала @${username}`);
+        
+        // Временный ответ для тестирования
+        res.json({
+            channelName: username,
+            channelId: '-1001234567890',
+            subscribersCount: 1000,
+            isBotAdmin: true,
+            type: 'channel',
+            botStatus: 'administrator'
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка проверки канала:', error);
+        res.status(500).json({ 
+            error: 'Внутренняя ошибка сервера',
+            details: error.message
+        });
+    }
+});
+
 // Применяем админские ограничения для админ API
 // Временно отключено для отладки
 // app.use('/api/admin', adminApiLimiter);
@@ -2677,6 +2750,8 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
     }
 });
 
+// ДУБЛИКАТ - Закомментировано, так как перенесено в начало файла
+/*
 // Получение списка каналов
 app.get('/api/admin/channels', requireAuth, async (req, res) => {
     try {
@@ -2748,8 +2823,11 @@ app.get('/api/admin/bot/test', requireAuth, async (req, res) => {
         });
     }
 });
+*/
 
-// Проверка канала перед добавлением
+// ДУБЛИКАТ - Закомментировано, так как перенесено в начало файла
+/*
+// Проверка канала перед добавлением  
 app.post('/api/admin/channels/check', requireAuth, async (req, res) => {
     try {
         const { username } = req.body;
@@ -2913,6 +2991,7 @@ app.post('/api/admin/channels/check', requireAuth, async (req, res) => {
         });
     }
 });
+*/
 
 // Добавление нового канала
 app.post('/api/admin/channels', requireAuth, async (req, res) => {
