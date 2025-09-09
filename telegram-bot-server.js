@@ -205,8 +205,21 @@ app.use((req, res, next) => {
 // Применяем общие ограничения для всех API эндпоинтов
 app.use('/api', generalApiLimiter);
 
+// Простой тестовый endpoint для проверки базовой работоспособности
+app.get('/api/test', (req, res) => {
+    console.log('✅ TEST API endpoint вызван');
+    res.json({ success: true, message: 'Server is working!', timestamp: new Date() });
+});
+
+// Еще один тестовый endpoint специально для admin
+app.get('/api/admin/test-simple', (req, res) => {
+    console.log('✅ ADMIN TEST API endpoint вызван');
+    res.json({ success: true, message: 'Admin API is working!', timestamp: new Date() });
+});
+
 // Применяем админские ограничения для админ API
-app.use('/api/admin', adminApiLimiter);
+// Временно отключено для отладки
+// app.use('/api/admin', adminApiLimiter);
 
 // Отладочный middleware для всех админ запросов
 app.use('/api/admin', (req, res, next) => {
@@ -2668,6 +2681,13 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 app.get('/api/admin/channels', requireAuth, async (req, res) => {
     try {
         console.log('📺 Админ: запрос списка каналов');
+        console.log('🔍 Детали запроса:', {
+            method: req.method,
+            url: req.url,
+            originalUrl: req.originalUrl,
+            headers: req.headers,
+            timestamp: new Date()
+        });
 
         // Временно возвращаем тестовые данные без использования БД
         const testChannels = [
