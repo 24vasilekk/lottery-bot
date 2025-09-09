@@ -2690,45 +2690,164 @@ app.get('/api/admin/channels', requireAuth, async (req, res) => {
     }
 });
 
+// Проверка канала перед добавлением
+app.post('/api/admin/channels/check', requireAuth, async (req, res) => {
+    try {
+        const { username } = req.body;
+        
+        if (!username) {
+            return res.status(400).json({ error: 'Username обязателен' });
+        }
+
+        console.log(`🔍 Админ: проверка канала @${username}`);
+
+        // Пытаемся получить информацию о канале через Telegram Bot API
+        try {
+            // Проверяем, является ли бот администратором канала
+            const chat = await bot.getChat(`@${username}`);
+            const chatMember = await bot.getChatMember(`@${username}`, bot.botInfo.id);
+            
+            const isBotAdmin = ['administrator', 'creator'].includes(chatMember.status);
+            const channelInfo = {
+                channelName: chat.title,
+                channelId: chat.id,
+                subscribersCount: chat.member_count,
+                isBotAdmin: isBotAdmin,
+                type: chat.type
+            };
+
+            console.log(`✅ Канал @${username} найден:`, channelInfo);
+            
+            res.json(channelInfo);
+        } catch (error) {
+            console.error(`❌ Ошибка проверки канала @${username}:`, error);
+            
+            // Если канал не найден или бот не имеет доступа
+            if (error.response && error.response.body && error.response.body.error_code === 400) {
+                return res.status(400).json({ 
+                    error: 'Канал не найден или бот не является участником канала' 
+                });
+            }
+            
+            throw error;
+        }
+    } catch (error) {
+        console.error('❌ Ошибка проверки канала:', error);
+        res.status(500).json({ error: 'Ошибка проверки канала' });
+    }
+});
+
 // Добавление нового канала
 app.post('/api/admin/channels', requireAuth, async (req, res) => {
     try {
         const {
             channel_username,
-            channel_name,
             reward_stars,
             placement_type,
             placement_duration,
-            subscribers_target,
-            is_hot_offer
+            target_subscribers,
+            is_hot_offer,
+            hot_offer_multiplier,
+            auto_renewal,
+            is_active,
+            start_date,
+            end_date
         } = req.body;
 
         console.log(`📺 Админ: добавление канала @${channel_username}`);
 
-        // Вычисляем end_date
-        let endDate = null;
-        if (placement_type === 'time') {
-            endDate = new Date(Date.now() + (placement_duration * 60 * 60 * 1000)).toISOString();
+        // Получаем информацию о канале
+        let channelName = channel_username;
+        let channelId = null;
+        
+        try {
+            const chat = await bot.getChat(`@${channel_username}`);
+            channelName = chat.title || channel_username;
+            channelId = chat.id.toString();
+        } catch (error) {
+            console.warn(`⚠️ Не удалось получить информацию о канале @${channel_username}:`, error);
         }
 
-        const channelId = await new Promise((resolve, reject) => {
-            db.db.run(`
-                INSERT INTO partner_channels (
-                    channel_username, channel_name, reward_stars, placement_type,
-                    placement_duration, target_subscribers, is_hot_offer, end_date
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `, [
-                channel_username, channel_name, reward_stars, placement_type,
-                placement_duration, subscribers_target, is_hot_offer ? 1 : 0, endDate
-            ], function(err) {
-                if (err) reject(err);
-                else resolve(this.lastID);
-            });
-        });
+        // Используем PostgreSQL для добавления канала
+        const result = await db.query(`
+            INSERT INTO partner_channels (
+                channel_username, 
+                channel_name, 
+                channel_id,
+                reward_stars, 
+                placement_type,
+                placement_duration, 
+                target_subscribers, 
+                is_hot_offer,
+                hot_offer_multiplier,
+                auto_renewal,
+                is_active,
+                start_date,
+                end_date
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            RETURNING id
+        `, [
+            channel_username, 
+            channelName, 
+            channelId,
+            reward_stars,
+            placement_type,
+            placement_duration || null,
+            target_subscribers || null,
+            is_hot_offer || false,
+            hot_offer_multiplier || 1.0,
+            auto_renewal || false,
+            is_active !== false, // По умолчанию активен
+            start_date ? new Date(start_date) : new Date(),
+            end_date ? new Date(end_date) : null
+        ]);
 
-        res.json({ success: true, id: channelId });
+        const newChannelId = result.rows[0].id;
+
+        res.json({ success: true, id: newChannelId });
     } catch (error) {
         console.error('❌ Ошибка добавления канала:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Получение информации о канале
+app.get('/api/admin/channels/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const result = await db.query(
+            'SELECT * FROM partner_channels WHERE id = $1',
+            [id]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Канал не найден' });
+        }
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('❌ Ошибка получения канала:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Изменение статуса канала
+app.patch('/api/admin/channels/:id/status', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { is_active } = req.body;
+
+        console.log(`🔄 Админ: изменение статуса канала ${id} на ${is_active ? 'активен' : 'неактивен'}`);
+
+        await db.query(
+            'UPDATE partner_channels SET is_active = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+            [is_active, id]
+        );
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Ошибка изменения статуса канала:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

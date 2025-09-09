@@ -557,3 +557,119 @@
     font-size: 14px;
     margin-bottom: 20px;
 }
+
+/* Channel check info */
+.channel-check-info {
+    margin-top: 8px;
+    padding: 12px;
+    border-radius: 8px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 14px;
+}
+
+.channel-check-info.success {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.channel-check-info.error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.channel-check-info .info-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+/* Form rows */
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+/* Checkbox labels */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.form-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+/* Warning message */
+.warning-message {
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: 8px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 14px;
+    color: #f59e0b;
+}
+
+.warning-message .warning-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+/* Hot offer indicator */
+.hot-indicator {
+    width: 16px;
+    height: 16px;
+    color: #ef4444;
+    margin-right: 4px;
+}
+
+/* Multiplier badge */
+.multiplier {
+    font-size: 12px;
+    color: #ef4444;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+/* Button with text */
+.btn-sm span {
+    margin-left: 4px;
+    font-size: 12px;
+}
+
+/* Status badge for channels */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-badge.status-active {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+}
+
+.status-badge.status-inactive {
+    background: rgba(156, 163, 175, 0.1);
+    color: #9ca3af;
+}
