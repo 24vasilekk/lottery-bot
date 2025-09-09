@@ -678,6 +678,12 @@ class ChannelsPage {
 
     // Действия с каналами
     async showAddChannelModal() {
+        // Проверяем что мы в активном состоянии
+        if (window.channelsPage !== this) {
+            console.warn('⚠️ Попытка показать модальное окно от неактивного компонента каналов');
+            return;
+        }
+        
         const modal = document.createElement('div');
         modal.className = 'modal';
         modal.innerHTML = `
@@ -1140,6 +1146,15 @@ class ChannelsPage {
     destroy() {
         // Очистка при уничтожении компонента
         this.selectedChannels.clear();
+        
+        // Удаляем модальные окна если они есть
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => modal.remove());
+        
+        // Очищаем глобальную ссылку
+        if (window.channelsPage === this) {
+            window.channelsPage = null;
+        }
     }
 }
 

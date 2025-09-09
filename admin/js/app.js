@@ -353,6 +353,32 @@ class AdminApp {
         console.log(`📄 Загружаем компонент страницы: ${page}`);
         const pageContent = document.getElementById('page-content');
         
+        // Очистка предыдущих глобальных компонентов
+        if (window.channelsPage && this.currentPage !== 'channels') {
+            if (typeof window.channelsPage.destroy === 'function') {
+                window.channelsPage.destroy();
+            }
+            window.channelsPage = null;
+        }
+        if (window.prizesPage && this.currentPage !== 'prizes') {
+            if (typeof window.prizesPage.destroy === 'function') {
+                window.prizesPage.destroy();
+            }
+            window.prizesPage = null;
+        }
+        if (window.usersPage && this.currentPage !== 'users') {
+            if (typeof window.usersPage.destroy === 'function') {
+                window.usersPage.destroy();
+            }
+            window.usersPage = null;
+        }
+        if (window.dashboardPage && this.currentPage !== 'dashboard') {
+            if (typeof window.dashboardPage.destroy === 'function') {
+                window.dashboardPage.destroy();
+            }
+            window.dashboardPage = null;
+        }
+        
         try {
             let component;
             
