@@ -2751,7 +2751,6 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 });
 
 // ДУБЛИКАТ - Закомментировано, так как перенесено в начало файла
-/*
 // Получение списка каналов
 app.get('/api/admin/channels', requireAuth, async (req, res) => {
     try {
@@ -2826,7 +2825,6 @@ app.get('/api/admin/bot/test', requireAuth, async (req, res) => {
 */
 
 // ДУБЛИКАТ - Закомментировано, так как перенесено в начало файла
-/*
 // Проверка канала перед добавлением  
 app.post('/api/admin/channels/check', requireAuth, async (req, res) => {
     try {
@@ -2991,7 +2989,6 @@ app.post('/api/admin/channels/check', requireAuth, async (req, res) => {
         });
     }
 });
-*/
 
 // Добавление нового канала
 app.post('/api/admin/channels', requireAuth, async (req, res) => {
@@ -5518,8 +5515,6 @@ app.use((req, res) => {
         timestamp: new Date().toISOString()
     });
 });
-
-*/
 
 // Получение списка пользователей  
 app.get('/api/admin/users', requireAuth, async (req, res) => {
