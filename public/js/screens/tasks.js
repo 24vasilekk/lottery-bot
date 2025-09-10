@@ -123,15 +123,24 @@ export class TasksScreen {
     }
 
     refreshTabContent(tabName) {
+        console.log(`🔄 Обновляем контент вкладки: ${tabName}`);
+        
         const sectionId = `${tabName}-tasks`;
         const container = document.getElementById(sectionId);
-        if (!container) return;
+        
+        if (!container) {
+            console.error(`❌ Контейнер не найден: ${sectionId}`);
+            return;
+        }
+        
+        console.log(`📋 Найден контейнер: ${sectionId}`);
         
         switch (tabName) {
             case 'referral':
                 container.innerHTML = this.renderReferralTasks();
                 break;
             case 'hot':
+                console.log(`🔥 Рендерим горячие предложения, каналов: ${this.channels?.length || 0}`);
                 container.innerHTML = this.renderHotOffers();
                 break;
         }
@@ -547,29 +556,47 @@ export class TasksScreen {
             const channelUrl = `https://t.me/${task.channelUsername}`;
             console.log(`🔗 Открываем канал в Telegram: ${channelUrl}`);
             
+            // Флаг для отслеживания успешного открытия
+            let opened = false;
+            
             try {
                 // Открываем ссылку на канал в Telegram
                 if (this.app.tg && this.app.tg.openTelegramLink) {
                     console.log('📱 Используем openTelegramLink');
                     this.app.tg.openTelegramLink(channelUrl);
+                    opened = true;
                 } else if (this.app.tg && this.app.tg.openLink) {
                     console.log('📱 Используем openLink');  
                     this.app.tg.openLink(channelUrl);
+                    opened = true;
                 } else {
                     console.log('📱 Fallback к window.open');
                     window.open(channelUrl, '_blank');
+                    opened = true;
                 }
-                
-                // Показываем инструкцию пользователю
-                this.showMessage('📱 Подпишитесь на канал и нажмите "Проверить" когда будете готовы', 'success');
-                
-                // Меняем кнопку на "Проверить" 
-                this.setTaskStatus(taskId, 'ready_to_check');
-                this.refreshTabContent(this.currentTab);
-                
             } catch (error) {
-                console.error('❌ Ошибка открытия канала:', error);
-                this.showMessage('❌ Ошибка открытия канала. Попробуйте ещё раз', 'error');
+                console.warn('⚠️ Ошибка при вызове метода открытия:', error);
+                // Не критично - канал мог открыться
+            }
+            
+            // Всегда меняем статус и показываем сообщение (даже если был catch)
+            // Так как методы Telegram не всегда корректно возвращают результат
+            console.log('✅ Меняем статус задания на ready_to_check');
+            
+            // Показываем инструкцию пользователю
+            this.showMessage('📱 Подпишитесь на канал и нажмите "Проверить" когда будете готовы', 'success');
+            
+            // Меняем кнопку на "Проверить" 
+            this.setTaskStatus(taskId, 'ready_to_check');
+            
+            // Определяем текущую активную вкладку 
+            const activeTab = document.querySelector('.task-tab-profile.active');
+            const tabName = activeTab?.dataset?.tab || this.currentTab;
+            console.log(`📍 Активная вкладка: ${tabName}`);
+            
+            // Обновляем только если это вкладка с активными заданиями
+            if (tabName === 'hot') {
+                this.refreshTabContent('hot');
             }
             
             return;
