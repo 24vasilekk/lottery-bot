@@ -807,7 +807,7 @@ class DatabasePostgres {
             SELECT * FROM partner_channels 
             WHERE placement_type = 'time' 
             AND is_active = true 
-            AND created_at + (placement_duration::text || ' hours')::INTERVAL <= NOW()
+            AND created_date + (placement_duration::text || ' hours')::INTERVAL <= NOW()
         `;
         const result = await this.pool.query(query);
         return result.rows;
@@ -818,7 +818,7 @@ class DatabasePostgres {
             SELECT * FROM partner_channels 
             WHERE placement_type = 'target' 
             AND is_active = true 
-            AND current_subscribers >= subscribers_target
+            AND current_subscribers >= target_subscribers
         `;
         const result = await this.pool.query(query);
         return result.rows;
@@ -846,7 +846,7 @@ class DatabasePostgres {
         const query = `
             SELECT * FROM partner_channels 
             WHERE is_active = true
-            ORDER BY created_at DESC
+            ORDER BY created_date DESC
         `;
         const result = await this.pool.query(query);
         return result.rows;

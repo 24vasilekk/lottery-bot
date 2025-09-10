@@ -236,22 +236,13 @@ app.get('/api/admin/channels', requireAuth, async (req, res) => {
     try {
         console.log('📺 ПРИОРИТЕТНЫЙ Админ: запрос списка каналов');
         
-        // Временно возвращаем тестовые данные без использования БД
-        const testChannels = [
-            {
-                id: 1,
-                channel_username: 'testchannel',
-                channel_name: 'Тестовый канал',
-                reward_stars: 10,
-                is_active: true,
-                current_subscribers: 0,
-                created_at: new Date()
-            }
-        ];
+        // Получаем реальные каналы из базы данных
+        const channels = await db.getActiveChannels();
+        console.log(`✅ Найдено ${channels.length} активных каналов`);
 
         res.json({
             success: true,
-            channels: testChannels
+            channels: channels
         });
     } catch (error) {
         console.error('❌ Ошибка получения каналов:', error);
