@@ -387,9 +387,24 @@ export class TasksScreen {
         }, 2000);
     }
 
-    showMessage(message, type = 'info') {
+    showMessage(message, type = 'info', duration) {
         if (this.app && this.app.showStatusMessage) {
-            this.app.showStatusMessage(message, type);
+            // Устанавливаем длительность в зависимости от типа сообщения
+            let messageDuration = duration;
+            if (!messageDuration) {
+                switch (type) {
+                    case 'error':
+                        messageDuration = 6000; // 6 секунд для ошибок
+                        break;
+                    case 'success':
+                        messageDuration = 4000; // 4 секунды для успеха
+                        break;
+                    default:
+                        messageDuration = 3000; // 3 секунды по умолчанию
+                }
+            }
+            
+            this.app.showStatusMessage(message, type, messageDuration);
         } else {
             // Fallback - простой alert
             alert(message);
@@ -530,21 +545,33 @@ export class TasksScreen {
         // ИСПРАВЛЕНО: Сначала открываем канал, если это задание с подпиской
         if (task.type === 'subscription' && task.channelUsername) {
             const channelUrl = `https://t.me/${task.channelUsername}`;
-            console.log(`🔗 Открываем канал: ${channelUrl}`);
+            console.log(`🔗 Открываем канал в Telegram: ${channelUrl}`);
             
-            // Открываем ссылку на канал
-            if (this.app.tg && this.app.tg.openLink) {
-                this.app.tg.openLink(channelUrl);
-            } else {
-                window.open(channelUrl, '_blank');
+            try {
+                // Открываем ссылку на канал в Telegram
+                if (this.app.tg && this.app.tg.openTelegramLink) {
+                    console.log('📱 Используем openTelegramLink');
+                    this.app.tg.openTelegramLink(channelUrl);
+                } else if (this.app.tg && this.app.tg.openLink) {
+                    console.log('📱 Используем openLink');  
+                    this.app.tg.openLink(channelUrl);
+                } else {
+                    console.log('📱 Fallback к window.open');
+                    window.open(channelUrl, '_blank');
+                }
+                
+                // Показываем инструкцию пользователю
+                this.showMessage('📱 Подпишитесь на канал и нажмите "Проверить" когда будете готовы', 'success');
+                
+                // Меняем кнопку на "Проверить" 
+                this.setTaskStatus(taskId, 'ready_to_check');
+                this.refreshTabContent(this.currentTab);
+                
+            } catch (error) {
+                console.error('❌ Ошибка открытия канала:', error);
+                this.showMessage('❌ Ошибка открытия канала. Попробуйте ещё раз', 'error');
             }
             
-            // Показываем инструкцию пользователю
-            this.showMessage('📱 Подпишитесь на канал и нажмите "Проверить" когда будете готовы', 'info');
-            
-            // Меняем кнопку на "Проверить"
-            this.setTaskStatus(taskId, 'ready_to_check');
-            this.refreshTabContent(this.currentTab);
             return;
         }
 
@@ -617,7 +644,7 @@ export class TasksScreen {
             }
 
             // Если задание связано с подпиской на канал
-            if (task.type === 'channel_subscription' && task.channelUsername) {
+            if (task.type === 'subscription' && task.channelUsername) {
                 return await this.checkChannelSubscriptionStatus(userId, task.channelUsername);
             }
             
@@ -698,36 +725,58 @@ export class TasksScreen {
         }
 
         const rewardAmount = task.reward.amount;
+        const userId = this.app.tg?.initDataUnsafe?.user?.id;
         
-        // ИСПРАВЛЕНО: правильное начисление звезд с проверками
-        const currentStars = this.app.gameData.stars || 0;
-        const newStars = currentStars + rewardAmount;
-        
-        console.log(`💰 Начисление звезд: ${currentStars} + ${rewardAmount} = ${newStars}`);
-        
-        // ИСПРАВЛЕНО: НЕ обновляем баланс локально - только сервер!
-        console.log(`⭐ Награда за задание: ${rewardAmount} звезд. Ожидаем подтверждения сервера...`);
-        
-        // Локальное начисление удалено - сервер сам обновит баланс через updateUserData
-        
-        console.log(`📊 Общие статистики: баланс=${newStars}, всего заработано=${this.app.gameData.total_stars_earned}`);
-        
-        // Сохраняем данные локально
-        this.app.saveGameData();
-        
-        // Обновляем отображение звезд в интерфейсе
-        this.updateStarsDisplayImmediate();
-        
-        // Отправляем данные на сервер асинхронно
-        try {
-            await this.syncUserDataWithServer();
-            console.log(`✅ Звезды синхронизированы с сервером: ${newStars}`);
-        } catch (error) {
-            console.warn('⚠️ Ошибка синхронизации с сервером:', error);
-            // Не прерываем процесс из-за ошибки синхронизации
+        if (!userId) {
+            console.error('❌ Не удалось получить ID пользователя для начисления награды');
+            return 0;
         }
         
-        return rewardAmount;
+        console.log(`💰 Начисляем ${rewardAmount} звезд пользователю ${userId} за выполнение задания`);
+        
+        try {
+            // Отправляем запрос на сервер для начисления награды
+            const response = await fetch('/api/tasks/complete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    userId: userId,
+                    taskId: task.id,
+                    taskType: task.type,
+                    channelUsername: task.channelUsername,
+                    rewardAmount: rewardAmount
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log(`✅ Награда успешно начислена: ${rewardAmount} звезд`);
+                
+                // Обновляем локальный баланс из ответа сервера
+                if (result.newBalance !== undefined) {
+                    this.app.gameData.stars = result.newBalance;
+                    this.app.saveGameData();
+                    this.updateStarsDisplayImmediate();
+                }
+                
+                return rewardAmount;
+            } else {
+                console.error('❌ Сервер отклонил начисление награды:', result.error);
+                throw new Error(result.error || 'Ошибка начисления награды');
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка начисления награды:', error);
+            this.showMessage('❌ Ошибка начисления награды. Попробуйте позже', 'error');
+            return 0;
+        }
     }
 
     updateStarsDisplayImmediate() {

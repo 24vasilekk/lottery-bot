@@ -2487,6 +2487,79 @@ app.get('/api/tasks/available/:userId', async (req, res) => {
     }
 });
 
+// API для завершения задания и получения награды
+app.post('/api/tasks/complete', async (req, res) => {
+    try {
+        const { userId, taskId, taskType, channelUsername, rewardAmount } = req.body;
+        
+        console.log(`🎯 Завершение задания:`, { userId, taskId, taskType, channelUsername, rewardAmount });
+        
+        if (!userId || !taskId || !rewardAmount) {
+            return res.status(400).json({
+                success: false,
+                error: 'Отсутствуют обязательные параметры'
+            });
+        }
+
+        // Получаем пользователя из БД
+        const user = await db.getUser(parseInt(userId));
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'Пользователь не найден'
+            });
+        }
+
+        // Если это задание с подпиской на канал, проверяем подписку
+        if (taskType === 'subscription' && channelUsername) {
+            try {
+                const chatMember = await bot.getChatMember(`@${channelUsername}`, userId);
+                const subscribedStatuses = ['member', 'administrator', 'creator'];
+                const isSubscribed = subscribedStatuses.includes(chatMember.status);
+                
+                if (!isSubscribed) {
+                    return res.json({
+                        success: false,
+                        error: 'Вы не подписаны на канал'
+                    });
+                }
+                
+                console.log(`✅ Подписка подтверждена: ${userId} → @${channelUsername}`);
+            } catch (error) {
+                console.error('❌ Ошибка проверки подписки:', error);
+                return res.json({
+                    success: false,
+                    error: 'Ошибка проверки подписки'
+                });
+            }
+        }
+
+        // Начисляем звезды пользователю
+        const updatedUser = await db.addUserStars(
+            parseInt(userId), 
+            parseInt(rewardAmount), 
+            'task_completion',
+            { taskId, taskType, channelUsername }
+        );
+
+        console.log(`💰 Начислено ${rewardAmount} звезд пользователю ${userId}. Новый баланс: ${updatedUser.stars}`);
+
+        res.json({
+            success: true,
+            reward: parseInt(rewardAmount),
+            newBalance: updatedUser.stars,
+            message: `Получено ${rewardAmount} ⭐!`
+        });
+
+    } catch (error) {
+        console.error('❌ Ошибка завершения задания:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка сервера'
+        });
+    }
+});
+
 // API для получения статистики реферальной системы
 app.get('/api/referral/stats/:userId', async (req, res) => {
     try {
