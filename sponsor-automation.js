@@ -191,52 +191,46 @@ class SponsorAutomation {
 
     // Вспомогательные методы
     async deactivateChannel(channel, reason) {
-        await new Promise((resolve, reject) => {
-            this.db.db.run(`
-                UPDATE partner_channels 
-                SET is_active = 0, 
-                    deactivation_reason = ?,
-                    deactivated_at = datetime('now')
-                WHERE id = ?
-            `, [reason, channel.id], (err) => {
-                if (err) reject(err);
-                else resolve();
-            });
-        });
+        await this.db.query(`
+            UPDATE partner_channels 
+            SET is_active = false, 
+                deactivation_reason = $1,
+                deactivated_at = NOW()
+            WHERE id = $2
+        `, [reason, channel.id]);
     }
 
     async getChannelStats(channelId) {
-        const stats = await new Promise((resolve, reject) => {
-            this.db.db.get(`
-                SELECT 
-                    COUNT(*) as subscriptions,
-                    SUM(stars_earned) as totalStarsGiven,
-                    MIN(created_at) as firstSubscription,
-                    MAX(created_at) as lastSubscription
-                FROM user_channel_subscriptions 
-                WHERE channel_id = ?
-            `, [channelId], (err, row) => {
-                if (err) reject(err);
-                else resolve(row || { subscriptions: 0, totalStarsGiven: 0 });
-            });
-        });
+        const result = await this.db.query(`
+            SELECT 
+                COUNT(*) as subscriptions,
+                COALESCE(SUM(stars_earned), 0) as totalStarsGiven,
+                MIN(subscribed_date) as firstSubscription,
+                MAX(subscribed_date) as lastSubscription
+            FROM user_channel_subscriptions 
+            WHERE channel_id = $1
+        `, [channelId]);
 
-        return stats || { subscriptions: 0, totalStarsGiven: 0 };
+        const stats = result.rows[0] || { subscriptions: '0', totalStarsGiven: '0' };
+        
+        // Конвертируем строки в числа
+        return {
+            subscriptions: parseInt(stats.subscriptions) || 0,
+            totalStarsGiven: parseInt(stats.totalStarsGiven) || 0,
+            firstSubscription: stats.firstSubscription,
+            lastSubscription: stats.lastSubscription
+        };
     }
 
     async getChannelDuration(channelId) {
-        const channel = await new Promise((resolve, reject) => {
-            this.db.db.get(`
-                SELECT created_at FROM partner_channels WHERE id = ?
-            `, [channelId], (err, row) => {
-                if (err) reject(err);
-                else resolve(row);
-            });
-        });
+        const result = await this.db.query(`
+            SELECT created_date FROM partner_channels WHERE id = $1
+        `, [channelId]);
 
+        const channel = result.rows[0];
         if (!channel) return 'неизвестно';
 
-        const startTime = new Date(channel.created_at);
+        const startTime = new Date(channel.created_date);
         const endTime = new Date();
         const diffHours = Math.round((endTime - startTime) / (1000 * 60 * 60));
         
@@ -277,30 +271,35 @@ class SponsorAutomation {
     }
 
     async getLastNotification(channelId, type) {
-        const result = await new Promise((resolve, reject) => {
-            this.db.db.get(`
+        try {
+            // Создаем таблицу если её нет
+            await this.db.query(`
+                CREATE TABLE IF NOT EXISTS admin_notifications (
+                    id SERIAL PRIMARY KEY,
+                    channel_id INTEGER,
+                    notification_type VARCHAR(50),
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            
+            const result = await this.db.query(`
                 SELECT created_at FROM admin_notifications 
-                WHERE channel_id = ? AND notification_type = ? 
+                WHERE channel_id = $1 AND notification_type = $2 
                 ORDER BY created_at DESC LIMIT 1
-            `, [channelId, type], (err, row) => {
-                if (err) reject(err);
-                else resolve(row);
-            });
-        });
+            `, [channelId, type]);
 
-        return result ? new Date(result.created_at).getTime() : null;
+            return result.rows[0] ? new Date(result.rows[0].created_at).getTime() : null;
+        } catch (error) {
+            console.error('❌ Ошибка getLastNotification:', error);
+            return null;
+        }
     }
 
     async recordNotification(channelId, type) {
-        await new Promise((resolve, reject) => {
-            this.db.db.run(`
-                INSERT INTO admin_notifications (channel_id, notification_type, created_at)
-                VALUES (?, ?, datetime('now'))
-            `, [channelId, type], (err) => {
-                if (err) reject(err);
-                else resolve();
-            });
-        });
+        await this.db.query(`
+            INSERT INTO admin_notifications (channel_id, notification_type, created_at)
+            VALUES ($1, $2, NOW())
+        `, [channelId, type]);
     }
 
     async notifyAdmin(message) {

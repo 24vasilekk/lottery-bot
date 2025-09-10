@@ -178,16 +178,14 @@ class BackgroundTaskManager {
             console.log('🔍 Массовая проверка подписок пользователей...');
 
             // Получаем активные подписки старше 1 часа (чтобы не спамить API)
+            // Используем только PostgreSQL синтаксис
             const subscriptions = await this.executeQuery(`
                 SELECT ucs.*, pc.channel_username, u.telegram_id
                 FROM user_channel_subscriptions ucs
                 JOIN partner_channels pc ON ucs.channel_id = pc.id
                 JOIN users u ON ucs.user_id = u.id
                 WHERE ucs.is_active = true
-                AND ${this.formatDateQuery(
-                    "datetime(ucs.subscribed_date) < datetime('now', '-1 hour')",
-                    "ucs.subscribed_date < NOW() - INTERVAL '1 hour'"
-                )}
+                AND ucs.subscribed_date < NOW() - INTERVAL '1 hour'
                 ORDER BY RANDOM()
                 LIMIT 100
             `);
