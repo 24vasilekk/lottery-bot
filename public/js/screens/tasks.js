@@ -179,18 +179,19 @@ export class TasksScreen {
     }
 
     renderHotOffers() {
-        if (!TASKS_CONFIG.active) {
+        // Используем динамические каналы из БД вместо статичного конфига
+        if (!this.channels || this.channels.length === 0) {
             return `
                 <div class="task-section-empty">
                     <div class="empty-icon">🔥</div>
-                    <h3>Загрузка заданий...</h3>
-                    <p>Активные задания загружаются</p>
+                    <h3>Нет активных заданий</h3>
+                    <p>Следите за новыми заданиями</p>
                 </div>
             `;
         }
 
-        // ИСПРАВЛЕНО: Показываем ВСЕ активные задания, НЕ фильтруем по выполненности
-        const activeTasks = TASKS_CONFIG.active;
+        // Используем каналы из базы данных
+        const activeTasks = this.channels;
         
         if (activeTasks.length === 0) {
             return `
@@ -219,22 +220,37 @@ export class TasksScreen {
     }
 
     renderActiveTaskCard(task) {
-        const taskStatus = this.getTaskStatus(task.id);
-        const isCompleted = this.isTaskCompleted(task.id);
+        // Адаптируем формат канала из БД к формату задания
+        const taskId = `channel_${task.id}`;
+        const taskStatus = this.getTaskStatus(taskId);
+        const isCompleted = this.isTaskCompleted(taskId);
         
-        console.log(`🎨 Рендеринг карточки задания ${task.id}: статус=${taskStatus}, выполнено=${isCompleted}`);
+        console.log(`🎨 Рендеринг карточки канала ${task.channel_username}: статус=${taskStatus}, выполнено=${isCompleted}`);
+        
+        // Формируем объект задания из данных канала
+        const channelTask = {
+            id: taskId,
+            type: 'subscription',
+            channelUsername: task.channel_username,
+            name: task.channel_name || task.channel_username,
+            reward: {
+                type: 'stars',
+                amount: task.reward_stars || 10
+            },
+            description: task.is_hot_offer ? '🔥 Горячее предложение!' : 'Подпишись на канал'
+        };
         
         return `
-            <div class="task-card active-task-new ${taskStatus === 'completed' ? 'completed' : ''}" data-task-id="${task.id}" data-status="${taskStatus}">
+            <div class="task-card active-task-new ${taskStatus === 'completed' ? 'completed' : ''}" data-task-id="${taskId}" data-status="${taskStatus}">
                 <div class="task-content-grid">
                     <div class="task-left">
-                        <div class="task-title">${task.name}</div>
-                        <div class="task-reward-info">+${task.reward.amount} ⭐</div>
+                        <div class="task-title">@${task.channel_username}</div>
+                        <div class="task-reward-info">+${task.reward_stars} ⭐</div>
                     </div>
                     <div class="task-right">
-                        <div class="task-desc">${task.description}</div>
+                        <div class="task-desc">${channelTask.description}</div>
                         <div class="task-action">
-                            ${this.renderTaskButton(task, taskStatus)}
+                            ${this.renderTaskButton(channelTask, taskStatus)}
                         </div>
                     </div>
                 </div>
@@ -512,14 +528,15 @@ export class TasksScreen {
         }
 
         // ИСПРАВЛЕНО: Сначала открываем канал, если это задание с подпиской
-        if (task.type === 'channel_subscription' && task.url) {
-            console.log(`🔗 Открываем канал: ${task.url}`);
+        if (task.type === 'subscription' && task.channelUsername) {
+            const channelUrl = `https://t.me/${task.channelUsername}`;
+            console.log(`🔗 Открываем канал: ${channelUrl}`);
             
             // Открываем ссылку на канал
             if (this.app.tg && this.app.tg.openLink) {
-                this.app.tg.openLink(task.url);
+                this.app.tg.openLink(channelUrl);
             } else {
-                window.open(task.url, '_blank');
+                window.open(channelUrl, '_blank');
             }
             
             // Показываем инструкцию пользователю
@@ -900,7 +917,27 @@ export class TasksScreen {
                 case 'friends':
                     return TASKS_CONFIG.friends?.find(t => t.id === taskId);
                 case 'active':
-                    return TASKS_CONFIG.active?.find(t => t.id === taskId);
+                    // Ищем среди динамических каналов из БД
+                    if (!this.channels) return null;
+                    
+                    const channelId = taskId.replace('channel_', '');
+                    const channel = this.channels.find(c => c.id == channelId);
+                    
+                    if (channel) {
+                        // Преобразуем канал в формат задания
+                        return {
+                            id: taskId,
+                            type: 'subscription',
+                            channelUsername: channel.channel_username,
+                            name: channel.channel_name || channel.channel_username,
+                            reward: {
+                                type: 'stars',
+                                amount: channel.reward_stars || 10
+                            },
+                            description: channel.is_hot_offer ? '🔥 Горячее предложение!' : 'Подпишись на канал'
+                        };
+                    }
+                    return null;
                 default:
                     return null;
             }
