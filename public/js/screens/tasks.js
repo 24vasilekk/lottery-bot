@@ -533,23 +533,41 @@ export class TasksScreen {
     }
 
     setTaskStatus(taskId, status) {
-        if (!this.app.gameData.taskStatuses) {
-            this.app.gameData.taskStatuses = {};
+        try {
+            if (!this.app || !this.app.gameData) {
+                console.error('❌ App или gameData не инициализированы');
+                return;
+            }
+            
+            if (!this.app.gameData.taskStatuses) {
+                this.app.gameData.taskStatuses = {};
+            }
+            
+            this.app.gameData.taskStatuses[taskId] = status;
+            this.app.saveGameData();
+            console.log(`📊 Статус задания ${taskId} изменен на: ${status}`);
+        } catch (error) {
+            console.error('❌ Ошибка в setTaskStatus:', error);
+            throw error;
         }
-        
-        this.app.gameData.taskStatuses[taskId] = status;
-        this.app.saveGameData();
-        console.log(`📊 Статус задания ${taskId} изменен на: ${status}`);
     }
 
     async startTaskCheck(taskId, category) {
-        console.log(`🎯 Начинаем проверку задания: ${taskId} (${category})`);
-        
-        const task = this.findTask(taskId, category);
-        if (!task) {
-            console.error('❌ Задание не найдено:', taskId);
-            return;
-        }
+        try {
+            console.log(`🎯 Начинаем проверку задания: ${taskId} (${category})`);
+            
+            if (!this.app) {
+                console.error('❌ App не инициализирован в startTaskCheck');
+                this.showMessage('Ошибка инициализации. Обновите страницу', 'error');
+                return;
+            }
+            
+            const task = this.findTask(taskId, category);
+            if (!task) {
+                console.error('❌ Задание не найдено:', taskId);
+                this.showMessage('Задание не найдено', 'error');
+                return;
+            }
 
         // ИСПРАВЛЕНО: Сначала открываем канал, если это задание с подпиской
         if (task.type === 'subscription' && task.channelUsername) {
@@ -604,6 +622,11 @@ export class TasksScreen {
 
         // Если это не задание с подпиской или уже готов к проверке
         this.performTaskCheck(taskId, task);
+        
+        } catch (error) {
+            console.error('❌ Ошибка в startTaskCheck:', error);
+            this.showMessage('Произошла ошибка при выполнении задания', 'error');
+        }
     }
 
     async performTaskCheck(taskId, task) {
