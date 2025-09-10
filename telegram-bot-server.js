@@ -3156,12 +3156,13 @@ app.patch('/api/admin/channels/:id/status', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const { is_active } = req.body;
+        const activeStatus = Boolean(is_active);
 
-        console.log(`🔄 Админ: изменение статуса канала ${id} на ${is_active ? 'активен' : 'неактивен'}`);
+        console.log(`🔄 Админ: изменение статуса канала ${id} на ${activeStatus ? 'активен' : 'неактивен'}`);
 
         await db.query(
             'UPDATE partner_channels SET is_active = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-            [is_active, id]
+            [activeStatus, id]
         );
 
         res.json({ success: true });

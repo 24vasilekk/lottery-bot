@@ -111,16 +111,11 @@ class SponsorAutomation {
                 const stats = await this.getChannelStats(channel.id);
                 const priority = await this.calculateChannelPriority(channel, stats);
                 
-                await new Promise((resolve, reject) => {
-                    this.db.db.run(`
-                        UPDATE partner_channels 
-                        SET priority_score = ? 
-                        WHERE id = ?
-                    `, [priority, channel.id], (err) => {
-                        if (err) reject(err);
-                        else resolve();
-                    });
-                });
+                await this.db.query(`
+                    UPDATE partner_channels 
+                    SET priority_score = $1 
+                    WHERE id = $2
+                `, [priority, channel.id]);
             }
 
             console.log(`📊 Обновлены приоритеты для ${activeChannels.length} каналов`);
@@ -162,17 +157,12 @@ class SponsorAutomation {
 
             for (const channel of effectiveChannels) {
                 // Продлеваем на такой же период
-                await new Promise((resolve, reject) => {
-                    this.db.db.run(`
-                        UPDATE partner_channels 
-                        SET created_at = datetime('now'),
-                            renewal_count = COALESCE(renewal_count, 0) + 1
-                        WHERE id = ?
-                    `, [channel.id], (err) => {
-                        if (err) reject(err);
-                        else resolve();
-                    });
-                });
+                await this.db.query(`
+                    UPDATE partner_channels 
+                    SET created_date = NOW(),
+                        renewal_count = COALESCE(renewal_count, 0) + 1
+                    WHERE id = $1
+                `, [channel.id]);
 
                 await this.notifyAdmin(
                     `🔄 Автоматически продлен эффективный канал @${channel.channel_username}\n` +
@@ -248,7 +238,7 @@ class SponsorAutomation {
         let priority = 50; // Базовый приоритет
 
         // Бонус за активность
-        const hoursSinceCreated = (Date.now() - new Date(channel.created_at)) / (1000 * 60 * 60);
+        const hoursSinceCreated = (Date.now() - new Date(channel.created_date)) / (1000 * 60 * 60);
         const subscriptionsPerHour = stats.subscriptions / Math.max(hoursSinceCreated, 1);
         priority += subscriptionsPerHour * 10;
 
@@ -321,22 +311,17 @@ class SponsorAutomation {
     // Публичные методы для внешнего использования
     async getAutomationStats() {
         try {
-            const stats = await new Promise((resolve, reject) => {
-                this.db.db.get(`
-                    SELECT 
-                        COUNT(*) as totalChannels,
-                        COUNT(CASE WHEN is_active = 1 THEN 1 END) as activeChannels,
-                        COUNT(CASE WHEN is_active = 0 AND deactivation_reason = 'time_expired' THEN 1 END) as expiredChannels,
-                        COUNT(CASE WHEN is_active = 0 AND deactivation_reason = 'target_reached' THEN 1 END) as completedChannels,
-                        COUNT(CASE WHEN auto_renewal = 1 THEN 1 END) as autoRenewalChannels
-                    FROM partner_channels
-                `, (err, row) => {
-                    if (err) reject(err);
-                    else resolve(row);
-                });
-            });
-
-            return stats;
+            const result = await this.db.query(`
+                SELECT 
+                    COUNT(*) as totalChannels,
+                    COUNT(CASE WHEN is_active = true THEN 1 END) as activeChannels,
+                    COUNT(CASE WHEN is_active = false AND deactivation_reason = 'time_expired' THEN 1 END) as expiredChannels,
+                    COUNT(CASE WHEN is_active = false AND deactivation_reason = 'target_reached' THEN 1 END) as completedChannels,
+                    COUNT(CASE WHEN auto_renewal = true THEN 1 END) as autoRenewalChannels
+                FROM partner_channels
+            `);
+            
+            return result.rows[0] || null;
         } catch (error) {
             console.error('❌ Ошибка получения статистики автоматизации:', error);
             return null;
@@ -344,29 +329,19 @@ class SponsorAutomation {
     }
 
     async enableAutoRenewal(channelId) {
-        await new Promise((resolve, reject) => {
-            this.db.db.run(`
-                UPDATE partner_channels 
-                SET auto_renewal = 1 
-                WHERE id = ?
-            `, [channelId], (err) => {
-                if (err) reject(err);
-                else resolve();
-            });
-        });
+        await this.db.query(`
+            UPDATE partner_channels 
+            SET auto_renewal = true 
+            WHERE id = $1
+        `, [channelId]);
     }
 
     async disableAutoRenewal(channelId) {
-        await new Promise((resolve, reject) => {
-            this.db.db.run(`
-                UPDATE partner_channels 
-                SET auto_renewal = 0 
-                WHERE id = ?
-            `, [channelId], (err) => {
-                if (err) reject(err);
-                else resolve();
-            });
-        });
+        await this.db.query(`
+            UPDATE partner_channels 
+            SET auto_renewal = false 
+            WHERE id = $1
+        `, [channelId]);
     }
 }
 

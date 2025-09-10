@@ -553,18 +553,31 @@ export class TasksScreen {
     }
 
     async startTaskCheck(taskId, category) {
+        console.log(`🎯 [DEBUG] Начинаем проверку задания: ${taskId} (${category})`);
+        console.log(`🎯 [DEBUG] this.app существует:`, !!this.app);
+        console.log(`🎯 [DEBUG] this.app.gameData существует:`, !!this.app?.gameData);
+        console.log(`🎯 [DEBUG] this.app.tg существует:`, !!this.app?.tg);
+        console.log(`🎯 [DEBUG] channels загружены:`, !!this.channels && this.channels.length);
+        
         try {
-            console.log(`🎯 Начинаем проверку задания: ${taskId} (${category})`);
-            
             if (!this.app) {
-                console.error('❌ App не инициализирован в startTaskCheck');
+                console.error('❌ [DEBUG] App не инициализирован в startTaskCheck');
                 this.showMessage('Ошибка инициализации. Обновите страницу', 'error');
                 return;
             }
             
+            if (!this.app.gameData) {
+                console.error('❌ [DEBUG] gameData не инициализирован');
+                this.showMessage('Ошибка данных игры. Обновите страницу', 'error');
+                return;
+            }
+            
             const task = this.findTask(taskId, category);
+            console.log(`🎯 [DEBUG] Найденное задание:`, task);
+            
             if (!task) {
-                console.error('❌ Задание не найдено:', taskId);
+                console.error('❌ [DEBUG] Задание не найдено:', taskId, 'в категории:', category);
+                console.error('❌ [DEBUG] Доступные каналы:', this.channels?.map(c => `channel_${c.id}`) || 'нет каналов');
                 this.showMessage('Задание не найдено', 'error');
                 return;
             }
@@ -624,24 +637,41 @@ export class TasksScreen {
         this.performTaskCheck(taskId, task);
         
         } catch (error) {
-            console.error('❌ Ошибка в startTaskCheck:', error);
-            this.showMessage('Произошла ошибка при выполнении задания', 'error');
+            console.error('❌ [DEBUG] Критическая ошибка в startTaskCheck:', {
+                error: error,
+                message: error?.message,
+                stack: error?.stack,
+                taskId: taskId,
+                category: category,
+                appExists: !!this.app,
+                gameDataExists: !!this.app?.gameData,
+                tgExists: !!this.app?.tg,
+                channelsLength: this.channels?.length || 0
+            });
+            this.showMessage(`Произошла ошибка при выполнении задания: ${error?.message || 'неизвестная ошибка'}`, 'error');
         }
     }
 
     async performTaskCheck(taskId, task) {
-        // Меняем статус на "проверка"
-        this.setTaskStatus(taskId, 'checking');
-        this.refreshTabContent(this.currentTab);
+        console.log(`🔍 [DEBUG] Начинаем performTaskCheck для задания: ${taskId}`);
+        console.log(`🔍 [DEBUG] Объект задания:`, task);
         
-        // Показываем что идет проверка
-        this.showMessage('🔍 Проверяем выполнение задания...', 'info');
+        try {
+            // Меняем статус на "проверка"
+            console.log(`🔍 [DEBUG] Устанавливаем статус 'checking' для задания ${taskId}`);
+            this.setTaskStatus(taskId, 'checking');
+            this.refreshTabContent(this.currentTab);
+            
+            // Показываем что идет проверка
+            this.showMessage('🔍 Проверяем выполнение задания...', 'info');
 
-        // Небольшая задержка для визуального эффекта
-        setTimeout(async () => {
-            try {
-                // Проверяем выполнение задания
-                const checkResult = await this.checkTaskCompletion(task);
+            // Небольшая задержка для визуального эффекта
+            setTimeout(async () => {
+                try {
+                    console.log(`🔍 [DEBUG] Проверяем выполнение задания...`);
+                    // Проверяем выполнение задания
+                    const checkResult = await this.checkTaskCompletion(task);
+                    console.log(`🔍 [DEBUG] Результат проверки:`, checkResult);
                 
                 if (checkResult.success) {
                     // Задание выполнено успешно
@@ -674,27 +704,50 @@ export class TasksScreen {
                         this.app.tg.HapticFeedback.notificationOccurred('error');
                     }
                 }
-            } catch (error) {
-                console.error('❌ Ошибка проверки задания:', error);
-                this.setTaskStatus(taskId, 'pending');
-                this.showMessage('❌ Ошибка проверки задания. Попробуйте позже.', 'error');
-            }
+                } catch (error) {
+                    console.error('❌ [DEBUG] Ошибка в setTimeout performTaskCheck:', {
+                        error: error,
+                        message: error?.message,
+                        stack: error?.stack,
+                        taskId: taskId
+                    });
+                    this.setTaskStatus(taskId, 'pending');
+                    this.showMessage(`❌ Ошибка проверки задания: ${error?.message || 'неизвестная ошибка'}`, 'error');
+                }
 
-            // Обновляем интерфейс
-            this.refreshTabContent(this.currentTab);
-            this.updateTaskCounter();
-        }, 1000); // Задержка 1 секунда для показа состояния "Проверка"
+                // Обновляем интерфейс
+                this.refreshTabContent(this.currentTab);
+                this.updateTaskCounter();
+            }, 1000); // Задержка 1 секунда для показа состояния "Проверка"
+            
+        } catch (error) {
+            console.error('❌ [DEBUG] Ошибка в performTaskCheck:', {
+                error: error,
+                message: error?.message,
+                stack: error?.stack,
+                taskId: taskId
+            });
+            this.showMessage(`❌ Ошибка при проверке задания: ${error?.message || 'неизвестная ошибка'}`, 'error');
+        }
     }
 
     async checkTaskCompletion(task) {
+        console.log(`✅ [DEBUG] Проверяем выполнение задания:`, task);
+        
         try {
             const userId = this.app.tg?.initDataUnsafe?.user?.id;
+            console.log(`✅ [DEBUG] ID пользователя:`, userId);
+            console.log(`✅ [DEBUG] this.app.tg:`, !!this.app.tg);
+            console.log(`✅ [DEBUG] initDataUnsafe:`, !!this.app.tg?.initDataUnsafe);
+            
             if (!userId) {
+                console.log(`❌ [DEBUG] Нет userId, возвращаем ошибку`);
                 return { success: false, error: 'Данные пользователя недоступны' };
             }
 
             // Если задание связано с подпиской на канал
             if (task.type === 'subscription' && task.channelUsername) {
+                console.log(`📺 [DEBUG] Проверяем подписку на канал: ${task.channelUsername}`);
                 return await this.checkChannelSubscriptionStatus(userId, task.channelUsername);
             }
             
@@ -714,8 +767,13 @@ export class TasksScreen {
             // По умолчанию считаем выполненным
             return { success: true };
         } catch (error) {
-            console.error('❌ Ошибка проверки выполнения задания:', error);
-            return { success: false, error: 'Ошибка проверки задания' };
+            console.error('❌ [DEBUG] Ошибка в checkTaskCompletion:', {
+                error: error,
+                message: error?.message,
+                stack: error?.stack,
+                task: task
+            });
+            return { success: false, error: `Ошибка проверки задания: ${error?.message || 'неизвестная ошибка'}` };
         }
     }
 
@@ -770,61 +828,86 @@ export class TasksScreen {
     }
 
     async giveTaskReward(task) {
+        console.log(`💰 [DEBUG] Начинаем начисление награды за задание:`, task);
+        
         if (!task.reward || task.reward.type !== 'stars') {
+            console.log(`💰 [DEBUG] Награда не звезды или отсутствует, возвращаем 0`);
             return 0;
         }
 
         const rewardAmount = task.reward.amount;
         const userId = this.app.tg?.initDataUnsafe?.user?.id;
         
+        console.log(`💰 [DEBUG] Сумма награды: ${rewardAmount}, ID пользователя: ${userId}`);
+        
         if (!userId) {
-            console.error('❌ Не удалось получить ID пользователя для начисления награды');
+            console.error('❌ [DEBUG] Не удалось получить ID пользователя для начисления награды');
             return 0;
         }
         
-        console.log(`💰 Начисляем ${rewardAmount} звезд пользователю ${userId} за выполнение задания`);
+        console.log(`💰 [DEBUG] Начисляем ${rewardAmount} звезд пользователю ${userId} за выполнение задания`);
         
         try {
+            console.log(`💰 [DEBUG] Отправляем запрос на сервер для начисления награды`);
+            
+            const requestBody = {
+                userId: userId,
+                taskId: task.id,
+                taskType: task.type,
+                channelUsername: task.channelUsername,
+                rewardAmount: rewardAmount
+            };
+            
+            console.log(`💰 [DEBUG] Тело запроса:`, requestBody);
+            
             // Отправляем запрос на сервер для начисления награды
             const response = await fetch('/api/tasks/complete', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    userId: userId,
-                    taskId: task.id,
-                    taskType: task.type,
-                    channelUsername: task.channelUsername,
-                    rewardAmount: rewardAmount
-                })
+                body: JSON.stringify(requestBody)
             });
+            
+            console.log(`💰 [DEBUG] Статус ответа сервера: ${response.status} ${response.statusText}`);
 
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+                console.log(`❌ [DEBUG] HTTP ошибка: ${response.status} ${response.statusText}`);
+                const errorText = await response.text();
+                console.log(`❌ [DEBUG] Текст ошибки сервера:`, errorText);
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
 
             const result = await response.json();
+            console.log(`💰 [DEBUG] Ответ сервера:`, result);
             
             if (result.success) {
-                console.log(`✅ Награда успешно начислена: ${rewardAmount} звезд`);
+                console.log(`✅ [DEBUG] Награда успешно начислена: ${rewardAmount} звезд`);
                 
                 // Обновляем локальный баланс из ответа сервера
                 if (result.newBalance !== undefined) {
+                    console.log(`💰 [DEBUG] Обновляем баланс: ${this.app.gameData.stars} -> ${result.newBalance}`);
                     this.app.gameData.stars = result.newBalance;
                     this.app.saveGameData();
                     this.updateStarsDisplayImmediate();
+                } else {
+                    console.log(`⚠️ [DEBUG] Сервер не вернул новый баланс`);
                 }
                 
                 return rewardAmount;
             } else {
-                console.error('❌ Сервер отклонил начисление награды:', result.error);
+                console.error('❌ [DEBUG] Сервер отклонил начисление награды:', result.error);
                 throw new Error(result.error || 'Ошибка начисления награды');
             }
             
         } catch (error) {
-            console.error('❌ Ошибка начисления награды:', error);
-            this.showMessage('❌ Ошибка начисления награды. Попробуйте позже', 'error');
+            console.error('❌ [DEBUG] Ошибка начисления награды:', {
+                error: error,
+                message: error?.message,
+                stack: error?.stack,
+                task: task
+            });
+            this.showMessage(`❌ Ошибка начисления награды: ${error?.message || 'неизвестная ошибка'}`, 'error');
             return 0;
         }
     }

@@ -205,7 +205,7 @@ class BackgroundTaskManager {
                         
                         // Помечаем подписку как неактивную
                         await this.executeUpdate(
-                            'UPDATE user_channel_subscriptions SET is_active = 0, unsubscribed_date = CURRENT_TIMESTAMP WHERE id = ?',
+                            'UPDATE user_channel_subscriptions SET is_active = false, unsubscribed_date = NOW() WHERE id = $1',
                             [subscription.id]
                         );
 
@@ -233,20 +233,21 @@ class BackgroundTaskManager {
             console.log('📊 Обновление статистики каналов...');
 
             const channels = await this.executeQuery(
-                'SELECT * FROM partner_channels WHERE is_active = 1 AND placement_type = "target"'
+                'SELECT * FROM partner_channels WHERE is_active = true AND placement_type = $1',
+                ['target']
             );
 
             for (const channel of channels) {
                 // Подсчитываем текущее количество активных подписчиков
                 const result = await this.executeScalar(
-                    'SELECT COUNT(*) as count FROM user_channel_subscriptions WHERE channel_id = ? AND is_active = 1',
+                    'SELECT COUNT(*) as count FROM user_channel_subscriptions WHERE channel_id = $1 AND is_active = true',
                     [channel.id]
                 );
-                const currentSubscribers = result ? result.count : 0;
+                const currentSubscribers = result ? parseInt(result.count) : 0;
 
                 // Обновляем статистику
                 await this.executeUpdate(
-                    'UPDATE partner_channels SET current_subscribers = ? WHERE id = ?',
+                    'UPDATE partner_channels SET current_subscribers = $1 WHERE id = $2',
                     [currentSubscribers, channel.id]
                 );
 
@@ -256,7 +257,7 @@ class BackgroundTaskManager {
                     
                     // Деактивируем канал
                     await this.executeUpdate(
-                        'UPDATE partner_channels SET is_active = 0 WHERE id = ?',
+                        'UPDATE partner_channels SET is_active = false WHERE id = $1',
                         [channel.id]
                     );
 
@@ -287,7 +288,7 @@ class BackgroundTaskManager {
 
             // Очищаем старые неактивные подписки (старше 7 дней)
             await this.executeUpdate(
-                `DELETE FROM user_channel_subscriptions WHERE is_active = 0 AND ${this.formatDateQuery(
+                `DELETE FROM user_channel_subscriptions WHERE is_active = false AND ${this.formatDateQuery(
                     'datetime(unsubscribed_date) < datetime("now", "-7 days")',
                     "unsubscribed_date < NOW() - INTERVAL '7 days'"
                 )}`
@@ -313,14 +314,14 @@ class BackgroundTaskManager {
         try {
             // Получаем призы, добавленные за последний час
             const newPrizes = await this.executeQuery(`
-                SELECT COUNT(*) as count, type
-                FROM prizes 
-                WHERE is_given = 0 
+                SELECT COUNT(*) as count, prize_type as type
+                FROM user_prizes 
+                WHERE is_claimed = false 
                 AND ${this.formatDateQuery(
-                    "datetime(created_at) > datetime('now', '-1 hour')",
-                    "created_at > NOW() - INTERVAL '1 hour'"
+                    "datetime(won_date) > datetime('now', '-1 hour')",
+                    "won_date > NOW() - INTERVAL '1 hour'"
                 )}
-                GROUP BY type
+                GROUP BY prize_type
             `);
 
             if (newPrizes.length > 0) {

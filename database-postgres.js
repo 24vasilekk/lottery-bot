@@ -290,7 +290,21 @@ class DatabasePostgres {
                 ADD COLUMN IF NOT EXISTS posted_to_channel_date TIMESTAMP
             `);
 
-            // 14. Таблица промокодов
+            // 14. Таблица призов (для админского мониторинга)
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS prizes (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id),
+                    type VARCHAR(50) NOT NULL,
+                    description TEXT,
+                    is_given BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    given_at TIMESTAMP,
+                    given_by INTEGER
+                )
+            `);
+
+            // 15. Таблица промокодов
             await client.query(`
                 CREATE TABLE IF NOT EXISTS promo_codes (
                     id SERIAL PRIMARY KEY,
@@ -304,7 +318,7 @@ class DatabasePostgres {
                 )
             `);
 
-            // 12. Таблица использования промокодов
+            // 16. Таблица использования промокодов
             await client.query(`
                 CREATE TABLE IF NOT EXISTS promo_usage (
                     id SERIAL PRIMARY KEY,
@@ -386,6 +400,25 @@ class DatabasePostgres {
                     }
                 } else {
                     console.log('✅ Тип данных channel_id уже корректен');
+                }
+
+                // Проверяем и добавляем недостающие колонки в user_channel_subscriptions
+                const checkIsActive = await client.query(`
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'user_channel_subscriptions' 
+                    AND column_name = 'is_active'
+                `);
+                
+                if (checkIsActive.rows.length === 0) {
+                    console.log('📝 Добавляем колонку is_active в user_channel_subscriptions...');
+                    await client.query(`
+                        ALTER TABLE user_channel_subscriptions 
+                        ADD COLUMN is_active BOOLEAN DEFAULT TRUE
+                    `);
+                    console.log('✅ Колонка is_active добавлена');
+                } else {
+                    console.log('✅ Колонка is_active уже существует');
                 }
                 
                 console.log('✅ Миграции завершены');
