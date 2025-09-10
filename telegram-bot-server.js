@@ -2999,7 +2999,7 @@ app.post('/api/admin/channels', requireAuth, async (req, res) => {
             console.warn(`⚠️ Не удалось получить информацию о канале @${channel_username}:`, error);
         }
 
-        // Используем PostgreSQL для добавления канала
+        // Используем PostgreSQL для добавления канала с обработкой дубликатов
         const result = await db.query(`
             INSERT INTO partner_channels (
                 channel_username, 
@@ -3014,9 +3014,25 @@ app.post('/api/admin/channels', requireAuth, async (req, res) => {
                 auto_renewal,
                 is_active,
                 start_date,
-                end_date
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-            RETURNING id
+                end_date,
+                updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
+            ON CONFLICT (channel_username) 
+            DO UPDATE SET
+                channel_name = EXCLUDED.channel_name,
+                channel_id = COALESCE(EXCLUDED.channel_id, partner_channels.channel_id),
+                reward_stars = EXCLUDED.reward_stars,
+                placement_type = EXCLUDED.placement_type,
+                placement_duration = EXCLUDED.placement_duration,
+                target_subscribers = EXCLUDED.target_subscribers,
+                is_hot_offer = EXCLUDED.is_hot_offer,
+                hot_offer_multiplier = EXCLUDED.hot_offer_multiplier,
+                auto_renewal = EXCLUDED.auto_renewal,
+                is_active = EXCLUDED.is_active,
+                start_date = EXCLUDED.start_date,
+                end_date = EXCLUDED.end_date,
+                updated_at = NOW()
+            RETURNING id, (xmax = 0) AS inserted
         `, [
             channel_username, 
             channelName, 
@@ -3034,8 +3050,16 @@ app.post('/api/admin/channels', requireAuth, async (req, res) => {
         ]);
 
         const newChannelId = result.rows[0].id;
+        const wasInserted = result.rows[0].inserted;
 
-        res.json({ success: true, id: newChannelId });
+        console.log(`✅ Канал @${channel_username} ${wasInserted ? 'добавлен' : 'обновлен'} (ID: ${newChannelId})`);
+
+        res.json({ 
+            success: true, 
+            id: newChannelId,
+            action: wasInserted ? 'created' : 'updated',
+            message: wasInserted ? 'Канал успешно добавлен' : 'Канал обновлен (уже существовал)'
+        });
     } catch (error) {
         console.error('❌ Ошибка добавления канала:', error);
         res.status(500).json({ error: 'Internal server error' });
