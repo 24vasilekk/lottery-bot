@@ -181,37 +181,21 @@ ${emoji} <b>${win.prize_name}</b>
 
     async addPostedColumn() {
         try {
-            // Добавляем колонки для отслеживания постинга в канал
-            await new Promise((resolve, reject) => {
-                this.db.db.run(`
-                    ALTER TABLE user_prizes 
-                    ADD COLUMN is_posted_to_channel BOOLEAN DEFAULT 0
-                `, (err) => {
-                    if (err && !err.message.includes('duplicate column name')) {
-                        reject(err);
-                    } else {
-                        resolve();
-                    }
-                });
-            });
+            // Добавляем колонки для отслеживания постинга в канал (PostgreSQL синтаксис)
+            await this.db.query(`
+                ALTER TABLE user_prizes 
+                ADD COLUMN IF NOT EXISTS is_posted_to_channel BOOLEAN DEFAULT FALSE
+            `);
             
-            await new Promise((resolve, reject) => {
-                this.db.db.run(`
-                    ALTER TABLE user_prizes 
-                    ADD COLUMN posted_to_channel_date DATETIME
-                `, (err) => {
-                    if (err && !err.message.includes('duplicate column name')) {
-                        reject(err);
-                    } else {
-                        resolve();
-                    }
-                });
-            });
+            await this.db.query(`
+                ALTER TABLE user_prizes 
+                ADD COLUMN IF NOT EXISTS posted_to_channel_date TIMESTAMP
+            `);
             
             console.log('✅ Колонки для постинга в канал добавлены');
         } catch (error) {
-            // Колонки уже существуют - это нормально
-            if (!error.message.includes('duplicate column name')) {
+            // Колонки уже существуют - это нормально  
+            if (!error.message.includes('already exists')) {
                 console.error('❌ Ошибка добавления колонок:', error);
             }
         }

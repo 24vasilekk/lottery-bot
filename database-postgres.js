@@ -792,7 +792,7 @@ class DatabasePostgres {
                    EXTRACT(EPOCH FROM (NOW() - pc.created_date)) / 3600 as hours_active
             FROM partner_channels pc
             LEFT JOIN user_channel_subscriptions ucs ON pc.id = ucs.channel_id 
-                AND ucs.created_at >= NOW() - INTERVAL '24 hours'
+                AND ucs.subscribed_date >= NOW() - INTERVAL '24 hours'
             WHERE pc.is_active = true 
                 AND pc.created_date <= NOW() - INTERVAL '6 hours'
             GROUP BY pc.id, pc.created_date
