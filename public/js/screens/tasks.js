@@ -54,8 +54,31 @@ export class TasksScreen {
     }
 
     async init() {
+        console.log('🎯 [INIT] Инициализация TasksScreen...');
+        console.log('🎯 [INIT] this.app существует:', !!this.app);
+        console.log('🎯 [INIT] this.app.gameData существует:', !!this.app?.gameData);
+        
         // Устанавливаем глобальную ссылку еще раз на всякий случай
         window.tasksScreen = this;
+        
+        // Проверяем что app существует
+        if (!this.app) {
+            console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: this.app не существует в init()');
+            return;
+        }
+        
+        // Проверяем что gameData существует
+        if (!this.app.gameData) {
+            console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: this.app.gameData не существует в init()');
+            console.log('🔧 Создаем минимальную структуру gameData...');
+            this.app.gameData = {
+                stars: 0,
+                taskStatuses: {},
+                completedTasks: [],
+                referrals: 0,
+                totalSpins: 0
+            };
+        }
         
         // ИСПРАВЛЕНО: Инициализируем структуры данных если их нет
         if (!this.app.gameData.taskStatuses) {
@@ -64,6 +87,7 @@ export class TasksScreen {
         if (!this.app.gameData.completedTasks) {
             this.app.gameData.completedTasks = [];
         }
+        
         // ИСПРАВЛЕНО: НЕ принудительно устанавливаем звезды в 0
         // Баланс должен загружаться ТОЛЬКО из БД через синхронизацию
         if (this.app.gameData.stars === undefined || this.app.gameData.stars === null) {
@@ -282,13 +306,31 @@ export class TasksScreen {
                 </button>`;
             
             case 'ready_to_check':
-                return `<button class="task-ready-btn" onclick="window.tasksScreen.performTaskCheckById('${task.id}')">
+                return `<button class="task-ready-btn" onclick="(function() { 
+                    const ts = window.tasksScreen; 
+                    if (ts && ts.app) {
+                        console.log('[DEBUG] Проверка перед вызовом - app:', !!ts.app, 'gameData:', !!ts.app.gameData);
+                        ts.performTaskCheckById('${task.id}');
+                    } else {
+                        console.error('[DEBUG] window.tasksScreen или app не инициализированы');
+                        alert('Ошибка инициализации. Обновите страницу.');
+                    }
+                })()">
                     🔍 Проверить
                 </button>`;
             
             case 'pending':
             default:
-                return `<button class="task-complete-btn" onclick="window.tasksScreen.startTaskCheck('${task.id}', 'active')">
+                return `<button class="task-complete-btn" onclick="(function() { 
+                    const ts = window.tasksScreen; 
+                    if (ts && ts.app && ts.app.gameData) {
+                        console.log('[DEBUG] Запуск проверки - app:', !!ts.app, 'gameData:', !!ts.app.gameData);
+                        ts.startTaskCheck('${task.id}', 'active');
+                    } else {
+                        console.error('[DEBUG] window.tasksScreen, app или gameData не инициализированы');
+                        alert('Ошибка: данные приложения не загружены. Обновите страницу.');
+                    }
+                })()">
                     Выполнить
                 </button>`;
         }
