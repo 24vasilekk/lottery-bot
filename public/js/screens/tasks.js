@@ -539,11 +539,13 @@ export class TasksScreen {
                 return;
             }
             
-            if (!this.app.gameData.taskStatuses) {
-                this.app.gameData.taskStatuses = {};
-            }
+            // Создаем новый объект чтобы избежать readonly ошибок
+            const currentStatuses = this.app.gameData.taskStatuses || {};
+            const newStatuses = { ...currentStatuses };
+            newStatuses[taskId] = status;
             
-            this.app.gameData.taskStatuses[taskId] = status;
+            // Присваиваем новый объект
+            this.app.gameData.taskStatuses = newStatuses;
             this.app.saveGameData();
             console.log(`📊 Статус задания ${taskId} изменен на: ${status}`);
         } catch (error) {

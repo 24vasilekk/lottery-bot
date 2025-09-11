@@ -420,6 +420,44 @@ class DatabasePostgres {
                 } else {
                     console.log('✅ Колонка is_active уже существует');
                 }
+
+                // Проверяем колонку is_verified
+                const checkIsVerified = await client.query(`
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'user_channel_subscriptions' 
+                    AND column_name = 'is_verified'
+                `);
+                
+                if (checkIsVerified.rows.length === 0) {
+                    console.log('📝 Добавляем колонку is_verified в user_channel_subscriptions...');
+                    await client.query(`
+                        ALTER TABLE user_channel_subscriptions 
+                        ADD COLUMN is_verified BOOLEAN DEFAULT FALSE
+                    `);
+                    console.log('✅ Колонка is_verified добавлена');
+                } else {
+                    console.log('✅ Колонка is_verified уже существует');
+                }
+
+                // Проверяем колонку stars_earned
+                const checkStarsEarned = await client.query(`
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'user_channel_subscriptions' 
+                    AND column_name = 'stars_earned'
+                `);
+                
+                if (checkStarsEarned.rows.length === 0) {
+                    console.log('📝 Добавляем колонку stars_earned в user_channel_subscriptions...');
+                    await client.query(`
+                        ALTER TABLE user_channel_subscriptions 
+                        ADD COLUMN stars_earned INTEGER DEFAULT 0
+                    `);
+                    console.log('✅ Колонка stars_earned добавлена');
+                } else {
+                    console.log('✅ Колонка stars_earned уже существует');
+                }
                 
                 console.log('✅ Миграции завершены');
             } catch (migrationError) {
