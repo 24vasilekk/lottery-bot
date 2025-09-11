@@ -2513,6 +2513,8 @@ app.post('/api/tasks/complete', async (req, res) => {
         // Если это задание с подпиской на канал, проверяем подписку
         if (taskType === 'subscription' && channelUsername) {
             try {
+                console.log(`🔍 Проверка подписки ${userId} на канал @${channelUsername}...`);
+                
                 const chatMember = await bot.getChatMember(`@${channelUsername}`, userId);
                 const subscribedStatuses = ['member', 'administrator', 'creator'];
                 const isSubscribed = subscribedStatuses.includes(chatMember.status);
@@ -2525,6 +2527,43 @@ app.post('/api/tasks/complete', async (req, res) => {
                 }
                 
                 console.log(`✅ Подписка подтверждена: ${userId} → @${channelUsername}`);
+                
+                // Попытаемся записать информацию о подписке в БД
+                try {
+                    console.log(`📝 Записываем информацию о подписке в БД...`);
+                    
+                    // Найти канал по username
+                    const channelResult = await db.query(
+                        'SELECT id FROM partner_channels WHERE channel_username = $1',
+                        [channelUsername]
+                    );
+                    
+                    if (channelResult.rows && channelResult.rows.length > 0) {
+                        const channelId = channelResult.rows[0].id;
+                        
+                        // Проверить, не записана ли уже подписка
+                        const existingSubscription = await db.query(
+                            'SELECT id FROM user_channel_subscriptions WHERE user_id = $1 AND channel_id = $2',
+                            [user.id, channelId]
+                        );
+                        
+                        if (!existingSubscription.rows || existingSubscription.rows.length === 0) {
+                            // Записать новую подписку
+                            await db.query(
+                                'INSERT INTO user_channel_subscriptions (user_id, channel_id, is_active, is_verified) VALUES ($1, $2, $3, $4)',
+                                [user.id, channelId, true, true]
+                            );
+                            console.log(`✅ Подписка записана в БД: user_id=${user.id}, channel_id=${channelId}`);
+                        } else {
+                            console.log(`ℹ️ Подписка уже записана в БД`);
+                        }
+                    }
+                    
+                } catch (dbError) {
+                    console.error('❌ Ошибка записи подписки в БД:', dbError);
+                    // Не прерываем выполнение - подписка проверена, просто не записалась в БД
+                }
+                
             } catch (error) {
                 console.error('❌ Ошибка проверки подписки:', error);
                 return res.json({

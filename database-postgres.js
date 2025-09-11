@@ -875,15 +875,6 @@ class DatabasePostgres {
         return result.rows;
     }
 
-    async getActiveChannels() {
-        const query = `
-            SELECT * FROM partner_channels 
-            WHERE is_active = true
-            ORDER BY created_date DESC
-        `;
-        const result = await this.pool.query(query);
-        return result.rows;
-    }
 
     async getActiveSubscriptions() {
         const query = `
