@@ -1795,7 +1795,8 @@ app.post('/api/check-subscription', async (req, res) => {
             
             // Логируем проверку в базу данных
             try {
-                await database.logSubscriptionCheck(userId, cleanChannelUsername, isSubscribed);
+                // Закомментировано - метод logSubscriptionCheck не существует в database-postgres.js
+                // await db.logSubscriptionCheck(userId, cleanChannelUsername, isSubscribed);
             } catch (logError) {
                 console.warn('⚠️ Ошибка логирования проверки подписки (не критично):', logError.message);
             }
@@ -1825,7 +1826,8 @@ app.post('/api/check-subscription', async (req, res) => {
             
             // Логируем неудачную попытку
             try {
-                await database.logSubscriptionCheck(userId, cleanChannelUsername, false);
+                // Закомментировано - метод logSubscriptionCheck не существует
+                // await db.logSubscriptionCheck(userId, cleanChannelUsername, false);
             } catch (logError) {
                 console.warn('⚠️ Ошибка логирования (не критично):', logError.message);
             }
@@ -1895,17 +1897,19 @@ app.post('/api/update-user-stars', async (req, res) => {
 
         // Обновляем звезды пользователя
         if (stars !== undefined) {
-            await database.setUserStars(userId, stars);
+            await db.updateUserStars(userId, stars);
         }
         
         // Сохраняем выполненные задания если есть
         if (completedTasks && Array.isArray(completedTasks)) {
-            await database.updateUserCompletedTasks(userId, completedTasks);
+            // TODO: Реализовать метод updateUserCompletedTasks в database-postgres.js
+            // await db.updateUserCompletedTasks(userId, completedTasks);
         }
         
         // Сохраняем статусы заданий если есть
         if (taskStatuses && typeof taskStatuses === 'object') {
-            await database.updateUserTaskStatuses(userId, taskStatuses);
+            // TODO: Реализовать метод updateUserTaskStatuses в database-postgres.js
+            // await db.updateUserTaskStatuses(userId, taskStatuses);
         }
 
         console.log(`✅ Данные пользователя ${userId} обновлены: ${stars} звезд`);
@@ -2060,7 +2064,7 @@ app.post('/api/user/:userId/stars', async (req, res) => {
         }
 
         // Получаем текущие данные пользователя
-        const userData = await database.getUserWithTasks(userId);
+        const userData = await db.getUserWithTasks(userId);
         if (!userData) {
             return res.status(404).json({
                 success: false,
@@ -2078,7 +2082,7 @@ app.post('/api/user/:userId/stars', async (req, res) => {
         }
 
         // Обновляем звезды
-        await database.setUserStars(userId, newStars);
+        await db.updateUserStars(userId, newStars);
 
         console.log(`💰 Звезды пользователя ${userId} изменены: ${userData.stars || 0} → ${newStars} (${operation} ${amount})`);
 
@@ -2112,7 +2116,7 @@ app.get('/api/user/:userId/tasks-stats', async (req, res) => {
         }
 
         // Получаем данные пользователя
-        const userData = await database.getUserWithTasks(userId);
+        const userData = await db.getUserWithTasks(userId);
         if (!userData) {
             return res.json({
                 success: true,
@@ -2123,7 +2127,8 @@ app.get('/api/user/:userId/tasks-stats', async (req, res) => {
         }
 
         // Получаем историю проверок подписок
-        const subscriptionHistory = await database.getSubscriptionHistory(userId);
+        // TODO: Реализовать метод getSubscriptionHistory в database-postgres.js
+        const subscriptionHistory = []; // await db.getSubscriptionHistory(userId);
 
         res.json({
             success: true,
@@ -2194,11 +2199,13 @@ app.post('/api/user/:userId/reset-tasks', async (req, res) => {
         console.log(`🔄 Сброс заданий пользователя ${userId}, тип: ${resetType}`);
 
         if (resetType === 'all' || resetType === 'completed') {
-            await database.updateUserCompletedTasks(userId, []);
+            // TODO: Реализовать метод updateUserCompletedTasks
+            // await db.updateUserCompletedTasks(userId, []);
         }
 
         if (resetType === 'all' || resetType === 'statuses') {
-            await database.updateUserTaskStatuses(userId, {});
+            // TODO: Реализовать метод updateUserTaskStatuses
+            // await db.updateUserTaskStatuses(userId, {});
         }
 
         res.json({
