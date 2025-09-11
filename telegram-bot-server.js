@@ -203,12 +203,12 @@ app.use((req, res, next) => {
         "object-src 'none'; " +
         "base-uri 'self'; " +
         "form-action 'self'; " +
-        "frame-ancestors 'none';"
+        "frame-ancestors 'self' https://web.telegram.org https://webk.telegram.org https://webz.telegram.org https://macos.telegram.org;"
     );
     
     // Дополнительные заголовки безопасности
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-Frame-Options', 'ALLOWALL');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     
