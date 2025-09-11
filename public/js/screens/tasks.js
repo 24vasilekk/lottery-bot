@@ -506,15 +506,25 @@ export class TasksScreen {
                         }
                         if (userData.completed_tasks) {
                             // Убеждаемся, что это массив
+                            console.log('🔍 [ЗАГРУЗКА] completed_tasks с сервера:', userData.completed_tasks);
                             this.app.gameData.completedTasks = Array.isArray(userData.completed_tasks) 
                                 ? userData.completed_tasks 
                                 : [];
+                            console.log('✅ [ЗАГРУЗКА] Установлены completedTasks:', this.app.gameData.completedTasks);
+                        }
+                        if (userData.task_statuses) {
+                            console.log('🔍 [ЗАГРУЗКА] task_statuses с сервера:', userData.task_statuses);
+                            console.log('✅ [ЗАГРУЗКА] Установлены taskStatuses:', this.app.gameData.taskStatuses);
                         }
                         if (userData.stars !== undefined) {
                             this.app.gameData.stars = userData.stars;
                         }
                         
-                        console.log('📥 Данные пользователя загружены с сервера:', userData);
+                        console.log('📥 Данные пользователя загружены с сервера:', {
+                            completedTasks: this.app.gameData.completedTasks,
+                            taskStatuses: this.app.gameData.taskStatuses,
+                            stars: this.app.gameData.stars
+                        });
                         
                         // Сохраняем восстановленные данные локально
                         this.app.saveGameData();
@@ -869,15 +879,22 @@ export class TasksScreen {
     }
 
     addTaskToCompleted(taskId) {
+        console.log(`🎯 [СОХРАНЕНИЕ] Добавляем задание в выполненные: ${taskId}`);
+        console.log(`🔍 [СОХРАНЕНИЕ] Текущие completedTasks:`, this.app.gameData.completedTasks);
+        
         // Убеждаемся, что completedTasks всегда массив
         if (!Array.isArray(this.app.gameData.completedTasks)) {
+            console.log(`⚠️ [СОХРАНЕНИЕ] completedTasks не массив, исправляем`);
             this.app.gameData.completedTasks = [];
         }
         
         if (!this.app.gameData.completedTasks.includes(taskId)) {
             this.app.gameData.completedTasks.push(taskId);
+            console.log(`✅ [СОХРАНЕНИЕ] Задание добавлено. Новый список:`, this.app.gameData.completedTasks);
             this.app.saveGameData();
-            console.log(`📝 Задание ${taskId} добавлено в выполненные`);
+            console.log(`💾 [СОХРАНЕНИЕ] Данные сохранены локально для задания ${taskId}`);
+        } else {
+            console.log(`ℹ️ [СОХРАНЕНИЕ] Задание ${taskId} уже было в выполненных`);
         }
     }
 
@@ -1147,13 +1164,19 @@ export class TasksScreen {
     }
 
     isTaskCompleted(taskId) {
-        const isInCompletedList = (this.app.gameData.completedTasks || []).includes(taskId);
+        const completedTasks = this.app.gameData.completedTasks || [];
+        const isInCompletedList = completedTasks.includes(taskId);
         const taskStatus = this.getTaskStatus(taskId);
+        
+        console.log(`🔍 [ПРОВЕРКА] Проверяем задание ${taskId}:`);
+        console.log(`📋 [ПРОВЕРКА] Все completedTasks:`, completedTasks);
+        console.log(`✅ [ПРОВЕРКА] В списке выполненных: ${isInCompletedList}`);
+        console.log(`📊 [ПРОВЕРКА] Статус задания: ${taskStatus}`);
         
         // Задание считается выполненным если оно в списке выполненных И имеет статус completed
         const isCompleted = isInCompletedList && taskStatus === 'completed';
         
-        console.log(`🔍 Проверка задания ${taskId}: в списке=${isInCompletedList}, статус=${taskStatus}, выполнено=${isCompleted}`);
+        console.log(`🎯 [ПРОВЕРКА] Итоговый результат для ${taskId}: ${isCompleted}`);
         
         return isCompleted;
     }
