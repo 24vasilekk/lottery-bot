@@ -2589,6 +2589,45 @@ app.post('/api/tasks/complete', async (req, res) => {
 
         console.log(`💰 Начислено ${rewardAmount} звезд пользователю ${userId}. Новый баланс: ${updatedUser.stars}`);
 
+        // Сохраняем задание как выполненное в БД
+        try {
+            console.log(`📝 Сохраняем задание ${taskId} как выполненное для пользователя ${userId}`);
+            
+            // Получаем текущие данные пользователя
+            const currentUser = await db.getUser(parseInt(userId));
+            let completedTasks = [];
+            let taskStatuses = {};
+            
+            try {
+                completedTasks = JSON.parse(currentUser.completed_tasks || '[]');
+                taskStatuses = JSON.parse(currentUser.task_statuses || '{}');
+            } catch (parseError) {
+                console.warn('⚠️ Ошибка парсинга JSON данных, используем значения по умолчанию');
+                completedTasks = [];
+                taskStatuses = {};
+            }
+            
+            // Добавляем задание в выполненные, если его еще нет
+            if (!completedTasks.includes(taskId)) {
+                completedTasks.push(taskId);
+            }
+            
+            // Устанавливаем статус как completed
+            taskStatuses[taskId] = 'completed';
+            
+            // Сохраняем в БД
+            await db.query(`
+                UPDATE users 
+                SET completed_tasks = $1, task_statuses = $2 
+                WHERE telegram_id = $3
+            `, [JSON.stringify(completedTasks), JSON.stringify(taskStatuses), parseInt(userId)]);
+            
+            console.log(`✅ Задание ${taskId} сохранено как выполненное в БД`);
+            
+        } catch (taskSaveError) {
+            console.error('⚠️ Ошибка сохранения статуса задания (не критично):', taskSaveError);
+        }
+
         res.json({
             success: true,
             reward: parseInt(rewardAmount),
