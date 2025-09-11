@@ -1455,6 +1455,56 @@ class DatabasePostgres {
 
     // === МЕТОДЫ ДЛЯ КАНАЛОВ-ПАРТНЕРОВ ===
 
+    async recordChannelSubscription(userId, channelUsername) {
+        const client = await this.pool.connect();
+        
+        try {
+            await client.query('BEGIN');
+            
+            // Найти канал по username
+            const channelResult = await client.query(
+                'SELECT id, reward_stars FROM partner_channels WHERE channel_username = $1 AND is_active = true',
+                [channelUsername]
+            );
+            
+            if (!channelResult.rows || channelResult.rows.length === 0) {
+                console.log(`⚠️ Канал @${channelUsername} не найден или не активен`);
+                return { success: false, error: 'Channel not found' };
+            }
+            
+            const channel = channelResult.rows[0];
+            
+            // Проверить, не записана ли уже подписка
+            const existingSubscription = await client.query(
+                'SELECT id FROM user_channel_subscriptions WHERE user_id = $1 AND channel_id = $2',
+                [userId, channel.id]
+            );
+            
+            if (existingSubscription.rows && existingSubscription.rows.length > 0) {
+                console.log(`ℹ️ Подписка уже существует для user_id=${userId}, channel_id=${channel.id}`);
+                await client.query('COMMIT');
+                return { success: true, alreadyExists: true };
+            }
+            
+            // Записать новую подписку
+            await client.query(
+                'INSERT INTO user_channel_subscriptions (user_id, channel_id, is_active, is_verified, stars_earned) VALUES ($1, $2, $3, $4, $5)',
+                [userId, channel.id, true, true, channel.reward_stars || 0]
+            );
+            
+            await client.query('COMMIT');
+            console.log(`✅ Подписка записана: user_id=${userId}, channel_id=${channel.id}`);
+            return { success: true, channelId: channel.id, rewardStars: channel.reward_stars };
+            
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error('❌ Ошибка записи подписки:', error);
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+
     async getActiveChannels() {
         const query = `
             SELECT * FROM partner_channels 
