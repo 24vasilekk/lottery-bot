@@ -505,7 +505,10 @@ export class TasksScreen {
                             this.app.gameData.taskStatuses = userData.task_statuses;
                         }
                         if (userData.completed_tasks) {
-                            this.app.gameData.completedTasks = userData.completed_tasks;
+                            // Убеждаемся, что это массив
+                            this.app.gameData.completedTasks = Array.isArray(userData.completed_tasks) 
+                                ? userData.completed_tasks 
+                                : [];
                         }
                         if (userData.stars !== undefined) {
                             this.app.gameData.stars = userData.stars;
@@ -866,7 +869,8 @@ export class TasksScreen {
     }
 
     addTaskToCompleted(taskId) {
-        if (!this.app.gameData.completedTasks) {
+        // Убеждаемся, что completedTasks всегда массив
+        if (!Array.isArray(this.app.gameData.completedTasks)) {
             this.app.gameData.completedTasks = [];
         }
         
