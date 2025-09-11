@@ -132,6 +132,19 @@ app.use(cors({
     maxAge: 86400 // 24 часа кеширования preflight запросов
 }));
 
+// Заголовки безопасности для Telegram WebApp
+app.use((req, res, next) => {
+    // Разрешаем загрузку в iframe для Telegram
+    res.setHeader('X-Frame-Options', 'ALLOWALL');
+    res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://web.telegram.org https://webk.telegram.org https://webz.telegram.org https://macos.telegram.org");
+    
+    // Другие заголовки безопасности
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    
+    next();
+});
+
 // Rate Limiting для API эндпоинтов
 const generalApiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 минут
