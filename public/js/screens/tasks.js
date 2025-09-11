@@ -502,19 +502,49 @@ export class TasksScreen {
                         
                         // Восстанавливаем статусы заданий из базы данных
                         if (userData.task_statuses) {
-                            this.app.gameData.taskStatuses = userData.task_statuses;
+                            console.log('🔍 [ЗАГРУЗКА] task_statuses с сервера:', userData.task_statuses);
+                            console.log('🔍 [ЗАГРУЗКА] Тип task_statuses:', typeof userData.task_statuses);
+                            
+                            let taskStatusesObj;
+                            if (typeof userData.task_statuses === 'object' && userData.task_statuses !== null) {
+                                taskStatusesObj = userData.task_statuses;
+                            } else if (typeof userData.task_statuses === 'string') {
+                                try {
+                                    taskStatusesObj = JSON.parse(userData.task_statuses);
+                                    console.log('🔄 [ЗАГРУЗКА] Парсинг JSON task_statuses:', taskStatusesObj);
+                                } catch (e) {
+                                    console.error('❌ [ЗАГРУЗКА] Ошибка парсинга task_statuses:', e);
+                                    taskStatusesObj = {};
+                                }
+                            } else {
+                                taskStatusesObj = {};
+                            }
+                            
+                            this.app.gameData.taskStatuses = taskStatusesObj;
+                            console.log('✅ [ЗАГРУЗКА] Установлены taskStatuses:', this.app.gameData.taskStatuses);
                         }
                         if (userData.completed_tasks) {
                             // Убеждаемся, что это массив
                             console.log('🔍 [ЗАГРУЗКА] completed_tasks с сервера:', userData.completed_tasks);
-                            this.app.gameData.completedTasks = Array.isArray(userData.completed_tasks) 
-                                ? userData.completed_tasks 
-                                : [];
+                            console.log('🔍 [ЗАГРУЗКА] Тип completed_tasks:', typeof userData.completed_tasks);
+                            
+                            let completedTasksArray;
+                            if (Array.isArray(userData.completed_tasks)) {
+                                completedTasksArray = userData.completed_tasks;
+                            } else if (typeof userData.completed_tasks === 'string') {
+                                try {
+                                    completedTasksArray = JSON.parse(userData.completed_tasks);
+                                    console.log('🔄 [ЗАГРУЗКА] Парсинг JSON completed_tasks:', completedTasksArray);
+                                } catch (e) {
+                                    console.error('❌ [ЗАГРУЗКА] Ошибка парсинга completed_tasks:', e);
+                                    completedTasksArray = [];
+                                }
+                            } else {
+                                completedTasksArray = [];
+                            }
+                            
+                            this.app.gameData.completedTasks = Array.isArray(completedTasksArray) ? completedTasksArray : [];
                             console.log('✅ [ЗАГРУЗКА] Установлены completedTasks:', this.app.gameData.completedTasks);
-                        }
-                        if (userData.task_statuses) {
-                            console.log('🔍 [ЗАГРУЗКА] task_statuses с сервера:', userData.task_statuses);
-                            console.log('✅ [ЗАГРУЗКА] Установлены taskStatuses:', this.app.gameData.taskStatuses);
                         }
                         if (userData.stars !== undefined) {
                             this.app.gameData.stars = userData.stars;
