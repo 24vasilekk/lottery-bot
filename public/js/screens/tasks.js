@@ -296,11 +296,17 @@ export class TasksScreen {
 
     // Вспомогательный метод для вызова из onclick
     performTaskCheckById(taskId) {
+        console.log(`🎯 [DEBUG] performTaskCheckById вызван для: ${taskId}`);
+        console.log(`🎯 [DEBUG] this:`, this);
+        console.log(`🎯 [DEBUG] this.app существует:`, !!this.app);
+        console.log(`🎯 [DEBUG] this.app.gameData существует:`, !!this.app?.gameData);
+        
         const task = this.findTask(taskId, 'active');
         if (task) {
             this.performTaskCheck(taskId, task);
         } else {
             console.error('❌ Задание не найдено для проверки:', taskId);
+            this.showMessage('Задание не найдено', 'error');
         }
     }
 
@@ -888,10 +894,17 @@ export class TasksScreen {
                 
                 // Обновляем локальный баланс из ответа сервера
                 if (result.newBalance !== undefined) {
-                    console.log(`💰 [DEBUG] Обновляем баланс: ${this.app.gameData.stars} -> ${result.newBalance}`);
-                    this.app.gameData.stars = result.newBalance;
-                    this.app.saveGameData();
-                    this.updateStarsDisplayImmediate();
+                    console.log(`💰 [DEBUG] Обновляем баланс. Новый баланс: ${result.newBalance}`);
+                    
+                    // Проверяем что gameData существует
+                    if (this.app && this.app.gameData) {
+                        console.log(`💰 [DEBUG] Текущий баланс: ${this.app.gameData.stars}`);
+                        this.app.gameData.stars = result.newBalance;
+                        this.app.saveGameData();
+                        this.updateStarsDisplayImmediate();
+                    } else {
+                        console.error(`❌ [DEBUG] app.gameData не инициализирован!`);
+                    }
                 } else {
                     console.log(`⚠️ [DEBUG] Сервер не вернул новый баланс`);
                 }
@@ -917,17 +930,21 @@ export class TasksScreen {
     updateStarsDisplayImmediate() {
         // Немедленно обновляем отображение звезд в интерфейсе
         try {
-            if (this.app.updateStarsDisplay) {
+            if (this.app && this.app.updateStarsDisplay) {
                 this.app.updateStarsDisplay();
             }
             
             // Обновляем все элементы с звездами на странице
-            const starsElements = document.querySelectorAll('[data-stars], .stars-count, .user-stars, .mega-stars span');
-            starsElements.forEach(el => {
-                if (el) {
-                    el.textContent = this.app.gameData.stars;
-                }
-            });
+            if (this.app && this.app.gameData && this.app.gameData.stars !== undefined) {
+                const starsElements = document.querySelectorAll('[data-stars], .stars-count, .user-stars, .mega-stars span');
+                starsElements.forEach(el => {
+                    if (el) {
+                        el.textContent = this.app.gameData.stars;
+                    }
+                });
+            } else {
+                console.error('❌ [DEBUG] Невозможно обновить отображение звезд: app.gameData не инициализирован');
+            }
             
             // Обновляем заголовок экрана если есть
             const headerStars = document.querySelector('.tasks-header-profile .stars, .profile-header .stars');
