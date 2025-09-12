@@ -248,10 +248,18 @@ app.get('/api/admin/channels-test', (req, res) => {
 app.get('/api/admin/channels', requireAuth, async (req, res) => {
     try {
         console.log('📺 ПРИОРИТЕТНЫЙ Админ: запрос списка каналов');
+        const { status } = req.query; // Фильтр по статусу: active, inactive, scheduled, expired, all
         
-        // Получаем реальные каналы из базы данных
-        const channels = await db.getActiveChannels();
-        console.log(`✅ Найдено ${channels.length} активных каналов`);
+        let channels;
+        if (status === 'all' || !status) {
+            // Получаем все каналы со статусами и статистикой
+            channels = await db.getAllChannels();
+            console.log(`✅ Найдено ${channels.length} каналов всех типов`);
+        } else {
+            // Получаем только активные каналы (для обратной совместимости)
+            channels = await db.getActiveChannels();
+            console.log(`✅ Найдено ${channels.length} активных каналов`);
+        }
 
         res.json({
             success: true,
@@ -3121,22 +3129,41 @@ app.post('/api/admin/channels', requireAuth, async (req, res) => {
     try {
         const {
             channel_username,
+            channel_name,
             reward_stars,
+            placement_type = 'time',
+            placement_duration,
+            target_subscribers,
+            is_hot_offer = false,
+            hot_offer_multiplier = 2.0,
+            auto_renewal = false,
+            is_active = true,
+            start_date
+        } = req.body;
+
+        console.log(`📺 Админ: добавление канала @${channel_username}`, {
             placement_type,
             placement_duration,
             target_subscribers,
             is_hot_offer,
-            hot_offer_multiplier,
-            auto_renewal,
-            is_active,
-            start_date,
-            end_date
-        } = req.body;
+            start_date
+        });
 
-        console.log(`📺 Админ: добавление канала @${channel_username}`);
+        // Валидация данных
+        if (!channel_username) {
+            return res.status(400).json({ error: 'Имя канала обязательно' });
+        }
+
+        if (placement_type === 'time' && !placement_duration) {
+            return res.status(400).json({ error: 'Для временного размещения укажите продолжительность в часах' });
+        }
+
+        if (placement_type === 'target' && !target_subscribers) {
+            return res.status(400).json({ error: 'Для размещения по цели укажите целевое количество подписчиков' });
+        }
 
         // Получаем информацию о канале
-        let channelName = channel_username;
+        let channelName = channel_name || channel_username;
         let channelId = null;
         
         try {
@@ -3147,66 +3174,32 @@ app.post('/api/admin/channels', requireAuth, async (req, res) => {
             console.warn(`⚠️ Не удалось получить информацию о канале @${channel_username}:`, error);
         }
 
-        // Используем PostgreSQL для добавления канала с обработкой дубликатов
-        const result = await db.query(`
-            INSERT INTO partner_channels (
-                channel_username, 
-                channel_name, 
-                channel_id,
-                reward_stars, 
-                placement_type,
-                placement_duration, 
-                target_subscribers, 
-                is_hot_offer,
-                hot_offer_multiplier,
-                auto_renewal,
-                is_active,
-                start_date,
-                end_date,
-                updated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
-            ON CONFLICT (channel_username) 
-            DO UPDATE SET
-                channel_name = EXCLUDED.channel_name,
-                channel_id = COALESCE(EXCLUDED.channel_id, partner_channels.channel_id),
-                reward_stars = EXCLUDED.reward_stars,
-                placement_type = EXCLUDED.placement_type,
-                placement_duration = EXCLUDED.placement_duration,
-                target_subscribers = EXCLUDED.target_subscribers,
-                is_hot_offer = EXCLUDED.is_hot_offer,
-                hot_offer_multiplier = EXCLUDED.hot_offer_multiplier,
-                auto_renewal = EXCLUDED.auto_renewal,
-                is_active = EXCLUDED.is_active,
-                start_date = EXCLUDED.start_date,
-                end_date = EXCLUDED.end_date,
-                updated_at = NOW()
-            RETURNING id, (xmax = 0) AS inserted
-        `, [
-            channel_username, 
-            channelName, 
-            channelId,
-            reward_stars,
-            placement_type,
-            placement_duration || null,
-            target_subscribers || null,
-            is_hot_offer || false,
-            hot_offer_multiplier || 1.0,
-            auto_renewal || false,
-            is_active !== false, // По умолчанию активен
-            start_date ? new Date(start_date) : new Date(),
-            end_date ? new Date(end_date) : null
-        ]);
+        // Добавляем канал используя улучшенный метод из database
+        const channelData = {
+            username: channel_username,
+            name: channelName,
+            channel_id: channelId,
+            stars: reward_stars,
+            placement_type: placement_type,
+            placement_duration: placement_duration,
+            target_subscribers: target_subscribers,
+            is_hot_offer: is_hot_offer || false,
+            hot_offer_multiplier: hot_offer_multiplier || 2.0,
+            auto_renewal: auto_renewal || false,
+            start_date: start_date ? new Date(start_date) : new Date()
+        };
 
-        const newChannelId = result.rows[0].id;
-        const wasInserted = result.rows[0].inserted;
+        console.log('📝 Данные для добавления канала:', channelData);
+        const result = await db.addChannel(channelData);
 
-        console.log(`✅ Канал @${channel_username} ${wasInserted ? 'добавлен' : 'обновлен'} (ID: ${newChannelId})`);
+        const newChannelId = result.id;
+        console.log(`✅ Канал ${channel_username} добавлен/обновлен с ID: ${newChannelId}`);
 
         res.json({ 
             success: true, 
             id: newChannelId,
-            action: wasInserted ? 'created' : 'updated',
-            message: wasInserted ? 'Канал успешно добавлен' : 'Канал обновлен (уже существовал)'
+            channel: result,
+            message: 'Канал успешно добавлен/обновлен'
         });
     } catch (error) {
         console.error('❌ Ошибка добавления канала:', error);

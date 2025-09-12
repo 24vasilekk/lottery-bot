@@ -1515,24 +1515,87 @@ class DatabasePostgres {
         return result.rows;
     }
 
+    async getAllChannels() {
+        const query = `
+            SELECT pc.*, 
+                   COUNT(DISTINCT ucs.user_id) as total_subscribers,
+                   CASE 
+                       WHEN pc.placement_type = 'time' AND pc.start_date > NOW() THEN 'scheduled'
+                       WHEN pc.placement_type = 'time' AND pc.start_date + (pc.placement_duration::text || ' hours')::INTERVAL < NOW() THEN 'expired'
+                       WHEN pc.placement_type = 'target' AND pc.current_subscribers >= pc.target_subscribers THEN 'completed'
+                       WHEN pc.is_active = false THEN 'inactive'
+                       WHEN pc.is_active = true THEN 'active'
+                       ELSE 'unknown'
+                   END as status,
+                   CASE 
+                       WHEN pc.placement_type = 'time' THEN 
+                           pc.start_date + (pc.placement_duration::text || ' hours')::INTERVAL
+                       ELSE NULL
+                   END as end_date
+            FROM partner_channels pc
+            LEFT JOIN user_channel_subscriptions ucs ON pc.id = ucs.channel_id AND ucs.is_active = true
+            GROUP BY pc.id
+            ORDER BY pc.created_date DESC
+        `;
+        const result = await this.pool.query(query);
+        return result.rows;
+    }
+
     async addChannel(channelData) {
-        const { username, name, stars, hours } = channelData;
+        const { 
+            username, 
+            name, 
+            stars, 
+            placement_type = 'time',
+            placement_duration = null,
+            target_subscribers = null,
+            is_hot_offer = false,
+            hot_offer_multiplier = 2.0,
+            auto_renewal = false,
+            start_date = null,
+            channel_id = null
+        } = channelData;
         
         const query = `
             INSERT INTO partner_channels 
-            (channel_username, channel_name, reward_stars, placement_duration, placement_type, is_active) 
-            VALUES ($1, $2, $3, $4, 'time', true)
+            (channel_username, channel_name, channel_id, reward_stars, 
+             placement_type, placement_duration, target_subscribers,
+             is_hot_offer, hot_offer_multiplier, auto_renewal,
+             is_active, start_date) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             ON CONFLICT (channel_username) 
             DO UPDATE SET 
                 channel_name = EXCLUDED.channel_name,
+                channel_id = COALESCE(EXCLUDED.channel_id, partner_channels.channel_id),
                 reward_stars = EXCLUDED.reward_stars,
+                placement_type = EXCLUDED.placement_type,
                 placement_duration = EXCLUDED.placement_duration,
+                target_subscribers = EXCLUDED.target_subscribers,
+                is_hot_offer = EXCLUDED.is_hot_offer,
+                hot_offer_multiplier = EXCLUDED.hot_offer_multiplier,
+                auto_renewal = EXCLUDED.auto_renewal,
                 is_active = true,
+                start_date = EXCLUDED.start_date,
                 updated_at = NOW()
             RETURNING *
         `;
         
-        const result = await this.pool.query(query, [username, name, stars, hours]);
+        const params = [
+            username, 
+            name, 
+            channel_id,
+            stars, 
+            placement_type,
+            placement_duration,
+            target_subscribers,
+            is_hot_offer,
+            hot_offer_multiplier,
+            auto_renewal,
+            true, // is_active
+            start_date || new Date()
+        ];
+        
+        const result = await this.pool.query(query, params);
         return result.rows[0];
     }
 
