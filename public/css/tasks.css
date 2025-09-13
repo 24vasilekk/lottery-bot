@@ -1006,30 +1006,65 @@
 .task-timer-container {
     display: flex;
     align-items: center;
-    gap: 4px;
-    margin-top: 6px;
-    padding: 4px 8px;
-    background: rgba(40, 167, 69, 0.15);
-    border: 1px solid rgba(40, 167, 69, 0.3);
-    border-radius: 12px;
-    backdrop-filter: blur(4px);
+    gap: 6px;
+    margin-top: 8px;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, 
+        rgba(40, 167, 69, 0.2) 0%, 
+        rgba(52, 211, 153, 0.2) 100%);
+    border: 1.5px solid rgba(40, 167, 69, 0.4);
+    border-radius: 16px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.task-timer-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+        transparent, 
+        rgba(255, 255, 255, 0.1), 
+        transparent);
+    animation: timerShine 3s ease-in-out infinite;
+}
+
+@keyframes timerShine {
+    0% { left: -100%; }
+    50% { left: 100%; }
+    100% { left: -100%; }
 }
 
 .timer-icon {
-    font-size: 12px;
-    animation: timerPulse 2s ease-in-out infinite;
+    font-size: 14px;
+    animation: timerPulse 1.5s ease-in-out infinite;
+    filter: drop-shadow(0 0 4px rgba(40, 167, 69, 0.8));
 }
 
 @keyframes timerPulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
+    0%, 100% { 
+        transform: scale(1) rotate(0deg); 
+        filter: drop-shadow(0 0 4px rgba(40, 167, 69, 0.8));
+    }
+    50% { 
+        transform: scale(1.15) rotate(5deg); 
+        filter: drop-shadow(0 0 8px rgba(40, 167, 69, 1));
+    }
 }
 
 .timer-text {
-    font-size: 10px;
-    color: #28a745;
-    font-weight: 600;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    font-size: 11px;
+    color: #ffffff;
+    font-weight: 700;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5),
+                 0 0 6px rgba(40, 167, 69, 0.8);
+    letter-spacing: 0.5px;
 }
 
 .task-timer-container.expired {
@@ -1104,24 +1139,38 @@
 }
 
 .channel-title {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.95);
-    font-weight: 600;
+    font-size: 14px;
+    color: #ffffff;
+    font-weight: 700;
     line-height: 1.2;
-    margin-bottom: 2px;
+    margin-bottom: 3px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .channel-username {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.7);
-    font-weight: 400;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .task-desc {
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.8);
-    line-height: 1.3;
+    color: rgba(255, 255, 255, 0.95);
+    line-height: 1.4;
     margin-bottom: 8px;
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.task-reward-info {
+    color: #FFD700;
+    font-weight: 700;
+    font-size: 16px;
+    margin-top: 6px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5),
+                 0 0 8px rgba(255, 215, 0, 0.6);
+    filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.8));
 }
 
 /* Адаптивные стили для мобильных устройств */
@@ -1140,12 +1189,20 @@
         font-size: 10px;
     }
     
-    .channel-name {
-        font-size: 10px;
+    .channel-title {
+        font-size: 13px;
+    }
+    
+    .channel-username {
+        font-size: 11px;
     }
     
     .task-desc {
         font-size: 11px;
+    }
+    
+    .task-reward-info {
+        font-size: 15px;
     }
 }
 
@@ -1234,8 +1291,25 @@
 }
 
 .task-card.hot-offer .channel-title {
-    color: rgba(255, 255, 255, 1);
-    text-shadow: 0 0 10px rgba(255, 107, 157, 0.5);
+    color: #ffffff;
+    text-shadow: 0 0 12px rgba(255, 107, 157, 0.8),
+                 0 1px 3px rgba(0, 0, 0, 0.6);
+    font-weight: 800;
+}
+
+.task-card.hot-offer .channel-username {
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.task-card.hot-offer .task-desc {
+    color: #ffffff;
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    background: rgba(255, 107, 157, 0.1);
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 107, 157, 0.3);
 }
 
 .task-card.hot-offer .task-complete-btn {

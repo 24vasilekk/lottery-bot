@@ -1925,7 +1925,9 @@ class DatabasePostgres {
             if (chatInfo.photo && chatInfo.photo.big_file_id) {
                 try {
                     const photoFile = await bot.getFile(chatInfo.photo.big_file_id);
-                    avatarUrl = `https://api.telegram.org/file/bot${bot.token}/${photoFile.file_path}`;
+                    // Получаем токен из переменной окружения или из бота
+                    const botToken = process.env.BOT_TOKEN || bot.token;
+                    avatarUrl = `https://api.telegram.org/file/bot${botToken}/${photoFile.file_path}`;
                     console.log(`🖼️ Аватарка канала найдена: ${avatarUrl}`);
                 } catch (photoError) {
                     console.warn(`⚠️ Не удалось получить аватарку для @${channelUsername}:`, photoError.message);
