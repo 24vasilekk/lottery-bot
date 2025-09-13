@@ -3187,7 +3187,18 @@ app.post('/api/admin/channels', requireAuth, async (req, res) => {
         // Используем данные от пользователя, если они заданы, иначе автоматические
         const finalChannelName = channel_name || telegramChannelInfo.channel_name;
         const finalDescription = description || telegramChannelInfo.channel_description;
+        // Приоритет: ручной URL > автоматический URL > null
         const finalAvatarUrl = avatar_url || telegramChannelInfo.channel_avatar_url;
+        
+        // Логируем результаты получения информации
+        console.log(`📋 Итоговые данные канала:`, {
+            name: finalChannelName,
+            description: finalDescription ? finalDescription.substring(0, 50) + '...' : 'нет',
+            avatar_url: finalAvatarUrl ? 'есть' : 'нет',
+            auto_avatar: telegramChannelInfo.channel_avatar_url ? 'получена' : 'не получена',
+            manual_avatar: avatar_url ? 'указана' : 'не указана',
+            error: telegramChannelInfo.error || 'нет ошибок'
+        });
 
         // Добавляем канал используя улучшенный метод из database
         const channelData = {

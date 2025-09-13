@@ -767,3 +767,28 @@ body {
     color: var(--primary-color);
     flex-shrink: 0;
 }
+
+/* Стили для details/summary */
+.form-details {
+    margin-top: 8px;
+}
+
+.form-details summary {
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.form-details summary:hover {
+    background: rgba(102, 126, 234, 0.05);
+    color: var(--primary-color);
+}
+
+.form-details[open] summary {
+    margin-bottom: 8px;
+    color: var(--primary-color);
+}

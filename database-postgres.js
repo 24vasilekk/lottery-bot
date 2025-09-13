@@ -1916,24 +1916,39 @@ class DatabasePostgres {
                 id: chatInfo.id,
                 title: chatInfo.title,
                 type: chatInfo.type,
-                description: chatInfo.description?.substring(0, 100) + '...'
+                description: chatInfo.description?.substring(0, 100) + '...',
+                has_photo: !!chatInfo.photo
             });
             
             let avatarUrl = null;
             
             // Получаем аватарку канала если есть
-            if (chatInfo.photo && chatInfo.photo.big_file_id) {
+            if (chatInfo.photo) {
                 try {
-                    const photoFile = await bot.getFile(chatInfo.photo.big_file_id);
-                    // Получаем токен из переменной окружения или из бота
-                    const botToken = process.env.BOT_TOKEN || bot.token;
-                    avatarUrl = `https://api.telegram.org/file/bot${botToken}/${photoFile.file_path}`;
-                    console.log(`🖼️ Аватарка канала найдена: ${avatarUrl}`);
+                    console.log(`📷 Структура photo объекта:`, chatInfo.photo);
+                    
+                    // Пробуем получить файл по big_file_id
+                    const fileId = chatInfo.photo.big_file_id || chatInfo.photo.small_file_id;
+                    if (fileId) {
+                        const photoFile = await bot.getFile(fileId);
+                        // Получаем токен из переменной окружения или из бота
+                        const botToken = process.env.BOT_TOKEN || bot.token;
+                        avatarUrl = `https://api.telegram.org/file/bot${botToken}/${photoFile.file_path}`;
+                        console.log(`🖼️ Аватарка канала найдена: ${avatarUrl}`);
+                    } else {
+                        console.warn(`⚠️ Не найден file_id для аватарки @${channelUsername}`);
+                    }
                 } catch (photoError) {
-                    console.warn(`⚠️ Не удалось получить аватарку для @${channelUsername}:`, photoError.message);
+                    console.error(`❌ Ошибка получения файла аватарки для @${channelUsername}:`, photoError.message);
+                    
+                    // Проверим права бота
+                    if (photoError.message.includes('Forbidden') || photoError.message.includes('400')) {
+                        console.warn(`⚠️ Возможно, бот не является участником канала @${channelUsername}`);
+                        console.warn(`💡 Для получения аватарки канала, бот должен быть добавлен в канал как администратор`);
+                    }
                 }
             } else {
-                console.log(`📷 У канала @${channelUsername} нет аватарки`);
+                console.log(`📷 У канала @${channelUsername} нет аватарки или нет доступа к ней`);
             }
             
             return {
@@ -1948,6 +1963,13 @@ class DatabasePostgres {
         } catch (error) {
             console.error(`❌ Ошибка получения информации о канале @${channelUsername}:`, error.message);
             
+            // Дополнительная диагностика
+            if (error.message.includes('Bad Request: chat not found')) {
+                console.warn(`⚠️ Канал @${channelUsername} не найден или недоступен`);
+            } else if (error.message.includes('Forbidden')) {
+                console.warn(`⚠️ Нет доступа к каналу @${channelUsername} - бот должен быть участником канала`);
+            }
+            
             // Возвращаем базовую информацию если API недоступно
             return {
                 channel_id: null,
@@ -1955,7 +1977,8 @@ class DatabasePostgres {
                 channel_description: null,
                 channel_avatar_url: null,
                 type: 'channel',
-                members_count: null
+                members_count: null,
+                error: error.message
             };
         }
     }

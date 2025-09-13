@@ -748,10 +748,17 @@ class ChannelsPage {
                     <div class="form-group">
                         <label class="form-label">Аватарка канала</label>
                         <div class="form-control-info">
-                            <i data-lucide="download" class="info-icon"></i>
-                            <span>Аватарка будет загружена автоматически через Telegram API</span>
+                            <i data-lucide="info" class="info-icon"></i>
+                            <span>Автоматическая загрузка через Telegram API</span>
                         </div>
-                        <span class="form-hint">Система автоматически получит аватарку канала при добавлении</span>
+                        <details class="form-details">
+                            <summary>Ручной ввод URL аватарки (опционально)</summary>
+                            <input type="url" id="channel-avatar-manual" class="form-control" 
+                                   placeholder="https://example.com/avatar.jpg"
+                                   style="margin-top: 8px;">
+                            <span class="form-hint">Если автоматическая загрузка не работает, можете указать прямую ссылку на аватарку</span>
+                        </details>
+                        <span class="form-hint">⚠️ Для автоматической загрузки бот должен быть участником канала</span>
                     </div>
 
                     <div class="form-row">
@@ -990,6 +997,7 @@ class ChannelsPage {
             const hotOfferMultiplier = parseFloat(modal.querySelector('#hot-offer-multiplier').value) || 2.0;
             const scheduledStart = modal.querySelector('#scheduled-start').value;
             const description = modal.querySelector('#channel-description').value.trim();
+            const manualAvatarUrl = modal.querySelector('#channel-avatar-manual').value.trim();
 
             // Извлекаем username
             let username = channelLink;
@@ -1016,7 +1024,8 @@ class ChannelsPage {
                 is_hot_offer: isHotOffer,
                 hot_offer_multiplier: isHotOffer ? hotOfferMultiplier : 1.0,
                 is_active: !scheduledStart, // Активируем только если нет отложенного старта
-                description: description || null
+                description: description || null,
+                avatar_url: manualAvatarUrl || null
             };
 
             // Параметры для целевого набора
