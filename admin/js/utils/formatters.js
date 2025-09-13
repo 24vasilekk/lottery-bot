@@ -52,6 +52,32 @@ class Formatters {
         return this.formatDateOnly(date);
     }
 
+    // Форматирование оставшегося времени до даты
+    static formatTimeRemaining(endDate) {
+        if (!endDate) return '—';
+        
+        const end = new Date(endDate);
+        const now = new Date();
+        const diff = end - now;
+        
+        if (diff <= 0) return 'Истекло';
+        
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        
+        if (days > 0) {
+            return `${days}д ${hours}ч`;
+        }
+        if (hours > 0) {
+            return `${hours}ч ${minutes}м`;
+        }
+        if (minutes > 0) {
+            return `${minutes}м`;
+        }
+        return 'Менее минуты';
+    }
+
     // Форматирование числа с разделителями тысяч
     static formatNumber(number, options = {}) {
         if (number === null || number === undefined) return '—';

@@ -131,19 +131,21 @@ class BackgroundTaskManager {
         try {
             console.log('⏰ Проверка истекших каналов...');
 
-            // Находим истекшие каналы - используем универсальный SQL для обеих БД
+            // Находим истекшие каналы для временного размещения
             const sqlPostgres = `
                 SELECT * FROM partner_channels 
                 WHERE is_active = true 
-                AND end_date IS NOT NULL 
-                AND end_date < NOW()
+                AND placement_type = 'time'
+                AND placement_duration IS NOT NULL
+                AND start_date + (placement_duration::text || ' hours')::INTERVAL < NOW()
             `;
             
             const sqlSQLite = `
                 SELECT * FROM partner_channels 
                 WHERE is_active = 1 
-                AND end_date IS NOT NULL 
-                AND datetime(end_date) < datetime('now')
+                AND placement_type = 'time'
+                AND placement_duration IS NOT NULL
+                AND datetime(start_date, '+' || placement_duration || ' hours') < datetime('now')
             `;
             
             const sql = this.db.query ? sqlPostgres : sqlSQLite;

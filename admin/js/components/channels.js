@@ -436,6 +436,9 @@ class ChannelsPage {
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             }
+            
+            // Запускаем обновление таймеров
+            this.startTimerUpdates();
         }, 100);
     }
 
@@ -513,7 +516,12 @@ class ChannelsPage {
                     </span>
                     ${channel.end_date ? `
                         <div class="status-meta">
-                            До: ${Formatters.formatDate(channel.end_date)}
+                            <div class="channel-timer" data-end-date="${channel.end_date}">
+                                До: ${Formatters.formatDate(channel.end_date)}
+                            </div>
+                            <div class="time-remaining">
+                                Осталось: ${Formatters.formatTimeRemaining(channel.end_date)}
+                            </div>
                         </div>
                     ` : ''}
                 </td>
@@ -1179,9 +1187,53 @@ class ChannelsPage {
         }
     }
 
+    startTimerUpdates() {
+        // Останавливаем существующий интервал если есть
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+        }
+        
+        // Обновляем таймеры каждую минуту
+        this.timerInterval = setInterval(() => {
+            this.updateTimers();
+        }, 60000); // 60 секунд
+        
+        // Сразу обновляем при запуске
+        this.updateTimers();
+    }
+    
+    updateTimers() {
+        const timers = document.querySelectorAll('.time-remaining');
+        timers.forEach(timer => {
+            const row = timer.closest('tr[data-channel-id]');
+            if (!row) return;
+            
+            const timerElement = row.querySelector('.channel-timer');
+            if (!timerElement) return;
+            
+            const endDate = timerElement.getAttribute('data-end-date');
+            if (!endDate) return;
+            
+            const timeRemaining = Formatters.formatTimeRemaining(endDate);
+            timer.textContent = `Осталось: ${timeRemaining}`;
+            
+            // Если время истекло, можно добавить специальный класс
+            if (timeRemaining === 'Истекло') {
+                timer.classList.add('expired');
+                row.classList.add('expired-channel');
+            }
+        });
+    }
+
     destroy() {
         // Очистка при уничтожении компонента
         this.selectedChannels.clear();
+        
+        // Останавливаем таймер
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
         
         // Удаляем модальные окна если они есть
         const modals = document.querySelectorAll('.modal');

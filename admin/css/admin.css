@@ -569,6 +569,35 @@ body {
     height: 14px;
 }
 
+/* Таймеры каналов */
+.status-meta {
+    margin-top: 4px;
+    font-size: 11px;
+}
+
+.channel-timer {
+    color: var(--text-secondary);
+}
+
+.time-remaining {
+    font-weight: 500;
+    color: var(--success);
+}
+
+.time-remaining.expired {
+    color: var(--danger);
+    font-weight: 600;
+}
+
+.expired-channel {
+    opacity: 0.7;
+}
+
+.expired-channel .status-badge {
+    background-color: var(--danger-bg);
+    color: var(--danger);
+}
+
 /* Модальные окна для управления пользователями */
 .balance-info,
 .win-chance-info {

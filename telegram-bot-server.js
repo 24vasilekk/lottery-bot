@@ -2493,8 +2493,25 @@ app.get('/api/tasks/available/:userId', async (req, res) => {
             });
         }
         
-        // Получаем активные каналы
-        const channels = await db.getActiveChannels();
+        // Получаем все каналы с дополнительной информацией (включая end_date)
+        const allChannels = await db.getAllChannels();
+        // Фильтруем только активные и не истекшие каналы
+        const channels = allChannels.filter(channel => {
+            // Проверяем базовые условия
+            if (!channel.is_active) return false;
+            
+            // Для временных каналов проверяем не истекло ли время
+            if (channel.placement_type === 'time' && channel.end_date) {
+                const now = new Date();
+                const endDate = new Date(channel.end_date);
+                if (endDate <= now) {
+                    console.log(`⏰ Канал ${channel.channel_username} истек (${channel.end_date}), скрываем`);
+                    return false;
+                }
+            }
+            
+            return channel.status === 'active' || channel.status === 'scheduled';
+        });
         
         // Получаем ежедневные задания
         const dailyTasks = await db.getDailyTasksForUser(parseInt(userId));

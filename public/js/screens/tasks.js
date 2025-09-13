@@ -16,6 +16,32 @@ export class TasksScreen {
         console.log('✅ Глобальная ссылка window.tasksScreen установлена');
     }
 
+    // Форматирование оставшегося времени
+    formatTimeRemaining(endDate) {
+        if (!endDate) return null;
+        
+        const end = new Date(endDate);
+        const now = new Date();
+        const diff = end - now;
+        
+        if (diff <= 0) return 'Истекло';
+        
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        
+        if (days > 0) {
+            return `${days}д ${hours}ч`;
+        }
+        if (hours > 0) {
+            return `${hours}ч ${minutes}м`;
+        }
+        if (minutes > 0) {
+            return `${minutes}м`;
+        }
+        return 'Менее минуты';
+    }
+
     render() {
         return `
             <div id="tasks-screen" class="screen">
@@ -105,6 +131,7 @@ export class TasksScreen {
         await this.loadTasks();
         this.checkDailyReset();
         this.updateTaskCounter();
+        this.startTimerUpdates();
         console.log('✅ Экран заданий инициализирован');
     }
 
@@ -270,15 +297,19 @@ export class TasksScreen {
                 type: 'stars',
                 amount: task.reward_stars || 10
             },
-            description: task.is_hot_offer ? '🔥 Горячее предложение!' : 'Подпишись на канал'
+            description: task.is_hot_offer ? '🔥 Горячее предложение!' : 'Подпишись на канал',
+            endDate: task.end_date // Добавляем дату окончания
         };
         
+        const timeRemaining = this.formatTimeRemaining(task.end_date);
+        
         return `
-            <div class="task-card active-task-new ${taskStatus === 'completed' ? 'completed' : ''}" data-task-id="${taskId}" data-status="${taskStatus}">
+            <div class="task-card active-task-new ${taskStatus === 'completed' ? 'completed' : ''}" data-task-id="${taskId}" data-status="${taskStatus}" ${task.end_date ? `data-end-date="${task.end_date}"` : ''}>
                 <div class="task-content-grid">
                     <div class="task-left">
                         <div class="task-title">@${task.channel_username}</div>
                         <div class="task-reward-info">+${task.reward_stars} ⭐</div>
+                        ${timeRemaining ? `<div class="task-timer">⏰ ${timeRemaining}</div>` : ''}
                     </div>
                     <div class="task-right">
                         <div class="task-desc">${channelTask.description}</div>
@@ -1284,6 +1315,52 @@ export class TasksScreen {
         const referrals = this.app.gameData.referrals || 0;
         console.log('📊 Актуальное количество рефералов в заданиях:', referrals);
         return referrals;
+    }
+
+    startTimerUpdates() {
+        // Останавливаем существующий интервал если есть
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+        }
+        
+        // Обновляем таймеры каждую минуту
+        this.timerInterval = setInterval(() => {
+            this.updateTimers();
+        }, 60000); // 60 секунд
+        
+        // Сразу обновляем при запуске
+        this.updateTimers();
+    }
+    
+    updateTimers() {
+        const timers = document.querySelectorAll('.task-timer');
+        timers.forEach(timer => {
+            const card = timer.closest('.task-card[data-end-date]');
+            if (!card) return;
+            
+            const endDate = card.getAttribute('data-end-date');
+            if (!endDate) return;
+            
+            const timeRemaining = this.formatTimeRemaining(endDate);
+            
+            if (timeRemaining === 'Истекло') {
+                timer.textContent = '⏰ Истекло';
+                timer.classList.add('expired');
+                card.classList.add('expired');
+            } else if (timeRemaining) {
+                timer.textContent = `⏰ ${timeRemaining}`;
+                timer.classList.remove('expired');
+                card.classList.remove('expired');
+            }
+        });
+    }
+
+    destroy() {
+        // Останавливаем таймер при уничтожении экрана
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
     }
 
     // Метод для принудительного обновления данных
