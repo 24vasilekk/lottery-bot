@@ -304,7 +304,7 @@ export class TasksScreen {
         const timeRemaining = this.formatTimeRemaining(task.end_date);
         
         return `
-            <div class="task-card active-task-new ${taskStatus === 'completed' ? 'completed' : ''}" data-task-id="${taskId}" data-status="${taskStatus}" ${task.end_date ? `data-end-date="${task.end_date}"` : ''}>
+            <div class="task-card active-task-new ${taskStatus === 'completed' ? 'completed' : ''} ${task.is_hot_offer ? 'hot-offer' : ''}" data-task-id="${taskId}" data-status="${taskStatus}" ${task.end_date ? `data-end-date="${task.end_date}"` : ''}>
                 <div class="task-content-grid">
                     <div class="task-left">
                         <div class="channel-header">
@@ -313,12 +313,17 @@ export class TasksScreen {
                                 '<div class="channel-avatar-placeholder">📺</div>'
                             }
                             <div class="channel-info">
-                                <div class="task-title">@${task.channel_username}</div>
-                                ${task.channel_name ? `<div class="channel-name">${task.channel_name}</div>` : ''}
+                                <div class="channel-title">${task.channel_name || task.channel_username}</div>
+                                <div class="channel-username">@${task.channel_username}</div>
                             </div>
                         </div>
                         <div class="task-reward-info">+${task.reward_stars} ⭐</div>
-                        ${timeRemaining ? `<div class="task-timer">⏰ ${timeRemaining}</div>` : ''}
+                        ${timeRemaining ? `
+                            <div class="task-timer-container">
+                                <div class="timer-icon">⏰</div>
+                                <div class="timer-text">${timeRemaining}</div>
+                            </div>
+                        ` : ''}
                     </div>
                     <div class="task-right">
                         <div class="task-desc">

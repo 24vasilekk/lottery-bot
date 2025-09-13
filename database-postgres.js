@@ -1901,6 +1901,63 @@ class DatabasePostgres {
         return result.rowCount;
     }
 
+    // === АВТОМАТИЧЕСКОЕ ПОЛУЧЕНИЕ ИНФОРМАЦИИ О КАНАЛЕ ===
+    
+    async getChannelInfoFromTelegram(bot, channelUsername) {
+        try {
+            console.log(`🔍 Получение информации о канале @${channelUsername} через Telegram API...`);
+            
+            // Очищаем username от символов
+            const cleanUsername = channelUsername.startsWith('@') ? channelUsername : `@${channelUsername}`;
+            
+            // Получаем информацию о чате
+            const chatInfo = await bot.getChat(cleanUsername);
+            console.log(`✅ Информация о канале получена:`, {
+                id: chatInfo.id,
+                title: chatInfo.title,
+                type: chatInfo.type,
+                description: chatInfo.description?.substring(0, 100) + '...'
+            });
+            
+            let avatarUrl = null;
+            
+            // Получаем аватарку канала если есть
+            if (chatInfo.photo && chatInfo.photo.big_file_id) {
+                try {
+                    const photoFile = await bot.getFile(chatInfo.photo.big_file_id);
+                    avatarUrl = `https://api.telegram.org/file/bot${bot.token}/${photoFile.file_path}`;
+                    console.log(`🖼️ Аватарка канала найдена: ${avatarUrl}`);
+                } catch (photoError) {
+                    console.warn(`⚠️ Не удалось получить аватарку для @${channelUsername}:`, photoError.message);
+                }
+            } else {
+                console.log(`📷 У канала @${channelUsername} нет аватарки`);
+            }
+            
+            return {
+                channel_id: chatInfo.id.toString(),
+                channel_name: chatInfo.title || channelUsername,
+                channel_description: chatInfo.description || null,
+                channel_avatar_url: avatarUrl,
+                type: chatInfo.type,
+                members_count: chatInfo.members_count || null
+            };
+            
+        } catch (error) {
+            console.error(`❌ Ошибка получения информации о канале @${channelUsername}:`, error.message);
+            
+            // Возвращаем базовую информацию если API недоступно
+            return {
+                channel_id: null,
+                channel_name: channelUsername,
+                channel_description: null,
+                channel_avatar_url: null,
+                type: 'channel',
+                members_count: null
+            };
+        }
+    }
+
     // === ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ===
 
     async query(text, params) {

@@ -3155,7 +3155,9 @@ app.post('/api/admin/channels', requireAuth, async (req, res) => {
             hot_offer_multiplier = 2.0,
             auto_renewal = false,
             is_active = true,
-            start_date
+            start_date,
+            description,
+            avatar_url
         } = req.body;
 
         console.log(`📺 Админ: добавление канала @${channel_username}`, {
@@ -3179,23 +3181,19 @@ app.post('/api/admin/channels', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'Для размещения по цели укажите целевое количество подписчиков' });
         }
 
-        // Получаем информацию о канале
-        let channelName = channel_name || channel_username;
-        let channelId = null;
+        // Автоматически получаем информацию о канале через Telegram API
+        const telegramChannelInfo = await db.getChannelInfoFromTelegram(bot, channel_username);
         
-        try {
-            const chat = await bot.getChat(`@${channel_username}`);
-            channelName = chat.title || channel_username;
-            channelId = chat.id.toString();
-        } catch (error) {
-            console.warn(`⚠️ Не удалось получить информацию о канале @${channel_username}:`, error);
-        }
+        // Используем данные от пользователя, если они заданы, иначе автоматические
+        const finalChannelName = channel_name || telegramChannelInfo.channel_name;
+        const finalDescription = description || telegramChannelInfo.channel_description;
+        const finalAvatarUrl = avatar_url || telegramChannelInfo.channel_avatar_url;
 
         // Добавляем канал используя улучшенный метод из database
         const channelData = {
             username: channel_username,
-            name: channelName,
-            channel_id: channelId,
+            name: finalChannelName,
+            channel_id: telegramChannelInfo.channel_id,
             stars: reward_stars,
             placement_type: placement_type,
             placement_duration: placement_duration,
@@ -3203,7 +3201,9 @@ app.post('/api/admin/channels', requireAuth, async (req, res) => {
             is_hot_offer: is_hot_offer || false,
             hot_offer_multiplier: hot_offer_multiplier || 2.0,
             auto_renewal: auto_renewal || false,
-            start_date: start_date ? new Date(start_date) : new Date()
+            start_date: start_date ? new Date(start_date) : new Date(),
+            description: finalDescription,
+            avatar_url: finalAvatarUrl
         };
 
         console.log('📝 Данные для добавления канала:', channelData);
