@@ -307,12 +307,23 @@ export class TasksScreen {
             <div class="task-card active-task-new ${taskStatus === 'completed' ? 'completed' : ''}" data-task-id="${taskId}" data-status="${taskStatus}" ${task.end_date ? `data-end-date="${task.end_date}"` : ''}>
                 <div class="task-content-grid">
                     <div class="task-left">
-                        <div class="task-title">@${task.channel_username}</div>
+                        <div class="channel-header">
+                            ${task.channel_avatar_url ? 
+                                `<img src="${task.channel_avatar_url}" alt="Avatar" class="channel-avatar" onerror="this.style.display='none'">` : 
+                                '<div class="channel-avatar-placeholder">📺</div>'
+                            }
+                            <div class="channel-info">
+                                <div class="task-title">@${task.channel_username}</div>
+                                ${task.channel_name ? `<div class="channel-name">${task.channel_name}</div>` : ''}
+                            </div>
+                        </div>
                         <div class="task-reward-info">+${task.reward_stars} ⭐</div>
                         ${timeRemaining ? `<div class="task-timer">⏰ ${timeRemaining}</div>` : ''}
                     </div>
                     <div class="task-right">
-                        <div class="task-desc">${channelTask.description}</div>
+                        <div class="task-desc">
+                            ${task.channel_description || channelTask.description}
+                        </div>
                         <div class="task-action">
                             ${this.renderTaskButton(channelTask, taskStatus)}
                         </div>

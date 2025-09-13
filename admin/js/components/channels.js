@@ -464,14 +464,26 @@ class ChannelsPage {
                 
                 <td class="channel-info">
                     <div class="channel-details">
-                        <div class="channel-name">
-                            ${channel.is_hot ? '<i data-lucide="flame" class="hot-indicator"></i>' : ''}
-                            <a href="https://t.me/${channel.channel_username}" target="_blank" class="channel-link">
-                                @${Formatters.escapeHtml(channel.channel_username)}
-                            </a>
+                        <div class="channel-header">
+                            ${channel.channel_avatar_url ? 
+                                `<img src="${Formatters.escapeHtml(channel.channel_avatar_url)}" 
+                                     alt="Avatar" class="channel-avatar" 
+                                     onerror="this.style.display='none'">` : 
+                                '<div class="channel-avatar-placeholder"><i data-lucide="image"></i></div>'
+                            }
+                            <div class="channel-name">
+                                ${channel.is_hot ? '<i data-lucide="flame" class="hot-indicator"></i>' : ''}
+                                <a href="https://t.me/${channel.channel_username}" target="_blank" class="channel-link">
+                                    @${Formatters.escapeHtml(channel.channel_username)}
+                                </a>
+                            </div>
                         </div>
                         <div class="channel-meta">
-                            ${Formatters.escapeHtml(channel.channel_name || 'Без названия')}
+                            <div class="channel-title">${Formatters.escapeHtml(channel.channel_name || 'Без названия')}</div>
+                            ${channel.channel_description ? 
+                                `<div class="channel-description">${Formatters.escapeHtml(channel.channel_description)}</div>` : 
+                                ''
+                            }
                         </div>
                     </div>
                 </td>
@@ -726,6 +738,20 @@ class ChannelsPage {
                         <span class="form-hint">Введите ссылку на канал или его username</span>
                     </div>
 
+                    <div class="form-group">
+                        <label class="form-label">Описание канала</label>
+                        <textarea id="channel-description" class="form-control" rows="3" 
+                                  placeholder="Краткое описание канала для пользователей..."></textarea>
+                        <span class="form-hint">Описание поможет пользователям понять, о чем канал</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">URL аватарки канала</label>
+                        <input type="url" id="channel-avatar" class="form-control" 
+                               placeholder="https://example.com/avatar.jpg">
+                        <span class="form-hint">Прямая ссылка на изображение аватарки канала</span>
+                    </div>
+
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label required">Награда (звезды)</label>
@@ -961,6 +987,8 @@ class ChannelsPage {
             const isHotOffer = modal.querySelector('#is-hot-offer').checked;
             const hotOfferMultiplier = parseFloat(modal.querySelector('#hot-offer-multiplier').value) || 2.0;
             const scheduledStart = modal.querySelector('#scheduled-start').value;
+            const description = modal.querySelector('#channel-description').value.trim();
+            const avatarUrl = modal.querySelector('#channel-avatar').value.trim();
 
             // Извлекаем username
             let username = channelLink;
@@ -986,7 +1014,9 @@ class ChannelsPage {
                 auto_renewal: autoRenewal,
                 is_hot_offer: isHotOffer,
                 hot_offer_multiplier: isHotOffer ? hotOfferMultiplier : 1.0,
-                is_active: !scheduledStart // Активируем только если нет отложенного старта
+                is_active: !scheduledStart, // Активируем только если нет отложенного старта
+                description: description || null,
+                avatar_url: avatarUrl || null
             };
 
             // Параметры для целевого набора

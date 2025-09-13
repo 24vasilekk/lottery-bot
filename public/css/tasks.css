@@ -1025,3 +1025,80 @@
     opacity: 0.6;
     border: 1px solid rgba(220, 53, 69, 0.3);
 }
+
+/* ========================================
+   АВАТАРКИ И ОПИСАНИЯ КАНАЛОВ  
+   ======================================== */
+
+.channel-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.channel-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
+}
+
+.channel-avatar-placeholder {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.channel-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.channel-name {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 2px;
+    font-weight: 400;
+}
+
+.task-desc {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.3;
+    margin-bottom: 8px;
+}
+
+/* Адаптивные стили для мобильных устройств */
+@media (max-width: 480px) {
+    .channel-header {
+        gap: 8px;
+    }
+    
+    .channel-avatar, 
+    .channel-avatar-placeholder {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .channel-avatar-placeholder {
+        font-size: 10px;
+    }
+    
+    .channel-name {
+        font-size: 10px;
+    }
+    
+    .task-desc {
+        font-size: 11px;
+    }
+}

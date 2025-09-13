@@ -692,3 +692,57 @@ body {
     padding: 20px;
     color: var(--text-muted);
 }
+
+/* Стили для аватарок и описаний каналов */
+.channel-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.channel-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border-color);
+}
+
+.channel-avatar-placeholder {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+}
+
+.channel-avatar-placeholder i {
+    width: 16px;
+    height: 16px;
+}
+
+.channel-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.channel-title {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.channel-description {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

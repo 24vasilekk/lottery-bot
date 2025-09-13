@@ -243,6 +243,8 @@ class DatabasePostgres {
                     channel_username VARCHAR(255) NOT NULL,
                     channel_id VARCHAR(100),
                     channel_name VARCHAR(255) NOT NULL,
+                    channel_description TEXT,
+                    channel_avatar_url TEXT,
                     reward_stars INTEGER DEFAULT 50,
                     placement_type VARCHAR(20) DEFAULT 'time',
                     placement_duration INTEGER,
@@ -457,6 +459,43 @@ class DatabasePostgres {
                     console.log('✅ Колонка stars_earned добавлена');
                 } else {
                     console.log('✅ Колонка stars_earned уже существует');
+                }
+
+                // Проверяем и добавляем колонки для описания и аватарки канала
+                const checkChannelDescription = await client.query(`
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'partner_channels' 
+                    AND column_name = 'channel_description'
+                `);
+                
+                if (checkChannelDescription.rows.length === 0) {
+                    console.log('📝 Добавляем колонку channel_description в partner_channels...');
+                    await client.query(`
+                        ALTER TABLE partner_channels 
+                        ADD COLUMN channel_description TEXT
+                    `);
+                    console.log('✅ Колонка channel_description добавлена');
+                } else {
+                    console.log('✅ Колонка channel_description уже существует');
+                }
+
+                const checkChannelAvatar = await client.query(`
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'partner_channels' 
+                    AND column_name = 'channel_avatar_url'
+                `);
+                
+                if (checkChannelAvatar.rows.length === 0) {
+                    console.log('📝 Добавляем колонку channel_avatar_url в partner_channels...');
+                    await client.query(`
+                        ALTER TABLE partner_channels 
+                        ADD COLUMN channel_avatar_url TEXT
+                    `);
+                    console.log('✅ Колонка channel_avatar_url добавлена');
+                } else {
+                    console.log('✅ Колонка channel_avatar_url уже существует');
                 }
                 
                 console.log('✅ Миграции завершены');
@@ -1553,7 +1592,9 @@ class DatabasePostgres {
             hot_offer_multiplier = 2.0,
             auto_renewal = false,
             start_date = null,
-            channel_id = null
+            channel_id = null,
+            description = null,
+            avatar_url = null
         } = channelData;
         
         const query = `
@@ -1561,8 +1602,8 @@ class DatabasePostgres {
             (channel_username, channel_name, channel_id, reward_stars, 
              placement_type, placement_duration, target_subscribers,
              is_hot_offer, hot_offer_multiplier, auto_renewal,
-             is_active, start_date) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+             is_active, start_date, channel_description, channel_avatar_url) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             ON CONFLICT (channel_username) 
             DO UPDATE SET 
                 channel_name = EXCLUDED.channel_name,
@@ -1576,6 +1617,8 @@ class DatabasePostgres {
                 auto_renewal = EXCLUDED.auto_renewal,
                 is_active = true,
                 start_date = EXCLUDED.start_date,
+                channel_description = EXCLUDED.channel_description,
+                channel_avatar_url = EXCLUDED.channel_avatar_url,
                 updated_at = NOW()
             RETURNING *
         `;
@@ -1592,7 +1635,9 @@ class DatabasePostgres {
             hot_offer_multiplier,
             auto_renewal,
             true, // is_active
-            start_date || new Date()
+            start_date || new Date(),
+            description,
+            avatar_url
         ];
         
         const result = await this.pool.query(query, params);
