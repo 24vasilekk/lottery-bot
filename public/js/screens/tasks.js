@@ -285,7 +285,13 @@ export class TasksScreen {
         const taskStatus = this.getTaskStatus(taskId);
         const isCompleted = this.isTaskCompleted(taskId);
         
-        console.log(`🎨 Рендеринг карточки канала ${task.channel_username}: статус=${taskStatus}, выполнено=${isCompleted}`);
+        console.log(`🎨 Рендеринг карточки канала ${task.channel_username}:`, {
+            статус: taskStatus,
+            выполнено: isCompleted,
+            аватарка: task.channel_avatar_url || 'нет',
+            горячее: task.is_hot_offer,
+            множитель: task.hot_offer_multiplier
+        });
         
         // Формируем объект задания из данных канала
         const channelTask = {
@@ -317,7 +323,12 @@ export class TasksScreen {
                                 <div class="channel-username">@${task.channel_username}</div>
                             </div>
                         </div>
-                        <div class="task-reward-info">+${task.reward_stars} ⭐</div>
+                        <div class="task-reward-info">
+                            +${task.reward_stars} ⭐
+                            ${task.is_hot_offer && task.hot_offer_multiplier > 1 ? 
+                                `<span class="reward-multiplier">×${task.hot_offer_multiplier}</span>` : ''
+                            }
+                        </div>
                         ${timeRemaining ? `
                             <div class="task-timer-container">
                                 <div class="timer-icon">⏰</div>
