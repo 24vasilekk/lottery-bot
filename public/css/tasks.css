@@ -1295,30 +1295,16 @@
 
 .task-card.hot-offer {
     position: relative;
-    background: linear-gradient(135deg, 
-        rgba(255, 107, 157, 0.15) 0%, 
-        rgba(239, 85, 165, 0.15) 50%, 
-        rgba(255, 154, 0, 0.15) 100%);
+    background: var(--gradient-dark);
     border: 2px solid transparent;
-    background-clip: padding-box;
-    animation: hotGlow 3s ease-in-out infinite alternate;
+    background-image: var(--gradient-dark), var(--fire-border);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    animation: hotGlow 3s ease-in-out infinite alternate,
+               fireBorderAnimation 3s linear infinite;
 }
 
-.task-card.hot-offer::before {
-    content: '';
-    position: absolute;
-    top: -2px;
-    left: -2px;
-    right: -2px;
-    bottom: -2px;
-    z-index: -1;
-    background: linear-gradient(45deg, 
-        #ff6b9d, #ef55a5, #ff9a00, #ff6b9d);
-    background-size: 400% 400%;
-    border-radius: inherit;
-    animation: hotBorderFlow 2s linear infinite;
-    opacity: 0.8;
-}
+/* Убираем старый ::before - теперь используем background-image для огненной рамки */
 
 @keyframes hotGlow {
     0% {
@@ -1327,6 +1313,21 @@
     100% {
         box-shadow: 0 0 30px rgba(255, 107, 157, 0.6),
                     0 0 40px rgba(239, 85, 165, 0.4);
+    }
+}
+
+@keyframes fireBorderAnimation {
+    0% {
+        background-size: 100% 100%, 400% 400%;
+        background-position: 0% 0%, 0% 50%;
+    }
+    50% {
+        background-size: 100% 100%, 400% 400%;
+        background-position: 0% 0%, 100% 50%;
+    }
+    100% {
+        background-size: 100% 100%, 400% 400%;
+        background-position: 0% 0%, 0% 50%;
     }
 }
 

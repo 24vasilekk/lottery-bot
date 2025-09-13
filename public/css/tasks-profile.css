@@ -465,22 +465,23 @@
 }
 
 .task-card {
-    background: 
-        linear-gradient(135deg, rgba(42, 42, 42, 0.9) 0%, rgba(30, 30, 30, 0.95) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 20px;
+    background: var(--gradient-dark);
+    border: 1px solid rgba(239, 85, 165, 0.2);
+    border-radius: var(--radius-large);
     padding: 25px;
-    backdrop-filter: blur(15px);
-    transition: all 0.3s ease;
+    backdrop-filter: blur(20px);
+    transition: var(--transition-medium);
     position: relative;
     overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-soft), 
+                inset 0 1px 0 rgba(239, 85, 165, 0.1);
 }
 
 .task-card:hover {
-    transform: translateY(-4px);
-    border-color: rgba(255, 107, 157, 0.4);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    transform: translateY(-2px);
+    border-color: rgba(239, 85, 165, 0.4);
+    box-shadow: var(--shadow-button),
+                inset 0 1px 0 rgba(239, 85, 165, 0.2);
 }
 
 .task-card::before {
@@ -490,7 +491,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(255, 107, 157, 0.08) 0%, transparent 50%);
+    background: linear-gradient(135deg, rgba(239, 85, 165, 0.08) 0%, transparent 50%);
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.3s ease;
