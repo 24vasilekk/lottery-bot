@@ -6,9 +6,26 @@ export class APIClient {
         this.timeout = 30000;
         this.retryCount = 3;
         this.retryDelay = 1000;
+        
+        // Rate limiting
+        this.requestQueue = new Map(); // endpoint -> timestamp последнего запроса
+        this.minRequestInterval = 1000; // минимум 1 секунда между запросами к одному endpoint
     }
 
     async request(method, endpoint, data = null, options = {}) {
+        // Rate limiting проверка
+        const requestKey = `${method}:${endpoint}`;
+        const now = Date.now();
+        const lastRequestTime = this.requestQueue.get(requestKey);
+        
+        if (lastRequestTime && now - lastRequestTime < this.minRequestInterval) {
+            const waitTime = this.minRequestInterval - (now - lastRequestTime);
+            console.log(`⏰ Rate limit: ждем ${waitTime}ms для ${requestKey}`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+        
+        this.requestQueue.set(requestKey, Date.now());
+        
         const url = `${this.baseURL}${endpoint}`;
         const config = {
             method,
@@ -41,6 +58,16 @@ export class APIClient {
 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+                    
+                    // Специальная обработка rate limit
+                    if (response.status === 429 || (errorData.error && errorData.error.includes('слишком много запросов'))) {
+                        const retryAfter = errorData.retryAfter || 5000; // 5 секунд по умолчанию
+                        console.warn(`⚠️ Rate limit от сервера, ждем ${retryAfter}ms`);
+                        await new Promise(resolve => setTimeout(resolve, retryAfter));
+                        // Повторяем запрос после ожидания
+                        continue;
+                    }
+                    
                     throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
                 }
 

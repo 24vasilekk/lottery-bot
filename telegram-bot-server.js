@@ -563,7 +563,7 @@ app.get('/api/user-referral-rank/:userId', async (req, res) => {
 // Rate limiting конфигурация
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 минут
-    max: 100, // максимум 100 запросов с одного IP за 15 минут
+    max: 300, // УВЕЛИЧЕНО до 300 запросов с одного IP за 15 минут
     message: {
         error: 'Слишком много запросов с вашего IP, попробуйте позже',
         retryAfter: 900
@@ -579,7 +579,7 @@ const generalLimiter = rateLimit({
 // Также смягчите общий лимитер:
 const apiLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 минута
-    max: 50, // УВЕЛИЧЕНО с 30 до 50 API запросов в минуту
+    max: 100, // УВЕЛИЧЕНО до 100 API запросов в минуту
     message: {
         error: 'Превышен лимит API запросов, попробуйте через минуту',
         retryAfter: 60

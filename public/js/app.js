@@ -412,7 +412,13 @@ export default class App {
     }
 
     startBalanceAutoSync() {
-        // Синхронизация баланса каждые 30 секунд (но только если пользователь активен)
+        // Очищаем существующий интервал если есть
+        if (this.balanceSyncInterval) {
+            clearInterval(this.balanceSyncInterval);
+            this.balanceSyncInterval = null;
+        }
+        
+        // Синхронизация баланса каждые 60 секунд (увеличен интервал для уменьшения нагрузки)
         this.balanceSyncInterval = setInterval(async () => {
             // Синхронизируем только если приложение видимо и пользователь активен
             if (!document.hidden && this.lastActivityTime && Date.now() - this.lastActivityTime < 60000) {
@@ -433,7 +439,7 @@ export default class App {
                     console.warn('⚠️ Тихая автосинхронизация не удалась:', error.message);
                 }
             }
-        }, 30000);
+        }, 60000); // Увеличен до 60 секунд
         
         // Обновляем время активности при любом взаимодействии
         this.lastActivityTime = Date.now();
@@ -445,6 +451,14 @@ export default class App {
         });
         
         console.log('🔄 Автосинхронизация баланса запущена');
+    }
+
+    stopBalanceAutoSync() {
+        if (this.balanceSyncInterval) {
+            clearInterval(this.balanceSyncInterval);
+            this.balanceSyncInterval = null;
+            console.log('🛑 Автосинхронизация баланса остановлена');
+        }
     }
 
     updateInterface() {
