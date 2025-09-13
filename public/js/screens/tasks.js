@@ -505,22 +505,44 @@ export class TasksScreen {
                             console.log('🔍 [ЗАГРУЗКА] task_statuses с сервера:', userData.task_statuses);
                             console.log('🔍 [ЗАГРУЗКА] Тип task_statuses:', typeof userData.task_statuses);
                             
-                            // Сервер уже парсит JSON в getUserWithTasks, поэтому получаем готовый объект
-                            this.app.gameData.taskStatuses = (typeof userData.task_statuses === 'object' && userData.task_statuses !== null) 
-                                ? userData.task_statuses 
-                                : {};
+                            // Правильная обработка: если строка - парсим JSON, если объект - используем как есть
+                            let taskStatuses;
+                            if (typeof userData.task_statuses === 'string') {
+                                try {
+                                    taskStatuses = JSON.parse(userData.task_statuses);
+                                } catch (e) {
+                                    console.error('❌ Ошибка парсинга task_statuses:', e);
+                                    taskStatuses = {};
+                                }
+                            } else if (typeof userData.task_statuses === 'object' && userData.task_statuses !== null) {
+                                taskStatuses = userData.task_statuses;
+                            } else {
+                                taskStatuses = {};
+                            }
                             
+                            this.app.gameData.taskStatuses = taskStatuses;
                             console.log('✅ [ЗАГРУЗКА] Установлены taskStatuses:', this.app.gameData.taskStatuses);
                         }
                         if (userData.completed_tasks !== undefined) {
                             console.log('🔍 [ЗАГРУЗКА] completed_tasks с сервера:', userData.completed_tasks);
                             console.log('🔍 [ЗАГРУЗКА] Тип completed_tasks:', typeof userData.completed_tasks);
                             
-                            // Сервер уже парсит JSON в getUserWithTasks, поэтому получаем готовый массив
-                            this.app.gameData.completedTasks = Array.isArray(userData.completed_tasks) 
-                                ? userData.completed_tasks 
-                                : [];
+                            // Правильная обработка: если строка - парсим JSON, если массив - используем как есть
+                            let completedTasks;
+                            if (typeof userData.completed_tasks === 'string') {
+                                try {
+                                    completedTasks = JSON.parse(userData.completed_tasks);
+                                } catch (e) {
+                                    console.error('❌ Ошибка парсинга completed_tasks:', e);
+                                    completedTasks = [];
+                                }
+                            } else if (Array.isArray(userData.completed_tasks)) {
+                                completedTasks = userData.completed_tasks;
+                            } else {
+                                completedTasks = [];
+                            }
                             
+                            this.app.gameData.completedTasks = completedTasks;
                             console.log('✅ [ЗАГРУЗКА] Установлены completedTasks:', this.app.gameData.completedTasks);
                         }
                         if (userData.stars !== undefined) {
