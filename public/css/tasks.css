@@ -1172,12 +1172,26 @@
 }
 
 .channel-title {
-    font-size: 14px;
-    color: #ffffff;
-    font-weight: 600;
+    font-size: 15px;
+    background: linear-gradient(135deg, #ffffff 0%, #EF55A5 50%, #ffffff 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
     line-height: 1.2;
-    margin-bottom: 3px;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    margin-bottom: 4px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    animation: subtleGradientShift 6s ease-in-out infinite alternate;
+}
+
+@keyframes subtleGradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+    100% {
+        background-position: 100% 50%;
+    }
 }
 
 @keyframes fireTextFlow {
@@ -1194,28 +1208,39 @@
 
 .channel-username {
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.8);
-    font-weight: 500;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    color: rgba(204, 213, 55, 0.9);
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5),
+                 0 0 8px rgba(204, 213, 55, 0.3);
+    letter-spacing: 0.3px;
 }
 
 .task-desc {
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.9);
+    background: linear-gradient(135deg, #cccccc 0%, #809EFF 50%, #cccccc 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     line-height: 1.4;
     margin-bottom: 8px;
     font-weight: 500;
+    animation: subtleGradientShift 8s ease-in-out infinite alternate;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .task-reward-info {
-    color: #FFD700;
-    font-weight: 700;
+    background: linear-gradient(135deg, #FFD700 0%, #CCD537 50%, #FFD700 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 800;
     font-size: 16px;
     margin-top: 6px;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5),
-                 0 0 8px rgba(255, 215, 0, 0.4);
-    filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.6));
+    animation: subtleGradientShift 4s ease-in-out infinite alternate;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    filter: drop-shadow(0 0 6px rgba(204, 213, 55, 0.4));
 }
 
 .reward-multiplier {
@@ -1353,41 +1378,39 @@
 }
 
 .task-card.hot-offer .channel-title {
-    background: linear-gradient(90deg, #ff6b00, #ff8500, #ffaa00, #ff6b9d, #ef55a5, #ff3d00);
+    background: linear-gradient(135deg, #ffffff 0%, #EF55A5 50%, #ffffff 100%);
     background-size: 200% 200%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    font-weight: 800;
-    text-shadow: 0 0 15px rgba(255, 107, 0, 0.8);
-    animation: fireTextFlow 3s ease-in-out infinite alternate;
-    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.8));
+    font-weight: 700;
+    animation: subtleGradientShift 6s ease-in-out infinite alternate;
+    text-shadow: 0 0 12px rgba(255, 107, 0, 0.8),
+                 0 2px 4px rgba(0, 0, 0, 0.6);
+    filter: drop-shadow(0 0 8px rgba(255, 107, 157, 0.6));
 }
 
 .task-card.hot-offer .channel-username {
-    background: linear-gradient(90deg, #ff8500, #ffaa00, #ff6b9d);
+    color: rgba(204, 213, 55, 0.9);
+    font-weight: 600;
+    text-shadow: 0 0 10px rgba(255, 107, 0, 0.8),
+                 0 0 15px rgba(255, 107, 157, 0.6),
+                 0 1px 3px rgba(0, 0, 0, 0.5),
+                 0 0 8px rgba(204, 213, 55, 0.3);
+    letter-spacing: 0.3px;
+}
+
+.task-card.hot-offer .task-desc {
+    background: linear-gradient(135deg, #cccccc 0%, #809EFF 50%, #cccccc 100%);
     background-size: 200% 200%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    font-weight: 600;
-    animation: fireTextFlow 4s ease-in-out infinite alternate-reverse;
-    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
-}
-
-.task-card.hot-offer .task-desc {
-    background: linear-gradient(90deg, #ffffff, #ffaa00, #ff6b9d, #ffffff);
-    background-size: 300% 300%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-weight: 600;
-    animation: fireTextFlow 5s ease-in-out infinite;
-    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
-    padding: 6px 8px;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 107, 157, 0.3);
-    background-color: rgba(255, 107, 157, 0.1);
+    font-weight: 500;
+    animation: subtleGradientShift 8s ease-in-out infinite alternate;
+    text-shadow: 0 0 10px rgba(255, 107, 0, 0.8),
+                 0 0 15px rgba(255, 107, 157, 0.6),
+                 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .task-card.hot-offer .task-complete-btn {

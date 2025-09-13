@@ -505,24 +505,50 @@
    ======================================== */
 
 .active-task-new {
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(15, 15, 15, 0.95);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    background: var(--gradient-dark);
+    border: 1px solid rgba(239, 85, 165, 0.2);
+    border-radius: var(--radius-medium);
+    backdrop-filter: blur(20px);
+    box-shadow: var(--shadow-soft), 
+                inset 0 1px 0 rgba(239, 85, 165, 0.1);
     position: relative;
     overflow: hidden;
+    transition: var(--transition-medium);
+}
+
+.active-task-new:hover {
+    border-color: rgba(239, 85, 165, 0.4);
+    box-shadow: var(--shadow-button),
+                inset 0 1px 0 rgba(239, 85, 165, 0.2);
+    transform: translateY(-2px);
 }
 
 .active-task-new.hot-offer {
+    background: var(--gradient-dark);
     border: 2px solid transparent;
-    background: 
-        linear-gradient(135deg, rgba(15, 15, 15, 0.95) 0%, rgba(20, 10, 15, 0.95) 50%, rgba(15, 15, 15, 0.95) 100%),
-        linear-gradient(45deg, #ff6b00, #ff8500, #ff6b9d, #ef55a5, #ff3d00, #ff6b00);
+    background-image: var(--gradient-dark), var(--fire-border);
     background-origin: border-box;
     background-clip: padding-box, border-box;
-    box-shadow: 0 8px 32px rgba(255, 107, 0, 0.2),
-                inset 0 1px 0 rgba(255, 107, 157, 0.3);
-    animation: fireCardGlow 4s ease-in-out infinite alternate;
+    box-shadow: var(--shadow-soft),
+                0 0 20px rgba(255, 107, 0, 0.3),
+                inset 0 1px 0 rgba(255, 107, 157, 0.2);
+    animation: fireCardGlow 4s ease-in-out infinite alternate,
+               fireBorderAnimation 3s linear infinite;
+}
+
+@keyframes fireBorderAnimation {
+    0% {
+        background-size: 100% 100%, 400% 400%;
+        background-position: 0% 0%, 0% 50%;
+    }
+    50% {
+        background-size: 100% 100%, 400% 400%;
+        background-position: 0% 0%, 100% 50%;
+    }
+    100% {
+        background-size: 100% 100%, 400% 400%;
+        background-position: 0% 0%, 0% 50%;
+    }
 }
 
 @keyframes fireCardGlow {
