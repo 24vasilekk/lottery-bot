@@ -502,6 +502,184 @@
 }
 
 /* ========================================
+   ГОРЯЧИЕ ПРЕДЛОЖЕНИЯ - СПЕЦИФИЧНЫЕ СТИЛИ
+   ======================================== */
+
+.task-card.hot-offer {
+    background: var(--gradient-dark);
+    border: 2px solid transparent;
+    background-image: var(--gradient-dark), var(--fire-border);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    animation: fireCardGlow 4s ease-in-out infinite alternate,
+               fireBorderAnimation 3s linear infinite;
+}
+
+.task-card.hot-offer:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(255, 107, 0, 0.4),
+                0 0 30px rgba(255, 107, 157, 0.2),
+                inset 0 1px 0 rgba(255, 107, 157, 0.6);
+}
+
+@keyframes fireBorderAnimation {
+    0% {
+        background-size: 100% 100%, 400% 400%;
+        background-position: 0% 0%, 0% 50%;
+    }
+    50% {
+        background-size: 100% 100%, 400% 400%;
+        background-position: 0% 0%, 100% 50%;
+    }
+    100% {
+        background-size: 100% 100%, 400% 400%;
+        background-position: 0% 0%, 0% 50%;
+    }
+}
+
+@keyframes fireCardGlow {
+    0% {
+        box-shadow: 0 8px 32px rgba(255, 107, 0, 0.2),
+                    inset 0 1px 0 rgba(255, 107, 157, 0.3);
+    }
+    100% {
+        box-shadow: 0 12px 40px rgba(255, 107, 0, 0.35),
+                    0 0 30px rgba(255, 107, 157, 0.15),
+                    inset 0 1px 0 rgba(255, 107, 157, 0.5);
+    }
+}
+
+/* СТИЛИ ТЕКСТОВ ДЛЯ ГОРЯЧИХ ПРЕДЛОЖЕНИЙ */
+.task-card.hot-offer .task-reward-info {
+    background: linear-gradient(45deg, #FFD700, #FFA500, #FF6B00, #FFD700);
+    background-size: 400% 400%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 800;
+    font-size: 16px;
+    text-shadow: 0 0 15px rgba(255, 215, 0, 0.8),
+                 0 0 30px rgba(255, 107, 0, 0.6);
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 1));
+    animation: fireTextFlow 2s ease-in-out infinite;
+    position: relative;
+}
+
+.task-card.hot-offer .task-reward-info::after {
+    content: '🔥';
+    position: absolute;
+    right: -16px;
+    top: 50%;
+    transform: translateY(-50%);
+    animation: fireFlicker 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes fireFlicker {
+    0% { 
+        transform: translateY(-50%) scale(1) rotate(-2deg);
+        opacity: 0.8;
+    }
+    100% { 
+        transform: translateY(-50%) scale(1.1) rotate(2deg);
+        opacity: 1;
+    }
+}
+
+@keyframes fireTextFlow {
+    0% {
+        background-position: 0% 50%;
+        text-shadow: 0 0 10px rgba(255, 107, 0, 0.5);
+    }
+    100% {
+        background-position: 100% 50%;
+        text-shadow: 0 0 15px rgba(255, 107, 157, 0.8),
+                     0 0 25px rgba(255, 107, 0, 0.6);
+    }
+}
+
+@keyframes subtleGradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+    100% {
+        background-position: 100% 50%;
+    }
+}
+
+.task-card.hot-offer .channel-title {
+    background: linear-gradient(135deg, #ffffff 0%, #EF55A5 50%, #ffffff 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
+    animation: subtleGradientShift 6s ease-in-out infinite alternate;
+    text-shadow: 0 0 12px rgba(255, 107, 0, 0.8),
+                 0 2px 4px rgba(0, 0, 0, 0.6);
+    filter: drop-shadow(0 0 8px rgba(255, 107, 157, 0.6));
+}
+
+.task-card.hot-offer .channel-username {
+    color: rgba(204, 213, 55, 0.9);
+    font-weight: 600;
+    text-shadow: 0 0 10px rgba(255, 107, 0, 0.8),
+                 0 0 15px rgba(255, 107, 157, 0.6),
+                 0 1px 3px rgba(0, 0, 0, 0.5),
+                 0 0 8px rgba(204, 213, 55, 0.3);
+    letter-spacing: 0.3px;
+}
+
+.task-card.hot-offer .task-desc {
+    background: linear-gradient(135deg, #cccccc 0%, #809EFF 50%, #cccccc 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 500;
+    animation: subtleGradientShift 8s ease-in-out infinite alternate;
+    text-shadow: 0 0 10px rgba(255, 107, 0, 0.8),
+                 0 0 15px rgba(255, 107, 157, 0.6),
+                 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.task-card.hot-offer .task-complete-btn {
+    background: linear-gradient(135deg, #ff6b9d, #ef55a5, #ff9a00);
+    background-size: 200% 200%;
+    animation: hotButtonGlow 2s ease-in-out infinite alternate;
+    box-shadow: 0 4px 15px rgba(255, 107, 157, 0.4);
+    border: none;
+    font-weight: 600;
+}
+
+@keyframes hotButtonGlow {
+    0% {
+        background-position: 0% 50%;
+        transform: scale(1);
+    }
+    100% {
+        background-position: 100% 50%;
+        transform: scale(1.02);
+    }
+}
+
+.task-card.hot-offer .task-complete-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(255, 107, 157, 0.6);
+}
+
+/* Мобильные стили для горячих предложений */
+@media (max-width: 480px) {
+    .task-card.hot-offer {
+        animation-duration: 4s;
+    }
+    
+    .task-card.hot-offer .task-reward-info::after {
+        right: -14px;
+        font-size: 12px;
+    }
+}
+
+/* ========================================
    НОВАЯ СТРУКТУРА АКТИВНЫХ ЗАДАНИЙ
    ======================================== */
 
