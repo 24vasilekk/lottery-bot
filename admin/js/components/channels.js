@@ -371,15 +371,13 @@ class ChannelsPage {
             };
 
             // Используем прямой вызов к серверному API  
-            const response = await fetch('/api/admin/channels');
+            const response = await fetch('/api/admin/channels?status=all');
             const data = await response.json();
             
             this.renderChannelsTable(data.channels || []);
             this.renderPagination(data.channels?.length || 0);
             
-            // Обновить информацию о таблице
-            document.getElementById('table-info').textContent = 
-                `Показано ${data.channels?.length || 0} из ${data.channels?.length || 0} каналов`;
+            // Обновить информацию о таблице (будет обновлена в renderChannelsTable)
 
         } catch (error) {
             console.error('Ошибка загрузки каналов:', error);
@@ -426,7 +424,19 @@ class ChannelsPage {
         
         // Привязать события для строк таблицы
         this.bindTableEvents();
-        lucide.createIcons();
+        
+        // Обновить информацию о таблице
+        const tableInfo = document.getElementById('table-info');
+        if (tableInfo) {
+            tableInfo.textContent = `Показано ${channels.length} из ${channels.length} каналов`;
+        }
+        
+        // Отложенная инициализация иконок для обеспечения полной загрузки DOM
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 100);
     }
 
     renderChannelRow(channel) {
@@ -442,7 +452,7 @@ class ChannelsPage {
         const progress = channel.target_subscribers > 0 ? 
             Math.min((channel.current_subscribers / channel.target_subscribers) * 100, 100) : 0;
 
-        return `
+        const html = `
             <tr class="table-row ${isSelected ? 'selected' : ''}" data-channel-id="${channel.id}">
                 <td class="checkbox-column">
                     <input type="checkbox" class="table-checkbox channel-checkbox" 
@@ -538,6 +548,8 @@ class ChannelsPage {
                 </td>
             </tr>
         `;
+        
+        return html;
     }
 
     getChannelTypeInfo(type) {
