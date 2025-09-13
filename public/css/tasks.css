@@ -140,31 +140,64 @@
    ======================================== */
 
 .task-item {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(15px);
+    background: rgba(15, 15, 15, 0.95);
+    backdrop-filter: blur(20px);
     border-radius: 20px;
     padding: 24px;
     margin-bottom: 16px;
     display: flex;
     align-items: center;
     gap: 18px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    background-image: linear-gradient(rgba(15, 15, 15, 0.95), rgba(15, 15, 15, 0.95)),
+                      var(--fire-border);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    transition: all 0.4s ease;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 32px rgba(255, 107, 0, 0.15),
+                inset 0 1px 0 rgba(255, 107, 157, 0.2);
+    animation: fireGlow 4s ease-in-out infinite alternate;
+}
+
+@keyframes fireGlow {
+    0% {
+        box-shadow: 0 8px 32px rgba(255, 107, 0, 0.15),
+                    inset 0 1px 0 rgba(255, 107, 157, 0.2);
+    }
+    100% {
+        box-shadow: 0 12px 40px rgba(255, 107, 0, 0.25),
+                    0 0 30px rgba(255, 107, 157, 0.1),
+                    inset 0 1px 0 rgba(255, 107, 157, 0.4);
+    }
+}
+
+@keyframes fireBorderFlow {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
 }
 
 .task-item::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
-    opacity: 0;
-    transition: opacity 0.3s ease;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: var(--fire-border);
+    background-size: 400% 400%;
+    border-radius: inherit;
+    z-index: -1;
+    animation: fireBorderFlow 3s linear infinite;
+    opacity: 0.6;
 }
 
 .task-item:hover {
@@ -1140,37 +1173,70 @@
 
 .channel-title {
     font-size: 14px;
-    color: #ffffff;
-    font-weight: 700;
+    background: var(--fire-text);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 800;
     line-height: 1.2;
     margin-bottom: 3px;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 0 10px rgba(255, 107, 0, 0.5);
+    animation: fireTextFlow 3s ease-in-out infinite alternate;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.8));
+}
+
+@keyframes fireTextFlow {
+    0% {
+        background-position: 0% 50%;
+        text-shadow: 0 0 10px rgba(255, 107, 0, 0.5);
+    }
+    100% {
+        background-position: 100% 50%;
+        text-shadow: 0 0 15px rgba(255, 107, 157, 0.8),
+                     0 0 25px rgba(255, 107, 0, 0.6);
+    }
 }
 
 .channel-username {
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.85);
-    font-weight: 500;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    background: linear-gradient(90deg, #ff8500, #ffaa00, #ff6b9d);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 600;
+    animation: fireTextFlow 4s ease-in-out infinite alternate-reverse;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
 }
 
 .task-desc {
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.95);
+    background: linear-gradient(90deg, #ffffff, #ffaa00, #ff6b9d, #ffffff);
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     line-height: 1.4;
     margin-bottom: 8px;
-    font-weight: 500;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    font-weight: 600;
+    animation: fireTextFlow 5s ease-in-out infinite;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
 }
 
 .task-reward-info {
-    color: #FFD700;
-    font-weight: 700;
+    background: linear-gradient(45deg, #FFD700, #FFA500, #FF6B00, #FFD700);
+    background-size: 400% 400%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 800;
     font-size: 16px;
     margin-top: 6px;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5),
-                 0 0 8px rgba(255, 215, 0, 0.6);
-    filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.8));
+    text-shadow: 0 0 15px rgba(255, 215, 0, 0.8),
+                 0 0 30px rgba(255, 107, 0, 0.6);
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 1));
+    animation: fireTextFlow 2s ease-in-out infinite;
 }
 
 /* Адаптивные стили для мобильных устройств */

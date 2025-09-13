@@ -14,9 +14,9 @@
     --purple-color: #809EFF;
     
     /* Фоны */
-    --dark-bg: #1a1a1a;
-    --card-bg: #2a2a2a;
-    --glass-bg: rgba(42, 42, 42, 0.85);
+    --dark-bg: #0a0a0a;
+    --card-bg: #0f0f0f;
+    --glass-bg: rgba(15, 15, 15, 0.95);
     
     /* Тексты */
     --text-primary: #ffffff;
@@ -27,7 +27,12 @@
     --gradient-pink: linear-gradient(135deg, #EF55A5, #ff6b9d);
     --gradient-lime: linear-gradient(135deg, #CCD537, #a4b93a);
     --gradient-purple: linear-gradient(135deg, #809EFF, #9c27b0);
-    --gradient-dark: linear-gradient(135deg, #1a1a1a 0%, #2d1b3d 100%);
+    --gradient-dark: linear-gradient(135deg, #0a0a0a 0%, #1a0d1a 50%, #0a0a0a 100%);
+    
+    /* Огненные эффекты */
+    --fire-gradient: linear-gradient(45deg, #ff6b00, #ff8500, #ff6b9d, #ef55a5, #ff3d00, #ff6b00);
+    --fire-text: linear-gradient(90deg, #ff6b00, #ff8500, #ffaa00, #ff6b9d, #ef55a5, #ff3d00);
+    --fire-border: linear-gradient(45deg, #ff6b00, #ff8500, #ff6b9d, #ef55a5, #ff3d00, #ff6b00, #ff8500);
     
     /* Тени */
     --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.3);

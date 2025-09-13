@@ -505,16 +505,38 @@
    ======================================== */
 
 .active-task-new {
-    border-color: rgba(204, 213, 55, 0.4);
+    border: 2px solid transparent;
     background: 
-        linear-gradient(135deg, rgba(204, 213, 55, 0.08) 0%, rgba(42, 42, 42, 0.9) 50%);
+        linear-gradient(135deg, rgba(15, 15, 15, 0.95) 0%, rgba(20, 10, 15, 0.95) 50%, rgba(15, 15, 15, 0.95) 100%),
+        linear-gradient(45deg, #ff6b00, #ff8500, #ff6b9d, #ef55a5, #ff3d00, #ff6b00);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    box-shadow: 0 8px 32px rgba(255, 107, 0, 0.2),
+                inset 0 1px 0 rgba(255, 107, 157, 0.3);
+    animation: fireCardGlow 4s ease-in-out infinite alternate;
+    position: relative;
+    overflow: hidden;
+}
+
+@keyframes fireCardGlow {
+    0% {
+        box-shadow: 0 8px 32px rgba(255, 107, 0, 0.2),
+                    inset 0 1px 0 rgba(255, 107, 157, 0.3);
+    }
+    100% {
+        box-shadow: 0 12px 40px rgba(255, 107, 0, 0.35),
+                    0 0 30px rgba(255, 107, 157, 0.15),
+                    inset 0 1px 0 rgba(255, 107, 157, 0.5);
+    }
 }
 
 .active-task-new.completed {
     opacity: 0.75;
-    border-color: rgba(76, 175, 80, 0.5);
     background: 
-        linear-gradient(135deg, rgba(76, 175, 80, 0.08) 0%, rgba(42, 42, 42, 0.9) 50%);
+        linear-gradient(135deg, rgba(15, 15, 15, 0.95) 0%, rgba(10, 20, 10, 0.95) 50%, rgba(15, 15, 15, 0.95) 100%),
+        linear-gradient(45deg, #4CAF50, #66BB6A, #4CAF50, #388E3C, #4CAF50);
+    box-shadow: 0 8px 32px rgba(76, 175, 80, 0.2),
+                inset 0 1px 0 rgba(76, 175, 80, 0.4);
 }
 
 .task-content-grid {
