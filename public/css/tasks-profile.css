@@ -465,8 +465,8 @@
 }
 
 .task-card {
-    background: var(--gradient-dark);
-    border: 1px solid rgba(239, 85, 165, 0.2);
+    background: var(--gradient-dark) !important;
+    border: 2px solid #0000ff !important; /* ВРЕМЕННО: синяя рамка для task-card */
     border-radius: var(--radius-large);
     padding: 25px;
     backdrop-filter: blur(20px);
@@ -506,8 +506,8 @@
    ======================================== */
 
 .task-card.hot-offer {
-    background: var(--gradient-dark);
-    border: 2px solid transparent;
+    background: var(--gradient-dark) !important;
+    border: 4px solid #ff00ff !important; /* ВРЕМЕННО: фиолетовая рамка для task-card.hot-offer */
     background-image: var(--gradient-dark), var(--fire-border);
     background-origin: border-box;
     background-clip: padding-box, border-box;
@@ -684,8 +684,8 @@
    ======================================== */
 
 .active-task-new {
-    background: var(--gradient-dark);
-    border: 1px solid rgba(239, 85, 165, 0.2);
+    background: var(--gradient-dark) !important;
+    border: 2px solid #00ff00 !important; /* ВРЕМЕННО: зеленая рамка для обычных каналов */
     border-radius: var(--radius-medium);
     backdrop-filter: blur(20px);
     box-shadow: var(--shadow-soft), 
@@ -703,8 +703,8 @@
 }
 
 .active-task-new.hot-offer {
-    background: var(--gradient-dark);
-    border: 2px solid transparent;
+    background: var(--gradient-dark) !important;
+    border: 3px solid #ff0000 !important; /* ВРЕМЕННО: красная рамка для горячих предложений */
     background-image: var(--gradient-dark), var(--fire-border);
     background-origin: border-box;
     background-clip: padding-box, border-box;
