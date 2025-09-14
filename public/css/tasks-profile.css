@@ -1301,6 +1301,67 @@
     font-size: 14px;
 }
 
+.target-progress-new {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--lime-color);
+    margin-bottom: 12px;
+    background: rgba(204, 213, 55, 0.1);
+    border-radius: 12px;
+    padding: 8px 12px;
+    border: 1px solid rgba(204, 213, 55, 0.3);
+}
+
+.target-progress-new .progress-icon {
+    font-size: 14px;
+    filter: drop-shadow(0 1px 3px rgba(204, 213, 55, 0.6));
+}
+
+.progress-text {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.progress-bar-new {
+    flex: 1;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+    min-width: 60px;
+}
+
+.progress-fill-new {
+    height: 100%;
+    background: linear-gradient(90deg, var(--lime-color), #d4ed47);
+    border-radius: 3px;
+    transition: width 0.8s ease;
+    box-shadow: 0 0 8px rgba(204, 213, 55, 0.5);
+    position: relative;
+}
+
+.progress-fill-new::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(255, 255, 255, 0.3) 50%, 
+        transparent 100%);
+    animation: shimmer 2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
 .task-action-new {
     margin-top: auto;
 }
@@ -1419,6 +1480,17 @@
     
     .star-icon-new {
         font-size: 20px;
+    }
+    
+    .target-progress-new {
+        font-size: 12px;
+        padding: 6px 10px;
+        gap: 6px;
+    }
+    
+    .progress-bar-new {
+        min-width: 50px;
+        height: 5px;
     }
 }
 

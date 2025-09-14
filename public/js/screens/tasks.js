@@ -345,6 +345,15 @@ export class TasksScreen {
                                 <span class="timer-text">${timeRemaining}</span>
                             </div>
                         ` : ''}
+                        ${task.placement_type === 'target' && task.target_subscribers > 0 ? `
+                            <div class="target-progress-new">
+                                <span class="progress-icon">🎯</span>
+                                <span class="progress-text">${task.joined_via_invite || 0} / ${task.target_subscribers}</span>
+                                <div class="progress-bar-new">
+                                    <div class="progress-fill-new" style="width: ${Math.min(((task.joined_via_invite || 0) / task.target_subscribers) * 100, 100)}%"></div>
+                                </div>
+                            </div>
+                        ` : ''}
                         <div class="task-action-new">
                             ${this.renderTaskButton(channelTask, taskStatus)}
                         </div>
