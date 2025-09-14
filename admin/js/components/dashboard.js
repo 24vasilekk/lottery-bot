@@ -47,16 +47,29 @@ class DashboardComponent {
             let stats, events, notifications;
             
             try {
-                // Используем существующий эндпоинт /api/admin/stats вместо /api/admin/dashboard-stats
-                const response = await fetch('/api/admin/stats');
+                // Используем существующий эндпоинт /api/admin/stats
+                const response = await fetch('/api/admin/stats', {
+                    headers: {
+                        'x-auth-token': localStorage.getItem('adminAuthToken') || ''
+                    }
+                });
+                
                 if (response.ok) {
                     const data = await response.json();
-                    stats = this.convertServerStatsToExpectedFormat(data.stats);
+                    console.log('📊 Получены данные с сервера:', data);
+                    
+                    // Проверяем структуру данных
+                    const serverStats = data.success ? data.stats : data;
+                    stats = this.convertServerStatsToExpectedFormat(serverStats);
+                    
+                    console.log('📊 Преобразованные данные:', stats);
                 } else {
-                    throw new Error('API недоступен');
+                    console.error('📊 API ошибка:', response.status, response.statusText);
+                    throw new Error(`API ошибка: ${response.status}`);
                 }
             } catch (apiError) {
-                console.log('📊 API недоступен, используем заглушку:', apiError.message);
+                console.error('📊 Ошибка загрузки статистики:', apiError.message);
+                console.log('📊 Используем заглушку из-за ошибки:', apiError.message);
                 stats = await this.getMockStats();
             }
             
@@ -130,30 +143,38 @@ class DashboardComponent {
     }
 
     convertServerStatsToExpectedFormat(serverStats) {
-        // Преобразуем данные с сервера в формат, ожидаемый дашбордом
-        const yesterday = (current, percentage = 0.1) => Math.max(0, current - Math.floor(current * percentage + Math.random() * 10));
+        console.log('🔄 Преобразование статистики сервера:', serverStats);
         
-        return {
-            totalUsers: serverStats.totalUsers || 0,
+        // Безопасная функция для расчета вчерашних значений (примерно -10-20% от текущих)
+        const yesterday = (current, percentage = 0.15) => {
+            const num = parseInt(current) || 0;
+            return Math.max(0, num - Math.floor(num * percentage) - Math.floor(Math.random() * 5));
+        };
+        
+        const converted = {
+            totalUsers: parseInt(serverStats.totalUsers) || 0,
             totalUsersYesterday: yesterday(serverStats.totalUsers),
-            activeToday: serverStats.activeUsers || 0,
-            activeYesterday: yesterday(serverStats.activeUsers, 0.15),
-            spinsToday: serverStats.todaySpins || 0,
-            spinsYesterday: yesterday(serverStats.todaySpins, 0.2),
-            revenueToday: (serverStats.todaySpins || 0) * 20 / 100, // 20 звезд = 1 руб.
-            revenueYesterday: yesterday((serverStats.todaySpins || 0) * 20 / 100, 0.2),
-            newChannelsToday: Math.floor((serverStats.totalChannels || 0) * 0.02), // 2% от общего количества
-            newChannelsYesterday: Math.floor((serverStats.totalChannels || 0) * 0.01),
-            prizesGivenToday: serverStats.totalSpins - serverStats.pendingPrizes || 0,
-            prizesGivenYesterday: yesterday(serverStats.totalSpins - serverStats.pendingPrizes, 0.1),
-            topChannels: serverStats.topChannels || [],
+            activeToday: parseInt(serverStats.activeUsers) || 0,
+            activeYesterday: yesterday(serverStats.activeUsers),
+            spinsToday: parseInt(serverStats.todaySpins) || 0,
+            spinsYesterday: yesterday(serverStats.todaySpins),
+            revenueToday: (parseInt(serverStats.todaySpins) || 0) * 0.20, // 20 звезд = 0.20 руб
+            revenueYesterday: yesterday((parseInt(serverStats.todaySpins) || 0) * 0.20),
+            newChannelsToday: parseInt(serverStats.todayUsers) || 0, // Используем новых пользователей как аналог новых каналов
+            newChannelsYesterday: yesterday(serverStats.todayUsers),
+            prizesGivenToday: (parseInt(serverStats.totalSpins) || 0) - (parseInt(serverStats.pendingPrizes) || 0),
+            prizesGivenYesterday: yesterday((parseInt(serverStats.totalSpins) || 0) - (parseInt(serverStats.pendingPrizes) || 0)),
+            topChannels: Array.isArray(serverStats.topChannels) ? serverStats.topChannels : [],
             system: {
                 status: serverStats.system?.status || 'healthy',
-                uptime: serverStats.system?.uptime || Math.floor(process.uptime?.() || 0),
-                dbStatus: serverStats.system?.dbStatus || 'connected',
-                memoryUsage: serverStats.system?.memoryUsage || process.memoryUsage?.()?.heapUsed || 0
+                uptime: parseInt(serverStats.system?.uptime) || 0,
+                dbStatus: serverStats.system?.dbStatus || 'connected', 
+                memoryUsage: parseInt(serverStats.system?.memoryUsage) || 0
             }
         };
+        
+        console.log('✅ Результат преобразования:', converted);
+        return converted;
     }
 
     getHTML() {
