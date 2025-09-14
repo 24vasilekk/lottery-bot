@@ -311,42 +311,61 @@ export class TasksScreen {
         
         return `
             <div class="task-card active-task-new ${taskStatus === 'completed' ? 'completed' : ''} ${task.is_hot_offer ? 'hot-offer' : ''}" data-task-id="${taskId}" data-status="${taskStatus}" ${task.end_date ? `data-end-date="${task.end_date}"` : ''}>
-                <div class="task-content-grid">
-                    <div class="task-left">
-                        <div class="channel-header">
-                            ${task.channel_avatar_url ? 
-                                `<img src="${task.channel_avatar_url}" alt="Avatar" class="channel-avatar" onerror="this.style.display='none'">` : 
-                                '<div class="channel-avatar-placeholder">📺</div>'
-                            }
-                            <div class="channel-info">
-                                <div class="channel-title">${task.channel_name || task.channel_username}</div>
-                                <div class="channel-username">@${task.channel_username}</div>
+                <div class="task-content-new-layout">
+                    <!-- Левая часть: большая аватарка -->
+                    <div class="channel-avatar-section">
+                        ${task.channel_avatar_url ? 
+                            `<img src="${task.channel_avatar_url}" alt="Avatar" class="channel-avatar-large" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                             <div class="channel-avatar-placeholder-large" style="display:none">📺</div>` : 
+                            '<div class="channel-avatar-placeholder-large">📺</div>'
+                        }
+                    </div>
+                    
+                    <!-- Центральная часть: название, username, описание -->
+                    <div class="channel-content-section">
+                        <div class="channel-main-info">
+                            <div class="channel-title-new">
+                                ${task.is_hot_offer ? '<i class="hot-indicator">🔥</i>' : ''}
+                                ${task.channel_name || task.channel_username}
                             </div>
+                            <div class="channel-username-new">@${task.channel_username}</div>
                         </div>
-                        <div class="task-reward-info">
+                        ${task.channel_description ? `
+                            <div class="channel-description-new">
+                                ${task.channel_description}
+                            </div>
+                        ` : `
+                            <div class="channel-description-new">
+                                ${task.is_hot_offer ? '🔥 ГОРЯЧЕЕ ПРЕДЛОЖЕНИЕ! Повышенная награда за подписку!' : 'Подпишись на канал'}
+                            </div>
+                        `}
+                        ${timeRemaining ? `
+                            <div class="task-timer-new">
+                                <span class="timer-icon">⏰</span>
+                                <span class="timer-text">${timeRemaining}</span>
+                            </div>
+                        ` : ''}
+                        <div class="task-action-new">
+                            ${this.renderTaskButton(channelTask, taskStatus)}
+                        </div>
+                    </div>
+                    
+                    <!-- Правая часть: награда -->
+                    <div class="reward-section">
+                        <div class="task-reward-new">
                             ${task.is_hot_offer && task.hot_offer_multiplier > 1 ? 
-                                `<div class="reward-hot">
-                                    <span class="effective-reward">+${Math.round(task.reward_stars * task.hot_offer_multiplier)} ⭐</span>
-                                    <div class="reward-breakdown">
+                                `<div class="reward-hot-new">
+                                    <div class="effective-reward-new">+${Math.round(task.reward_stars * task.hot_offer_multiplier)}</div>
+                                    <div class="star-icon-new">⭐</div>
+                                    <div class="reward-breakdown-new">
                                         ${task.reward_stars} × ${task.hot_offer_multiplier}
                                     </div>
                                 </div>` :
-                                `+${task.reward_stars} ⭐`
+                                `<div class="reward-normal-new">
+                                    <div class="reward-amount-new">+${task.reward_stars}</div>
+                                    <div class="star-icon-new">⭐</div>
+                                </div>`
                             }
-                        </div>
-                        ${timeRemaining ? `
-                            <div class="task-timer-container">
-                                <div class="timer-icon">⏰</div>
-                                <div class="timer-text">${timeRemaining}</div>
-                            </div>
-                        ` : ''}
-                    </div>
-                    <div class="task-right">
-                        <div class="task-desc">
-                            ${task.channel_description || channelTask.description}
-                        </div>
-                        <div class="task-action">
-                            ${this.renderTaskButton(channelTask, taskStatus)}
                         </div>
                     </div>
                 </div>

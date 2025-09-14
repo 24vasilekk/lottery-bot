@@ -1198,3 +1198,243 @@
         font-size: 12px;
     }
 }
+
+/* ========================================
+   НОВЫЙ УЛУЧШЕННЫЙ LAYOUT ДЛЯ КАНАЛОВ
+   ======================================== */
+
+.task-content-new-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 20px;
+    width: 100%;
+}
+
+/* Левая часть - аватарка */
+.channel-avatar-section {
+    flex-shrink: 0;
+}
+
+.channel-avatar-large {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    object-fit: cover;
+    border: 3px solid rgba(239, 85, 165, 0.3);
+    box-shadow: 0 4px 15px rgba(239, 85, 165, 0.2);
+    transition: all 0.3s ease;
+}
+
+.channel-avatar-placeholder-large {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    background: var(--gradient-dark);
+    border: 3px solid rgba(239, 85, 165, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    color: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 4px 15px rgba(239, 85, 165, 0.2);
+}
+
+/* Центральная часть - контент */
+.channel-content-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0; /* Для правильного обрезания текста */
+}
+
+.channel-main-info {
+    margin-bottom: 4px;
+}
+
+.channel-title-new {
+    font-size: 18px;
+    font-weight: bold;
+    color: #ffffff;
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, var(--primary-color), var(--purple-color));
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+.channel-title-new .hot-indicator {
+    -webkit-text-fill-color: #ff6b00;
+    filter: drop-shadow(0 0 8px rgba(255, 107, 0, 0.6));
+    animation: hotFlame 2s ease-in-out infinite;
+}
+
+.channel-username-new {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 8px;
+}
+
+.channel-description-new {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.4;
+    margin-bottom: 10px;
+    word-wrap: break-word;
+}
+
+.task-timer-new {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--lime-color);
+    margin-bottom: 12px;
+}
+
+.task-timer-new .timer-icon {
+    font-size: 14px;
+}
+
+.task-action-new {
+    margin-top: auto;
+}
+
+/* Правая часть - награда */
+.reward-section {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.task-reward-new {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 80px;
+}
+
+.reward-normal-new {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.reward-amount-new {
+    font-size: 20px;
+    font-weight: bold;
+    background: linear-gradient(135deg, var(--lime-color), #d4ed47);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.star-icon-new {
+    font-size: 24px;
+    filter: drop-shadow(0 2px 6px rgba(255, 223, 0, 0.4));
+    animation: starGlow 3s ease-in-out infinite alternate;
+}
+
+.reward-hot-new {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    position: relative;
+}
+
+.effective-reward-new {
+    font-size: 22px;
+    font-weight: bold;
+    background: var(--fire-border);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 2px 4px rgba(255, 107, 0, 0.5));
+    animation: fireTextGlow 2s ease-in-out infinite alternate;
+}
+
+.reward-breakdown-new {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+    text-align: center;
+    margin-top: 2px;
+}
+
+/* Анимации для нового layout */
+@keyframes hotFlame {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+@keyframes starGlow {
+    0% { filter: drop-shadow(0 2px 6px rgba(255, 223, 0, 0.4)); }
+    100% { filter: drop-shadow(0 2px 12px rgba(255, 223, 0, 0.8)) brightness(1.2); }
+}
+
+@keyframes fireTextGlow {
+    0% { filter: drop-shadow(0 2px 4px rgba(255, 107, 0, 0.5)); }
+    100% { filter: drop-shadow(0 2px 8px rgba(255, 107, 0, 0.8)) brightness(1.1); }
+}
+
+/* Адаптивность для нового layout */
+@media (max-width: 480px) {
+    .task-content-new-layout {
+        gap: 12px;
+        padding: 16px;
+    }
+    
+    .channel-avatar-large,
+    .channel-avatar-placeholder-large {
+        width: 60px;
+        height: 60px;
+        border-radius: 15px;
+    }
+    
+    .channel-avatar-placeholder-large {
+        font-size: 24px;
+    }
+    
+    .channel-title-new {
+        font-size: 16px;
+    }
+    
+    .channel-description-new {
+        font-size: 13px;
+    }
+    
+    .reward-amount-new,
+    .effective-reward-new {
+        font-size: 18px;
+    }
+    
+    .star-icon-new {
+        font-size: 20px;
+    }
+}
+
+@media (max-width: 360px) {
+    .task-content-new-layout {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .channel-avatar-section {
+        align-self: center;
+    }
+    
+    .reward-section {
+        align-self: center;
+        margin-top: 10px;
+    }
+}
