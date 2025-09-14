@@ -74,7 +74,8 @@ class AdminPanel {
             console.log('📊 Загрузка данных дашборда...');
             
             // Загружаем статистику
-            const stats = await this.apiCall('/api/admin/stats');
+            const response = await this.apiCall('/api/admin/stats');
+            const stats = response.success ? response.stats : response;
             this.updateDashboardStats(stats);
 
             // Загружаем данные для активной вкладки

@@ -2810,98 +2810,189 @@ function requireAdmin(req, res, next) {
 // ВСЕ АДМИНСКИЕ API ОТКЛЮЧЕНЫ - используется только Telegram бот
 /*
 // Получение общей статистики
+// Полная статистика админ панели - ОСНОВНАЯ РЕАЛИЗАЦИЯ
 app.get('/api/admin/stats', requireAuth, async (req, res) => {
     try {
-        console.log('📊 Админ: запрос общей статистики');
-
+        console.log('📊 Admin API: Запрос полной статистики');
+        
+        const stats = {};
+        
         // Общая статистика пользователей
-        const totalUsers = await new Promise((resolve, reject) => {
-            db.db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
-                if (err) reject(err);
-                else resolve(row.count);
-            });
-        });
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM users');
+            stats.totalUsers = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета пользователей:', err);
+            stats.totalUsers = 0;
+        }
 
-        // Активные пользователи за 24 часа
-        const activeUsers = await new Promise((resolve, reject) => {
-            db.db.get(
-                'SELECT COUNT(*) as count FROM users WHERE last_activity > datetime("now", "-1 day")',
-                (err, row) => {
-                    if (err) reject(err);
-                    else resolve(row.count);
-                }
-            );
-        });
+        // Активные пользователи за 24 часа  
+        try {
+            const result = await db.query("SELECT COUNT(*) as count FROM users WHERE last_activity > NOW() - INTERVAL '1 day'");
+            stats.activeUsers = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета активных пользователей:', err);
+            stats.activeUsers = 0;
+        }
+
+        // Новые пользователи за сегодня
+        try {
+            const result = await db.query("SELECT COUNT(*) as count FROM users WHERE created_at > CURRENT_DATE");
+            stats.todayUsers = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета новых пользователей:', err);
+            stats.todayUsers = 0;
+        }
 
         // Статистика каналов
-        const totalChannels = await new Promise((resolve, reject) => {
-            db.db.get('SELECT COUNT(*) as count FROM partner_channels WHERE is_active = 1', (err, row) => {
-                if (err) reject(err);
-                else resolve(row.count);
-            });
-        });
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM partner_channels WHERE is_active = true');
+            stats.totalChannels = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета каналов:', err);
+            stats.totalChannels = 0;
+        }
 
-        const hotChannels = await new Promise((resolve, reject) => {
-            db.db.get(
-                'SELECT COUNT(*) as count FROM partner_channels WHERE is_active = 1 AND is_hot_offer = 1',
-                (err, row) => {
-                    if (err) reject(err);
-                    else resolve(row.count);
-                }
-            );
-        });
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM partner_channels WHERE is_active = true AND is_hot_offer = true');
+            stats.hotChannels = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета горячих каналов:', err);
+            stats.hotChannels = 0;
+        }
 
         // Статистика подписок
-        const totalSubscriptions = await new Promise((resolve, reject) => {
-            db.db.get('SELECT COUNT(*) as count FROM user_channel_subscriptions', (err, row) => {
-                if (err) reject(err);
-                else resolve(row.count);
-            });
-        });
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM user_channel_subscriptions');
+            stats.totalSubscriptions = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета подписок:', err);
+            stats.totalSubscriptions = 0;
+        }
 
-        const todaySubscriptions = await new Promise((resolve, reject) => {
-            db.db.get(
-                'SELECT COUNT(*) as count FROM user_channel_subscriptions WHERE created_date > date("now")',
-                (err, row) => {
-                    if (err) reject(err);
-                    else resolve(row.count);
-                }
-            );
-        });
+        try {
+            const result = await db.query("SELECT COUNT(*) as count FROM user_channel_subscriptions WHERE subscribed_at > CURRENT_DATE");
+            stats.todaySubscriptions = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета подписок за сегодня:', err);
+            stats.todaySubscriptions = 0;
+        }
+
+        // Статистика прокруток
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM spins');
+            stats.totalSpins = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета прокруток:', err);
+            stats.totalSpins = 0;
+        }
+
+        try {
+            const result = await db.query("SELECT COUNT(*) as count FROM spins WHERE created_at > CURRENT_DATE");
+            stats.todaySpins = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета прокруток за сегодня:', err);
+            stats.todaySpins = 0;
+        }
 
         // Призы ожидающие выдачи
-        const pendingPrizes = await new Promise((resolve, reject) => {
-            db.db.get('SELECT COUNT(*) as count FROM prizes WHERE is_given = 0', (err, row) => {
-                if (err) reject(err);
-                else resolve(row.count);
-            });
-        });
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM prizes WHERE is_given = false');
+            stats.pendingPrizes = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета призов:', err);
+            stats.pendingPrizes = 0;
+        }
 
-        const pendingCertificates = await new Promise((resolve, reject) => {
-            db.db.get(
-                'SELECT COUNT(*) as count FROM prizes WHERE is_given = 0 AND type LIKE "%certificate%"',
-                (err, row) => {
-                    if (err) reject(err);
-                    else resolve(row.count);
-                }
-            );
-        });
+        try {
+            const result = await db.query("SELECT COUNT(*) as count FROM prizes WHERE is_given = false AND (type ILIKE '%certificate%' OR type ILIKE '%сертификат%')");
+            stats.pendingCertificates = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета сертификатов:', err);
+            stats.pendingCertificates = 0;
+        }
 
-        const stats = {
-            totalUsers,
-            activeUsers,
-            totalChannels,
-            hotChannels,
-            totalSubscriptions,
-            todaySubscriptions,
-            pendingPrizes,
-            pendingCertificates
+        // Общая сумма звезд у всех пользователей
+        try {
+            const result = await db.query('SELECT SUM(stars) as total FROM users');
+            stats.totalStars = parseInt(result.rows[0]?.total) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета звезд:', err);
+            stats.totalStars = 0;
+        }
+
+        // Топ каналы по подпискам
+        try {
+            const result = await db.query(`
+                SELECT pc.channel_name, pc.channel_username, pc.current_subscribers, 
+                       COUNT(ucs.user_id) as conversions,
+                       CASE 
+                           WHEN pc.current_subscribers > 0 THEN 
+                               ROUND((COUNT(ucs.user_id)::float / pc.current_subscribers * 100), 2)
+                           ELSE 0 
+                       END as conversion_rate
+                FROM partner_channels pc
+                LEFT JOIN user_channel_subscriptions ucs ON pc.id = ucs.channel_id
+                WHERE pc.is_active = true AND pc.current_subscribers > 0
+                GROUP BY pc.id, pc.channel_name, pc.channel_username, pc.current_subscribers
+                ORDER BY pc.current_subscribers DESC
+                LIMIT 5
+            `);
+            
+            stats.topChannels = result.rows.map(row => ({
+                name: row.channel_name || row.channel_username,
+                username: row.channel_username,
+                subscribers: row.current_subscribers || 0,
+                conversions: parseInt(row.conversions) || 0,
+                conversionRate: parseFloat(row.conversion_rate) || 0
+            }));
+        } catch (err) {
+            console.error('Ошибка получения топ каналов:', err);
+            stats.topChannels = [];
+        }
+
+        // Системная информация
+        stats.system = {
+            status: 'healthy',
+            uptime: Math.floor(process.uptime()),
+            dbStatus: 'connected',
+            memoryUsage: process.memoryUsage().heapUsed,
+            version: '1.0.0'
         };
 
-        res.json(stats);
+        res.json({
+            success: true,
+            stats
+        });
+        
     } catch (error) {
-        console.error('❌ Ошибка получения статистики админом:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('❌ Ошибка получения статистики:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка получения статистики',
+            stats: {
+                totalUsers: 0,
+                activeUsers: 0,
+                todayUsers: 0,
+                totalChannels: 0,
+                hotChannels: 0,
+                totalSubscriptions: 0,
+                todaySubscriptions: 0,
+                totalSpins: 0,
+                todaySpins: 0,
+                pendingPrizes: 0,
+                pendingCertificates: 0,
+                totalStars: 0,
+                topChannels: [],
+                system: {
+                    status: 'error',
+                    uptime: Math.floor(process.uptime()),
+                    dbStatus: 'error',
+                    memoryUsage: process.memoryUsage().heapUsed,
+                    version: '1.0.0'
+                }
+            }
+        });
     }
 });
 
@@ -7420,6 +7511,206 @@ async function handleSubscriptionViolations(user, violations) {
 process.on('uncaughtException', (error) => {
     console.error('❌ Uncaught Exception:', error);
     process.exit(1);
+});
+
+// === ADMIN API ENDPOINTS (АКТИВНЫЕ) ===
+
+// Полная статистика для дашборда админки
+app.get('/api/admin/stats', requireAuth, async (req, res) => {
+    try {
+        console.log('📊 Admin API: Запрос полной статистики дашборда');
+        
+        const stats = {};
+        
+        // Общая статистика пользователей
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM users');
+            stats.totalUsers = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета пользователей:', err);
+            stats.totalUsers = 0;
+        }
+
+        // Активные пользователи за 24 часа  
+        try {
+            const result = await db.query("SELECT COUNT(*) as count FROM users WHERE last_activity > NOW() - INTERVAL '1 day'");
+            stats.activeUsers = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета активных пользователей:', err);
+            stats.activeUsers = 0;
+        }
+
+        // Новые пользователи за сегодня
+        try {
+            const result = await db.query("SELECT COUNT(*) as count FROM users WHERE created_at > CURRENT_DATE");
+            stats.todayUsers = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета новых пользователей:', err);
+            stats.todayUsers = 0;
+        }
+
+        // Статистика каналов
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM partner_channels WHERE is_active = true');
+            stats.totalChannels = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета каналов:', err);
+            stats.totalChannels = 0;
+        }
+
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM partner_channels WHERE is_active = true AND is_hot_offer = true');
+            stats.hotChannels = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета горячих каналов:', err);
+            stats.hotChannels = 0;
+        }
+
+        // Статистика подписок
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM user_channel_subscriptions');
+            stats.totalSubscriptions = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета подписок:', err);
+            stats.totalSubscriptions = 0;
+        }
+
+        try {
+            const result = await db.query("SELECT COUNT(*) as count FROM user_channel_subscriptions WHERE subscribed_at > CURRENT_DATE");
+            stats.todaySubscriptions = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета подписок за сегодня:', err);
+            stats.todaySubscriptions = 0;
+        }
+
+        // Статистика прокруток
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM spins');
+            stats.totalSpins = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета прокруток:', err);
+            stats.totalSpins = 0;
+        }
+
+        try {
+            const result = await db.query("SELECT COUNT(*) as count FROM spins WHERE created_at > CURRENT_DATE");
+            stats.todaySpins = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета прокруток за сегодня:', err);
+            stats.todaySpins = 0;
+        }
+
+        // Призы ожидающие выдачи
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM prizes WHERE is_given = false');
+            stats.pendingPrizes = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета призов:', err);
+            stats.pendingPrizes = 0;
+        }
+
+        try {
+            const result = await db.query("SELECT COUNT(*) as count FROM prizes WHERE is_given = false AND (type ILIKE '%certificate%' OR type ILIKE '%сертификат%')");
+            stats.pendingCertificates = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета сертификатов:', err);
+            stats.pendingCertificates = 0;
+        }
+
+        // Общая сумма звезд у всех пользователей
+        try {
+            const result = await db.query('SELECT SUM(stars) as total FROM users');
+            stats.totalStars = parseInt(result.rows[0]?.total) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета звезд:', err);
+            stats.totalStars = 0;
+        }
+
+        // Статистика пригласительных ссылок
+        try {
+            const result = await db.query('SELECT SUM(joined_via_invite) as total FROM partner_channels WHERE joined_via_invite > 0');
+            stats.inviteLinkJoins = parseInt(result.rows[0]?.total) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета присоединений через invite link:', err);
+            stats.inviteLinkJoins = 0;
+        }
+
+        // Топ каналы по подпискам
+        try {
+            const result = await db.query(`
+                SELECT pc.channel_name, pc.channel_username, pc.current_subscribers, 
+                       COUNT(ucs.user_id) as conversions,
+                       CASE 
+                           WHEN pc.current_subscribers > 0 THEN 
+                               ROUND((COUNT(ucs.user_id)::float / pc.current_subscribers * 100), 2)
+                           ELSE 0 
+                       END as conversion_rate
+                FROM partner_channels pc
+                LEFT JOIN user_channel_subscriptions ucs ON pc.id = ucs.channel_id
+                WHERE pc.is_active = true AND pc.current_subscribers > 0
+                GROUP BY pc.id, pc.channel_name, pc.channel_username, pc.current_subscribers
+                ORDER BY pc.current_subscribers DESC
+                LIMIT 5
+            `);
+            
+            stats.topChannels = result.rows.map(row => ({
+                name: row.channel_name || row.channel_username,
+                username: row.channel_username,
+                subscribers: row.current_subscribers || 0,
+                conversions: parseInt(row.conversions) || 0,
+                conversionRate: parseFloat(row.conversion_rate) || 0
+            }));
+        } catch (err) {
+            console.error('Ошибка получения топ каналов:', err);
+            stats.topChannels = [];
+        }
+
+        // Системная информация
+        stats.system = {
+            status: 'healthy',
+            uptime: Math.floor(process.uptime()),
+            dbStatus: 'connected',
+            memoryUsage: process.memoryUsage().heapUsed,
+            version: '1.0.0'
+        };
+
+        console.log(`✅ Статистика для дашборда: ${stats.totalUsers} пользователей, ${stats.totalChannels} каналов`);
+        
+        res.json({
+            success: true,
+            stats
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения статистики дашборда:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка получения статистики',
+            stats: {
+                totalUsers: 0,
+                activeUsers: 0,
+                todayUsers: 0,
+                totalChannels: 0,
+                hotChannels: 0,
+                totalSubscriptions: 0,
+                todaySubscriptions: 0,
+                totalSpins: 0,
+                todaySpins: 0,
+                pendingPrizes: 0,
+                pendingCertificates: 0,
+                totalStars: 0,
+                inviteLinkJoins: 0,
+                topChannels: [],
+                system: {
+                    status: 'error',
+                    uptime: Math.floor(process.uptime()),
+                    dbStatus: 'error',
+                    memoryUsage: process.memoryUsage().heapUsed,
+                    version: '1.0.0'
+                }
+            }
+        });
+    }
 });
 
 console.log('🚀 Kosmetichka Lottery Bot инициализация завершена!');

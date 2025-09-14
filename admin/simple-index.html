@@ -170,17 +170,48 @@
         async function loadStats() {
             try {
                 const response = await fetch('/api/admin/stats');
-                const stats = await response.json();
+                const data = await response.json();
                 
-                document.getElementById('totalUsers').textContent = stats.totalUsers || '0';
-                document.getElementById('activeUsers').textContent = stats.activeToday || '0';
-                document.getElementById('totalChannels').textContent = stats.activeChannels || '0';
-                document.getElementById('hotChannels').textContent = stats.hotOffers || '0';
-                document.getElementById('totalSpins').textContent = stats.totalSpins || '0';
-                document.getElementById('todaySpins').textContent = stats.spinsToday || '0';
-                document.getElementById('pendingPrizes').textContent = stats.pendingPrizes || '0';
+                // Проверяем структуру ответа
+                const stats = data.success ? data.stats : data;
+                
+                // Обновляем элементы на странице с безопасной проверкой
+                const updateElement = (id, value) => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = value || '0';
+                    }
+                };
+                
+                updateElement('totalUsers', stats.totalUsers);
+                updateElement('activeUsers', stats.activeUsers);
+                updateElement('totalChannels', stats.totalChannels);
+                updateElement('hotChannels', stats.hotChannels);
+                updateElement('totalSubscriptions', stats.totalSubscriptions);
+                updateElement('todaySubscriptions', stats.todaySubscriptions);
+                updateElement('pendingPrizes', stats.pendingPrizes);
+                updateElement('pendingCertificates', stats.pendingCertificates);
+                
+                // Дополнительная статистика если есть элементы
+                updateElement('totalSpins', stats.totalSpins);
+                updateElement('todaySpins', stats.todaySpins);
+                updateElement('totalStars', stats.totalStars);
+                updateElement('inviteLinkJoins', stats.inviteLinkJoins);
+                
+                console.log('✅ Статистика загружена:', stats);
+                
             } catch (error) {
-                console.error('Ошибка загрузки статистики:', error);
+                console.error('❌ Ошибка загрузки статистики:', error);
+                
+                // Отображаем ошибку пользователю
+                const errorElements = ['totalUsers', 'activeUsers', 'totalChannels', 'hotChannels'];
+                errorElements.forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = '—';
+                        element.style.color = '#dc3545';
+                    }
+                });
             }
         }
 

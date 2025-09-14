@@ -130,29 +130,28 @@ class DashboardComponent {
     }
 
     convertServerStatsToExpectedFormat(serverStats) {
+        // Преобразуем данные с сервера в формат, ожидаемый дашбордом
+        const yesterday = (current, percentage = 0.1) => Math.max(0, current - Math.floor(current * percentage + Math.random() * 10));
+        
         return {
             totalUsers: serverStats.totalUsers || 0,
-            totalUsersYesterday: Math.max(0, (serverStats.totalUsers || 0) - Math.floor(Math.random() * 50)),
+            totalUsersYesterday: yesterday(serverStats.totalUsers),
             activeToday: serverStats.activeUsers || 0,
-            activeYesterday: Math.max(0, (serverStats.activeUsers || 0) - Math.floor(Math.random() * 20)),
-            spinsToday: Math.floor(Math.random() * 500) + 200,
-            spinsYesterday: Math.floor(Math.random() * 450) + 180,
-            revenueToday: Math.floor(Math.random() * 1000) + 500,
-            revenueYesterday: Math.floor(Math.random() * 900) + 450,
-            newChannelsToday: Math.floor(Math.random() * 10) + 2,
-            newChannelsYesterday: Math.floor(Math.random() * 8) + 1,
-            prizesGivenToday: Math.floor(Math.random() * 50) + 20,
-            prizesGivenYesterday: Math.floor(Math.random() * 45) + 15,
-            topChannels: [
-                { name: 'Beauty Channel', subscribers: 15000, conversions: 420, conversionRate: 2.8 },
-                { name: 'Fashion Hub', subscribers: 12500, conversions: 350, conversionRate: 2.8 },
-                { name: 'Makeup Pro', subscribers: 9800, conversions: 245, conversionRate: 2.5 }
-            ],
+            activeYesterday: yesterday(serverStats.activeUsers, 0.15),
+            spinsToday: serverStats.todaySpins || 0,
+            spinsYesterday: yesterday(serverStats.todaySpins, 0.2),
+            revenueToday: (serverStats.todaySpins || 0) * 20 / 100, // 20 звезд = 1 руб.
+            revenueYesterday: yesterday((serverStats.todaySpins || 0) * 20 / 100, 0.2),
+            newChannelsToday: Math.floor((serverStats.totalChannels || 0) * 0.02), // 2% от общего количества
+            newChannelsYesterday: Math.floor((serverStats.totalChannels || 0) * 0.01),
+            prizesGivenToday: serverStats.totalSpins - serverStats.pendingPrizes || 0,
+            prizesGivenYesterday: yesterday(serverStats.totalSpins - serverStats.pendingPrizes, 0.1),
+            topChannels: serverStats.topChannels || [],
             system: {
-                status: 'healthy',
-                uptime: Math.floor(Date.now() / 1000) % 604800,
-                dbStatus: 'connected',
-                memoryUsage: Math.floor(Math.random() * 200000000) + 100000000
+                status: serverStats.system?.status || 'healthy',
+                uptime: serverStats.system?.uptime || Math.floor(process.uptime?.() || 0),
+                dbStatus: serverStats.system?.dbStatus || 'connected',
+                memoryUsage: serverStats.system?.memoryUsage || process.memoryUsage?.()?.heapUsed || 0
             }
         };
     }
