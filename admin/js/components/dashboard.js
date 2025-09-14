@@ -73,8 +73,28 @@ class DashboardComponent {
                 stats = await this.getMockStats();
             }
             
-            // События и уведомления пока заглушки
-            events = await this.getMockEvents();
+            // Загружаем реальные события
+            try {
+                const eventsResponse = await fetch('/api/admin/events?limit=10', {
+                    headers: {
+                        'x-auth-token': localStorage.getItem('adminAuthToken') || ''
+                    }
+                });
+                
+                if (eventsResponse.ok) {
+                    const eventsData = await eventsResponse.json();
+                    events = eventsData.success ? eventsData.events : [];
+                    console.log('📋 Загружено событий:', events.length);
+                } else {
+                    console.error('📋 Ошибка загрузки событий:', eventsResponse.status);
+                    events = await this.getMockEvents();
+                }
+            } catch (eventsError) {
+                console.error('📋 Ошибка API событий:', eventsError);
+                events = await this.getMockEvents();
+            }
+            
+            // Уведомления пока заглушки
             notifications = await this.getMockNotifications();
 
             this.data = {
@@ -685,31 +705,62 @@ class DashboardComponent {
     async refreshEvents() {
         try {
             const refreshBtn = document.getElementById('refresh-events');
-            const icon = refreshBtn.querySelector('i');
+            const icon = refreshBtn?.querySelector('i');
             
             // Показать загрузку
-            icon.style.animation = 'spin 1s linear infinite';
+            if (icon) {
+                icon.style.animation = 'spin 1s linear infinite';
+            }
             
-            // Загрузить новые события (заглушка)
-            const events = await this.getMockEvents();
+            // Загрузить новые события с реального API
+            let events = [];
+            try {
+                const response = await fetch('/api/admin/events?limit=10', {
+                    headers: {
+                        'x-auth-token': localStorage.getItem('adminAuthToken') || ''
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    events = data.success ? data.events : [];
+                    console.log('📋 Обновлено событий:', events.length);
+                } else {
+                    console.error('📋 Ошибка API при обновлении:', response.status);
+                    events = await this.getMockEvents();
+                }
+            } catch (apiError) {
+                console.error('📋 Ошибка запроса событий:', apiError);
+                events = await this.getMockEvents();
+            }
             
             // Обновить список
             const eventsList = document.getElementById('events-list');
-            eventsList.innerHTML = this.getEventsHTML(events);
-            
-            // Обновить иконки
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
+            if (eventsList) {
+                eventsList.innerHTML = this.getEventsHTML(events);
+                
+                // Обновить иконки
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
             }
             
             // Убрать анимацию
-            icon.style.animation = '';
+            if (icon) {
+                icon.style.animation = '';
+            }
             
-            NotificationManager.showSuccess('Обновлено', 'События успешно обновлены');
+            // Показать уведомление об успешном обновлении
+            if (typeof NotificationManager !== 'undefined') {
+                NotificationManager.showSuccess('Обновлено', 'События успешно обновлены');
+            }
 
         } catch (error) {
             console.error('Ошибка обновления событий:', error);
-            NotificationManager.showError('Ошибка', 'Не удалось обновить события');
+            
+            if (typeof NotificationManager !== 'undefined') {
+                NotificationManager.showError('Ошибка', 'Не удалось обновить события');
+            }
         }
     }
 

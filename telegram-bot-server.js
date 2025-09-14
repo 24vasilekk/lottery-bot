@@ -7713,6 +7713,128 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
     }
 });
 
+// API для получения событий дашборда
+app.get('/api/admin/events', requireAuth, async (req, res) => {
+    try {
+        console.log('📋 Admin API: Запрос событий дашборда');
+        
+        const { limit = 10, offset = 0 } = req.query;
+        const events = [];
+        
+        try {
+            // Последние регистрации пользователей
+            const newUsers = await db.query(`
+                SELECT telegram_id, first_name, username, created_at
+                FROM users 
+                ORDER BY created_at DESC 
+                LIMIT 3
+            `);
+            
+            newUsers.rows.forEach(user => {
+                events.push({
+                    id: `user_${user.telegram_id}`,
+                    type: 'user',
+                    title: 'Новый пользователь',
+                    description: `Пользователь ${user.first_name}${user.username ? ` (@${user.username})` : ''} присоединился к боту`,
+                    created_at: user.created_at,
+                    user: { 
+                        name: user.first_name,
+                        username: user.username 
+                    }
+                });
+            });
+            
+        } catch (err) {
+            console.error('Ошибка получения пользователей:', err);
+        }
+
+        try {
+            // Последние прокрутки с призами
+            const recentSpins = await db.query(`
+                SELECT s.id, s.user_id, s.prize_type, s.prize_name, s.created_at,
+                       u.first_name, u.username
+                FROM spins s
+                LEFT JOIN users u ON s.user_id = u.telegram_id
+                WHERE s.prize_type != 'empty'
+                ORDER BY s.created_at DESC 
+                LIMIT 3
+            `);
+            
+            recentSpins.rows.forEach(spin => {
+                events.push({
+                    id: `spin_${spin.id}`,
+                    type: 'prize',
+                    title: 'Выигрыш приза',
+                    description: `Выдан приз: ${spin.prize_name}`,
+                    created_at: spin.created_at,
+                    user: {
+                        name: spin.first_name,
+                        username: spin.username
+                    }
+                });
+            });
+            
+        } catch (err) {
+            console.error('Ошибка получения прокруток:', err);
+        }
+
+        try {
+            // Последние подписки на каналы
+            const recentSubscriptions = await db.query(`
+                SELECT ucs.user_id, ucs.subscribed_at, 
+                       pc.channel_name, pc.channel_username,
+                       u.first_name, u.username
+                FROM user_channel_subscriptions ucs
+                LEFT JOIN partner_channels pc ON ucs.channel_id = pc.id
+                LEFT JOIN users u ON ucs.user_id = u.telegram_id
+                ORDER BY ucs.subscribed_at DESC
+                LIMIT 3
+            `);
+            
+            recentSubscriptions.rows.forEach(sub => {
+                events.push({
+                    id: `sub_${sub.user_id}_${sub.channel_username}`,
+                    type: 'channel',
+                    title: 'Новая подписка',
+                    description: `Подписка на канал ${sub.channel_name || sub.channel_username}`,
+                    created_at: sub.subscribed_at,
+                    user: {
+                        name: sub.first_name,
+                        username: sub.username
+                    }
+                });
+            });
+            
+        } catch (err) {
+            console.error('Ошибка получения подписок:', err);
+        }
+
+        // Сортируем события по времени
+        events.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        
+        // Применяем лимит и офсет
+        const paginatedEvents = events.slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+        
+        console.log(`✅ Найдено событий: ${events.length}, возвращено: ${paginatedEvents.length}`);
+        
+        res.json({
+            success: true,
+            events: paginatedEvents,
+            total: events.length,
+            limit: parseInt(limit),
+            offset: parseInt(offset)
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения событий дашборда:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка получения событий',
+            events: []
+        });
+    }
+});
+
 console.log('🚀 Kosmetichka Lottery Bot инициализация завершена!');
 
 // Запускаем polling после инициализации сервера
