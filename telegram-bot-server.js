@@ -3332,6 +3332,230 @@ app.delete('/api/admin/channels/:id', requireAuth, async (req, res) => {
     }
 });
 
+// === API ENDPOINTS ДЛЯ ПРИГЛАСИТЕЛЬНЫХ ССЫЛОК ===
+
+// Создание пригласительной ссылки для канала
+app.post('/api/admin/channels/:id/create-invite', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { 
+            link_name, 
+            member_limit, 
+            expire_days, 
+            creates_join_request = false 
+        } = req.body;
+
+        console.log(`🔗 Админ: создание пригласительной ссылки для канала ${id}`);
+
+        // Получаем информацию о канале
+        const channelResult = await db.query(
+            'SELECT * FROM partner_channels WHERE id = $1',
+            [id]
+        );
+
+        if (channelResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Канал не найден' });
+        }
+
+        const channel = channelResult.rows[0];
+        
+        if (!channel.channel_id) {
+            return res.status(400).json({ error: 'У канала нет Telegram ID' });
+        }
+
+        // Проверяем, что бот является админом канала
+        try {
+            const botInfo = await bot.getMe();
+            const chatMember = await bot.getChatMember(channel.channel_id, botInfo.id);
+            
+            if (!['administrator', 'creator'].includes(chatMember.status)) {
+                return res.status(403).json({ 
+                    error: 'Бот должен быть администратором канала для создания пригласительных ссылок' 
+                });
+            }
+        } catch (error) {
+            console.error('❌ Ошибка проверки прав бота в канале:', error);
+            return res.status(400).json({ 
+                error: 'Не удается проверить права бота в канале. Убедитесь, что бот является администратором.' 
+            });
+        }
+
+        // Создаем пригласительную ссылку
+        const inviteOptions = {
+            name: link_name || `Kosmetichka Bot - ${new Date().toLocaleDateString('ru-RU')}`
+        };
+
+        if (member_limit && member_limit > 0) {
+            inviteOptions.member_limit = Math.min(member_limit, 99999); // Telegram лимит
+        }
+
+        if (expire_days && expire_days > 0) {
+            const expireDate = new Date();
+            expireDate.setDate(expireDate.getDate() + expire_days);
+            inviteOptions.expire_date = Math.floor(expireDate.getTime() / 1000);
+        }
+
+        if (creates_join_request) {
+            inviteOptions.creates_join_request = true;
+        }
+
+        console.log('🔗 Создание пригласительной ссылки с параметрами:', inviteOptions);
+
+        const inviteLink = await bot.createChatInviteLink(channel.channel_id, inviteOptions);
+
+        // Сохраняем ссылку в базу данных
+        const savedChannel = await db.saveInviteLink(
+            id,
+            inviteLink.invite_link,
+            inviteOptions.name,
+            inviteOptions.member_limit || null,
+            inviteOptions.expire_date ? new Date(inviteOptions.expire_date * 1000) : null,
+            creates_join_request
+        );
+
+        console.log(`✅ Пригласительная ссылка создана для канала ${channel.channel_username}: ${inviteLink.invite_link}`);
+
+        res.json({
+            success: true,
+            invite_link: inviteLink.invite_link,
+            link_name: inviteOptions.name,
+            member_limit: inviteOptions.member_limit,
+            expire_date: inviteOptions.expire_date ? new Date(inviteOptions.expire_date * 1000) : null,
+            creates_join_request,
+            channel: savedChannel
+        });
+
+    } catch (error) {
+        console.error('❌ Ошибка создания пригласительной ссылки:', error);
+        
+        if (error.message.includes('Bad Request: not enough rights')) {
+            return res.status(403).json({ 
+                error: 'Недостаточно прав. Бот должен быть администратором с правом приглашения пользователей.' 
+            });
+        }
+        
+        res.status(500).json({ 
+            error: 'Ошибка создания пригласительной ссылки',
+            details: error.message 
+        });
+    }
+});
+
+// Отзыв пригласительной ссылки канала
+app.delete('/api/admin/channels/:id/revoke-invite', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        console.log(`🚫 Админ: отзыв пригласительной ссылки для канала ${id}`);
+
+        // Получаем информацию о канале
+        const channelResult = await db.query(
+            'SELECT * FROM partner_channels WHERE id = $1',
+            [id]
+        );
+
+        if (channelResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Канал не найден' });
+        }
+
+        const channel = channelResult.rows[0];
+
+        if (!channel.invite_link) {
+            return res.status(400).json({ error: 'У канала нет активной пригласительной ссылки' });
+        }
+
+        // Отзываем ссылку через Telegram API
+        try {
+            await bot.revokeChatInviteLink(channel.channel_id, channel.invite_link);
+            console.log(`🚫 Пригласительная ссылка отозвана в Telegram`);
+        } catch (error) {
+            console.warn('⚠️ Ошибка отзыва ссылки в Telegram (возможно, уже отозвана):', error.message);
+        }
+
+        // Убираем ссылку из базы данных
+        const updatedChannel = await db.revokeInviteLink(id);
+
+        console.log(`✅ Пригласительная ссылка отозвана для канала ${channel.channel_username}`);
+
+        res.json({
+            success: true,
+            message: 'Пригласительная ссылка успешно отозвана',
+            channel: updatedChannel
+        });
+
+    } catch (error) {
+        console.error('❌ Ошибка отзыва пригласительной ссылки:', error);
+        res.status(500).json({ 
+            error: 'Ошибка отзыва пригласительной ссылки',
+            details: error.message 
+        });
+    }
+});
+
+// Получение статистики по пригласительной ссылке
+app.get('/api/admin/channels/:id/invite-stats', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        console.log(`📊 Админ: запрос статистики пригласительной ссылки для канала ${id}`);
+
+        const channelResult = await db.query(
+            'SELECT * FROM partner_channels WHERE id = $1',
+            [id]
+        );
+
+        if (channelResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Канал не найден' });
+        }
+
+        const channel = channelResult.rows[0];
+
+        // Статистика по пригласительной ссылке
+        const stats = {
+            channel_id: channel.id,
+            channel_username: channel.channel_username,
+            invite_link: channel.invite_link,
+            link_name: channel.invite_link_name,
+            joined_via_invite: channel.joined_via_invite || 0,
+            member_limit: channel.invite_member_limit,
+            expire_date: channel.invite_expire_date,
+            creates_join_request: channel.invite_creates_join_request,
+            target_subscribers: channel.target_subscribers,
+            is_active: channel.is_active
+        };
+
+        // Дополнительные вычисления
+        if (channel.invite_member_limit) {
+            stats.limit_progress = Math.round((stats.joined_via_invite / channel.invite_member_limit) * 100);
+            stats.remaining_slots = Math.max(0, channel.invite_member_limit - stats.joined_via_invite);
+        }
+
+        if (channel.target_subscribers) {
+            stats.target_progress = Math.round((stats.joined_via_invite / channel.target_subscribers) * 100);
+            stats.remaining_to_target = Math.max(0, channel.target_subscribers - stats.joined_via_invite);
+        }
+
+        if (channel.invite_expire_date) {
+            const now = new Date();
+            const expireDate = new Date(channel.invite_expire_date);
+            stats.is_expired = now > expireDate;
+            stats.days_remaining = Math.max(0, Math.ceil((expireDate - now) / (1000 * 60 * 60 * 24)));
+        }
+
+        res.json({
+            success: true,
+            stats
+        });
+
+    } catch (error) {
+        console.error('❌ Ошибка получения статистики пригласительной ссылки:', error);
+        res.status(500).json({ 
+            error: 'Ошибка получения статистики',
+            details: error.message 
+        });
+    }
+});
+
 // API для автоматизации спонсоров
 app.get('/api/admin/automation/stats', requireAuth, async (req, res) => {
     try {
@@ -5271,6 +5495,101 @@ if (bot) {
         } catch (error) {
             console.error('❌ Ошибка обработки успешного платежа:', error);
             bot.sendMessage(msg.chat.id, '❌ Ошибка при зачислении звезд. Обратитесь в поддержку.');
+        }
+    });
+
+    // === ОБРАБОТЧИК ПРИСОЕДИНЕНИЙ ПО ПРИГЛАСИТЕЛЬНЫМ ССЫЛКАМ ===
+    
+    bot.on('chat_member', async (chatMemberUpdate) => {
+        try {
+            const { chat, from, date, old_chat_member, new_chat_member } = chatMemberUpdate;
+            
+            // Проверяем, что пользователь присоединился к каналу/группе
+            if (old_chat_member.status === 'left' && 
+                ['member', 'administrator', 'creator'].includes(new_chat_member.status)) {
+                
+                const chatId = chat.id;
+                const userId = new_chat_member.user.id;
+                const userName = new_chat_member.user.first_name || new_chat_member.user.username || 'Пользователь';
+                
+                console.log(`👤 Пользователь ${userName} (${userId}) присоединился к каналу/группе ${chatId}`);
+                
+                // Ищем канал в нашей базе данных
+                const channel = await db.getChannelByChatId(chatId);
+                
+                if (channel && channel.invite_link) {
+                    console.log(`🔗 Найден канал с пригласительной ссылкой: ${channel.channel_username}`);
+                    
+                    // Увеличиваем счетчик присоединившихся
+                    const result = await db.incrementJoinedViaInvite(channel.id);
+                    
+                    console.log(`📊 Статистика канала ${channel.channel_username}: присоединилось ${result.joined_via_invite} человек`);
+                    
+                    // Проверяем, достигнут ли лимит или цель
+                    if (result.limitReached || result.targetReached) {
+                        const reason = result.limitReached ? 'invite_limit_reached' : 'target_reached';
+                        await db.deactivateChannelByLimit(channel.id, reason);
+                        
+                        const adminMessage = `🎯 Канал @${channel.channel_username} автоматически деактивирован!\n\n` +
+                            `📈 Достигнуто: ${result.joined_via_invite} подписчиков\n` +
+                            `🎯 ${result.limitReached ? `Лимит ссылки: ${result.invite_member_limit}` : `Целевое количество: ${result.target_subscribers}`}\n` +
+                            `⏰ Время: ${new Date().toLocaleString('ru-RU')}`;
+                        
+                        // Уведомляем всех админов
+                        ADMIN_IDS.forEach(adminId => {
+                            bot.sendMessage(adminId, adminMessage).catch(err => {
+                                console.warn(`⚠️ Не удалось отправить уведомление админу ${adminId}:`, err.message);
+                            });
+                        });
+                        
+                        // Отзываем пригласительную ссылку
+                        try {
+                            await bot.revokeChatInviteLink(chatId, channel.invite_link);
+                            await db.revokeInviteLink(channel.id);
+                            console.log(`🚫 Пригласительная ссылка автоматически отозвана для канала ${channel.channel_username}`);
+                        } catch (error) {
+                            console.warn('⚠️ Ошибка автоматического отзыва пригласительной ссылки:', error.message);
+                        }
+                    }
+                    
+                    // Записываем подписку в базу данных для начисления награды
+                    try {
+                        const user = await db.getUser(userId);
+                        if (user) {
+                            const subscriptionResult = await db.recordChannelSubscription(userId, channel.channel_username);
+                            if (subscriptionResult.success && !subscriptionResult.alreadyExists) {
+                                // Начисляем награду с учетом множителя
+                                let rewardAmount = channel.reward_stars || 0;
+                                if (channel.is_hot_offer && channel.hot_offer_multiplier > 1) {
+                                    rewardAmount = Math.round(rewardAmount * channel.hot_offer_multiplier);
+                                }
+                                
+                                if (rewardAmount > 0) {
+                                    await db.addUserStars(userId, rewardAmount, 'channel_subscription', {
+                                        channel_id: channel.id,
+                                        channel_username: channel.channel_username,
+                                        via_invite_link: true
+                                    });
+                                    
+                                    console.log(`⭐ Пользователю ${userName} (${userId}) начислено ${rewardAmount} звезд за подписку на ${channel.channel_username}`);
+                                    
+                                    // Отправляем уведомление пользователю
+                                    const rewardMessage = `🎉 Спасибо за подписку на @${channel.channel_username}!\n\n⭐ Вам начислено: ${rewardAmount} звезд`;
+                                    
+                                    bot.sendMessage(userId, rewardMessage).catch(err => {
+                                        console.log(`ℹ️ Не удалось отправить уведомление пользователю ${userId} (возможно, заблокировал бота)`);
+                                    });
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ Ошибка записи подписки или начисления награды:', error.message);
+                    }
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка обработки chat_member события:', error);
         }
     });
 }

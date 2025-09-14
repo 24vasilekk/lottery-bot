@@ -286,6 +286,17 @@ class DatabasePostgres {
                 ALTER TABLE user_prizes 
                 ADD COLUMN IF NOT EXISTS is_posted_to_channel BOOLEAN DEFAULT FALSE
             `);
+
+            // 14. Добавляем поля для пригласительных ссылок в partner_channels
+            await client.query(`
+                ALTER TABLE partner_channels 
+                ADD COLUMN IF NOT EXISTS invite_link TEXT,
+                ADD COLUMN IF NOT EXISTS invite_link_name VARCHAR(100),
+                ADD COLUMN IF NOT EXISTS joined_via_invite INTEGER DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS invite_member_limit INTEGER,
+                ADD COLUMN IF NOT EXISTS invite_expire_date TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS invite_creates_join_request BOOLEAN DEFAULT FALSE
+            `);
             
             await client.query(`
                 ALTER TABLE user_prizes 
@@ -1980,6 +1991,150 @@ class DatabasePostgres {
                 members_count: null,
                 error: error.message
             };
+        }
+    }
+
+    // === МЕТОДЫ ДЛЯ ПРИГЛАСИТЕЛЬНЫХ ССЫЛОК ===
+
+    async saveInviteLink(channelId, inviteLink, linkName, memberLimit, expireDate, createsJoinRequest = false) {
+        const client = await this.pool.connect();
+        try {
+            const result = await client.query(`
+                UPDATE partner_channels 
+                SET invite_link = $2, 
+                    invite_link_name = $3, 
+                    invite_member_limit = $4, 
+                    invite_expire_date = $5,
+                    invite_creates_join_request = $6,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = $1 
+                RETURNING *
+            `, [channelId, inviteLink, linkName, memberLimit, expireDate, createsJoinRequest]);
+
+            console.log(`✅ Пригласительная ссылка сохранена для канала ID ${channelId}`);
+            return result.rows[0];
+        } catch (error) {
+            console.error('❌ Ошибка сохранения пригласительной ссылки:', error);
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+
+    async revokeInviteLink(channelId) {
+        const client = await this.pool.connect();
+        try {
+            const result = await client.query(`
+                UPDATE partner_channels 
+                SET invite_link = NULL, 
+                    invite_link_name = NULL, 
+                    invite_member_limit = NULL, 
+                    invite_expire_date = NULL,
+                    invite_creates_join_request = FALSE,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = $1 
+                RETURNING *
+            `, [channelId]);
+
+            console.log(`✅ Пригласительная ссылка отозвана для канала ID ${channelId}`);
+            return result.rows[0];
+        } catch (error) {
+            console.error('❌ Ошибка отзыва пригласительной ссылки:', error);
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+
+    async incrementJoinedViaInvite(channelId) {
+        const client = await this.pool.connect();
+        try {
+            const result = await client.query(`
+                UPDATE partner_channels 
+                SET joined_via_invite = COALESCE(joined_via_invite, 0) + 1,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = $1 
+                RETURNING joined_via_invite, invite_member_limit, target_subscribers
+            `, [channelId]);
+
+            const channel = result.rows[0];
+            console.log(`✅ Счетчик присоединившихся увеличен для канала ID ${channelId}: ${channel.joined_via_invite}`);
+            
+            // Проверяем, достигнут ли лимит
+            if (channel.invite_member_limit && channel.joined_via_invite >= channel.invite_member_limit) {
+                console.log(`🎯 Достигнут лимит пригласительной ссылки для канала ID ${channelId}`);
+                return { ...channel, limitReached: true };
+            }
+
+            // Проверяем, достигнута ли цель для целевого канала
+            if (channel.target_subscribers && channel.joined_via_invite >= channel.target_subscribers) {
+                console.log(`🎯 Достигнута цель для целевого канала ID ${channelId}`);
+                return { ...channel, targetReached: true };
+            }
+
+            return { ...channel, limitReached: false, targetReached: false };
+        } catch (error) {
+            console.error('❌ Ошибка увеличения счетчика присоединений:', error);
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+
+    async getChannelByInviteLink(inviteLink) {
+        const client = await this.pool.connect();
+        try {
+            const result = await client.query(
+                'SELECT * FROM partner_channels WHERE invite_link = $1',
+                [inviteLink]
+            );
+
+            return result.rows[0] || null;
+        } catch (error) {
+            console.error('❌ Ошибка поиска канала по пригласительной ссылке:', error);
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+
+    async getChannelByChatId(chatId) {
+        const client = await this.pool.connect();
+        try {
+            const result = await client.query(
+                'SELECT * FROM partner_channels WHERE channel_id = $1',
+                [chatId.toString()]
+            );
+
+            return result.rows[0] || null;
+        } catch (error) {
+            console.error('❌ Ошибка поиска канала по chat_id:', error);
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+
+    async deactivateChannelByLimit(channelId, reason = 'invite_limit_reached') {
+        const client = await this.pool.connect();
+        try {
+            const result = await client.query(`
+                UPDATE partner_channels 
+                SET is_active = FALSE,
+                    deactivation_reason = $2,
+                    deactivated_at = CURRENT_TIMESTAMP,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = $1 
+                RETURNING *
+            `, [channelId, reason]);
+
+            console.log(`🔄 Канал ID ${channelId} деактивирован по причине: ${reason}`);
+            return result.rows[0];
+        } catch (error) {
+            console.error('❌ Ошибка деактивации канала:', error);
+            throw error;
+        } finally {
+            client.release();
         }
     }
 
