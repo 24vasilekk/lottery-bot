@@ -465,8 +465,8 @@
 }
 
 .task-card {
-    background: var(--gradient-dark) !important;
-    border: 2px solid #0000ff !important; /* ВРЕМЕННО: синяя рамка для task-card */
+    background: var(--gradient-dark);
+    border: 1px solid rgba(239, 85, 165, 0.2);
     border-radius: var(--radius-large);
     padding: 25px;
     backdrop-filter: blur(20px);
@@ -506,8 +506,8 @@
    ======================================== */
 
 .task-card.hot-offer {
-    background: var(--gradient-dark) !important;
-    border: 4px solid #ff00ff !important; /* ВРЕМЕННО: фиолетовая рамка для task-card.hot-offer */
+    background: var(--gradient-dark);
+    border: 2px solid transparent;
     background-image: var(--gradient-dark), var(--fire-border);
     background-origin: border-box;
     background-clip: padding-box, border-box;
@@ -685,7 +685,7 @@
 
 .active-task-new {
     background: var(--gradient-dark) !important;
-    border: 2px solid #00ff00 !important; /* ВРЕМЕННО: зеленая рамка для обычных каналов */
+    border: 1px solid rgba(239, 85, 165, 0.2) !important;
     border-radius: var(--radius-medium);
     backdrop-filter: blur(20px);
     box-shadow: var(--shadow-soft), 
@@ -704,15 +704,15 @@
 
 .active-task-new.hot-offer {
     background: var(--gradient-dark) !important;
-    border: 3px solid #ff0000 !important; /* ВРЕМЕННО: красная рамка для горячих предложений */
-    background-image: var(--gradient-dark), var(--fire-border);
-    background-origin: border-box;
-    background-clip: padding-box, border-box;
+    border: 2px solid transparent !important;
+    background-image: var(--gradient-dark), var(--fire-border) !important;
+    background-origin: border-box !important;
+    background-clip: padding-box, border-box !important;
     box-shadow: var(--shadow-soft),
                 0 0 20px rgba(255, 107, 0, 0.3),
-                inset 0 1px 0 rgba(255, 107, 157, 0.2);
+                inset 0 1px 0 rgba(255, 107, 157, 0.2) !important;
     animation: fireCardGlow 4s ease-in-out infinite alternate,
-               fireBorderAnimation 3s linear infinite;
+               fireBorderAnimation 3s linear infinite !important;
 }
 
 @keyframes fireBorderAnimation {
