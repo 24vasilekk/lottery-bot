@@ -324,9 +324,14 @@ export class TasksScreen {
                             </div>
                         </div>
                         <div class="task-reward-info">
-                            +${task.reward_stars} ⭐
                             ${task.is_hot_offer && task.hot_offer_multiplier > 1 ? 
-                                `<span class="reward-multiplier">×${task.hot_offer_multiplier}</span>` : ''
+                                `<div class="reward-hot">
+                                    <span class="effective-reward">+${Math.round(task.reward_stars * task.hot_offer_multiplier)} ⭐</span>
+                                    <div class="reward-breakdown">
+                                        ${task.reward_stars} × ${task.hot_offer_multiplier}
+                                    </div>
+                                </div>` :
+                                `+${task.reward_stars} ⭐`
                             }
                         </div>
                         ${timeRemaining ? `

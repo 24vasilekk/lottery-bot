@@ -97,10 +97,6 @@ class ChannelsPage {
                             <i data-lucide="flame" class="section-icon"></i>
                             Горячие предложения
                         </h2>
-                        <button class="btn btn-sm btn-primary" id="create-hot-offer">
-                            <i data-lucide="plus" class="btn-icon"></i>
-                            Создать
-                        </button>
                     </div>
                     <div id="hot-offers-list" class="hot-offers-list">
                         <!-- Горячие предложения загружаются динамически -->
@@ -224,10 +220,6 @@ class ChannelsPage {
 
         document.getElementById('force-check-channels')?.addEventListener('click', () => {
             this.forceCheckChannels();
-        });
-
-        document.getElementById('create-hot-offer')?.addEventListener('click', () => {
-            this.showCreateHotOfferModal();
         });
 
         // Массовые действия
@@ -471,15 +463,19 @@ class ChannelsPage {
                                      onerror="this.style.display='none'">` : 
                                 '<div class="channel-avatar-placeholder"><i data-lucide="image"></i></div>'
                             }
-                            <div class="channel-name">
-                                ${channel.is_hot ? '<i data-lucide="flame" class="hot-indicator"></i>' : ''}
-                                <a href="https://t.me/${channel.channel_username}" target="_blank" class="channel-link">
-                                    @${Formatters.escapeHtml(channel.channel_username)}
-                                </a>
+                            <div class="channel-info-header">
+                                <div class="channel-title">
+                                    ${channel.is_hot ? '<i data-lucide="flame" class="hot-indicator"></i>' : ''}
+                                    ${Formatters.escapeHtml(channel.channel_name || 'Без названия')}
+                                </div>
+                                <div class="channel-username">
+                                    <a href="https://t.me/${channel.channel_username}" target="_blank" class="channel-link">
+                                        @${Formatters.escapeHtml(channel.channel_username)}
+                                    </a>
+                                </div>
                             </div>
                         </div>
                         <div class="channel-meta">
-                            <div class="channel-title">${Formatters.escapeHtml(channel.channel_name || 'Без названия')}</div>
                             ${channel.channel_description ? 
                                 `<div class="channel-description">${Formatters.escapeHtml(channel.channel_description)}</div>` : 
                                 ''
@@ -516,8 +512,17 @@ class ChannelsPage {
                 <td class="channel-reward">
                     <div class="reward-info">
                         <i data-lucide="star" class="reward-icon"></i>
-                        <span>${Formatters.formatNumber(channel.reward_stars || 0)}</span>
-                        ${channel.is_hot ? `<span class="multiplier">×${channel.multiplier || 2.0}</span>` : ''}
+                        ${channel.is_hot ? `
+                            <div class="reward-hot">
+                                <span class="effective-reward">${Formatters.formatNumber(Math.round((channel.reward_stars || 0) * (channel.multiplier || 2.0)))}</span>
+                                <div class="reward-breakdown">
+                                    <span class="base-reward">${Formatters.formatNumber(channel.reward_stars || 0)}</span>
+                                    <span class="multiplier">×${channel.multiplier || 2.0}</span>
+                                </div>
+                            </div>
+                        ` : `
+                            <span>${Formatters.formatNumber(channel.reward_stars || 0)}</span>
+                        `}
                     </div>
                 </td>
                 
@@ -1105,16 +1110,264 @@ class ChannelsPage {
         }
     }
 
-    async showCreateHotOfferModal() {
-        this.showNotification('Info', 'В разработке', 'Функция создания горячих предложений в разработке');
-    }
 
     async viewChannelStats(channelId) {
-        this.showNotification('Info', 'В разработке', 'Функция просмотра статистики канала в разработке');
+        try {
+            // Получаем данные канала
+            const response = await fetch(`/api/admin/channels/${channelId}`);
+            if (!response.ok) {
+                throw new Error('Не удалось получить данные канала');
+            }
+            const channel = await response.json();
+            
+            // Создаем модальное окно со статистикой
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 class="modal-title">
+                            <i data-lucide="bar-chart" class="modal-icon"></i>
+                            Статистика канала @${channel.channel_username}
+                        </h2>
+                        <button class="btn-close" onclick="this.closest('.modal').remove()">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="modal-body">
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-label">Название</div>
+                                <div class="stat-value">${channel.channel_name || 'Без названия'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Подписчики</div>
+                                <div class="stat-value">${channel.current_subscribers || 0}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Тип размещения</div>
+                                <div class="stat-value">${this.getChannelTypeInfo(channel.placement_type).name}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Статус</div>
+                                <div class="stat-value ${channel.is_active ? 'success' : 'warning'}">${channel.is_active ? 'Активен' : 'Неактивен'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Награда</div>
+                                <div class="stat-value">${channel.reward_stars} звезд ${channel.is_hot ? `(×${channel.multiplier || 2.0})` : ''}</div>
+                            </div>
+                            ${channel.target_subscribers ? `
+                                <div class="stat-item">
+                                    <div class="stat-label">Целевые подписчики</div>
+                                    <div class="stat-value">${channel.target_subscribers}</div>
+                                </div>
+                            ` : ''}
+                            ${channel.end_date ? `
+                                <div class="stat-item">
+                                    <div class="stat-label">Истекает</div>
+                                    <div class="stat-value">${new Date(channel.end_date).toLocaleDateString('ru-RU')}</div>
+                                </div>
+                            ` : ''}
+                            <div class="stat-item">
+                                <div class="stat-label">Добавлен</div>
+                                <div class="stat-value">${new Date(channel.created_at).toLocaleDateString('ru-RU')}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Закрыть</button>
+                        <button class="btn btn-primary" onclick="window.channelsPage.editChannel(${channelId}); this.closest('.modal').remove();">
+                            <i data-lucide="edit" class="btn-icon"></i>
+                            Редактировать
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            lucide.createIcons();
+            setTimeout(() => modal.classList.add('show'), 10);
+            
+        } catch (error) {
+            console.error('Ошибка получения статистики канала:', error);
+            this.showNotification('Error', 'Ошибка', error.message);
+        }
     }
 
     async editChannel(channelId) {
-        this.showNotification('Info', 'В разработке', 'Функция редактирования канала в разработке');
+        try {
+            // Получаем данные канала
+            const response = await fetch(`/api/admin/channels/${channelId}`);
+            if (!response.ok) {
+                throw new Error('Не удалось получить данные канала');
+            }
+            const channel = await response.json();
+            
+            // Создаем модальное окно редактирования (копируем из addChannel но с предзаполненными данными)
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 class="modal-title">
+                            <i data-lucide="edit" class="modal-icon"></i>
+                            Редактировать канал @${channel.channel_username}
+                        </h2>
+                        <button class="btn-close" onclick="this.closest('.modal').remove()">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="form-label">Ссылка на канал</label>
+                            <input type="text" id="edit-channel-link" class="form-control" 
+                                   value="@${channel.channel_username}" disabled>
+                            <span class="form-hint">Ссылка на канал не может быть изменена</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Описание канала</label>
+                            <textarea id="edit-channel-description" class="form-control" rows="3" 
+                                      placeholder="Краткое описание канала для пользователей...">${channel.channel_description || ''}</textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label required">Награда (звезды)</label>
+                                <input type="number" id="edit-channel-reward" class="form-control" 
+                                       value="${channel.reward_stars}" min="1" max="1000">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Тип размещения</label>
+                                <select id="edit-channel-type" class="form-select">
+                                    <option value="permanent" ${channel.placement_type === 'permanent' ? 'selected' : ''}>Постоянный</option>
+                                    <option value="target" ${channel.placement_type === 'target' ? 'selected' : ''}>Целевой набор</option>
+                                    <option value="time" ${channel.placement_type === 'time' ? 'selected' : ''}>Временный</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Параметры для целевого набора -->
+                        <div id="edit-target-params" class="form-group" style="${channel.placement_type === 'target' ? 'display: block' : 'display: none'}">
+                            <label class="form-label">Целевое количество подписчиков</label>
+                            <input type="number" id="edit-target-subscribers" class="form-control" 
+                                   value="${channel.target_subscribers || ''}" min="1">
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="edit-auto-renewal" class="form-checkbox" ${channel.auto_renewal ? 'checked' : ''}>
+                                    <span>Автоматическое продление</span>
+                                </label>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="edit-is-hot-offer" class="form-checkbox" ${channel.is_hot ? 'checked' : ''}>
+                                    <span>Горячее предложение</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Множитель для горячего предложения -->
+                        <div id="edit-hot-offer-params" class="form-group" style="${channel.is_hot ? 'display: block' : 'display: none'}">
+                            <label class="form-label">Множитель награды</label>
+                            <input type="number" id="edit-hot-offer-multiplier" class="form-control" 
+                                   value="${channel.multiplier || 2.0}" min="1.1" max="5.0" step="0.1">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="edit-is-active" class="form-checkbox" ${channel.is_active ? 'checked' : ''}>
+                                <span>Активен (отображается пользователям)</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Отмена</button>
+                        <button class="btn btn-primary" id="save-channel-btn">
+                            <i data-lucide="save" class="btn-icon"></i>
+                            Сохранить изменения
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            lucide.createIcons();
+
+            // Обработчики событий
+            const typeSelect = modal.querySelector('#edit-channel-type');
+            const targetParams = modal.querySelector('#edit-target-params');
+            const hotOfferCheckbox = modal.querySelector('#edit-is-hot-offer');
+            const hotOfferParams = modal.querySelector('#edit-hot-offer-params');
+            const saveBtn = modal.querySelector('#save-channel-btn');
+
+            typeSelect.addEventListener('change', (e) => {
+                targetParams.style.display = e.target.value === 'target' ? 'block' : 'none';
+            });
+
+            hotOfferCheckbox.addEventListener('change', (e) => {
+                hotOfferParams.style.display = e.target.checked ? 'block' : 'none';
+            });
+
+            saveBtn.addEventListener('click', async () => {
+                await this.saveChannelChanges(channelId, modal);
+            });
+
+            setTimeout(() => modal.classList.add('show'), 10);
+            
+        } catch (error) {
+            console.error('Ошибка редактирования канала:', error);
+            this.showNotification('Error', 'Ошибка', error.message);
+        }
+    }
+
+    async saveChannelChanges(channelId, modal) {
+        try {
+            const data = {
+                channel_description: modal.querySelector('#edit-channel-description').value.trim() || null,
+                reward_stars: parseInt(modal.querySelector('#edit-channel-reward').value),
+                placement_type: modal.querySelector('#edit-channel-type').value,
+                auto_renewal: modal.querySelector('#edit-auto-renewal').checked,
+                is_hot: modal.querySelector('#edit-is-hot-offer').checked,
+                multiplier: parseFloat(modal.querySelector('#edit-hot-offer-multiplier').value) || 2.0,
+                is_active: modal.querySelector('#edit-is-active').checked
+            };
+
+            if (data.placement_type === 'target') {
+                const targetSubscribers = parseInt(modal.querySelector('#edit-target-subscribers').value);
+                if (targetSubscribers && targetSubscribers > 0) {
+                    data.target_subscribers = targetSubscribers;
+                }
+            }
+
+            const response = await fetch(`/api/admin/channels/${channelId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Ошибка обновления канала');
+            }
+
+            modal.remove();
+            this.showNotification('Success', 'Успех', 'Канал успешно обновлен');
+            await this.loadChannels();
+            await this.loadChannelsStats();
+
+        } catch (error) {
+            console.error('Ошибка сохранения изменений:', error);
+            this.showNotification('Error', 'Ошибка', error.message);
+        }
     }
 
     async toggleChannelStatus(channelId, activate) {
@@ -1181,7 +1434,152 @@ class ChannelsPage {
     }
 
     async showChannelActions(channelId) {
-        this.showNotification('Info', 'В разработке', 'Дополнительные действия с каналами в разработке');
+        try {
+            // Получаем данные канала
+            const response = await fetch(`/api/admin/channels/${channelId}`);
+            if (!response.ok) {
+                throw new Error('Не удалось получить данные канала');
+            }
+            const channel = await response.json();
+            
+            // Создаем контекстное меню
+            const menu = document.createElement('div');
+            menu.className = 'context-menu';
+            menu.innerHTML = `
+                <div class="context-menu-item" onclick="window.channelsPage.duplicateChannel(${channelId})">
+                    <i data-lucide="copy" class="menu-icon"></i>
+                    <span>Дублировать канал</span>
+                </div>
+                <div class="context-menu-item" onclick="window.channelsPage.resetChannelStats(${channelId})">
+                    <i data-lucide="refresh-ccw" class="menu-icon"></i>
+                    <span>Сбросить статистику</span>
+                </div>
+                <div class="context-menu-item danger" onclick="window.channelsPage.deleteChannel(${channelId})">
+                    <i data-lucide="trash-2" class="menu-icon"></i>
+                    <span>Удалить канал</span>
+                </div>
+                <div class="context-menu-item" onclick="window.channelsPage.exportChannelData(${channelId})">
+                    <i data-lucide="download" class="menu-icon"></i>
+                    <span>Экспорт данных</span>
+                </div>
+            `;
+            
+            // Удаляем существующие меню
+            document.querySelectorAll('.context-menu').forEach(m => m.remove());
+            
+            document.body.appendChild(menu);
+            lucide.createIcons();
+            
+            // Показываем меню
+            setTimeout(() => menu.classList.add('show'), 10);
+            
+            // Закрываем меню при клике вне его
+            setTimeout(() => {
+                const closeMenu = (e) => {
+                    if (!menu.contains(e.target)) {
+                        menu.remove();
+                        document.removeEventListener('click', closeMenu);
+                    }
+                };
+                document.addEventListener('click', closeMenu);
+            }, 100);
+            
+        } catch (error) {
+            console.error('Ошибка получения действий канала:', error);
+            this.showNotification('Error', 'Ошибка', error.message);
+        }
+    }
+
+    async duplicateChannel(channelId) {
+        try {
+            const response = await fetch(`/api/admin/channels/${channelId}/duplicate`, {
+                method: 'POST'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Ошибка дублирования канала');
+            }
+            
+            this.showNotification('Success', 'Успех', 'Канал успешно дублирован');
+            await this.loadChannels();
+            await this.loadChannelsStats();
+            
+        } catch (error) {
+            console.error('Ошибка дублирования канала:', error);
+            this.showNotification('Error', 'Ошибка', error.message);
+        }
+    }
+
+    async resetChannelStats(channelId) {
+        if (!confirm('Сбросить всю статистику канала? Это действие нельзя отменить.')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/admin/channels/${channelId}/reset-stats`, {
+                method: 'POST'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Ошибка сброса статистики');
+            }
+            
+            this.showNotification('Success', 'Успех', 'Статистика канала сброшена');
+            await this.loadChannels();
+            
+        } catch (error) {
+            console.error('Ошибка сброса статистики:', error);
+            this.showNotification('Error', 'Ошибка', error.message);
+        }
+    }
+
+    async deleteChannel(channelId) {
+        if (!confirm('Удалить канал? Это действие нельзя отменить.')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/admin/channels/${channelId}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Ошибка удаления канала');
+            }
+            
+            this.showNotification('Success', 'Успех', 'Канал удален');
+            await this.loadChannels();
+            await this.loadChannelsStats();
+            
+        } catch (error) {
+            console.error('Ошибка удаления канала:', error);
+            this.showNotification('Error', 'Ошибка', error.message);
+        }
+    }
+
+    async exportChannelData(channelId) {
+        try {
+            const response = await fetch(`/api/admin/channels/${channelId}/export`);
+            if (!response.ok) {
+                throw new Error('Ошибка экспорта данных');
+            }
+            
+            const data = await response.json();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `channel_${channelId}_data.json`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+            this.showNotification('Success', 'Успех', 'Данные канала экспортированы');
+            
+        } catch (error) {
+            console.error('Ошибка экспорта данных:', error);
+            this.showNotification('Error', 'Ошибка', error.message);
+        }
     }
 
     async bulkActivateChannels() {
