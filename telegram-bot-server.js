@@ -3227,11 +3227,58 @@ app.post('/api/admin/channels', requireAuth, async (req, res) => {
         const newChannelId = result.id;
         console.log(`✅ Канал ${channel_username} добавлен/обновлен с ID: ${newChannelId}`);
 
+        // Автоматическое создание пригласительной ссылки для целевых каналов
+        let inviteLinkInfo = null;
+        if (placement_type === 'target' && target_subscribers > 0 && telegramChannelInfo.channel_id) {
+            try {
+                console.log(`🔗 Создаение автоматической пригласительной ссылки для целевого канала ${channel_username}`);
+                
+                // Проверяем, что бот является админом канала
+                const botInfo = await bot.getMe();
+                const chatMember = await bot.getChatMember(telegramChannelInfo.channel_id, botInfo.id);
+                
+                if (['administrator', 'creator'].includes(chatMember.status)) {
+                    // Создаем пригласительную ссылку с лимитом = целевому количеству
+                    const inviteOptions = {
+                        name: `Kosmetichka Bot - Цель: ${target_subscribers}`,
+                        member_limit: Math.min(target_subscribers, 99999) // Telegram лимит
+                    };
+
+                    console.log('🔗 Создание пригласительной ссылки с параметрами:', inviteOptions);
+                    const inviteLink = await bot.createChatInviteLink(telegramChannelInfo.channel_id, inviteOptions);
+
+                    // Сохраняем ссылку в базу данных
+                    await db.saveInviteLink(
+                        newChannelId,
+                        inviteLink.invite_link,
+                        inviteOptions.name,
+                        inviteOptions.member_limit,
+                        null, // expire_date
+                        false // creates_join_request
+                    );
+
+                    inviteLinkInfo = {
+                        invite_link: inviteLink.invite_link,
+                        member_limit: inviteOptions.member_limit,
+                        link_name: inviteOptions.name
+                    };
+
+                    console.log(`✅ Пригласительная ссылка автоматически создана: ${inviteLink.invite_link}`);
+                } else {
+                    console.warn(`⚠️ Не удалось создать пригласительную ссылку: бот не является админом канала ${channel_username}`);
+                }
+            } catch (error) {
+                console.error('❌ Ошибка создания автоматической пригласительной ссылки:', error);
+                // Не прерываем процесс добавления канала из-за ошибки создания ссылки
+            }
+        }
+
         res.json({ 
             success: true, 
             id: newChannelId,
             channel: result,
-            message: 'Канал успешно добавлен/обновлен'
+            invite_link_info: inviteLinkInfo,
+            message: `Канал успешно добавлен/обновлен${inviteLinkInfo ? ' с автоматической пригласительной ссылкой' : ''}`
         });
     } catch (error) {
         console.error('❌ Ошибка добавления канала:', error);
