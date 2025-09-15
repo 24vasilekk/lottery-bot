@@ -11,7 +11,7 @@ export class MainScreen {
         this.lastSpinType = null;
         
         // Отладочное сообщение для проверки загрузки новой версии
-        console.log('🚀 MainScreen загружен! Версия v2.6 - исправлено получение данных пользователя');
+        console.log('🚀 MainScreen загружен! Версия v2.7 - исправлено несоответствие призов');
     }
 
     render() {
@@ -1022,15 +1022,28 @@ export class MainScreen {
             });
         }
 
+        // ИСПРАВЛЕНО: Используем правильные данные приза для сохранения
+        let finalPrizeForSaving = prize;
+        let finalNameForSaving = realName;
+        let finalValueForSaving = realValue;
+        
+        // Если это сертификат, используем исправленные данные
+        if ((realType === 'certificate' || isVisualCertificate) && typeof correctPrizeData !== 'undefined') {
+            finalPrizeForSaving = correctPrizeData;
+            finalNameForSaving = correctPrizeData.displayName || correctPrizeData.realName || realName;
+            finalValueForSaving = correctPrizeData.realValue || realValue;
+            console.log(`🔧 Используем исправленные данные для сохранения: ${finalNameForSaving} (${finalValueForSaving})`);
+        }
+
         // Сохраняем информацию о призе на сервер
         const serverPrize = {
-            id: prize.id,
+            id: finalPrizeForSaving.id,
             type: realType,
-            name: realName,
-            value: realValue,
-            description: prize.realDescription || prize.description || '',
-            visualType: prize.type,
-            visualName: prize.name
+            name: finalNameForSaving,
+            value: finalValueForSaving,
+            description: finalPrizeForSaving.realDescription || finalPrizeForSaving.description || '',
+            visualType: finalPrizeForSaving.type,
+            visualName: finalPrizeForSaving.name
         };
         
         console.log(`💾 Сохраняем приз на сервер:`, serverPrize);
@@ -1039,7 +1052,7 @@ export class MainScreen {
         // УБРАНО: Финальная синхронизация может перебить правильный баланс
         // Баланс уже синхронизирован в каждом типе приза индивидуально
 
-        this.updateLocalDataAfterPrize(prize);
+        this.updateLocalDataAfterPrize(finalPrizeForSaving);
         this.updateRecentWins();
         this.app.updateUI();
         
