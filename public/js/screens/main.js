@@ -11,7 +11,7 @@ export class MainScreen {
         this.lastSpinType = null;
         
         // Отладочное сообщение для проверки загрузки новой версии
-        console.log('🚀 MainScreen загружен! Версия v2.5 - исправлены все ссылки и рендеринг');
+        console.log('🚀 MainScreen загружен! Версия v2.6 - исправлено получение данных пользователя');
     }
 
     render() {
@@ -1883,7 +1883,12 @@ export class MainScreen {
 
     // Методы для получения информации о пользователе
     getUserAvatar() {
-        const user = this.app.tg?.initDataUnsafe?.user;
+        // ИСПРАВЛЕНО: Получаем пользователя из разных источников
+        const user = this.app.tg?.initDataUnsafe?.user || 
+                    window.telegramIntegration?.user ||
+                    window.Telegram?.WebApp?.initDataUnsafe?.user;
+        
+        console.log('👤 getUserAvatar - user:', user); // Отладка
         
         // Проверяем наличие фото профиля в Telegram
         if (user?.photo_url) {
@@ -1896,7 +1901,13 @@ export class MainScreen {
     }
 
     getUserFullName() {
-        const user = this.app.tg?.initDataUnsafe?.user;
+        // ИСПРАВЛЕНО: Получаем пользователя из разных источников
+        const user = this.app.tg?.initDataUnsafe?.user || 
+                    window.telegramIntegration?.user ||
+                    window.Telegram?.WebApp?.initDataUnsafe?.user;
+        
+        console.log('👤 getUserFullName - user:', user); // Отладка
+        
         if (!user) return 'Пользователь';
         
         const firstName = user.first_name || '';
@@ -1906,7 +1917,13 @@ export class MainScreen {
     }
 
     getUserNickname() {
-        const user = this.app.tg?.initDataUnsafe?.user;
+        // ИСПРАВЛЕНО: Получаем пользователя из разных источников
+        const user = this.app.tg?.initDataUnsafe?.user || 
+                    window.telegramIntegration?.user ||
+                    window.Telegram?.WebApp?.initDataUnsafe?.user;
+        
+        console.log('👤 getUserNickname - user:', user); // Отладка
+        
         if (!user?.username) return '';
         
         return `@${user.username}`;
