@@ -270,7 +270,12 @@ class UsersPage {
             
             const apiUrl = `/api/admin/users?${params.toString()}`;
             console.log('📞 Запрос к API:', apiUrl);
-            const response = await fetch(apiUrl);
+            
+            const response = await fetch(apiUrl, {
+                headers: {
+                    'x-auth-token': localStorage.getItem('adminAuthToken') || ''
+                }
+            });
             console.log('📥 Ответ API:', response.status, response.statusText);
             
             if (!response.ok) {
@@ -317,12 +322,29 @@ class UsersPage {
             console.log('📋 Данные пользователей:', data);
             
             if (data.success) {
-                this.renderUsersTable(data.users || []);
+                // Преобразуем формат API в ожидаемый формат компонента
+                const mappedUsers = data.users.map(user => ({
+                    id: user.id || user.telegramId,
+                    telegram_id: user.telegramId || user.id,
+                    username: user.username,
+                    first_name: user.firstName || user.first_name,
+                    last_name: user.lastName || user.last_name,
+                    stars: user.stars || 0,
+                    total_spins: user.stats?.totalSpins || 0,
+                    referrals: user.stats?.subscriptions || 0,
+                    win_chance: user.win_chance || 0,
+                    created_at: user.createdAt || user.created_at,
+                    last_activity: user.lastActivity || user.last_activity,
+                    is_active: user.isBanned !== undefined ? !user.isBanned : true,
+                    avatar_url: user.avatar_url || null
+                }));
+                
+                this.renderUsersTable(mappedUsers);
                 this.renderPagination(data.pagination?.total || 0);
                 
                 // Обновить информацию о таблице
                 document.getElementById('table-info').textContent = 
-                    `Показано ${data.users?.length || 0} из ${data.pagination?.total || 0} пользователей`;
+                    `Показано ${mappedUsers.length} из ${data.pagination?.total || 0} пользователей`;
             } else {
                 throw new Error(data.error || 'Неизвестная ошибка');
             }
@@ -502,13 +524,17 @@ class UsersPage {
             return;
         }
 
+        // Создаем функцию обработки страниц
+        const self = this;
+        window.usersPageChange = function(page) {
+            self.currentPage = page;
+            self.loadUsers();
+        };
+
         container.innerHTML = PaginationRenderer.render(
             this.currentPage, 
             totalPages, 
-            (page) => {
-                this.currentPage = page;
-                this.loadUsers();
-            }
+            'window.usersPageChange'
         );
     }
 
@@ -1089,7 +1115,7 @@ const PaginationRenderer = {
         
         // Предыдущая страница
         if (currentPage > 1) {
-            html += `<button class="pagination-btn" onclick="(${onPageChange})(${currentPage - 1})">
+            html += `<button class="pagination-btn" onclick="${onPageChange}(${currentPage - 1})">
                 <i data-lucide="chevron-left"></i>
             </button>`;
         }
@@ -1099,7 +1125,7 @@ const PaginationRenderer = {
         const endPage = Math.min(totalPages, currentPage + 2);
         
         if (startPage > 1) {
-            html += `<button class="pagination-btn" onclick="(${onPageChange})(1)">1</button>`;
+            html += `<button class="pagination-btn" onclick="${onPageChange}(1)">1</button>`;
             if (startPage > 2) {
                 html += `<span class="pagination-dots">...</span>`;
             }
@@ -1107,19 +1133,19 @@ const PaginationRenderer = {
         
         for (let i = startPage; i <= endPage; i++) {
             html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" 
-                     onclick="(${onPageChange})(${i})">${i}</button>`;
+                     onclick="${onPageChange}(${i})">${i}</button>`;
         }
         
         if (endPage < totalPages) {
             if (endPage < totalPages - 1) {
                 html += `<span class="pagination-dots">...</span>`;
             }
-            html += `<button class="pagination-btn" onclick="(${onPageChange})(${totalPages})">${totalPages}</button>`;
+            html += `<button class="pagination-btn" onclick="${onPageChange}(${totalPages})">${totalPages}</button>`;
         }
         
         // Следующая страница
         if (currentPage < totalPages) {
-            html += `<button class="pagination-btn" onclick="(${onPageChange})(${currentPage + 1})">
+            html += `<button class="pagination-btn" onclick="${onPageChange}(${currentPage + 1})">
                 <i data-lucide="chevron-right"></i>
             </button>`;
         }

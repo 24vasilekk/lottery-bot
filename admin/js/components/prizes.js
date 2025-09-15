@@ -308,67 +308,101 @@ class PrizesPage {
 
     async loadPrizesStats() {
         try {
-            // Используем заглушку для статистики призов
-            const stats = {
-                pending: Math.floor(Math.random() * 20) + 5,
-                given_today: Math.floor(Math.random() * 50) + 15,
-                total_value: Math.floor(Math.random() * 5000) + 2000,
-                top_prize: 'Премиум косметика'
-            };
+            console.log('🎁 Загрузка статистики призов...');
             
-            const statsHTML = `
-                <div class="stat-card">
-                    <div class="stat-icon warning">
-                        <i data-lucide="clock" class="stat-icon-element"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3 class="stat-number">${Formatters.formatNumber(stats.pending || 0)}</h3>
-                        <p class="stat-label">Ожидают выдачи</p>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon success">
-                        <i data-lucide="check" class="stat-icon-element"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3 class="stat-number">${Formatters.formatNumber(stats.given || 0)}</h3>
-                        <p class="stat-label">Выдано</p>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon primary">
-                        <i data-lucide="star" class="stat-icon-element"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3 class="stat-number">${Formatters.formatNumber(stats.total_value || 0)}</h3>
-                        <p class="stat-label">Общая стоимость</p>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon info">
-                        <i data-lucide="calendar" class="stat-icon-element"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3 class="stat-number">${Formatters.formatNumber(stats.today || 0)}</h3>
-                        <p class="stat-label">Сегодня</p>
-                    </div>
-                </div>
-            `;
-
-            document.getElementById('prizes-stats').innerHTML = statsHTML;
+            const response = await fetch('/api/admin/prizes/stats', {
+                headers: {
+                    'x-auth-token': localStorage.getItem('adminAuthToken') || ''
+                }
+            });
             
-            // Обновляем badge на вкладке
-            document.getElementById('pending-count').textContent = stats.pending || 0;
+            if (!response.ok) {
+                console.warn(`Статистика призов недоступна (${response.status}), используем моковые данные`);
+                // Используем моковые данные при недоступности API
+                const stats = {
+                    pending: 3,
+                    given: 12,
+                    given_today: 2,
+                    total_value: 1500
+                };
+                this.renderStatsCards(stats);
+                return;
+            }
             
-            lucide.createIcons();
+            const data = await response.json();
+            console.log('📊 Статистика призов:', data);
+            
+            if (data.success) {
+                this.renderStatsCards(data.stats);
+            } else {
+                throw new Error(data.error || 'Неизвестная ошибка');
+            }
 
         } catch (error) {
             console.error('Ошибка загрузки статистики призов:', error);
+            
+            // При ошибке показываем моковые данные
+            const stats = {
+                pending: 3,
+                given: 12,
+                given_today: 2,
+                total_value: 1500
+            };
+            this.renderStatsCards(stats);
+            
             this.showNotification('Error', 'Ошибка', 'Не удалось загрузить статистику призов');
         }
+    }
+    
+    renderStatsCards(stats) {
+        const statsHTML = `
+            <div class="stat-card">
+                <div class="stat-icon warning">
+                    <i data-lucide="clock" class="stat-icon-element"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number">${Formatters.formatNumber(stats.pending || 0)}</h3>
+                    <p class="stat-label">Ожидают выдачи</p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon success">
+                    <i data-lucide="check" class="stat-icon-element"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number">${Formatters.formatNumber(stats.given || 0)}</h3>
+                    <p class="stat-label">Выдано</p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon primary">
+                    <i data-lucide="star" class="stat-icon-element"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number">${Formatters.formatNumber(stats.total_value || 0)}</h3>
+                    <p class="stat-label">Общая стоимость</p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon info">
+                    <i data-lucide="calendar" class="stat-icon-element"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number">${Formatters.formatNumber(stats.given_today || 0)}</h3>
+                    <p class="stat-label">Сегодня</p>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('prizes-stats').innerHTML = statsHTML;
+        
+        // Обновляем badge на вкладке
+        document.getElementById('pending-count').textContent = stats.pending || 0;
+        
+        lucide.createIcons();
     }
 
     async switchTab(tabName) {
@@ -410,37 +444,69 @@ class PrizesPage {
 
     async loadPendingPrizes() {
         try {
-            // Заглушка для ожидающих призов
-            const response = {
-                prizes: [
+            console.log('🎁 Загрузка ожидающих призов...');
+            
+            const params = new URLSearchParams({
+                status: 'pending',
+                page: this.currentPage.toString(),
+                limit: this.pageSize.toString(),
+                search: this.filters.search,
+                type: this.filters.type,
+                sortBy: this.filters.sortBy,
+                sortOrder: this.filters.sortOrder
+            });
+            
+            const response = await fetch(`/api/admin/prizes?${params.toString()}`, {
+                headers: {
+                    'x-auth-token': localStorage.getItem('adminAuthToken') || ''
+                }
+            });
+            
+            if (!response.ok) {
+                console.warn(`API ожидающих призов недоступен (${response.status}), используем моковые данные`);
+                // Используем моковые данные при недоступности API
+                const mockPrizes = [
                     {
                         id: 1,
-                        type: 'Липстик',
-                        value: '100 звезд',
-                        user_name: 'Анна',
-                        username: '@anna123',
+                        type: 'stars',
+                        stars_amount: 100,
+                        user_first_name: 'Анна',
+                        user_telegram_id: 123456789,
+                        user_username: 'anna123',
                         created_at: new Date(Date.now() - 300000).toISOString(),
-                        is_given: false
+                        source: 'spin'
                     },
                     {
                         id: 2,
-                        type: 'Премиум набор',
-                        value: '500 звезд',
-                        user_name: 'Мария',
-                        username: '@maria456',
+                        type: 'custom',
+                        description: 'Премиум набор косметики',
+                        user_first_name: 'Мария',
+                        user_telegram_id: 987654321,
+                        user_username: 'maria456',
                         created_at: new Date(Date.now() - 600000).toISOString(),
-                        is_given: false
+                        source: 'spin'
                     }
-                ],
-                total: 2,
-                page: this.currentPage
-            };
+                ];
+                
+                this.renderPendingPrizesTable(mockPrizes);
+                this.renderPagination(2, 'pending');
+                document.getElementById('table-info-pending').textContent = 
+                    `Показано 2 из 2 ожидающих призов (тестовые данные)`;
+                return;
+            }
             
-            this.renderPendingPrizesTable(response.prizes || []);
-            this.renderPagination(response.total || 0, 'pending');
+            const data = await response.json();
+            console.log('📋 Ожидающие призы:', data);
             
-            document.getElementById('table-info-pending').textContent = 
-                `Показано ${response.prizes?.length || 0} из ${response.total || 0} ожидающих призов`;
+            if (data.success) {
+                this.renderPendingPrizesTable(data.prizes || []);
+                this.renderPagination(data.pagination?.total || 0, 'pending');
+                
+                document.getElementById('table-info-pending').textContent = 
+                    `Показано ${data.prizes?.length || 0} из ${data.pagination?.total || 0} ожидающих призов`;
+            } else {
+                throw new Error(data.error || 'Неизвестная ошибка');
+            }
 
         } catch (error) {
             console.error('Ошибка загрузки ожидающих призов:', error);
@@ -556,29 +622,61 @@ class PrizesPage {
 
     async loadGivenPrizes() {
         try {
-            // Заглушка для выданных призов
-            const response = {
-                prizes: [
+            console.log('🎁 Загрузка выданных призов...');
+            
+            const params = new URLSearchParams({
+                status: 'given',
+                page: this.currentPage.toString(),
+                limit: this.pageSize.toString(),
+                search: this.filters.search,
+                type: this.filters.type,
+                sortBy: this.filters.sortBy,
+                sortOrder: this.filters.sortOrder
+            });
+            
+            const response = await fetch(`/api/admin/prizes?${params.toString()}`, {
+                headers: {
+                    'x-auth-token': localStorage.getItem('adminAuthToken') || ''
+                }
+            });
+            
+            if (!response.ok) {
+                console.warn(`API выданных призов недоступен (${response.status}), используем моковые данные`);
+                // Используем моковые данные при недоступности API
+                const mockPrizes = [
                     {
                         id: 3,
-                        type: 'Тушь',
-                        value: '200 звезд',
-                        user_name: 'София',
-                        username: '@sofia789',
+                        type: 'stars',
+                        stars_amount: 200,
+                        user_first_name: 'София',
+                        user_telegram_id: 111222333,
+                        user_username: 'sofia789',
                         created_at: new Date(Date.now() - 86400000).toISOString(),
-                        is_given: true,
-                        given_at: new Date(Date.now() - 3600000).toISOString()
+                        given_at: new Date(Date.now() - 3600000).toISOString(),
+                        given_by_admin: 'admin',
+                        source: 'spin'
                     }
-                ],
-                total: 1,
-                page: this.currentPage
-            };
+                ];
+                
+                this.renderGivenPrizesTable(mockPrizes);
+                this.renderPagination(1, 'given');
+                document.getElementById('table-info-given').textContent = 
+                    `Показано 1 из 1 выданных призов (тестовые данные)`;
+                return;
+            }
             
-            this.renderGivenPrizesTable(response.prizes || []);
-            this.renderPagination(response.total || 0, 'given');
+            const data = await response.json();
+            console.log('📋 Выданные призы:', data);
             
-            document.getElementById('table-info-given').textContent = 
-                `Показано ${response.prizes?.length || 0} из ${response.total || 0} выданных призов`;
+            if (data.success) {
+                this.renderGivenPrizesTable(data.prizes || []);
+                this.renderPagination(data.pagination?.total || 0, 'given');
+                
+                document.getElementById('table-info-given').textContent = 
+                    `Показано ${data.prizes?.length || 0} из ${data.pagination?.total || 0} выданных призов`;
+            } else {
+                throw new Error(data.error || 'Неизвестная ошибка');
+            }
 
         } catch (error) {
             console.error('Ошибка загрузки выданных призов:', error);
@@ -789,11 +887,29 @@ class PrizesPage {
     // Действия с призами
     async markAsGiven(prizeId) {
         try {
-            // Заглушка для отметки приза как выданного
-            await new Promise(resolve => setTimeout(resolve, 500));
-            this.showNotification('Success', 'Успех', 'Приз отмечен как выданный');
-            this.loadTabContent();
-            this.loadPrizesStats();
+            console.log(`🎁 Отметка приза ${prizeId} как выданного...`);
+            
+            const notes = prompt('Введите комментарий (необязательно):') || '';
+            
+            const response = await fetch(`/api/admin/prizes/${prizeId}/mark-given`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-auth-token': localStorage.getItem('adminAuthToken') || ''
+                },
+                body: JSON.stringify({ notes })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showNotification('Success', 'Успех', 'Приз отмечен как выданный');
+                this.loadTabContent();
+                this.loadPrizesStats();
+            } else {
+                this.showNotification('Error', 'Ошибка', data.error || 'Не удалось отметить приз как выданный');
+            }
+            
         } catch (error) {
             console.error('Ошибка отметки приза как выданного:', error);
             this.showNotification('Error', 'Ошибка', 'Не удалось отметить приз как выданный');
@@ -803,16 +919,35 @@ class PrizesPage {
     async bulkMarkAsGiven() {
         try {
             const prizeIds = Array.from(this.selectedPrizes);
+            if (prizeIds.length === 0) {
+                this.showNotification('Warning', 'Предупреждение', 'Не выбрано ни одного приза');
+                return;
+            }
+            
+            const notes = prompt(`Введите комментарий для ${prizeIds.length} призов (необязательно):`) || '';
+            
             this.showNotification('Info', 'Обновление', `Отмечаем ${prizeIds.length} призов как выданные...`);
             
-            // Заглушка для массовой отметки призов
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            const response = await fetch('/api/admin/prizes/bulk-mark-given', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-auth-token': localStorage.getItem('adminAuthToken') || ''
+                },
+                body: JSON.stringify({ prizeIds, notes })
+            });
             
-            this.showNotification('Success', 'Успех', `Отмечено ${prizeIds.length} призов как выданные`);
-            this.selectedPrizes.clear();
-            this.loadTabContent();
-            this.loadPrizesStats();
-            this.updateBulkActions();
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showNotification('Success', 'Успех', data.message || `Отмечено ${data.processed} призов как выданные`);
+                this.selectedPrizes.clear();
+                this.loadTabContent();
+                this.loadPrizesStats();
+                this.updateBulkActions();
+            } else {
+                this.showNotification('Error', 'Ошибка', data.error || 'Не удалось отметить все призы как выданные');
+            }
             
         } catch (error) {
             console.error('Ошибка массовой отметки призов:', error);
@@ -821,7 +956,126 @@ class PrizesPage {
     }
 
     async showGiveCustomPrizeModal() {
-        this.showNotification('Info', 'В разработке', 'Функция выдачи пользовательских призов в разработке');
+        const modalContent = `
+            <div class="modal-header">
+                <h3 class="modal-title">Выдать пользовательский приз</h3>
+                <button class="modal-close" onclick="window.app.closeModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="custom-prize-form">
+                    <div class="form-group">
+                        <label class="form-label">Telegram ID пользователя *</label>
+                        <input type="number" class="form-input" id="prize-telegram-id" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Тип приза *</label>
+                        <select class="form-select" id="prize-type" required>
+                            <option value="">Выберите тип</option>
+                            <option value="stars">Звезды</option>
+                            <option value="telegram_premium">Telegram Premium</option>
+                            <option value="custom">Пользовательский</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="stars-amount-group" style="display: none;">
+                        <label class="form-label">Количество звезд</label>
+                        <input type="number" class="form-input" id="prize-stars-amount" min="1">
+                    </div>
+                    
+                    <div class="form-group" id="premium-duration-group" style="display: none;">
+                        <label class="form-label">Длительность Premium (месяцы)</label>
+                        <input type="number" class="form-input" id="prize-premium-duration" min="1" max="12">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Описание приза</label>
+                        <input type="text" class="form-input" id="prize-description" 
+                               placeholder="Например: Специальный приз от администрации">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Комментарий администратора</label>
+                        <textarea class="form-textarea" id="prize-notes" rows="3" 
+                                  placeholder="Причина выдачи, обстоятельства и т.д."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="window.app.closeModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="window.prizesPage.executeCustomPrize()">
+                    Выдать приз
+                </button>
+            </div>
+        `;
+        
+        window.app.showModal(modalContent);
+        
+        // Обработчик изменения типа приза
+        document.getElementById('prize-type').addEventListener('change', (e) => {
+            const type = e.target.value;
+            document.getElementById('stars-amount-group').style.display = type === 'stars' ? 'block' : 'none';
+            document.getElementById('premium-duration-group').style.display = type === 'telegram_premium' ? 'block' : 'none';
+        });
+    }
+    
+    async executeCustomPrize() {
+        const telegramId = document.getElementById('prize-telegram-id').value;
+        const type = document.getElementById('prize-type').value;
+        const starsAmount = parseInt(document.getElementById('prize-stars-amount').value) || null;
+        const premiumDuration = parseInt(document.getElementById('prize-premium-duration').value) || null;
+        const description = document.getElementById('prize-description').value;
+        const notes = document.getElementById('prize-notes').value;
+        
+        if (!telegramId || !type) {
+            this.showNotification('Error', 'Ошибка', 'Заполните обязательные поля');
+            return;
+        }
+        
+        if (type === 'stars' && (!starsAmount || starsAmount <= 0)) {
+            this.showNotification('Error', 'Ошибка', 'Укажите количество звезд больше 0');
+            return;
+        }
+        
+        if (type === 'telegram_premium' && (!premiumDuration || premiumDuration <= 0)) {
+            this.showNotification('Error', 'Ошибка', 'Укажите длительность Premium больше 0');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/admin/prizes/give-custom', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-auth-token': localStorage.getItem('adminAuthToken') || ''
+                },
+                body: JSON.stringify({
+                    telegramId: parseInt(telegramId),
+                    type,
+                    starsAmount,
+                    premiumDuration,
+                    description,
+                    notes
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showNotification('Success', 'Успех', data.message || 'Пользовательский приз успешно выдан');
+                window.app.closeModal();
+                this.loadTabContent();
+                this.loadPrizesStats();
+            } else {
+                this.showNotification('Error', 'Ошибка', data.error || 'Не удалось выдать приз');
+            }
+            
+        } catch (error) {
+            console.error('Ошибка выдачи пользовательского приза:', error);
+            this.showNotification('Error', 'Ошибка', 'Не удалось выдать пользовательский приз');
+        }
     }
 
     async viewPrizeDetails(prizeId) {

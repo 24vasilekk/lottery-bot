@@ -7835,6 +7835,788 @@ app.get('/api/admin/events', requireAuth, async (req, res) => {
     }
 });
 
+// API для управления пользователями в админке
+app.get('/api/admin/users', requireAuth, async (req, res) => {
+    try {
+        console.log('👥 Admin API: Запрос списка пользователей');
+        
+        const { limit = 50, offset = 0, search = '', sortBy = 'created_at', sortOrder = 'DESC' } = req.query;
+        
+        // Базовый запрос
+        let query = `
+            SELECT u.telegram_id, u.first_name, u.last_name, u.username, 
+                   u.stars, u.created_at, u.last_activity, u.tasks_ban_until,
+                   COUNT(DISTINCT s.id) as total_spins,
+                   COUNT(DISTINCT ucs.channel_id) as subscriptions_count,
+                   COUNT(DISTINCT p.id) as prizes_won
+            FROM users u
+            LEFT JOIN spins s ON u.telegram_id = s.user_id
+            LEFT JOIN user_channel_subscriptions ucs ON u.telegram_id = ucs.user_id
+            LEFT JOIN prizes p ON u.telegram_id = p.user_id AND p.is_given = true
+        `;
+        
+        const params = [];
+        let paramIndex = 1;
+        
+        // Добавляем поиск
+        if (search) {
+            query += ` WHERE (u.first_name ILIKE $${paramIndex} OR u.last_name ILIKE $${paramIndex} OR u.username ILIKE $${paramIndex})`;
+            params.push(`%${search}%`);
+            paramIndex++;
+        }
+        
+        query += ` GROUP BY u.telegram_id`;
+        
+        // Добавляем сортировку
+        const validSortColumns = ['created_at', 'last_activity', 'stars', 'first_name', 'total_spins'];
+        const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
+        const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+        
+        query += ` ORDER BY ${sortColumn} ${order}`;
+        
+        // Добавляем пагинацию
+        query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+        params.push(parseInt(limit), parseInt(offset));
+        
+        const result = await db.query(query, params);
+        
+        // Получаем общее количество пользователей для пагинации
+        let countQuery = 'SELECT COUNT(*) as total FROM users';
+        const countParams = [];
+        
+        if (search) {
+            countQuery += ` WHERE (first_name ILIKE $1 OR last_name ILIKE $1 OR username ILIKE $1)`;
+            countParams.push(`%${search}%`);
+        }
+        
+        const countResult = await db.query(countQuery, countParams);
+        const totalUsers = parseInt(countResult.rows[0]?.total) || 0;
+        
+        console.log(`✅ Найдено пользователей: ${result.rows.length} из ${totalUsers}`);
+        
+        res.json({
+            success: true,
+            users: result.rows.map(user => ({
+                id: user.telegram_id,
+                telegramId: user.telegram_id,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                username: user.username,
+                stars: parseInt(user.stars) || 0,
+                createdAt: user.created_at,
+                lastActivity: user.last_activity,
+                isBanned: user.tasks_ban_until && new Date(user.tasks_ban_until) > new Date(),
+                banUntil: user.tasks_ban_until,
+                stats: {
+                    totalSpins: parseInt(user.total_spins) || 0,
+                    subscriptions: parseInt(user.subscriptions_count) || 0,
+                    prizesWon: parseInt(user.prizes_won) || 0
+                }
+            })),
+            pagination: {
+                total: totalUsers,
+                limit: parseInt(limit),
+                offset: parseInt(offset),
+                pages: Math.ceil(totalUsers / parseInt(limit))
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения пользователей:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка получения списка пользователей',
+            users: []
+        });
+    }
+});
+
+// API для получения информации о конкретном пользователе
+app.get('/api/admin/users/:userId', requireAuth, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        console.log(`👤 Admin API: Запрос пользователя ${userId}`);
+        
+        const telegramId = parseInt(userId);
+        if (isNaN(telegramId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Неверный ID пользователя'
+            });
+        }
+        
+        // Получаем основную информацию о пользователе
+        const userQuery = `
+            SELECT u.*, 
+                   COUNT(DISTINCT s.id) as total_spins,
+                   COUNT(DISTINCT ucs.channel_id) as subscriptions_count,
+                   COUNT(DISTINCT p.id) as prizes_won,
+                   COALESCE(SUM(CASE WHEN s.created_at > CURRENT_DATE THEN 1 ELSE 0 END), 0) as spins_today
+            FROM users u
+            LEFT JOIN spins s ON u.telegram_id = s.user_id
+            LEFT JOIN user_channel_subscriptions ucs ON u.telegram_id = ucs.user_id
+            LEFT JOIN prizes p ON u.telegram_id = p.user_id AND p.is_given = true
+            WHERE u.telegram_id = $1
+            GROUP BY u.telegram_id
+        `;
+        
+        const result = await db.query(userQuery, [telegramId]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Пользователь не найден'
+            });
+        }
+        
+        const user = result.rows[0];
+        
+        // Получаем последние прокрутки
+        const spinsQuery = `
+            SELECT id, prize_type, prize_name, created_at
+            FROM spins 
+            WHERE user_id = $1 
+            ORDER BY created_at DESC 
+            LIMIT 10
+        `;
+        const spinsResult = await db.query(spinsQuery, [telegramId]);
+        
+        // Получаем подписки на каналы
+        const subscriptionsQuery = `
+            SELECT pc.channel_name, pc.channel_username, ucs.subscribed_at
+            FROM user_channel_subscriptions ucs
+            LEFT JOIN partner_channels pc ON ucs.channel_id = pc.id
+            WHERE ucs.user_id = $1
+            ORDER BY ucs.subscribed_at DESC
+            LIMIT 10
+        `;
+        const subscriptionsResult = await db.query(subscriptionsQuery, [telegramId]);
+        
+        console.log(`✅ Информация о пользователе ${userId} получена`);
+        
+        res.json({
+            success: true,
+            user: {
+                id: user.telegram_id,
+                telegramId: user.telegram_id,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                username: user.username,
+                stars: parseInt(user.stars) || 0,
+                createdAt: user.created_at,
+                lastActivity: user.last_activity,
+                isBanned: user.tasks_ban_until && new Date(user.tasks_ban_until) > new Date(),
+                banUntil: user.tasks_ban_until,
+                stats: {
+                    totalSpins: parseInt(user.total_spins) || 0,
+                    subscriptions: parseInt(user.subscriptions_count) || 0,
+                    prizesWon: parseInt(user.prizes_won) || 0,
+                    spinsToday: parseInt(user.spins_today) || 0
+                },
+                recentSpins: spinsResult.rows,
+                subscriptions: subscriptionsResult.rows
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения пользователя:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка получения информации о пользователе'
+        });
+    }
+});
+
+// API для управления балансом пользователя
+app.post('/api/admin/users/stars', requireAuth, async (req, res) => {
+    try {
+        const { telegramId, operation, amount, reason } = req.body;
+        
+        if (!telegramId || !operation || !amount || !reason) {
+            return res.status(400).json({
+                success: false,
+                error: 'Отсутствуют обязательные параметры'
+            });
+        }
+        
+        // Получаем текущий баланс пользователя
+        const userResult = await db.query(
+            'SELECT stars FROM users WHERE telegram_id = $1',
+            [telegramId]
+        );
+        
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Пользователь не найден'
+            });
+        }
+        
+        const oldBalance = userResult.rows[0].stars || 0;
+        let newBalance;
+        
+        switch (operation) {
+            case 'add':
+                newBalance = oldBalance + amount;
+                break;
+            case 'subtract':
+                newBalance = Math.max(0, oldBalance - amount);
+                break;
+            case 'set':
+                newBalance = amount;
+                break;
+            default:
+                return res.status(400).json({
+                    success: false,
+                    error: 'Неизвестная операция'
+                });
+        }
+        
+        // Обновляем баланс
+        await db.query(
+            'UPDATE users SET stars = $1 WHERE telegram_id = $2',
+            [newBalance, telegramId]
+        );
+        
+        // Записываем в историю
+        await db.query(`
+            INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
+            VALUES ($1, 'admin_balance', $2, $3, NOW())
+        `, [telegramId, newBalance - oldBalance, reason]);
+        
+        console.log(`💰 Баланс пользователя ${telegramId}: ${oldBalance} → ${newBalance} звезд`);
+        
+        res.json({
+            success: true,
+            oldBalance: oldBalance,
+            newBalance: newBalance,
+            operation: operation,
+            amount: amount,
+            reason: reason
+        });
+        
+    } catch (error) {
+        console.error('Ошибка изменения баланса:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка изменения баланса'
+        });
+    }
+});
+
+// API для изменения шанса победы
+app.post('/api/admin/users/:telegramId/win-chance', requireAuth, async (req, res) => {
+    try {
+        const telegramId = req.params.telegramId;
+        const { winChance, reason } = req.body;
+        
+        if (typeof winChance !== 'number' || winChance < 0 || winChance > 100 || !reason) {
+            return res.status(400).json({
+                success: false,
+                error: 'Некорректные параметры'
+            });
+        }
+        
+        // Получаем текущий шанс
+        const userResult = await db.query(
+            'SELECT win_chance FROM users WHERE telegram_id = $1',
+            [telegramId]
+        );
+        
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Пользователь не найден'
+            });
+        }
+        
+        const oldWinChance = userResult.rows[0].win_chance || 0;
+        
+        // Обновляем шанс
+        await db.query(
+            'UPDATE users SET win_chance = $1 WHERE telegram_id = $2',
+            [winChance, telegramId]
+        );
+        
+        // Записываем в историю
+        await db.query(`
+            INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
+            VALUES ($1, 'admin_win_chance', $2, $3, NOW())
+        `, [telegramId, winChance, `Шанс изменен: ${oldWinChance}% → ${winChance}%. ${reason}`]);
+        
+        console.log(`🎯 Шанс пользователя ${telegramId}: ${oldWinChance}% → ${winChance}%`);
+        
+        res.json({
+            success: true,
+            data: {
+                oldWinChance: oldWinChance,
+                newWinChance: winChance,
+                reason: reason
+            }
+        });
+        
+    } catch (error) {
+        console.error('Ошибка изменения шанса победы:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка изменения шанса победы'
+        });
+    }
+});
+
+// API для получения истории баланса пользователя
+app.get('/api/admin/users/:telegramId/balance-history', requireAuth, async (req, res) => {
+    try {
+        const telegramId = req.params.telegramId;
+        const limit = parseInt(req.query.limit) || 50;
+        
+        // Получаем историю транзакций
+        const historyResult = await db.query(`
+            SELECT 
+                type as transaction_type,
+                amount,
+                description,
+                transaction_date as created_date
+            FROM user_transactions
+            WHERE user_id = $1
+            ORDER BY transaction_date DESC
+            LIMIT $2
+        `, [telegramId, limit]);
+        
+        res.json({
+            success: true,
+            history: historyResult.rows
+        });
+        
+    } catch (error) {
+        console.error('Ошибка получения истории баланса:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка получения истории баланса'
+        });
+    }
+});
+
+// API для изменения статуса пользователя (блокировка/разблокировка)
+app.post('/api/admin/users/status', requireAuth, async (req, res) => {
+    try {
+        const { telegramId, action, reason } = req.body;
+        
+        if (!telegramId || !action || !reason) {
+            return res.status(400).json({
+                success: false,
+                error: 'Отсутствуют обязательные параметры'
+            });
+        }
+        
+        if (!['ban', 'unban'].includes(action)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Неизвестное действие'
+            });
+        }
+        
+        // Получаем пользователя
+        const userResult = await db.query(
+            'SELECT is_active FROM users WHERE telegram_id = $1',
+            [telegramId]
+        );
+        
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Пользователь не найден'
+            });
+        }
+        
+        const newStatus = action === 'ban' ? false : true;
+        
+        // Обновляем статус
+        await db.query(
+            'UPDATE users SET is_active = $1 WHERE telegram_id = $2',
+            [newStatus, telegramId]
+        );
+        
+        // Записываем в историю
+        await db.query(`
+            INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
+            VALUES ($1, 'admin_status', $2, $3, NOW())
+        `, [telegramId, newStatus ? 1 : 0, reason]);
+        
+        console.log(`🚫 Статус пользователя ${telegramId}: ${action} - ${reason}`);
+        
+        res.json({
+            success: true,
+            action: action,
+            newStatus: newStatus,
+            reason: reason
+        });
+        
+    } catch (error) {
+        console.error('Ошибка изменения статуса пользователя:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка изменения статуса пользователя'
+        });
+    }
+});
+
+// API для управления призами
+app.get('/api/admin/prizes/stats', requireAuth, async (req, res) => {
+    try {
+        console.log('🎁 Admin API: Запрос статистики призов');
+        
+        // Получаем статистику призов
+        const statsQuery = `
+            SELECT 
+                COUNT(*) as total_prizes,
+                COUNT(CASE WHEN is_given = false THEN 1 END) as pending_prizes,
+                COUNT(CASE WHEN is_given = true THEN 1 END) as given_prizes,
+                COUNT(CASE WHEN is_given = true AND DATE(given_at) = CURRENT_DATE THEN 1 END) as given_today,
+                COALESCE(SUM(CASE WHEN type = 'stars' THEN stars_amount ELSE 0 END), 0) as total_stars_value
+            FROM prizes
+        `;
+        
+        const result = await db.query(statsQuery);
+        const stats = result.rows[0] || {};
+        
+        res.json({
+            success: true,
+            stats: {
+                total: parseInt(stats.total_prizes) || 0,
+                pending: parseInt(stats.pending_prizes) || 0,
+                given: parseInt(stats.given_prizes) || 0,
+                given_today: parseInt(stats.given_today) || 0,
+                total_value: parseInt(stats.total_stars_value) || 0
+            }
+        });
+        
+    } catch (error) {
+        console.error('Ошибка получения статистики призов:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка получения статистики призов'
+        });
+    }
+});
+
+// API для получения призов (ожидающие и выданные)
+app.get('/api/admin/prizes', requireAuth, async (req, res) => {
+    try {
+        const { 
+            status = 'pending', 
+            page = 1, 
+            limit = 20, 
+            search = '',
+            type = 'all',
+            sortBy = 'created_at',
+            sortOrder = 'DESC'
+        } = req.query;
+        
+        const offset = (page - 1) * limit;
+        
+        console.log(`🎁 Admin API: Запрос призов (${status}), страница ${page}`);
+        
+        // Строим условие статуса
+        const statusCondition = status === 'pending' ? 'p.is_given = false' : 'p.is_given = true';
+        
+        // Строим условие поиска
+        let searchCondition = '';
+        let searchParams = [];
+        let paramIndex = 1;
+        
+        if (search) {
+            searchCondition = `
+                AND (u.first_name ILIKE $${paramIndex} 
+                    OR u.last_name ILIKE $${paramIndex} 
+                    OR u.username ILIKE $${paramIndex}
+                    OR p.type ILIKE $${paramIndex}
+                    OR p.description ILIKE $${paramIndex})
+            `;
+            searchParams.push(`%${search}%`);
+            paramIndex++;
+        }
+        
+        // Строим условие типа
+        let typeCondition = '';
+        if (type !== 'all') {
+            typeCondition = `AND p.type = $${paramIndex}`;
+            searchParams.push(type);
+            paramIndex++;
+        }
+        
+        // Валидация сортировки
+        const validSortColumns = ['created_at', 'type', 'stars_amount', 'given_at'];
+        const sortColumn = validSortColumns.includes(sortBy) ? `p.${sortBy}` : 'p.created_at';
+        const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+        
+        const prizesQuery = `
+            SELECT 
+                p.id,
+                p.type,
+                p.stars_amount,
+                p.telegram_premium_duration,
+                p.description,
+                p.created_at,
+                p.is_given,
+                p.given_at,
+                p.given_by_admin,
+                p.source,
+                u.telegram_id as user_telegram_id,
+                u.first_name as user_first_name,
+                u.last_name as user_last_name,
+                u.username as user_username
+            FROM prizes p
+            LEFT JOIN users u ON p.user_id = u.telegram_id
+            WHERE ${statusCondition}
+            ${searchCondition}
+            ${typeCondition}
+            ORDER BY ${sortColumn} ${order}
+            LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+        `;
+        
+        const countQuery = `
+            SELECT COUNT(*) as total
+            FROM prizes p
+            LEFT JOIN users u ON p.user_id = u.telegram_id
+            WHERE ${statusCondition}
+            ${searchCondition}
+            ${typeCondition}
+        `;
+        
+        // Выполняем запросы
+        const prizesResult = await db.query(prizesQuery, [...searchParams, parseInt(limit), parseInt(offset)]);
+        const countResult = await db.query(countQuery, searchParams);
+        
+        const total = parseInt(countResult.rows[0]?.total) || 0;
+        
+        console.log(`✅ Найдено призов: ${prizesResult.rows.length} из ${total}`);
+        
+        res.json({
+            success: true,
+            prizes: prizesResult.rows,
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total: total,
+                totalPages: Math.ceil(total / parseInt(limit))
+            }
+        });
+        
+    } catch (error) {
+        console.error('Ошибка получения призов:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка получения списка призов'
+        });
+    }
+});
+
+// API для отметки приза как выданного
+app.post('/api/admin/prizes/:prizeId/mark-given', requireAuth, async (req, res) => {
+    try {
+        const prizeId = req.params.prizeId;
+        const { notes = '' } = req.body;
+        
+        console.log(`🎁 Admin API: Отметка приза ${prizeId} как выданного`);
+        
+        // Проверяем существование приза
+        const prizeResult = await db.query(
+            'SELECT id, is_given, user_id FROM prizes WHERE id = $1',
+            [prizeId]
+        );
+        
+        if (prizeResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Приз не найден'
+            });
+        }
+        
+        const prize = prizeResult.rows[0];
+        
+        if (prize.is_given) {
+            return res.status(400).json({
+                success: false,
+                error: 'Приз уже отмечен как выданный'
+            });
+        }
+        
+        // Отмечаем приз как выданный
+        await db.query(`
+            UPDATE prizes 
+            SET is_given = true, 
+                given_at = NOW(), 
+                given_by_admin = $1,
+                admin_notes = $2
+            WHERE id = $3
+        `, ['admin', notes, prizeId]);
+        
+        // Записываем в лог
+        await db.query(`
+            INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
+            VALUES ($1, 'admin_prize_given', $2, $3, NOW())
+        `, [prize.user_id, prizeId, `Приз #${prizeId} отмечен как выданный. ${notes}`]);
+        
+        res.json({
+            success: true,
+            message: 'Приз отмечен как выданный'
+        });
+        
+    } catch (error) {
+        console.error('Ошибка отметки приза как выданного:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка отметки приза как выданного'
+        });
+    }
+});
+
+// API для массовой отметки призов как выданных
+app.post('/api/admin/prizes/bulk-mark-given', requireAuth, async (req, res) => {
+    try {
+        const { prizeIds, notes = '' } = req.body;
+        
+        if (!Array.isArray(prizeIds) || prizeIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Не указаны призы для отметки'
+            });
+        }
+        
+        console.log(`🎁 Admin API: Массовая отметка призов как выданных: ${prizeIds.join(', ')}`);
+        
+        // Получаем информацию о призах
+        const prizesResult = await db.query(
+            `SELECT id, is_given, user_id FROM prizes WHERE id = ANY($1)`,
+            [prizeIds]
+        );
+        
+        const validPrizes = prizesResult.rows.filter(p => !p.is_given);
+        
+        if (validPrizes.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Все указанные призы уже выданы или не найдены'
+            });
+        }
+        
+        const validPrizeIds = validPrizes.map(p => p.id);
+        
+        // Отмечаем призы как выданные
+        await db.query(`
+            UPDATE prizes 
+            SET is_given = true, 
+                given_at = NOW(), 
+                given_by_admin = $1,
+                admin_notes = $2
+            WHERE id = ANY($3)
+        `, ['admin', notes, validPrizeIds]);
+        
+        // Записываем в лог для каждого пользователя
+        for (const prize of validPrizes) {
+            await db.query(`
+                INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
+                VALUES ($1, 'admin_prize_given', $2, $3, NOW())
+            `, [prize.user_id, prize.id, `Приз #${prize.id} отмечен как выданный (массово). ${notes}`]);
+        }
+        
+        res.json({
+            success: true,
+            message: `Отмечено как выданные: ${validPrizes.length} призов`,
+            processed: validPrizes.length
+        });
+        
+    } catch (error) {
+        console.error('Ошибка массовой отметки призов:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка массовой отметки призов'
+        });
+    }
+});
+
+// API для выдачи пользовательского приза
+app.post('/api/admin/prizes/give-custom', requireAuth, async (req, res) => {
+    try {
+        const { telegramId, type, starsAmount, premiumDuration, description, notes = '' } = req.body;
+        
+        if (!telegramId || !type) {
+            return res.status(400).json({
+                success: false,
+                error: 'Не указаны обязательные параметры'
+            });
+        }
+        
+        console.log(`🎁 Admin API: Выдача пользовательского приза пользователю ${telegramId}`);
+        
+        // Проверяем существование пользователя
+        const userResult = await db.query(
+            'SELECT telegram_id FROM users WHERE telegram_id = $1',
+            [telegramId]
+        );
+        
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Пользователь не найден'
+            });
+        }
+        
+        // Создаем приз
+        const prizeResult = await db.query(`
+            INSERT INTO prizes (
+                user_id, type, stars_amount, telegram_premium_duration, 
+                description, source, is_given, given_at, given_by_admin, admin_notes
+            )
+            VALUES ($1, $2, $3, $4, $5, 'admin', true, NOW(), 'admin', $6)
+            RETURNING id
+        `, [
+            telegramId, 
+            type, 
+            starsAmount || null, 
+            premiumDuration || null, 
+            description || null, 
+            notes
+        ]);
+        
+        const prizeId = prizeResult.rows[0].id;
+        
+        // Если это звезды, добавляем их пользователю
+        if (type === 'stars' && starsAmount > 0) {
+            await db.query(
+                'UPDATE users SET stars = stars + $1 WHERE telegram_id = $2',
+                [starsAmount, telegramId]
+            );
+            
+            // Записываем транзакцию
+            await db.query(`
+                INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
+                VALUES ($1, 'admin_prize_stars', $2, $3, NOW())
+            `, [telegramId, starsAmount, `Призовые звезды от админа: ${description || 'Пользовательский приз'}`]);
+        }
+        
+        // Записываем в лог
+        await db.query(`
+            INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
+            VALUES ($1, 'admin_custom_prize', $2, $3, NOW())
+        `, [telegramId, prizeId, `Выдан пользовательский приз #${prizeId}: ${description || type}. ${notes}`]);
+        
+        res.json({
+            success: true,
+            message: 'Пользовательский приз успешно выдан',
+            prizeId: prizeId
+        });
+        
+    } catch (error) {
+        console.error('Ошибка выдачи пользовательского приза:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка выдачи пользовательского приза'
+        });
+    }
+});
+
 console.log('🚀 Kosmetichka Lottery Bot инициализация завершена!');
 
 // Запускаем polling после инициализации сервера
