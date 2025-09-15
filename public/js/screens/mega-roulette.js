@@ -185,10 +185,10 @@ export class MegaRouletteScreen {
     // Новый метод для подписки на уведомления:
     subscribeToNotifications() {
         if (this.app.tg?.openTelegramLink) {
-            this.app.tg.openTelegramLink('https://t.me/kosmetichka_official');
+            this.app.tg.openTelegramLink('https://t.me/kosmetichka_channel');
             this.app.showStatusMessage('Переход в наш канал для уведомлений!', 'success');
         } else {
-            this.app.showStatusMessage('Подпишись на @kosmetichka_official для уведомлений!', 'info');
+            this.app.showStatusMessage('Подпишись на @kosmetichka_channel для уведомлений!', 'info');
         }
     }
 

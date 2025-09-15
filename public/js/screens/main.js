@@ -11,7 +11,7 @@ export class MainScreen {
         this.lastSpinType = null;
         
         // Отладочное сообщение для проверки загрузки новой версии
-        console.log('🚀 MainScreen загружен! Версия с аватаркой и никнеймом - v2.3');
+        console.log('🚀 MainScreen загружен! Версия v2.5 - исправлены все ссылки и рендеринг');
     }
 
     render() {
@@ -1550,7 +1550,7 @@ export class MainScreen {
 
     showReferralLink() {
         const userId = this.app.tg?.initDataUnsafe?.user?.id || 'demo';
-        const botUsername = 'kosmetichka_lottery_bot';
+        const botUsername = 'kosmetichkalottery_bot';
         const referralLink = `https://t.me/${botUsername}?start=ref_${userId}`;
         
         const modal = document.createElement('div');

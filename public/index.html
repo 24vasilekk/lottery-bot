@@ -17,19 +17,19 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
     <!-- CSS Files -->
-    <link rel="stylesheet" href="css/styles.css?v=2.3">
-    <link rel="stylesheet" href="css/animations.css?v=2.3">
-    <link rel="stylesheet" href="css/loading.css?v=2.3">
-    <link rel="stylesheet" href="css/main.css?v=2.3">
-    <link rel="stylesheet" href="css/tasks.css?v=2.3">
-    <link rel="stylesheet" href="css/tasks-profile.css?v=2.3">
-    <link rel="stylesheet" href="css/profile.css?v=2.3">
-    <link rel="stylesheet" href="css/profile-animations.css?v=2.3">
-    <link rel="stylesheet" href="css/mega-roulette.css?v=2.3">
-    <link rel="stylesheet" href="css/mega-roulette-new.css?v=2.3">
-    <link rel="stylesheet" href="css/mega-roulette-override.css?v=2.3">
+    <link rel="stylesheet" href="css/styles.css?v=2.5">
+    <link rel="stylesheet" href="css/animations.css?v=2.5">
+    <link rel="stylesheet" href="css/loading.css?v=2.5">
+    <link rel="stylesheet" href="css/main.css?v=2.5">
+    <link rel="stylesheet" href="css/tasks.css?v=2.5">
+    <link rel="stylesheet" href="css/tasks-profile.css?v=2.5">
+    <link rel="stylesheet" href="css/profile.css?v=2.5">
+    <link rel="stylesheet" href="css/profile-animations.css?v=2.5">
+    <link rel="stylesheet" href="css/mega-roulette.css?v=2.5">
+    <link rel="stylesheet" href="css/mega-roulette-new.css?v=2.5">
+    <link rel="stylesheet" href="css/mega-roulette-override.css?v=2.5">
     <!-- navigation.css не найден, удален -->
-    <link rel="stylesheet" href="css/button-states.css?v=2.3">
+    <link rel="stylesheet" href="css/button-states.css?v=2.5">
     
     <!-- Fallback styles -->
     <style>
@@ -176,66 +176,7 @@
 
         <!-- Main Content Area -->
         <main class="main-content" id="main-content">
-            <!-- Main Screen (Roulette) -->
-            <div class="screen active" id="main-screen">
-                <div class="wheel-container">
-                    <div class="wheel-wrapper">
-                        <div class="wheel" id="wheel"></div>
-                        <div class="wheel-pointer"></div>
-                        <div class="wheel-center">
-                            <div class="center-logo">🎰</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="spin-controls">
-                    <button class="spin-button" id="spin-button">
-                        <span>Крутить за ⭐ 20</span>
-                    </button>
-                    <div class="spin-info">
-                        <p>Крути рулетку и выигрывай призы!</p>
-                    </div>
-                </div>
-
-                <div class="recent-wins" id="recent-wins">
-                    <h3>Последние выигрыши</h3>
-                    <div class="prize-history" id="prize-history">
-                        <!-- Prize history will be populated by JS -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tasks Screen -->
-            <div class="screen" id="tasks-screen">
-                <div class="screen-header">
-                    <h2>Задания</h2>
-                    <p>Выполняй задания и получай звезды!</p>
-                </div>
-                
-                <div class="tasks-container" id="tasks-container">
-                    <!-- Tasks will be populated by JS -->
-                </div>
-            </div>
-
-            <!-- Profile Screen -->
-            <div class="screen" id="profile-screen">
-                <div class="screen-header">
-                    <h2>Профиль</h2>
-                </div>
-                
-                <div class="profile-container">
-                    <div class="profile-stats" id="profile-stats">
-                        <!-- Profile stats will be populated by JS -->
-                    </div>
-                    
-                    <div class="leaderboard-section">
-                        <h3>Лидерборд</h3>
-                        <div class="leaderboard" id="leaderboard">
-                            <!-- Leaderboard will be populated by JS -->
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <!-- Screens will be dynamically loaded by JS -->
 
         </main>
 
@@ -308,15 +249,15 @@
     </div>
 
     <!-- JS Configuration and Modules -->
-    <script type="module" src="js/config.js?v=2.3"></script>
-    <script type="module" src="js/utils/storage.js?v=2.3"></script>
-    <script type="module" src="js/utils/api.js?v=2.3"></script>
-    <script type="module" src="js/subscription-checker.js?v=2.3"></script>
-    <script type="module" src="js/wheel.js?v=2.3"></script>
-    <script type="module" src="js/screens/tasks.js?v=2.3"></script>
-    <script type="module" src="js/screens/profile.js?v=2.3"></script>
-    <script type="module" src="js/navigation.js?v=2.3"></script>
-    <script type="module" src="js/app.js?v=2.3"></script>
+    <script type="module" src="js/config.js?v=2.5"></script>
+    <script type="module" src="js/utils/storage.js?v=2.5"></script>
+    <script type="module" src="js/utils/api.js?v=2.5"></script>
+    <script type="module" src="js/subscription-checker.js?v=2.5"></script>
+    <script type="module" src="js/wheel.js?v=2.5"></script>
+    <script type="module" src="js/screens/tasks.js?v=2.5"></script>
+    <script type="module" src="js/screens/profile.js?v=2.5"></script>
+    <script type="module" src="js/navigation.js?v=2.5"></script>
+    <script type="module" src="js/app.js?v=2.5"></script>
 
     <!-- Global Functions -->
     <script>

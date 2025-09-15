@@ -4727,7 +4727,7 @@ if (bot) {
     ⭐ Выполняй ежедневные задания за звезды!
     🏆 Соревнуйся в таблице лидеров, приглашай друзей и получай бонусы!
 
-    📱 Подписывайся на наш канал: @kosmetichka_spin
+    📱 Подписывайся на наш канал: @kosmetichka_channel
 
     🚀 Нажми кнопку ниже чтобы начать играть!`;
         
@@ -4742,7 +4742,7 @@ if (bot) {
                 [
                     {
                         text: '📱 Наш канал',
-                        url: 'https://t.me/kosmetichka_spin'
+                        url: 'https://t.me/kosmetichka_channel'
                     }
                 ],
                 [
@@ -6757,7 +6757,7 @@ async function checkAndRewardActiveSubscriptions() {
         
         // Получаем канал из заданий для проверки
         const channels = await db.getActiveChannels();
-        const taskChannel = channels.find(c => c.channel_username === 'kosmetichka_spin');
+        const taskChannel = channels.find(c => c.channel_username === 'kosmetichka_channel');
 
         if (!taskChannel) {
             console.log('❌ Канал для задания не найден');

@@ -104,6 +104,20 @@ class Navigation {
             }
         }
 
+        // ИСПРАВЛЕНО: Перерендерим главный экран с актуальными данными пользователя
+        if (window.app && window.app.screens && window.app.screens.main) {
+            const mainScreenElement = document.getElementById('main-screen');
+            if (mainScreenElement) {
+                console.log('🔄 Обновление главного экрана с данными пользователя...');
+                mainScreenElement.outerHTML = window.app.screens.main.render();
+                
+                // Переинициализируем события после перерендера
+                if (window.app.screens.main.init) {
+                    window.app.screens.main.init();
+                }
+            }
+        }
+
         // Перезагружаем интерфейс главного экрана если есть mainScreen
         if (window.app && window.app.mainScreen && window.app.mainScreen.updateSpinButtons) {
             window.app.mainScreen.updateSpinButtons();
@@ -251,7 +265,7 @@ class Navigation {
 
     shareReferralLink() {
         const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-        const referralLink = `https://t.me/kosmetichka_lottery_bot?start=ref_${userId}`;
+        const referralLink = `https://t.me/kosmetichkalottery_bot?start=ref_${userId}`;
         const message = `🎰 Присоединяйся к Kosmetichka Lottery!\n\n💎 Играй в рулетку красоты\n🎁 Выигрывай крутые призы\n👥 Приглашай друзей и получай бонусы\n\n${referralLink}`;
         
         if (window.Telegram?.WebApp) {

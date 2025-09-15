@@ -350,7 +350,7 @@ export class DepositScreen {
                 
                 // Открываем чат с ботом
                 if (this.app.tg && this.app.tg.openTelegramLink) {
-                    this.app.tg.openTelegramLink('https://t.me/kosmetichka_lottery_bot');
+                    this.app.tg.openTelegramLink('https://t.me/kosmetichkalottery_bot');
                 }
             } else {
                 this.app.showStatusMessage(result.error || 'Ошибка создания платежа', 'error');

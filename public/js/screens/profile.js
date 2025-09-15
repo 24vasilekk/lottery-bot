@@ -988,14 +988,14 @@ export class ProfileScreen {
         console.log('📢 Открытие канала проекта');
         
         if (this.app.tg?.openTelegramLink) {
-            // Используем ссылку на канал проекта (замените на актуальную)
-            this.app.tg.openTelegramLink('https://t.me/your_project_channel');
+            // ИСПРАВЛЕНО: Правильная ссылка на канал проекта
+            this.app.tg.openTelegramLink('https://t.me/kosmetichka_channel');
             this.app.showStatusMessage('Переход в канал проекта...', 'info');
         } else if (window.open) {
             // Fallback для браузера
-            window.open('https://t.me/your_project_channel', '_blank');
+            window.open('https://t.me/kosmetichka_channel', '_blank');
         } else {
-            this.app.showStatusMessage('Канал: @your_project_channel', 'info');
+            this.app.showStatusMessage('Канал: @kosmetichka_channel', 'info');
         }
     }
 
