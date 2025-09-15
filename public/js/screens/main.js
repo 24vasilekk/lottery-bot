@@ -17,10 +17,11 @@ export class MainScreen {
                 <div class="header">
                     <div class="user-info">
                         <div id="profile-pic" class="profile-pic" tabindex="0" role="button" aria-label="Профиль">
-                            ${this.app.tg?.initDataUnsafe?.user?.first_name?.charAt(0) || '👤'}
+                            ${this.getUserAvatar()}
                         </div>
                         <div class="user-details">
-                            <div class="user-name">${this.app.tg?.initDataUnsafe?.user?.first_name || 'Пользователь'}</div>
+                            <div class="user-name">${this.getUserFullName()}</div>
+                            <div class="user-nickname">${this.getUserNickname()}</div>
                             <div class="user-stars">
                                 <span id="star-count">${this.app.gameData.stars}</span> ⭐
                                 <button id="deposit-btn" class="deposit-quick-btn" onclick="navigateToDeposit()" title="Пополнить звезды">
@@ -1868,5 +1869,36 @@ export class MainScreen {
             console.error('❌ Ошибка открытия чата:', error);
             this.app.showStatusMessage('Ошибка открытия чата с менеджером', 'error');
         }
+    }
+
+    // Методы для получения информации о пользователе
+    getUserAvatar() {
+        const user = this.app.tg?.initDataUnsafe?.user;
+        
+        // Проверяем наличие фото профиля в Telegram
+        if (user?.photo_url) {
+            return `<img src="${user.photo_url}" alt="Аватар" class="profile-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="profile-fallback" style="display: none;">${user.first_name?.charAt(0) || '👤'}</div>`;
+        }
+        
+        // Если нет фото, показываем первую букву имени или иконку
+        return `<div class="profile-fallback">${user?.first_name?.charAt(0) || '👤'}</div>`;
+    }
+
+    getUserFullName() {
+        const user = this.app.tg?.initDataUnsafe?.user;
+        if (!user) return 'Пользователь';
+        
+        const firstName = user.first_name || '';
+        const lastName = user.last_name || '';
+        
+        return `${firstName} ${lastName}`.trim() || 'Пользователь';
+    }
+
+    getUserNickname() {
+        const user = this.app.tg?.initDataUnsafe?.user;
+        if (!user?.username) return '';
+        
+        return `@${user.username}`;
     }
 }
