@@ -41,6 +41,7 @@ export class ProfileScreen {
                         </div>
                         <div class="profile-info">
                             <h3 class="profile-name">${this.getUserDisplayName()}</h3>
+                            <div class="profile-nickname">${this.getUserNickname()}</div>
                             <div class="profile-telegram-id">ID: ${this.getTelegramId()}</div>
                         </div>
                     </div>
@@ -906,12 +907,21 @@ export class ProfileScreen {
         const telegramUser = this.app.tg?.initDataUnsafe?.user || 
                             window.Telegram?.WebApp?.initDataUnsafe?.user;
         
-        if (telegramUser?.username) {
-            return `@${telegramUser.username}`;
-        } else if (telegramUser?.first_name) {
-            return telegramUser.first_name;
-        }
-        return 'Пользователь';
+        if (!telegramUser) return 'Пользователь';
+        
+        const firstName = telegramUser.first_name || '';
+        const lastName = telegramUser.last_name || '';
+        
+        return `${firstName} ${lastName}`.trim() || 'Пользователь';
+    }
+
+    getUserNickname() {
+        const telegramUser = this.app.tg?.initDataUnsafe?.user || 
+                            window.Telegram?.WebApp?.initDataUnsafe?.user;
+        
+        if (!telegramUser?.username) return '';
+        
+        return `@${telegramUser.username}`;
     }
 
     getPlayerDisplayName(player) {
@@ -953,22 +963,21 @@ export class ProfileScreen {
     }
 
     renderUserAvatar() {
-        const user = this.app.tg?.initDataUnsafe?.user;
+        const user = this.app.tg?.initDataUnsafe?.user || 
+                     window.Telegram?.WebApp?.initDataUnsafe?.user;
         
         if (user?.photo_url) {
-            return `<img src="${user.photo_url}" alt="Аватар ${user.first_name}" 
-                         style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;"
+            return `<img src="${user.photo_url}" alt="Аватар" class="profile-avatar-img" 
                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                    <div class="avatar-fallback" style="display: none; width: 100%; height: 100%; 
-                         display: flex; align-items: center; justify-content: center; 
-                         font-size: 36px; font-weight: bold;">
+                    <div class="profile-avatar-fallback" style="display: none;">
                         ${user.first_name?.charAt(0).toUpperCase() || '👤'}
                     </div>`;
-        } else if (user?.first_name) {
-            return user.first_name.charAt(0).toUpperCase();
         }
         
-        return '👤';
+        // Если нет фото, показываем первую букву имени или иконку
+        return `<div class="profile-avatar-fallback">
+                    ${user?.first_name?.charAt(0).toUpperCase() || '👤'}
+                </div>`;
     }
 
     // Методы для открытия ресурсов

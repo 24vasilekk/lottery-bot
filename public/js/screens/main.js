@@ -1293,13 +1293,20 @@ export class MainScreen {
             this.app.gameData.recentWins = [];
         }
         
-        this.app.gameData.recentWins.unshift({
-            prize: prize,
-            timestamp: Date.now()
-        });
-        
-        if (this.app.gameData.recentWins.length > 10) {
-            this.app.gameData.recentWins = this.app.gameData.recentWins.slice(0, 10);
+        // Добавляем в историю только реальные призы (не пустышки)
+        const realType = prize.realType || prize.type;
+        if (realType !== 'empty') {
+            console.log('🏆 Добавляем приз в историю:', prize);
+            this.app.gameData.recentWins.unshift({
+                prize: prize,
+                timestamp: Date.now()
+            });
+            
+            if (this.app.gameData.recentWins.length > 10) {
+                this.app.gameData.recentWins = this.app.gameData.recentWins.slice(0, 10);
+            }
+        } else {
+            console.log('❌ Пустой приз не добавляется в историю');
         }
         
         console.log('✅ Локальные данные обновлены');
