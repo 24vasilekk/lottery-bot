@@ -9,6 +9,9 @@ export class MainScreen {
         this.wheelRotation = 0;
         this.initialized = false;
         this.lastSpinType = null;
+        
+        // Отладочное сообщение для проверки загрузки новой версии
+        console.log('🚀 MainScreen загружен! Версия с аватаркой и никнеймом - v2.3');
     }
 
     render() {
