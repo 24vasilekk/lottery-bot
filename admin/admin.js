@@ -114,6 +114,9 @@ class AdminPanel {
             case 'users':
                 await this.loadUsers();
                 break;
+            case 'referrals':
+                await this.loadReferrals();
+                break;
             case 'analytics':
                 await this.loadAnalytics();
                 break;
@@ -344,6 +347,37 @@ class AdminPanel {
 
             tbody.appendChild(row);
         });
+    }
+
+    async loadReferrals() {
+        try {
+            // Инициализируем компонент рефералов если еще не создан
+            if (!window.referralsComponent) {
+                // Создаем упрощенный API объект для компонента
+                const api = {
+                    get: (url) => this.apiCall(url),
+                    post: (url, data) => this.apiCall(url, 'POST', data)
+                };
+                
+                window.referralsComponent = new window.ReferralsComponent(api);
+            }
+            
+            // Рендерим компонент в контейнер
+            const container = document.getElementById('referrals-content');
+            if (container) {
+                container.innerHTML = ''; // Очищаем контейнер
+                
+                // Создаем временный контейнер для main-content
+                const tempMainContent = document.createElement('div');
+                tempMainContent.id = 'main-content';
+                container.appendChild(tempMainContent);
+                
+                // Рендерим компонент
+                await window.referralsComponent.render();
+            }
+        } catch (error) {
+            console.error('❌ Ошибка загрузки рефералов:', error);
+        }
     }
 
     async loadAnalytics() {

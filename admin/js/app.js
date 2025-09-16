@@ -336,6 +336,7 @@ class AdminApp {
             channels: 'Каналы',
             wheel: 'Настройки рулетки',
             prizes: 'Призы',
+            referrals: 'Рефералы',
             analytics: 'Аналитика',
             broadcasts: 'Рассылки',
             settings: 'Настройки'
@@ -378,6 +379,12 @@ class AdminApp {
             }
             window.dashboardPage = null;
         }
+        if (window.referralsComponent && this.currentPage !== 'referrals') {
+            if (typeof window.referralsComponent.destroy === 'function') {
+                window.referralsComponent.destroy();
+            }
+            window.referralsComponent = null;
+        }
         
         try {
             let component;
@@ -403,6 +410,11 @@ class AdminApp {
                     component = new PrizesPage();
                     window.prizesPage = component;
                     break;
+                case 'referrals':
+                    console.log('👥 Создаем ReferralsComponent...');
+                    // Для рефералов используем специальную логику
+                    await this.loadReferralsPage();
+                    return;
                 case 'wheel':
                 case 'analytics':
                 case 'broadcasts':
@@ -520,6 +532,71 @@ class AdminApp {
                 </div>
             </div>
         `;
+    }
+
+    async loadReferralsPage() {
+        console.log('👥 Загружаем страницу рефералов...');
+        const pageContent = document.getElementById('page-content');
+        
+        try {
+            // Инициализируем компонент рефералов если еще не создан
+            if (!window.referralsComponent) {
+                // Создаем упрощенный API объект для компонента
+                const api = {
+                    get: (url) => this.apiCall(url),
+                    post: (url, data) => this.apiCall(url, 'POST', data)
+                };
+                
+                window.referralsComponent = new window.ReferralsComponent(api);
+            }
+            
+            // Рендерим компонент в pageContent
+            const content = await window.referralsComponent.render();
+            pageContent.innerHTML = content;
+            
+            // Инициализация компонента
+            if (window.referralsComponent.init) {
+                await window.referralsComponent.init();
+            }
+            
+            // Обновить иконки после рендеринга
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки рефералов:', error);
+            pageContent.innerHTML = `
+                <div class="empty-state">
+                    <i data-lucide="alert-circle" class="empty-state-icon"></i>
+                    <h3 class="empty-state-title">Ошибка загрузки</h3>
+                    <p class="empty-state-message">Не удалось загрузить страницу рефералов: ${error.message}</p>
+                    <button class="btn btn-primary" onclick="app.loadPage('dashboard')">На главную</button>
+                </div>
+            `;
+            throw error;
+        }
+    }
+
+    async apiCall(url, method = 'GET', data = null) {
+        const options = {
+            method,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        };
+
+        if (data) {
+            options.body = JSON.stringify(data);
+        }
+
+        const response = await fetch(url, options);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.json();
     }
 
     async handleQuickAction(actionType) {

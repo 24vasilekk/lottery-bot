@@ -246,6 +246,11 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="pill" href="#referrals">
+                    <i class="fas fa-user-plus"></i> Рефералы
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" data-bs-toggle="pill" href="#analytics">
                     <i class="fas fa-chart-bar"></i> Аналитика
                 </a>
@@ -349,6 +354,19 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Referrals Tab -->
+            <div class="tab-pane fade" id="referrals">
+                <div id="referrals-content">
+                    <!-- Содержимое будет загружено JavaScript компонентом -->
+                    <div class="loading-container">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                        <p class="mt-2">Загрузка реферальной системы...</p>
                     </div>
                 </div>
             </div>
@@ -847,6 +865,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>
     <script src="admin-security.js"></script>
+    <script src="js/components/referrals.js"></script>
     <script src="admin.js"></script>
     <script>
         // Функция выхода

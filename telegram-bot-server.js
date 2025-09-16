@@ -236,6 +236,116 @@ app.get('/api/admin/test-auth', requireAuth, (req, res) => {
     res.json({ success: true, message: 'Admin API with auth is working!', user: req.user, timestamp: new Date() });
 });
 
+// === РЕФЕРАЛЬНАЯ СИСТЕМА ДЛЯ АДМИНКИ ===
+
+// Статистика рефералов для админки
+app.get('/api/admin/referrals/stats', requireAuth, async (req, res) => {
+    try {
+        console.log('📊 Админ: запрос статистики рефералов');
+        
+        // Общая статистика рефералов
+        const totalReferrersQuery = await db.query('SELECT COUNT(DISTINCT referrer_id) as count FROM referrals WHERE is_active = true');
+        const totalReferredQuery = await db.query('SELECT COUNT(*) as count FROM referrals WHERE is_active = true');
+        const totalStarsQuery = await db.query('SELECT COUNT(*) * 10 as total FROM referrals WHERE is_active = true');
+        const todayReferralsQuery = await db.query(`
+            SELECT COUNT(*) as count FROM referrals 
+            WHERE is_active = true AND DATE(referral_date) = CURRENT_DATE
+        `);
+
+        const stats = {
+            totalReferrers: parseInt(totalReferrersQuery.rows[0]?.count) || 0,
+            totalReferred: parseInt(totalReferredQuery.rows[0]?.count) || 0,
+            totalStarsAwarded: parseInt(totalStarsQuery.rows[0]?.total) || 0,
+            todayReferrals: parseInt(todayReferralsQuery.rows[0]?.count) || 0
+        };
+
+        res.json(stats);
+    } catch (error) {
+        console.error('❌ Ошибка получения статистики рефералов:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Список всех реферальных связей для админки
+app.get('/api/admin/referrals', requireAuth, async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const search = req.query.search || '';
+        const offset = (page - 1) * limit;
+
+        console.log(`📋 Админ: запрос рефералов (страница ${page}, поиск: "${search}")`);
+
+        let whereClause = 'WHERE r.is_active = true';
+        let queryParams = [];
+        let paramIndex = 1;
+
+        if (search) {
+            whereClause += ` AND (
+                u1.first_name ILIKE $${paramIndex} OR 
+                u1.username ILIKE $${paramIndex} OR 
+                u2.first_name ILIKE $${paramIndex} OR 
+                u2.username ILIKE $${paramIndex} OR
+                CAST(u1.telegram_id AS TEXT) LIKE $${paramIndex} OR
+                CAST(u2.telegram_id AS TEXT) LIKE $${paramIndex}
+            )`;
+            queryParams.push(`%${search}%`);
+            paramIndex++;
+        }
+
+        // Запрос данных
+        const referralsQuery = `
+            SELECT 
+                r.id,
+                r.referrer_id,
+                r.referred_id,
+                r.referral_date as created_at,
+                r.is_active,
+                u1.first_name as referrer_name,
+                u1.username as referrer_username,
+                u1.telegram_id as referrer_telegram_id,
+                u2.first_name as referred_name,
+                u2.username as referred_username,
+                u2.telegram_id as referred_telegram_id
+            FROM referrals r
+            JOIN users u1 ON r.referrer_id = u1.id
+            JOIN users u2 ON r.referred_id = u2.id
+            ${whereClause}
+            ORDER BY r.referral_date DESC
+            LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+        `;
+
+        queryParams.push(limit, offset);
+        const referralsResult = await db.query(referralsQuery, queryParams);
+
+        // Подсчет общего количества
+        const countQuery = `
+            SELECT COUNT(*) as total
+            FROM referrals r
+            JOIN users u1 ON r.referrer_id = u1.id
+            JOIN users u2 ON r.referred_id = u2.id
+            ${whereClause}
+        `;
+        
+        const countParams = search ? [`%${search}%`] : [];
+        const countResult = await db.query(countQuery, countParams);
+        const total = parseInt(countResult.rows[0]?.total) || 0;
+
+        res.json({
+            referrals: referralsResult.rows,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error) {
+        console.error('❌ Ошибка получения списка рефералов:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Простой тестовый endpoint для channels без auth
 app.get('/api/admin/channels-test', (req, res) => {
     console.log('✅ CHANNELS TEST endpoint вызван');
@@ -1144,10 +1254,10 @@ app.get('/api/referral-link/:userId', async (req, res) => {
             statistics: {
                 totalReferrals: referralsCount,
                 potentialEarnings: {
-                    totalEarned: referralsCount * 120 // 100 + 20 за активацию
+                    totalEarned: referralsCount * 10 // 10 звезд за каждого реферала
                 }
             },
-            shareText: 'Привет! Присоединяйся к Kosmetichka Lottery Bot - крути рулетку и выигрывай призы! 💄✨\n\n💫 Тот кто тебя пригласил получит 100 звезд!'
+            shareText: 'Привет! Присоединяйся к Kosmetichka Lottery Bot - крути рулетку и выигрывай призы! 💄✨\n\n💫 Тот кто тебя пригласил получит 10 звезд!'
         });
         
     } catch (error) {

@@ -111,20 +111,6 @@ export class ProfileScreen {
                             </div>
                         </div>
 
-                        <!-- История призов -->
-                        <div class="section">
-                            <div class="section-title">
-                                <i class="fas fa-gift"></i>
-                                История призов
-                            </div>
-                            <div class="prizes-section" id="prizes-section">
-                                <div class="empty-state">
-                                    <div class="empty-icon">🎁</div>
-                                    <div class="empty-text">Пока что призов нет</div>
-                                    <div class="empty-subtitle">Крутите рулетку, чтобы выиграть призы!</div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
                 

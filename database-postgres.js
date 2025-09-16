@@ -716,15 +716,25 @@ class DatabasePostgres {
             
             // 3. Добавляем приз (если не пусто)
             if (prizeData.type !== 'empty') {
+                // ИСПРАВЛЕНО: Сохраняем приз в таблицу prizes (для админ панели)
                 const prizeResult = await client.query(
-                    `INSERT INTO user_prizes 
-                     (user_id, prize_type, description, prize_value)
+                    `INSERT INTO prizes 
+                     (user_id, type, description, is_given)
                      VALUES ($1, $2, $3, $4)
                      RETURNING id`,
-                    [userId, prizeData.type, prizeData.name || prizeData.description, prizeData.value || 0]
+                    [userId, prizeData.type, prizeData.name || prizeData.description, false]
                 );
                 prizeId = prizeResult.rows[0].id;
-                console.log(`🎁 Приз добавлен: ${prizeData.name} (ID: ${prizeId})`);
+                console.log(`🎁 Приз добавлен в prizes: ${prizeData.name} (ID: ${prizeId})`);
+                
+                // Также сохраняем в user_prizes для истории пользователя
+                await client.query(
+                    `INSERT INTO user_prizes 
+                     (user_id, prize_type, description, prize_value)
+                     VALUES ($1, $2, $3, $4)`,
+                    [userId, prizeData.type, prizeData.name || prizeData.description, prizeData.value || 0]
+                );
+                console.log(`📝 Приз также записан в user_prizes для истории`);
                 
                 // Если приз - звезды, начисляем их
                 if (prizeData.type === 'stars' && prizeData.value > 0) {
