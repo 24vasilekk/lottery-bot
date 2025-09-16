@@ -9,7 +9,7 @@ export class ProfileScreen {
         window.profileScreen = this;
         
         // Отладочное сообщение для проверки загрузки новой версии
-        console.log('👤 ProfileScreen загружен! Версия с исправленным лидербордом - v2.9');
+        console.log('👤 ProfileScreen загружен! Версия с исправлениями ошибок - v2.10');
     }
 
     // === ПОЛНЫЙ МЕТОД render() ДЛЯ profile.js ===
@@ -270,7 +270,10 @@ export class ProfileScreen {
                 document.querySelectorAll('.tab-content').forEach(content => {
                     content.classList.remove('active');
                 });
-                document.getElementById(targetTab).classList.add('active');
+                const targetElement = document.getElementById(targetTab);
+                if (targetElement) {
+                    targetElement.classList.add('active');
+                }
                 
                 // Загружаем данные для соответствующей вкладки
                 if (targetTab === 'leaderboard') {
@@ -478,13 +481,16 @@ export class ProfileScreen {
             console.log(`🔄 Проверка необходимости обновления профиля для ${userId}`);
             
             // Проверяем текущие данные в базе
-            const response = await fetch(`/api/debug/user/${userId}`);
+            const response = await fetch(`/api/user/${userId}`);
             if (!response.ok) {
                 console.warn('⚠️ Не удалось получить данные пользователя из базы');
                 return;
             }
             
-            const { user_data } = await response.json();
+            const userData = await response.json();
+            
+            // Адаптируем структуру данных
+            const user_data = userData.user_data || userData;
             
             // Сравниваем данные
             const needsUpdate = (
