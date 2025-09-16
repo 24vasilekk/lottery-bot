@@ -9,7 +9,7 @@ export class ProfileScreen {
         window.profileScreen = this;
         
         // Отладочное сообщение для проверки загрузки новой версии
-        console.log('👤 ProfileScreen загружен! Версия с аватаркой - v2.3');
+        console.log('👤 ProfileScreen загружен! Версия с полноценным лидербордом - v2.8');
     }
 
     // === ПОЛНЫЙ МЕТОД render() ДЛЯ profile.js ===
@@ -121,9 +121,29 @@ export class ProfileScreen {
                             🏆
                         </div>
                         <div class="leaderboard-info">
-                            <h3>Топ по друзьям</h3>
-                            <p>Глобальный рейтинг по количеству приглашенных друзей</p>
+                            <h3>Рейтинг игроков</h3>
+                            <p>Глобальный рейтинг по различным метрикам</p>
                         </div>
+                    </div>
+                    
+                    <!-- Переключатели метрик -->
+                    <div class="leaderboard-controls">
+                        <button class="leaderboard-control active" data-metric="referrals">
+                            <i class="fas fa-users"></i>
+                            <span>Друзья</span>
+                        </button>
+                        <button class="leaderboard-control" data-metric="stars">
+                            <i class="fas fa-star"></i>
+                            <span>Звезды</span>
+                        </button>
+                        <button class="leaderboard-control" data-metric="spins">
+                            <i class="fas fa-sync-alt"></i>
+                            <span>Спины</span>
+                        </button>
+                        <button class="leaderboard-control" data-metric="prizes">
+                            <i class="fas fa-trophy"></i>
+                            <span>Призы</span>
+                        </button>
                     </div>
                     
                     <div class="current-position" id="current-position">
@@ -262,10 +282,26 @@ export class ProfileScreen {
                 
                 // Загружаем данные для соответствующей вкладки
                 if (targetTab === 'leaderboard') {
-                    this.loadLeaderboard();
+                    this.setupLeaderboardControls();
+                    this.loadLeaderboard('referrals'); // По умолчанию загружаем рефералы
                 }
                 
                 this.currentTab = targetTab;
+            });
+        });
+    }
+
+    setupLeaderboardControls() {
+        document.querySelectorAll('.leaderboard-control').forEach(control => {
+            control.addEventListener('click', () => {
+                const metric = control.dataset.metric;
+                
+                // Переключаем активную кнопку
+                document.querySelectorAll('.leaderboard-control').forEach(c => c.classList.remove('active'));
+                control.classList.add('active');
+                
+                // Загружаем соответствующий лидерборд
+                this.loadLeaderboard(metric);
             });
         });
     }
@@ -507,34 +543,32 @@ export class ProfileScreen {
     }
 
 
-    // УПРОЩЕННЫЙ МЕТОД: Загрузка лидерборда (только по рефералам)
-    // ОБНОВИТЕ метод loadLeaderboard() чтобы включить автообновление профиля:
-    async loadLeaderboard() {
-        console.log('🏆 Загрузка лидерборда рефералов...');
+    // ПОЛНОФУНКЦИОНАЛЬНЫЙ МЕТОД: Загрузка лидерборда по различным метрикам
+    async loadLeaderboard(metric = 'referrals') {
+        console.log(`🏆 Загрузка лидерборда по метрике: ${metric}`);
         
         try {
             // 1. Обновляем профиль пользователя если нужно
             await this.updateUserProfileIfNeeded();
             
-            // 2. Отладка для проверки данных
-            await this.debugLeaderboardData();
-            
-            // 3. Принудительно синхронизируем данные перед загрузкой лидерборда
-            await fetch('/api/sync-referrals', { method: 'POST' });
-            
-            // 4. Загружаем лидерборд
-            await this.loadLeaderboardData();
-            
-            // 5. Загружаем позицию пользователя
-            const userId = this.getTelegramId();
-            if (userId && userId !== 'Неизвестно') {
-                await this.loadUserPosition(userId);
+            // 2. Принудительно синхронизируем данные перед загрузкой лидерборда
+            if (metric === 'referrals') {
+                await fetch('/api/sync-referrals', { method: 'POST' });
             }
             
-            console.log('✅ Лидерборд загружен успешно');
+            // 3. Загружаем лидерборд для конкретной метрики
+            await this.loadLeaderboardData(metric);
+            
+            // 4. Загружаем позицию пользователя
+            const userId = this.getTelegramId();
+            if (userId && userId !== 'Неизвестно') {
+                await this.loadUserPosition(userId, metric);
+            }
+            
+            console.log(`✅ Лидерборд по ${metric} загружен успешно`);
             
         } catch (error) {
-            console.error('❌ Ошибка загрузки лидерборда:', error);
+            console.error(`❌ Ошибка загрузки лидерборда по ${metric}:`, error);
         }
     }
 
@@ -565,11 +599,9 @@ export class ProfileScreen {
         }
     }
 
-    // 4. ЗАМЕНИТЕ метод loadLeaderboardData() полностью:
-    // Обновленный метод loadLeaderboardData() с красивой структурой:
-    // 2. ЗАМЕНИТЕ метод loadLeaderboardData() полностью:
-    async loadLeaderboardData() {
-        console.log('🏆 Загрузка данных лидерборда...');
+    // УНИВЕРСАЛЬНЫЙ МЕТОД: Загрузка данных лидерборда по метрике
+    async loadLeaderboardData(metric = 'referrals') {
+        console.log(`🏆 Загрузка данных лидерборда по метрике: ${metric}`);
         
         const leaderboardList = document.getElementById('leaderboard-list');
         if (!leaderboardList) {
@@ -586,33 +618,68 @@ export class ProfileScreen {
         `;
         
         try {
-            const response = await fetch('/api/leaderboard-referrals?limit=50');
+            let endpoint;
+            let valueField;
+            let labelText;
+            let icon;
+
+            // Определяем endpoint и настройки для каждой метрики
+            switch (metric) {
+                case 'referrals':
+                    endpoint = '/api/leaderboard-referrals?limit=50';
+                    valueField = 'referrals_count';
+                    labelText = (count) => this.formatFriendsCount(count);
+                    icon = '👥';
+                    break;
+                case 'stars':
+                    endpoint = '/api/leaderboard/stars?limit=50';
+                    valueField = 'total_stars_earned';
+                    labelText = (count) => `${count} звезд`;
+                    icon = '⭐';
+                    break;
+                case 'spins':
+                    endpoint = '/api/leaderboard/spins?limit=50';
+                    valueField = 'total_spins';
+                    labelText = (count) => `${count} спинов`;
+                    icon = '🎰';
+                    break;
+                case 'prizes':
+                    endpoint = '/api/leaderboard/prizes?limit=50';
+                    valueField = 'prizes_won';
+                    labelText = (count) => `${count} призов`;
+                    icon = '🏆';
+                    break;
+                default:
+                    endpoint = '/api/leaderboard-referrals?limit=50';
+                    valueField = 'referrals_count';
+                    labelText = (count) => this.formatFriendsCount(count);
+                    icon = '👥';
+            }
+
+            const response = await fetch(endpoint);
             const data = await response.json();
             
             if (!data.leaderboard || data.leaderboard.length === 0) {
                 leaderboardList.innerHTML = `
                     <div class="leaderboard-empty">
-                        <div class="empty-icon">🏆</div>
+                        <div class="empty-icon">${icon}</div>
                         <div class="empty-title">Рейтинг пуст</div>
-                        <div class="empty-subtitle">Станьте первым! Приглашайте друзей.</div>
+                        <div class="empty-subtitle">Станьте первым!</div>
                     </div>
                 `;
                 return;
             }
             
-            console.log(`✅ Получен лидерборд: ${data.leaderboard.length} записей`);
-            console.log('📊 Пример данных игрока:', data.leaderboard[0]);
+            console.log(`✅ Получен лидерборд ${metric}: ${data.leaderboard.length} записей`);
             
             // Отображаем лидерборд с правильными именами
             leaderboardList.innerHTML = data.leaderboard.map((user, index) => {
                 const position = index + 1;
                 const isTop3 = position <= 3;
-                const friendsText = this.formatFriendsCount(user.referrals_count);
+                const value = user[valueField] || 0;
+                const displayText = labelText(value);
                 
-                // ВАЖНО: Используем улучшенный метод для получения имени
                 const userName = this.getPlayerDisplayName(user);
-                
-                console.log(`👤 Игрок ${position}: ${userName} (${user.referrals_count} друзей)`);
                 
                 return `
                     <div class="leaderboard-item ${isTop3 ? 'top-player' : ''}">
@@ -621,17 +688,17 @@ export class ProfileScreen {
                         </div>
                         <div class="leaderboard-info">
                             <div class="leaderboard-name">${userName}</div>
-                            <div class="leaderboard-stats">${friendsText}</div>
+                            <div class="leaderboard-stats">${displayText}</div>
                         </div>
                         <div class="leaderboard-score">
-                            ${user.referrals_count}
+                            ${icon} ${value}
                         </div>
                     </div>
                 `;
             }).join('');
             
         } catch (error) {
-            console.error('❌ Ошибка загрузки лидерборда:', error);
+            console.error(`❌ Ошибка загрузки лидерборда ${metric}:`, error);
             leaderboardList.innerHTML = `
                 <div class="leaderboard-error">
                     <div class="error-icon">❌</div>
@@ -693,11 +760,12 @@ export class ProfileScreen {
             console.log('✅ Синхронизация рефералов:', syncData);
             
             // Перезагружаем данные профиля
-            await this.loadData();
+            await this.loadProfileData();
             
             // Если мы в разделе лидерборда, обновляем его тоже
             if (this.currentTab === 'leaderboard') {
-                await this.loadLeaderboard();
+                const activeMetric = document.querySelector('.leaderboard-control.active')?.dataset.metric || 'referrals';
+                await this.loadLeaderboard(activeMetric);
             }
             
             console.log('✅ Принудительное обновление завершено');
@@ -707,11 +775,9 @@ export class ProfileScreen {
         }
     }
 
-    // Загрузка позиции текущего пользователя по рефералам
-    // ЗАМЕНИТЕ метод loadUserPosition() полностью:
-    // Обновленный метод loadUserPosition() с красивой структурой:
-    async loadUserPosition(userId) {
-        console.log(`👤 Загрузка позиции пользователя ${userId}...`);
+    // УНИВЕРСАЛЬНЫЙ МЕТОД: Загрузка позиции пользователя по метрике
+    async loadUserPosition(userId, metric = 'referrals') {
+        console.log(`👤 Загрузка позиции пользователя ${userId} по метрике ${metric}...`);
         
         const currentPosition = document.getElementById('current-position');
         if (!currentPosition) {
@@ -720,13 +786,51 @@ export class ProfileScreen {
         }
         
         try {
-            const response = await fetch(`/api/leaderboard/referrals/position/${userId}`);
+            let endpoint;
+            let labelText;
+            let icon;
+            let emptyText;
+
+            // Определяем настройки для каждой метрики
+            switch (metric) {
+                case 'referrals':
+                    endpoint = `/api/leaderboard/referrals/position/${userId}`;
+                    labelText = (score) => this.formatFriendsCount(score);
+                    icon = '👥';
+                    emptyText = 'Пригласите друзей!';
+                    break;
+                case 'stars':
+                    endpoint = `/api/leaderboard/stars/position/${userId}`;
+                    labelText = (score) => `${score} звезд`;
+                    icon = '⭐';
+                    emptyText = 'Зарабатывайте звезды!';
+                    break;
+                case 'spins':
+                    endpoint = `/api/leaderboard/spins/position/${userId}`;
+                    labelText = (score) => `${score} спинов`;
+                    icon = '🎰';
+                    emptyText = 'Крутите рулетку!';
+                    break;
+                case 'prizes':
+                    endpoint = `/api/leaderboard/prizes/position/${userId}`;
+                    labelText = (score) => `${score} призов`;
+                    icon = '🏆';
+                    emptyText = 'Выигрывайте призы!';
+                    break;
+                default:
+                    endpoint = `/api/leaderboard/referrals/position/${userId}`;
+                    labelText = (score) => this.formatFriendsCount(score);
+                    icon = '👥';
+                    emptyText = 'Пригласите друзей!';
+            }
+
+            const response = await fetch(endpoint);
             const data = await response.json();
             
-            console.log('📊 Позиция пользователя:', data);
+            console.log(`📊 Позиция пользователя по ${metric}:`, data);
             
             if (data.position && data.score > 0) {
-                const friendsText = this.formatFriendsCount(data.score);
+                const scoreText = labelText(data.score);
                 
                 currentPosition.innerHTML = `
                     <div class="user-position-card">
@@ -736,7 +840,7 @@ export class ProfileScreen {
                             </div>
                             <div class="user-position-info">
                                 <div class="user-position-title">Ваша позиция</div>
-                                <div class="user-position-score">${friendsText}</div>
+                                <div class="user-position-score">${icon} ${scoreText}</div>
                             </div>
                         </div>
                     </div>
@@ -748,7 +852,7 @@ export class ProfileScreen {
                         <div class="user-position-content">
                             <div class="user-position-info">
                                 <div class="user-position-title">Не в рейтинге</div>
-                                <div class="user-position-score">Пригласите друзей!</div>
+                                <div class="user-position-score">${emptyText}</div>
                             </div>
                         </div>
                     </div>
@@ -757,7 +861,7 @@ export class ProfileScreen {
             }
             
         } catch (error) {
-            console.error('❌ Ошибка получения позиции пользователя:', error);
+            console.error(`❌ Ошибка получения позиции пользователя по ${metric}:`, error);
             currentPosition.style.display = 'none';
         }
     }

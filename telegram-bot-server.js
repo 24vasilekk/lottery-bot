@@ -2287,16 +2287,223 @@ app.post('/api/update-user-stars', async (req, res) => {
 
 
 
-// API для получения лидерборда
+// API для получения лидерборда по звездам
+app.get('/api/leaderboard/stars', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 20;
+        
+        console.log(`📊 Запрос лидерборда по звездам, лимит: ${limit}`);
+        
+        const query = `
+            SELECT 
+                u.telegram_id,
+                u.first_name,
+                u.username,
+                u.last_name,
+                u.total_stars_earned,
+                u.stars as current_stars
+            FROM users u
+            WHERE u.is_active = true 
+            AND u.total_stars_earned > 0
+            ORDER BY u.total_stars_earned DESC, u.created_at ASC
+            LIMIT $1
+        `;
+        
+        const result = await db.pool.query(query, [limit]);
+        
+        res.json({ 
+            leaderboard: result.rows,
+            total: result.rows.length 
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения лидерборда по звездам:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для получения позиции пользователя в лидерборде по звездам
+app.get('/api/leaderboard/stars/position/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        console.log(`👤 Запрос позиции пользователя ${userId} в лидерборде звезд`);
+        
+        const rankQuery = `
+            WITH ranked_users AS (
+                SELECT 
+                    telegram_id,
+                    total_stars_earned,
+                    ROW_NUMBER() OVER (ORDER BY total_stars_earned DESC, created_at ASC) as position
+                FROM users 
+                WHERE is_active = true AND total_stars_earned > 0
+            )
+            SELECT position, total_stars_earned as score 
+            FROM ranked_users 
+            WHERE telegram_id = $1
+        `;
+        
+        const result = await db.pool.query(rankQuery, [parseInt(userId)]);
+        
+        if (result.rows.length > 0) {
+            res.json(result.rows[0]);
+        } else {
+            res.json({ position: null, score: 0 });
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения позиции пользователя в лидерборде звезд:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для получения лидерборда по спинам
+app.get('/api/leaderboard/spins', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 20;
+        
+        console.log(`📊 Запрос лидерборда по спинам, лимит: ${limit}`);
+        
+        const query = `
+            SELECT 
+                u.telegram_id,
+                u.first_name,
+                u.username,
+                u.last_name,
+                u.total_spins
+            FROM users u
+            WHERE u.is_active = true 
+            AND u.total_spins > 0
+            ORDER BY u.total_spins DESC, u.created_at ASC
+            LIMIT $1
+        `;
+        
+        const result = await db.pool.query(query, [limit]);
+        
+        res.json({ 
+            leaderboard: result.rows,
+            total: result.rows.length 
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения лидерборда по спинам:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для получения позиции пользователя в лидерборде по спинам
+app.get('/api/leaderboard/spins/position/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        console.log(`👤 Запрос позиции пользователя ${userId} в лидерборде спинов`);
+        
+        const rankQuery = `
+            WITH ranked_users AS (
+                SELECT 
+                    telegram_id,
+                    total_spins,
+                    ROW_NUMBER() OVER (ORDER BY total_spins DESC, created_at ASC) as position
+                FROM users 
+                WHERE is_active = true AND total_spins > 0
+            )
+            SELECT position, total_spins as score 
+            FROM ranked_users 
+            WHERE telegram_id = $1
+        `;
+        
+        const result = await db.pool.query(rankQuery, [parseInt(userId)]);
+        
+        if (result.rows.length > 0) {
+            res.json(result.rows[0]);
+        } else {
+            res.json({ position: null, score: 0 });
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения позиции пользователя в лидерборде спинов:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для получения лидерборда по призам
+app.get('/api/leaderboard/prizes', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 20;
+        
+        console.log(`📊 Запрос лидерборда по призам, лимит: ${limit}`);
+        
+        const query = `
+            SELECT 
+                u.telegram_id,
+                u.first_name,
+                u.username,
+                u.last_name,
+                u.prizes_won
+            FROM users u
+            WHERE u.is_active = true 
+            AND u.prizes_won > 0
+            ORDER BY u.prizes_won DESC, u.created_at ASC
+            LIMIT $1
+        `;
+        
+        const result = await db.pool.query(query, [limit]);
+        
+        res.json({ 
+            leaderboard: result.rows,
+            total: result.rows.length 
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения лидерборда по призам:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для получения позиции пользователя в лидерборде по призам
+app.get('/api/leaderboard/prizes/position/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        console.log(`👤 Запрос позиции пользователя ${userId} в лидерборде призов`);
+        
+        const rankQuery = `
+            WITH ranked_users AS (
+                SELECT 
+                    telegram_id,
+                    prizes_won,
+                    ROW_NUMBER() OVER (ORDER BY prizes_won DESC, created_at ASC) as position
+                FROM users 
+                WHERE is_active = true AND prizes_won > 0
+            )
+            SELECT position, prizes_won as score 
+            FROM ranked_users 
+            WHERE telegram_id = $1
+        `;
+        
+        const result = await db.pool.query(rankQuery, [parseInt(userId)]);
+        
+        if (result.rows.length > 0) {
+            res.json(result.rows[0]);
+        } else {
+            res.json({ position: null, score: 0 });
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения позиции пользователя в лидерборде призов:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для получения общего лидерборда (совместимость)
 app.get('/api/leaderboard', async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 10;
         
-        // Обновляем лидерборд
-        await db.updateLeaderboard();
+        // По умолчанию возвращаем лидерборд по рефералам для совместимости
+        console.log(`📊 Запрос общего лидерборда, лимит: ${limit}`);
         
-        // Получаем топ игроков
-        const leaderboard = await db.getLeaderboard(limit);
+        const leaderboard = await db.getGlobalReferralsLeaderboard(limit);
         
         res.json({ leaderboard });
     } catch (error) {
