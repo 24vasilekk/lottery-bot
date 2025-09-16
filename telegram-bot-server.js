@@ -6916,6 +6916,364 @@ app.get('/api/admin/db-test', requireAuth, async (req, res) => {
     }
 });
 
+// === API ДЛЯ УПРАВЛЕНИЯ ПРИЗАМИ ===
+
+// API для управления призами
+app.get('/api/admin/prizes/stats', requireAuth, async (req, res) => {
+    try {
+        console.log('🎁 Admin API: Запрос статистики призов');
+        
+        // Получаем статистику призов
+        const statsQuery = `
+            SELECT 
+                COUNT(*) as total_prizes,
+                COUNT(CASE WHEN is_given = false THEN 1 END) as pending_prizes,
+                COUNT(CASE WHEN is_given = true THEN 1 END) as given_prizes,
+                COUNT(CASE WHEN is_given = true AND DATE(given_at) = CURRENT_DATE THEN 1 END) as given_today,
+                COALESCE(SUM(CASE WHEN type = 'stars' THEN stars_amount ELSE 0 END), 0) as total_stars_value
+            FROM prizes
+        `;
+        
+        const result = await db.query(statsQuery);
+        const stats = result.rows[0] || {};
+        
+        res.json({
+            success: true,
+            stats: {
+                total: parseInt(stats.total_prizes) || 0,
+                pending: parseInt(stats.pending_prizes) || 0,
+                given: parseInt(stats.given_prizes) || 0,
+                given_today: parseInt(stats.given_today) || 0,
+                total_value: parseInt(stats.total_stars_value) || 0
+            }
+        });
+        
+    } catch (error) {
+        console.error('Ошибка получения статистики призов:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка получения статистики призов'
+        });
+    }
+});
+
+// API для получения призов (ожидающие и выданные)
+app.get('/api/admin/prizes', requireAuth, async (req, res) => {
+    try {
+        const { 
+            status = 'pending', 
+            page = 1, 
+            limit = 20, 
+            search = '',
+            type = 'all',
+            sortBy = 'created_at',
+            sortOrder = 'DESC'
+        } = req.query;
+        
+        const offset = (page - 1) * limit;
+        
+        console.log(`🎁 Admin API: Запрос призов (${status}), страница ${page}`);
+        
+        // Строим условие статуса
+        const statusCondition = status === 'pending' ? 'p.is_given = false' : 'p.is_given = true';
+        
+        // Строим условие поиска
+        let searchCondition = '';
+        let searchParams = [];
+        let paramIndex = 1;
+        
+        if (search) {
+            searchCondition = `
+                AND (u.first_name ILIKE $${paramIndex} 
+                    OR u.last_name ILIKE $${paramIndex} 
+                    OR u.username ILIKE $${paramIndex}
+                    OR p.type ILIKE $${paramIndex}
+                    OR p.description ILIKE $${paramIndex})
+            `;
+            searchParams.push(`%${search}%`);
+            paramIndex++;
+        }
+        
+        // Строим условие типа
+        let typeCondition = '';
+        if (type !== 'all') {
+            typeCondition = `AND p.type = $${paramIndex}`;
+            searchParams.push(type);
+            paramIndex++;
+        }
+        
+        // Валидация сортировки
+        const validSortColumns = ['created_at', 'type', 'stars_amount', 'given_at'];
+        const sortColumn = validSortColumns.includes(sortBy) ? `p.${sortBy}` : 'p.created_at';
+        const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+        
+        const prizesQuery = `
+            SELECT 
+                p.id,
+                p.type,
+                p.stars_amount,
+                p.telegram_premium_duration,
+                p.description,
+                p.created_at,
+                p.is_given,
+                p.given_at,
+                p.given_by_admin,
+                p.source,
+                u.telegram_id as user_telegram_id,
+                u.first_name as user_first_name,
+                u.last_name as user_last_name,
+                u.username as user_username
+            FROM prizes p
+            LEFT JOIN users u ON p.user_id = u.telegram_id
+            WHERE ${statusCondition}
+            ${searchCondition}
+            ${typeCondition}
+            ORDER BY ${sortColumn} ${order}
+            LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+        `;
+        
+        const countQuery = `
+            SELECT COUNT(*) as total
+            FROM prizes p
+            LEFT JOIN users u ON p.user_id = u.telegram_id
+            WHERE ${statusCondition}
+            ${searchCondition}
+            ${typeCondition}
+        `;
+        
+        // Выполняем запросы
+        const prizesResult = await db.query(prizesQuery, [...searchParams, parseInt(limit), parseInt(offset)]);
+        const countResult = await db.query(countQuery, searchParams);
+        
+        const total = parseInt(countResult.rows[0]?.total) || 0;
+        
+        console.log(`✅ Найдено призов: ${prizesResult.rows.length} из ${total}`);
+        
+        res.json({
+            success: true,
+            prizes: prizesResult.rows,
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total: total,
+                totalPages: Math.ceil(total / parseInt(limit))
+            }
+        });
+        
+    } catch (error) {
+        console.error('Ошибка получения призов:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка получения списка призов'
+        });
+    }
+});
+
+// API для отметки приза как выданного
+app.post('/api/admin/prizes/:prizeId/mark-given', requireAuth, async (req, res) => {
+    try {
+        const prizeId = req.params.prizeId;
+        const { notes = '' } = req.body;
+        
+        console.log(`🎁 Admin API: Отметка приза ${prizeId} как выданного`);
+        
+        // Проверяем существование приза
+        const prizeResult = await db.query(
+            'SELECT id, is_given, user_id FROM prizes WHERE id = $1',
+            [prizeId]
+        );
+        
+        if (prizeResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Приз не найден'
+            });
+        }
+        
+        const prize = prizeResult.rows[0];
+        
+        if (prize.is_given) {
+            return res.status(400).json({
+                success: false,
+                error: 'Приз уже отмечен как выданный'
+            });
+        }
+        
+        // Отмечаем приз как выданный
+        await db.query(`
+            UPDATE prizes 
+            SET is_given = true, 
+                given_at = NOW(), 
+                given_by_admin = $1,
+                admin_notes = $2
+            WHERE id = $3
+        `, ['admin', notes, prizeId]);
+        
+        // Записываем в лог
+        await db.query(`
+            INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
+            VALUES ($1, 'admin_prize_given', $2, $3, NOW())
+        `, [prize.user_id, prizeId, `Приз #${prizeId} отмечен как выданный. ${notes}`]);
+        
+        res.json({
+            success: true,
+            message: 'Приз отмечен как выданный'
+        });
+        
+    } catch (error) {
+        console.error('Ошибка отметки приза как выданного:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка отметки приза как выданного'
+        });
+    }
+});
+
+// API для массовой отметки призов как выданных
+app.post('/api/admin/prizes/bulk-mark-given', requireAuth, async (req, res) => {
+    try {
+        const { prizeIds, notes = '' } = req.body;
+        
+        if (!Array.isArray(prizeIds) || prizeIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Не указаны призы для отметки'
+            });
+        }
+        
+        console.log(`🎁 Admin API: Массовая отметка призов как выданных: ${prizeIds.join(', ')}`);
+        
+        // Получаем информацию о призах
+        const prizesResult = await db.query(
+            `SELECT id, is_given, user_id FROM prizes WHERE id = ANY($1)`,
+            [prizeIds]
+        );
+        
+        const validPrizes = prizesResult.rows.filter(p => !p.is_given);
+        
+        if (validPrizes.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Все указанные призы уже выданы или не найдены'
+            });
+        }
+        
+        const validPrizeIds = validPrizes.map(p => p.id);
+        
+        // Отмечаем призы как выданные
+        await db.query(`
+            UPDATE prizes 
+            SET is_given = true, 
+                given_at = NOW(), 
+                given_by_admin = $1,
+                admin_notes = $2
+            WHERE id = ANY($3)
+        `, ['admin', notes, validPrizeIds]);
+        
+        // Записываем в лог для каждого пользователя
+        for (const prize of validPrizes) {
+            await db.query(`
+                INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
+                VALUES ($1, 'admin_prize_given', $2, $3, NOW())
+            `, [prize.user_id, prize.id, `Приз #${prize.id} отмечен как выданный (массово). ${notes}`]);
+        }
+        
+        res.json({
+            success: true,
+            message: `Отмечено как выданные: ${validPrizes.length} призов`,
+            processed: validPrizes.length
+        });
+        
+    } catch (error) {
+        console.error('Ошибка массовой отметки призов:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка массовой отметки призов'
+        });
+    }
+});
+
+// API для выдачи пользовательского приза
+app.post('/api/admin/prizes/give-custom', requireAuth, async (req, res) => {
+    try {
+        const { telegramId, type, starsAmount, premiumDuration, description, notes = '' } = req.body;
+        
+        if (!telegramId || !type) {
+            return res.status(400).json({
+                success: false,
+                error: 'Не указаны обязательные параметры'
+            });
+        }
+        
+        console.log(`🎁 Admin API: Выдача пользовательского приза пользователю ${telegramId}`);
+        
+        // Проверяем существование пользователя
+        const userResult = await db.query(
+            'SELECT telegram_id FROM users WHERE telegram_id = $1',
+            [telegramId]
+        );
+        
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Пользователь не найден'
+            });
+        }
+        
+        // Создаем приз
+        const prizeResult = await db.query(`
+            INSERT INTO prizes (
+                user_id, type, stars_amount, telegram_premium_duration, 
+                description, source, is_given, given_at, given_by_admin, admin_notes
+            )
+            VALUES ($1, $2, $3, $4, $5, 'admin', true, NOW(), 'admin', $6)
+            RETURNING id
+        `, [
+            telegramId, 
+            type, 
+            starsAmount || null, 
+            premiumDuration || null, 
+            description || null, 
+            notes
+        ]);
+        
+        const prizeId = prizeResult.rows[0].id;
+        
+        // Если это звезды, добавляем их пользователю
+        if (type === 'stars' && starsAmount > 0) {
+            await db.query(
+                'UPDATE users SET stars = stars + $1 WHERE telegram_id = $2',
+                [starsAmount, telegramId]
+            );
+            
+            // Записываем транзакцию
+            await db.query(`
+                INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
+                VALUES ($1, 'admin_prize_stars', $2, $3, NOW())
+            `, [telegramId, starsAmount, `Призовые звезды от админа: ${description || 'Пользовательский приз'}`]);
+        }
+        
+        // Записываем в лог
+        await db.query(`
+            INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
+            VALUES ($1, 'admin_custom_prize', $2, $3, NOW())
+        `, [telegramId, prizeId, `Выдан пользовательский приз #${prizeId}: ${description || type}. ${notes}`]);
+        
+        res.json({
+            success: true,
+            message: 'Пользовательский приз успешно выдан',
+            prizeId: prizeId
+        });
+        
+    } catch (error) {
+        console.error('Ошибка выдачи пользовательского приза:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка выдачи пользовательского приза'
+        });
+    }
+});
+
 // 404 обработчик для админ API
 app.use('/api/admin/*', (req, res) => {
     console.log(`❌ 404 для админ API: ${req.method} ${req.originalUrl}`);
@@ -8588,362 +8946,6 @@ app.post('/api/admin/users/status', requireAuth, async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Ошибка изменения статуса пользователя'
-        });
-    }
-});
-
-// API для управления призами
-app.get('/api/admin/prizes/stats', requireAuth, async (req, res) => {
-    try {
-        console.log('🎁 Admin API: Запрос статистики призов');
-        
-        // Получаем статистику призов
-        const statsQuery = `
-            SELECT 
-                COUNT(*) as total_prizes,
-                COUNT(CASE WHEN is_given = false THEN 1 END) as pending_prizes,
-                COUNT(CASE WHEN is_given = true THEN 1 END) as given_prizes,
-                COUNT(CASE WHEN is_given = true AND DATE(given_at) = CURRENT_DATE THEN 1 END) as given_today,
-                COALESCE(SUM(CASE WHEN type = 'stars' THEN stars_amount ELSE 0 END), 0) as total_stars_value
-            FROM prizes
-        `;
-        
-        const result = await db.query(statsQuery);
-        const stats = result.rows[0] || {};
-        
-        res.json({
-            success: true,
-            stats: {
-                total: parseInt(stats.total_prizes) || 0,
-                pending: parseInt(stats.pending_prizes) || 0,
-                given: parseInt(stats.given_prizes) || 0,
-                given_today: parseInt(stats.given_today) || 0,
-                total_value: parseInt(stats.total_stars_value) || 0
-            }
-        });
-        
-    } catch (error) {
-        console.error('Ошибка получения статистики призов:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Ошибка получения статистики призов'
-        });
-    }
-});
-
-// API для получения призов (ожидающие и выданные)
-app.get('/api/admin/prizes', requireAuth, async (req, res) => {
-    try {
-        const { 
-            status = 'pending', 
-            page = 1, 
-            limit = 20, 
-            search = '',
-            type = 'all',
-            sortBy = 'created_at',
-            sortOrder = 'DESC'
-        } = req.query;
-        
-        const offset = (page - 1) * limit;
-        
-        console.log(`🎁 Admin API: Запрос призов (${status}), страница ${page}`);
-        
-        // Строим условие статуса
-        const statusCondition = status === 'pending' ? 'p.is_given = false' : 'p.is_given = true';
-        
-        // Строим условие поиска
-        let searchCondition = '';
-        let searchParams = [];
-        let paramIndex = 1;
-        
-        if (search) {
-            searchCondition = `
-                AND (u.first_name ILIKE $${paramIndex} 
-                    OR u.last_name ILIKE $${paramIndex} 
-                    OR u.username ILIKE $${paramIndex}
-                    OR p.type ILIKE $${paramIndex}
-                    OR p.description ILIKE $${paramIndex})
-            `;
-            searchParams.push(`%${search}%`);
-            paramIndex++;
-        }
-        
-        // Строим условие типа
-        let typeCondition = '';
-        if (type !== 'all') {
-            typeCondition = `AND p.type = $${paramIndex}`;
-            searchParams.push(type);
-            paramIndex++;
-        }
-        
-        // Валидация сортировки
-        const validSortColumns = ['created_at', 'type', 'stars_amount', 'given_at'];
-        const sortColumn = validSortColumns.includes(sortBy) ? `p.${sortBy}` : 'p.created_at';
-        const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
-        
-        const prizesQuery = `
-            SELECT 
-                p.id,
-                p.type,
-                p.stars_amount,
-                p.telegram_premium_duration,
-                p.description,
-                p.created_at,
-                p.is_given,
-                p.given_at,
-                p.given_by_admin,
-                p.source,
-                u.telegram_id as user_telegram_id,
-                u.first_name as user_first_name,
-                u.last_name as user_last_name,
-                u.username as user_username
-            FROM prizes p
-            LEFT JOIN users u ON p.user_id = u.telegram_id
-            WHERE ${statusCondition}
-            ${searchCondition}
-            ${typeCondition}
-            ORDER BY ${sortColumn} ${order}
-            LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-        `;
-        
-        const countQuery = `
-            SELECT COUNT(*) as total
-            FROM prizes p
-            LEFT JOIN users u ON p.user_id = u.telegram_id
-            WHERE ${statusCondition}
-            ${searchCondition}
-            ${typeCondition}
-        `;
-        
-        // Выполняем запросы
-        const prizesResult = await db.query(prizesQuery, [...searchParams, parseInt(limit), parseInt(offset)]);
-        const countResult = await db.query(countQuery, searchParams);
-        
-        const total = parseInt(countResult.rows[0]?.total) || 0;
-        
-        console.log(`✅ Найдено призов: ${prizesResult.rows.length} из ${total}`);
-        
-        res.json({
-            success: true,
-            prizes: prizesResult.rows,
-            pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
-                total: total,
-                totalPages: Math.ceil(total / parseInt(limit))
-            }
-        });
-        
-    } catch (error) {
-        console.error('Ошибка получения призов:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Ошибка получения списка призов'
-        });
-    }
-});
-
-// API для отметки приза как выданного
-app.post('/api/admin/prizes/:prizeId/mark-given', requireAuth, async (req, res) => {
-    try {
-        const prizeId = req.params.prizeId;
-        const { notes = '' } = req.body;
-        
-        console.log(`🎁 Admin API: Отметка приза ${prizeId} как выданного`);
-        
-        // Проверяем существование приза
-        const prizeResult = await db.query(
-            'SELECT id, is_given, user_id FROM prizes WHERE id = $1',
-            [prizeId]
-        );
-        
-        if (prizeResult.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                error: 'Приз не найден'
-            });
-        }
-        
-        const prize = prizeResult.rows[0];
-        
-        if (prize.is_given) {
-            return res.status(400).json({
-                success: false,
-                error: 'Приз уже отмечен как выданный'
-            });
-        }
-        
-        // Отмечаем приз как выданный
-        await db.query(`
-            UPDATE prizes 
-            SET is_given = true, 
-                given_at = NOW(), 
-                given_by_admin = $1,
-                admin_notes = $2
-            WHERE id = $3
-        `, ['admin', notes, prizeId]);
-        
-        // Записываем в лог
-        await db.query(`
-            INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
-            VALUES ($1, 'admin_prize_given', $2, $3, NOW())
-        `, [prize.user_id, prizeId, `Приз #${prizeId} отмечен как выданный. ${notes}`]);
-        
-        res.json({
-            success: true,
-            message: 'Приз отмечен как выданный'
-        });
-        
-    } catch (error) {
-        console.error('Ошибка отметки приза как выданного:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Ошибка отметки приза как выданного'
-        });
-    }
-});
-
-// API для массовой отметки призов как выданных
-app.post('/api/admin/prizes/bulk-mark-given', requireAuth, async (req, res) => {
-    try {
-        const { prizeIds, notes = '' } = req.body;
-        
-        if (!Array.isArray(prizeIds) || prizeIds.length === 0) {
-            return res.status(400).json({
-                success: false,
-                error: 'Не указаны призы для отметки'
-            });
-        }
-        
-        console.log(`🎁 Admin API: Массовая отметка призов как выданных: ${prizeIds.join(', ')}`);
-        
-        // Получаем информацию о призах
-        const prizesResult = await db.query(
-            `SELECT id, is_given, user_id FROM prizes WHERE id = ANY($1)`,
-            [prizeIds]
-        );
-        
-        const validPrizes = prizesResult.rows.filter(p => !p.is_given);
-        
-        if (validPrizes.length === 0) {
-            return res.status(400).json({
-                success: false,
-                error: 'Все указанные призы уже выданы или не найдены'
-            });
-        }
-        
-        const validPrizeIds = validPrizes.map(p => p.id);
-        
-        // Отмечаем призы как выданные
-        await db.query(`
-            UPDATE prizes 
-            SET is_given = true, 
-                given_at = NOW(), 
-                given_by_admin = $1,
-                admin_notes = $2
-            WHERE id = ANY($3)
-        `, ['admin', notes, validPrizeIds]);
-        
-        // Записываем в лог для каждого пользователя
-        for (const prize of validPrizes) {
-            await db.query(`
-                INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
-                VALUES ($1, 'admin_prize_given', $2, $3, NOW())
-            `, [prize.user_id, prize.id, `Приз #${prize.id} отмечен как выданный (массово). ${notes}`]);
-        }
-        
-        res.json({
-            success: true,
-            message: `Отмечено как выданные: ${validPrizes.length} призов`,
-            processed: validPrizes.length
-        });
-        
-    } catch (error) {
-        console.error('Ошибка массовой отметки призов:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Ошибка массовой отметки призов'
-        });
-    }
-});
-
-// API для выдачи пользовательского приза
-app.post('/api/admin/prizes/give-custom', requireAuth, async (req, res) => {
-    try {
-        const { telegramId, type, starsAmount, premiumDuration, description, notes = '' } = req.body;
-        
-        if (!telegramId || !type) {
-            return res.status(400).json({
-                success: false,
-                error: 'Не указаны обязательные параметры'
-            });
-        }
-        
-        console.log(`🎁 Admin API: Выдача пользовательского приза пользователю ${telegramId}`);
-        
-        // Проверяем существование пользователя
-        const userResult = await db.query(
-            'SELECT telegram_id FROM users WHERE telegram_id = $1',
-            [telegramId]
-        );
-        
-        if (userResult.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                error: 'Пользователь не найден'
-            });
-        }
-        
-        // Создаем приз
-        const prizeResult = await db.query(`
-            INSERT INTO prizes (
-                user_id, type, stars_amount, telegram_premium_duration, 
-                description, source, is_given, given_at, given_by_admin, admin_notes
-            )
-            VALUES ($1, $2, $3, $4, $5, 'admin', true, NOW(), 'admin', $6)
-            RETURNING id
-        `, [
-            telegramId, 
-            type, 
-            starsAmount || null, 
-            premiumDuration || null, 
-            description || null, 
-            notes
-        ]);
-        
-        const prizeId = prizeResult.rows[0].id;
-        
-        // Если это звезды, добавляем их пользователю
-        if (type === 'stars' && starsAmount > 0) {
-            await db.query(
-                'UPDATE users SET stars = stars + $1 WHERE telegram_id = $2',
-                [starsAmount, telegramId]
-            );
-            
-            // Записываем транзакцию
-            await db.query(`
-                INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
-                VALUES ($1, 'admin_prize_stars', $2, $3, NOW())
-            `, [telegramId, starsAmount, `Призовые звезды от админа: ${description || 'Пользовательский приз'}`]);
-        }
-        
-        // Записываем в лог
-        await db.query(`
-            INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
-            VALUES ($1, 'admin_custom_prize', $2, $3, NOW())
-        `, [telegramId, prizeId, `Выдан пользовательский приз #${prizeId}: ${description || type}. ${notes}`]);
-        
-        res.json({
-            success: true,
-            message: 'Пользовательский приз успешно выдан',
-            prizeId: prizeId
-        });
-        
-    } catch (error) {
-        console.error('Ошибка выдачи пользовательского приза:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Ошибка выдачи пользовательского приза'
         });
     }
 });
