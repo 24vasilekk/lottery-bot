@@ -867,10 +867,18 @@ app.get('/api/leaderboard-referrals', async (req, res) => {
                     u.first_name,
                     u.username,
                     u.last_name,
-                    COALESCE(u.referrals, 0) as referrals_count
+                    COALESCE(
+                        (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id),
+                        0
+                    ) as referrals_count
                 FROM users u
                 WHERE u.is_active = true
-                ORDER BY u.referrals DESC, u.created_at ASC
+                ORDER BY 
+                    COALESCE(
+                        (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id),
+                        0
+                    ) DESC, 
+                    u.created_at ASC
                 LIMIT $1
             `;
             

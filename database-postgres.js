@@ -1829,11 +1829,30 @@ class DatabasePostgres {
 
     async getReferralsLeaderboard(limit = 10) {
         const query = `
-            SELECT u.telegram_id, u.username, u.first_name, u.referrals,
-                   ROW_NUMBER() OVER (ORDER BY u.referrals DESC) as rank
+            SELECT 
+                u.telegram_id, 
+                u.username, 
+                u.first_name,
+                COALESCE(
+                    (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id),
+                    0
+                ) as referrals_count,
+                ROW_NUMBER() OVER (
+                    ORDER BY 
+                        COALESCE(
+                            (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id),
+                            0
+                        ) DESC
+                ) as rank
             FROM users u
-            WHERE u.is_active = true AND u.referrals > 0
-            ORDER BY u.referrals DESC
+            WHERE u.is_active = true AND (
+                SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id
+            ) > 0
+            ORDER BY 
+                COALESCE(
+                    (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id),
+                    0
+                ) DESC
             LIMIT $1
         `;
         const result = await this.pool.query(query, [limit]);
@@ -1847,10 +1866,23 @@ class DatabasePostgres {
     async getUserReferralRank(telegramId) {
         const query = `
             WITH ranked_users AS (
-                SELECT telegram_id, 
-                       ROW_NUMBER() OVER (ORDER BY referrals DESC) as rank
-                FROM users 
-                WHERE is_active = true AND referrals > 0
+                SELECT 
+                    u.telegram_id, 
+                    COALESCE(
+                        (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id),
+                        0
+                    ) as referrals_count,
+                    ROW_NUMBER() OVER (
+                        ORDER BY 
+                            COALESCE(
+                                (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id),
+                                0
+                            ) DESC
+                    ) as rank
+                FROM users u
+                WHERE u.is_active = true AND (
+                    SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id
+                ) > 0
             )
             SELECT rank FROM ranked_users WHERE telegram_id = $1
         `;
