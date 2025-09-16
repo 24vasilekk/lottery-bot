@@ -117,6 +117,9 @@ class AdminPanel {
             case 'referrals':
                 await this.loadReferrals();
                 break;
+            case 'broadcasts':
+                await this.loadBroadcasts();
+                break;
             case 'analytics':
                 await this.loadAnalytics();
                 break;
@@ -377,6 +380,33 @@ class AdminPanel {
             }
         } catch (error) {
             console.error('❌ Ошибка загрузки рефералов:', error);
+        }
+    }
+
+    async loadBroadcasts() {
+        try {
+            // Инициализируем компонент рассылок если еще не создан
+            if (!window.broadcastsComponent) {
+                // Создаем упрощенный API объект для компонента
+                const api = {
+                    get: (url) => this.apiCall(url),
+                    post: (url, data) => this.apiCall(url, 'POST', data)
+                };
+                
+                window.broadcastsComponent = new window.BroadcastsComponent(api);
+                window.broadcasts = window.broadcastsComponent; // Глобальная ссылка
+            }
+            
+            // Рендерим компонент в контейнер
+            const container = document.getElementById('broadcasts-content');
+            if (container) {
+                container.innerHTML = ''; // Очищаем контейнер
+                
+                // Рендерим компонент
+                await window.broadcastsComponent.render();
+            }
+        } catch (error) {
+            console.error('❌ Ошибка загрузки рассылок:', error);
         }
     }
 
@@ -1309,4 +1339,8 @@ window.toggleAutoRenewal = (channelId, enable) => admin.toggleAutoRenewal(channe
 window.showAutomationLog = () => admin.showAutomationLog();
 window.loadWinsChannelTab = () => admin.loadWinsChannelTab();
 window.testWinsChannel = () => admin.testWinsChannel();
+
+// Глобальный объект для broadcasts компонента
+window.broadcasts = null;
+
 window.admin = new AdminPanel();

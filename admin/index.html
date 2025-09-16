@@ -251,6 +251,11 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="pill" href="#broadcasts">
+                    <i class="fas fa-bullhorn"></i> Рассылки
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" data-bs-toggle="pill" href="#analytics">
                     <i class="fas fa-chart-bar"></i> Аналитика
                 </a>
@@ -367,6 +372,19 @@
                             <span class="visually-hidden">Загрузка...</span>
                         </div>
                         <p class="mt-2">Загрузка реферальной системы...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Broadcasts Tab -->
+            <div class="tab-pane fade" id="broadcasts">
+                <div id="broadcasts-content">
+                    <!-- Содержимое будет загружено JavaScript компонентом -->
+                    <div class="loading-container">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                        <p class="mt-2">Загрузка системы рассылок...</p>
                     </div>
                 </div>
             </div>
@@ -866,6 +884,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>
     <script src="admin-security.js"></script>
     <script src="js/components/referrals.js"></script>
+    <script src="js/components/broadcasts.js"></script>
     <script src="admin.js"></script>
     <script>
         // Функция выхода

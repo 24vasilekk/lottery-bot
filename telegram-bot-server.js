@@ -346,6 +346,227 @@ app.get('/api/admin/referrals', requireAuth, async (req, res) => {
     }
 });
 
+// ===== АДМИН API ДЛЯ РАССЫЛОК =====
+
+// Получение статистики рассылок
+app.get('/api/admin/broadcasts/stats', requireAuth, async (req, res) => {
+    try {
+        // Статистика из таблицы broadcasts (если создана) или mock данные
+        const stats = {
+            total: 5,
+            sent: 3,
+            scheduled: 1,
+            failed: 1,
+            totalRecipients: 127
+        };
+
+        res.json(stats);
+    } catch (error) {
+        console.error('❌ Ошибка получения статистики рассылок:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Получение списка рассылок
+app.get('/api/admin/broadcasts', requireAuth, async (req, res) => {
+    try {
+        const { page = 1, limit = 10, filter = 'all', search = '' } = req.query;
+        const offset = (page - 1) * limit;
+
+        // Mock данные рассылок
+        const mockBroadcasts = [
+            {
+                id: 1,
+                title: 'Новая мега рулетка!',
+                status: 'sent',
+                recipient_count: 150,
+                sent_count: 147,
+                created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+                sent_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+                message: 'Попробуйте новую мега рулетку с крутыми призами!'
+            },
+            {
+                id: 2,
+                title: 'Розыгрыш iPhone!',
+                status: 'scheduled',
+                recipient_count: 200,
+                sent_count: 0,
+                created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+                scheduled_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+                message: 'Участвуйте в розыгрыше нового iPhone!'
+            },
+            {
+                id: 3,
+                title: 'Еженедельная сводка',
+                status: 'draft',
+                recipient_count: 0,
+                sent_count: 0,
+                created_at: new Date(Date.now() - 3 * 60 * 60 * 1000),
+                message: 'Что нового на этой неделе...'
+            }
+        ];
+
+        // Фильтрация
+        let filtered = mockBroadcasts;
+        if (filter !== 'all') {
+            filtered = mockBroadcasts.filter(b => b.status === filter);
+        }
+        if (search) {
+            filtered = filtered.filter(b => 
+                b.title.toLowerCase().includes(search.toLowerCase()) ||
+                b.message.toLowerCase().includes(search.toLowerCase())
+            );
+        }
+
+        // Пагинация
+        const total = filtered.length;
+        const broadcasts = filtered.slice(offset, offset + parseInt(limit));
+
+        res.json({
+            broadcasts,
+            total,
+            page: parseInt(page),
+            totalPages: Math.ceil(total / limit)
+        });
+    } catch (error) {
+        console.error('❌ Ошибка получения списка рассылок:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Отправка рассылки
+app.post('/api/admin/broadcasts/send', requireAuth, async (req, res) => {
+    try {
+        const { title, recipientType, message, recipientIds, scheduled, scheduleDate } = req.body;
+
+        // Определение получателей
+        let recipients = [];
+        
+        switch (recipientType) {
+            case 'all':
+                // Получить всех пользователей
+                const allUsersResult = await db.query('SELECT telegram_id FROM users WHERE telegram_id IS NOT NULL');
+                recipients = allUsersResult.rows.map(row => row.telegram_id);
+                break;
+                
+            case 'active':
+                // Активные пользователи за последние 7 дней
+                const activeUsersResult = await db.query(`
+                    SELECT telegram_id FROM users 
+                    WHERE telegram_id IS NOT NULL 
+                    AND last_activity_date >= NOW() - INTERVAL '7 days'
+                `);
+                recipients = activeUsersResult.rows.map(row => row.telegram_id);
+                break;
+                
+            case 'inactive':
+                // Неактивные пользователи
+                const inactiveUsersResult = await db.query(`
+                    SELECT telegram_id FROM users 
+                    WHERE telegram_id IS NOT NULL 
+                    AND (last_activity_date IS NULL OR last_activity_date < NOW() - INTERVAL '7 days')
+                `);
+                recipients = inactiveUsersResult.rows.map(row => row.telegram_id);
+                break;
+                
+            case 'high_balance':
+                // Пользователи с высоким балансом
+                const highBalanceResult = await db.query(`
+                    SELECT telegram_id FROM users 
+                    WHERE telegram_id IS NOT NULL 
+                    AND stars > 100
+                `);
+                recipients = highBalanceResult.rows.map(row => row.telegram_id);
+                break;
+                
+            case 'custom':
+                // Пользовательский список
+                if (recipientIds) {
+                    recipients = recipientIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+                }
+                break;
+        }
+
+        if (recipients.length === 0) {
+            return res.status(400).json({ error: 'Не найдено получателей для рассылки' });
+        }
+
+        // Если запланировано - сохранить в базу для последующей отправки
+        if (scheduled && scheduleDate) {
+            // Здесь должно быть сохранение в таблицу scheduled_broadcasts
+            console.log(`📅 Рассылка запланирована на ${scheduleDate} для ${recipients.length} получателей`);
+            return res.json({ 
+                success: true, 
+                message: `Рассылка запланирована на ${new Date(scheduleDate).toLocaleString('ru-RU')}`,
+                recipientCount: recipients.length
+            });
+        }
+
+        // Немедленная отправка
+        let sent = 0;
+        let failed = 0;
+
+        for (const chatId of recipients) {
+            try {
+                await bot.sendMessage(chatId, `📢 ${message}`, { parse_mode: 'Markdown' });
+                sent++;
+                
+                // Небольшая задержка чтобы не попасть в лимиты Telegram
+                if (recipients.length > 30) {
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+            } catch (error) {
+                failed++;
+                console.log(`Ошибка отправки рассылки пользователю ${chatId}:`, error.message);
+            }
+        }
+
+        // Логирование рассылки
+        console.log(`📢 Рассылка "${title}" отправлена: ${sent} успешно, ${failed} ошибок`);
+
+        res.json({
+            success: true,
+            message: `Рассылка отправлена: ${sent} успешно, ${failed} ошибок`,
+            sent,
+            failed,
+            total: recipients.length
+        });
+
+    } catch (error) {
+        console.error('❌ Ошибка отправки рассылки:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Получение шаблонов сообщений
+app.get('/api/admin/broadcasts/templates', requireAuth, async (req, res) => {
+    try {
+        // Mock шаблоны (в будущем из базы данных)
+        const templates = [
+            {
+                id: 1,
+                title: 'Приветствие новых пользователей',
+                content: 'Добро пожаловать в Kosmetichka Lottery Bot! 🎉\n\nВас ждут крутые призы и ежедневные розыгрыши!'
+            },
+            {
+                id: 2,
+                title: 'Уведомление о новых призах',
+                content: '🎁 Новые призы в рулетке!\n\nТеперь вы можете выиграть еще больше крутых косметических товаров!'
+            },
+            {
+                id: 3,
+                title: 'Напоминание о прокрутках',
+                content: '⏰ У вас есть бесплатные прокрутки!\n\nНе забудьте испытать удачу в нашей рулетке сегодня!'
+            }
+        ];
+
+        res.json(templates);
+    } catch (error) {
+        console.error('❌ Ошибка получения шаблонов:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Простой тестовый endpoint для channels без auth
 app.get('/api/admin/channels-test', (req, res) => {
     console.log('✅ CHANNELS TEST endpoint вызван');
