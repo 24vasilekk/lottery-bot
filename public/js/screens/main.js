@@ -1014,11 +1014,31 @@ export class MainScreen {
         }
         else {
             console.warn(`⚠️ Неизвестный тип приза: "${realType}", показываем универсальное сообщение`);
+            
+            // Создаем правильный объект приза для неизвестных типов
+            const correctPrizeData = {
+                ...prize,
+                displayName: realName,
+                realName: realName,
+                realValue: realValue,
+                correctName: realName,
+                correctValue: realValue
+            };
+            
             this.showResultModal({
                 icon: '🎁',
                 title: 'Поздравляем!',
                 description: realName || 'Вы что-то выиграли!',
-                type: 'unknown'
+                type: 'unknown',
+                prize: correctPrizeData
+            });
+            
+            // Сохраняем в историю с правильными данными
+            this.saveWinToHistory({
+                type: realType || 'unknown',
+                name: realName,
+                value: realValue,
+                timestamp: Date.now()
             });
         }
 
@@ -1827,7 +1847,7 @@ export class MainScreen {
         const userId = this.app.tg?.initDataUnsafe?.user?.id || 'неизвестен';
         const currentTime = new Date().toLocaleString('ru-RU');
         
-        // Приоритетно используем правильно вычисленные данные
+        // Приоритетно используем правильно вычисленные данные (правильный порядок приоритета)
         let prizeName = prizeInfo.displayName || prizeInfo.correctName || prizeInfo.realName || prizeInfo.name || 'Сертификат';
         let prizeValue = prizeInfo.correctValue || prizeInfo.realValue || prizeInfo.value || 'неизвестно';
         
@@ -1837,6 +1857,9 @@ export class MainScreen {
             correctName: prizeInfo.correctName,
             realName: prizeInfo.realName,
             visualName: prizeInfo.name,
+            correctValue: prizeInfo.correctValue,
+            realValue: prizeInfo.realValue,
+            originalValue: prizeInfo.value,
             finalPrizeName: prizeName,
             finalPrizeValue: prizeValue
         });
