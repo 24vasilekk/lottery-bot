@@ -868,6 +868,21 @@ class DatabasePostgres {
 
     // === МЕТОДЫ ДЛЯ РЕФЕРАЛОВ ===
 
+    // Проверить существование реферальной связи
+    async getReferral(referrerId, referredId) {
+        try {
+            const query = `
+                SELECT * FROM referrals 
+                WHERE referrer_id = $1 AND referred_id = $2
+            `;
+            const result = await this.pool.query(query, [referrerId, referredId]);
+            return result.rows[0] || null;
+        } catch (error) {
+            console.error('Ошибка получения реферала:', error);
+            return null;
+        }
+    }
+
     async addReferral(referrerId, referredId) {
         const referrer = await this.getUser(referrerId);
         const referred = await this.getUser(referredId);
