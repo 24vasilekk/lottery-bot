@@ -9,7 +9,7 @@ export class ProfileScreen {
         window.profileScreen = this;
         
         // Отладочное сообщение для проверки загрузки новой версии
-        console.log('👤 ProfileScreen загружен! Версия с полноценным лидербордом - v2.8');
+        console.log('👤 ProfileScreen загружен! Версия с исправленным лидербордом - v2.9');
     }
 
     // === ПОЛНЫЙ МЕТОД render() ДЛЯ profile.js ===
@@ -127,22 +127,14 @@ export class ProfileScreen {
                     </div>
                     
                     <!-- Переключатели метрик -->
-                    <div class="leaderboard-controls">
-                        <button class="leaderboard-control active" data-metric="referrals">
+                    <div class="profile-tabs leaderboard-metrics">
+                        <button class="profile-tab active" data-metric="referrals">
                             <i class="fas fa-users"></i>
-                            <span>Друзья</span>
+                            Друзья
                         </button>
-                        <button class="leaderboard-control" data-metric="stars">
-                            <i class="fas fa-star"></i>
-                            <span>Звезды</span>
-                        </button>
-                        <button class="leaderboard-control" data-metric="spins">
+                        <button class="profile-tab" data-metric="spins">
                             <i class="fas fa-sync-alt"></i>
-                            <span>Спины</span>
-                        </button>
-                        <button class="leaderboard-control" data-metric="prizes">
-                            <i class="fas fa-trophy"></i>
-                            <span>Призы</span>
+                            Спины
                         </button>
                     </div>
                     
@@ -292,12 +284,12 @@ export class ProfileScreen {
     }
 
     setupLeaderboardControls() {
-        document.querySelectorAll('.leaderboard-control').forEach(control => {
+        document.querySelectorAll('.leaderboard-metrics .profile-tab').forEach(control => {
             control.addEventListener('click', () => {
                 const metric = control.dataset.metric;
                 
                 // Переключаем активную кнопку
-                document.querySelectorAll('.leaderboard-control').forEach(c => c.classList.remove('active'));
+                document.querySelectorAll('.leaderboard-metrics .profile-tab').forEach(c => c.classList.remove('active'));
                 control.classList.add('active');
                 
                 // Загружаем соответствующий лидерборд
@@ -626,31 +618,19 @@ export class ProfileScreen {
             // Определяем endpoint и настройки для каждой метрики
             switch (metric) {
                 case 'referrals':
-                    endpoint = '/api/leaderboard-referrals?limit=50';
+                    endpoint = '/api/leaderboard-referrals?limit=15';
                     valueField = 'referrals_count';
                     labelText = (count) => this.formatFriendsCount(count);
                     icon = '👥';
                     break;
-                case 'stars':
-                    endpoint = '/api/leaderboard/stars?limit=50';
-                    valueField = 'total_stars_earned';
-                    labelText = (count) => `${count} звезд`;
-                    icon = '⭐';
-                    break;
                 case 'spins':
-                    endpoint = '/api/leaderboard/spins?limit=50';
+                    endpoint = '/api/leaderboard/spins?limit=15';
                     valueField = 'total_spins';
                     labelText = (count) => `${count} спинов`;
                     icon = '🎰';
                     break;
-                case 'prizes':
-                    endpoint = '/api/leaderboard/prizes?limit=50';
-                    valueField = 'prizes_won';
-                    labelText = (count) => `${count} призов`;
-                    icon = '🏆';
-                    break;
                 default:
-                    endpoint = '/api/leaderboard-referrals?limit=50';
+                    endpoint = '/api/leaderboard-referrals?limit=15';
                     valueField = 'referrals_count';
                     labelText = (count) => this.formatFriendsCount(count);
                     icon = '👥';
@@ -659,15 +639,41 @@ export class ProfileScreen {
             const response = await fetch(endpoint);
             const data = await response.json();
             
+            // Если нет данных, показываем всех пользователей с нулевыми значениями
             if (!data.leaderboard || data.leaderboard.length === 0) {
-                leaderboardList.innerHTML = `
-                    <div class="leaderboard-empty">
-                        <div class="empty-icon">${icon}</div>
-                        <div class="empty-title">Рейтинг пуст</div>
-                        <div class="empty-subtitle">Станьте первым!</div>
-                    </div>
-                `;
-                return;
+                console.log(`⚠️ Пустой лидерборд ${metric}, загружаем всех пользователей`);
+                // Загружаем всех пользователей независимо от значений
+                const allUsersEndpoint = metric === 'spins' 
+                    ? '/api/leaderboard/spins?limit=15&includeZeros=true'
+                    : '/api/leaderboard-referrals?limit=15&includeZeros=true';
+                
+                try {
+                    const allUsersResponse = await fetch(allUsersEndpoint);
+                    const allUsersData = await allUsersResponse.json();
+                    
+                    if (allUsersData.leaderboard && allUsersData.leaderboard.length > 0) {
+                        data.leaderboard = allUsersData.leaderboard;
+                    } else {
+                        leaderboardList.innerHTML = `
+                            <div class="leaderboard-empty">
+                                <div class="empty-icon">${icon}</div>
+                                <div class="empty-title">Нет пользователей</div>
+                                <div class="empty-subtitle">Станьте первым!</div>
+                            </div>
+                        `;
+                        return;
+                    }
+                } catch (error) {
+                    console.error('❌ Ошибка загрузки всех пользователей:', error);
+                    leaderboardList.innerHTML = `
+                        <div class="leaderboard-empty">
+                            <div class="empty-icon">${icon}</div>
+                            <div class="empty-title">Нет пользователей</div>
+                            <div class="empty-subtitle">Станьте первым!</div>
+                        </div>
+                    `;
+                    return;
+                }
             }
             
             console.log(`✅ Получен лидерборд ${metric}: ${data.leaderboard.length} записей`);
@@ -764,7 +770,7 @@ export class ProfileScreen {
             
             // Если мы в разделе лидерборда, обновляем его тоже
             if (this.currentTab === 'leaderboard') {
-                const activeMetric = document.querySelector('.leaderboard-control.active')?.dataset.metric || 'referrals';
+                const activeMetric = document.querySelector('.leaderboard-metrics .profile-tab.active')?.dataset.metric || 'referrals';
                 await this.loadLeaderboard(activeMetric);
             }
             

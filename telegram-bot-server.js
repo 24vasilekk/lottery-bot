@@ -855,18 +855,42 @@ app.post('/api/sync-referrals', async (req, res) => {
 app.get('/api/leaderboard-referrals', async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 20;
+        const includeZeros = req.query.includeZeros === 'true';
         
-        console.log(`📊 Запрос лидерборда по рефералам (дефис), лимит: ${limit}`);
+        console.log(`📊 Запрос лидерборда по рефералам (дефис), лимит: ${limit}, включая нули: ${includeZeros}`);
         
-        // Используем метод из database.js
-        const leaderboard = await db.getGlobalReferralsLeaderboard(limit);
-        
-        console.log(`✅ Лидерборд по рефералам загружен: ${leaderboard.length} записей`);
-        
-        res.json({ 
-            leaderboard: leaderboard,
-            total: leaderboard.length
-        });
+        if (includeZeros) {
+            // Загружаем всех пользователей включая с 0 рефералов
+            const query = `
+                SELECT 
+                    u.telegram_id,
+                    u.first_name,
+                    u.username,
+                    u.last_name,
+                    COALESCE(u.referrals, 0) as referrals_count
+                FROM users u
+                WHERE u.is_active = true
+                ORDER BY u.referrals DESC, u.created_at ASC
+                LIMIT $1
+            `;
+            
+            const result = await db.pool.query(query, [limit]);
+            
+            res.json({ 
+                leaderboard: result.rows,
+                total: result.rows.length
+            });
+        } else {
+            // Используем стандартный метод из database.js (только с рефералами > 0)
+            const leaderboard = await db.getGlobalReferralsLeaderboard(limit);
+            
+            console.log(`✅ Лидерборд по рефералам загружен: ${leaderboard.length} записей`);
+            
+            res.json({ 
+                leaderboard: leaderboard,
+                total: leaderboard.length
+            });
+        }
         
     } catch (error) {
         console.error('❌ Ошибка получения лидерборда рефералов:', error);
@@ -2361,8 +2385,13 @@ app.get('/api/leaderboard/stars/position/:userId', async (req, res) => {
 app.get('/api/leaderboard/spins', async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 20;
+        const includeZeros = req.query.includeZeros === 'true';
         
-        console.log(`📊 Запрос лидерборда по спинам, лимит: ${limit}`);
+        console.log(`📊 Запрос лидерборда по спинам, лимит: ${limit}, включая нули: ${includeZeros}`);
+        
+        const whereCondition = includeZeros 
+            ? 'WHERE u.is_active = true' 
+            : 'WHERE u.is_active = true AND u.total_spins > 0';
         
         const query = `
             SELECT 
@@ -2370,10 +2399,9 @@ app.get('/api/leaderboard/spins', async (req, res) => {
                 u.first_name,
                 u.username,
                 u.last_name,
-                u.total_spins
+                COALESCE(u.total_spins, 0) as total_spins
             FROM users u
-            WHERE u.is_active = true 
-            AND u.total_spins > 0
+            ${whereCondition}
             ORDER BY u.total_spins DESC, u.created_at ASC
             LIMIT $1
         `;
