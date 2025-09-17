@@ -126,16 +126,12 @@ export class ProfileScreen {
                         </div>
                     </div>
                     
-                    <!-- Переключатели метрик -->
-                    <div class="profile-tabs leaderboard-metrics">
-                        <button class="profile-tab active" data-metric="referrals">
+                    <!-- Убираем переключатели - оставляем только рефералы -->
+                    <div class="leaderboard-title">
+                        <h4>
                             <i class="fas fa-users"></i>
-                            Друзья
-                        </button>
-                        <button class="profile-tab" data-metric="spins">
-                            <i class="fas fa-sync-alt"></i>
-                            Спины
-                        </button>
+                            Топ по приглашенным друзьям
+                        </h4>
                     </div>
                     
                     <div class="current-position" id="current-position">
@@ -277,8 +273,7 @@ export class ProfileScreen {
                 
                 // Загружаем данные для соответствующей вкладки
                 if (targetTab === 'leaderboard') {
-                    this.setupLeaderboardControls();
-                    this.loadLeaderboard('referrals'); // По умолчанию загружаем рефералы
+                    this.loadLeaderboard(); // Всегда загружаем только рефералы
                 }
                 
                 this.currentTab = targetTab;
@@ -286,20 +281,7 @@ export class ProfileScreen {
         });
     }
 
-    setupLeaderboardControls() {
-        document.querySelectorAll('.leaderboard-metrics .profile-tab').forEach(control => {
-            control.addEventListener('click', () => {
-                const metric = control.dataset.metric;
-                
-                // Переключаем активную кнопку
-                document.querySelectorAll('.leaderboard-metrics .profile-tab').forEach(c => c.classList.remove('active'));
-                control.classList.add('active');
-                
-                // Загружаем соответствующий лидерборд
-                this.loadLeaderboard(metric);
-            });
-        });
-    }
+    // setupLeaderboardControls удален - больше нет переключателей метрик
 
     // Функция для правильного склонения слова "друг"
     getFriendsWord(count) {
@@ -813,8 +795,7 @@ export class ProfileScreen {
             
             // Если мы в разделе лидерборда, обновляем его тоже
             if (this.currentTab === 'leaderboard') {
-                const activeMetric = document.querySelector('.leaderboard-metrics .profile-tab.active')?.dataset.metric || 'referrals';
-                await this.loadLeaderboard(activeMetric);
+                await this.loadLeaderboard(); // Всегда загружаем рефералы
             }
             
             console.log('✅ Принудительное обновление завершено');
