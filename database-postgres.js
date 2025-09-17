@@ -1845,9 +1845,7 @@ class DatabasePostgres {
                         ) DESC
                 ) as rank
             FROM users u
-            WHERE u.is_active = true AND (
-                SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id
-            ) > 0
+            WHERE u.is_active = true
             ORDER BY 
                 COALESCE(
                     (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id),
@@ -1880,9 +1878,7 @@ class DatabasePostgres {
                             ) DESC, u.id ASC
                     ) as rank
                 FROM users u
-                WHERE u.is_active = true AND (
-                    SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id
-                ) > 0
+                WHERE u.is_active = true
             )
             SELECT rank FROM ranked_users WHERE telegram_id = $1
         `;
