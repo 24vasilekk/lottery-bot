@@ -2962,7 +2962,7 @@ app.get('/api/quick-debug/:userId', async (req, res) => {
         console.log(`🔍 Быстрая проверка данных пользователя ${userId}`);
         
         // 1. Данные пользователя из таблицы users
-        const userQuery = `SELECT id, telegram_id, first_name, username, referrals, stars FROM users WHERE telegram_id = $1`;
+        const userQuery = `SELECT id, telegram_id, first_name, username, referrals, stars, is_active FROM users WHERE telegram_id = $1`;
         const userResult = await db.pool.query(userQuery, [parseInt(userId)]);
         const user = userResult.rows[0];
         
@@ -3000,7 +3000,8 @@ app.get('/api/quick-debug/:userId', async (req, res) => {
             users_table: {
                 referrals: user.referrals,
                 stars: user.stars,
-                first_name: user.first_name
+                first_name: user.first_name,
+                is_active: user.is_active
             },
             referrals_table: {
                 count: referralsResult.rows.length,
