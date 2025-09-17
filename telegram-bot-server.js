@@ -756,23 +756,42 @@ app.get('/api/leaderboard/referrals/position/:userId', async (req, res) => {
         
         console.log(`👤 Запрос позиции пользователя ${userId} в лидерборде рефералов`);
         
-        // Обновляем счетчик рефералов пользователя
-        await db.updateReferralCount(parseInt(userId));
+        // Получаем полную информацию о позиции пользователя
+        const query = `
+            WITH ranked_users AS (
+                SELECT 
+                    u.telegram_id, 
+                    COALESCE(
+                        (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id AND r.is_active = true),
+                        0
+                    ) as referrals_count,
+                    ROW_NUMBER() OVER (
+                        ORDER BY 
+                            COALESCE(
+                                (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id AND r.is_active = true),
+                                0
+                            ) DESC, u.id ASC
+                    ) as position
+                FROM users u
+                WHERE u.is_active = true
+            )
+            SELECT position, referrals_count FROM ranked_users WHERE telegram_id = $1
+        `;
         
-        // Получаем ранг пользователя
-        const rank = await db.getUserReferralRank(parseInt(userId));
+        const result = await db.pool.query(query, [parseInt(userId)]);
+        const userRank = result.rows[0];
         
-        if (rank) {
-            console.log(`✅ Позиция пользователя ${userId}:`, rank.position);
+        if (userRank && userRank.referrals_count > 0) {
+            console.log(`✅ Позиция пользователя ${userId}: #${userRank.position} с ${userRank.referrals_count} рефералами`);
             res.json({ 
-                position: rank.position,
-                score: rank.referrals_count
+                position: parseInt(userRank.position),
+                score: parseInt(userRank.referrals_count)
             });
         } else {
-            console.log(`📊 Пользователь ${userId} не в рейтинге рефералов`);
-            res.json({ 
+            console.log(`📊 Пользователь ${userId} не в рейтинге рефералов (${userRank?.referrals_count || 0} рефералов)`);
+            res.json({
                 position: null,
-                score: 0
+                score: parseInt(userRank?.referrals_count || 0)
             });
         }
         
