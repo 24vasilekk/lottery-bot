@@ -2954,6 +2954,36 @@ app.post('/api/sync-user-referrals/:userId', async (req, res) => {
     }
 });
 
+// API для активации пользователя
+app.post('/api/activate-user/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        console.log(`🔄 Активация пользователя ${userId}`);
+        
+        const updateQuery = `UPDATE users SET is_active = true WHERE telegram_id = $1 RETURNING id, telegram_id, first_name, is_active`;
+        const result = await db.pool.query(updateQuery, [parseInt(userId)]);
+        
+        if (result.rows.length === 0) {
+            return res.json({ error: 'Пользователь не найден' });
+        }
+        
+        const user = result.rows[0];
+        
+        console.log(`✅ Пользователь ${userId} активирован`);
+        
+        res.json({
+            success: true,
+            message: `Пользователь ${user.first_name} активирован`,
+            user: user
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка активации пользователя:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // API для быстрой проверки данных пользователя
 app.get('/api/quick-debug/:userId', async (req, res) => {
     try {
