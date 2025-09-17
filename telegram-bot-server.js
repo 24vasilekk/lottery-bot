@@ -878,7 +878,7 @@ app.get('/api/leaderboard-referrals', async (req, res) => {
                         (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id),
                         0
                     ) DESC, 
-                    u.created_at ASC
+                    u.id ASC
                 LIMIT $1
             `;
             
@@ -2420,7 +2420,7 @@ app.get('/api/leaderboard/spins', async (req, res) => {
                     (SELECT COUNT(*) FROM spins s WHERE s.user_id = u.id),
                     0
                 ) DESC, 
-                u.created_at ASC
+                u.id ASC
             LIMIT $1
         `;
         
@@ -2458,7 +2458,7 @@ app.get('/api/leaderboard/spins/position/:userId', async (req, res) => {
                                 (SELECT COUNT(*) FROM spins s WHERE s.user_id = u.id),
                                 0
                             ) DESC, 
-                            u.created_at ASC
+                            u.id ASC
                     ) as position
                 FROM users u
                 WHERE u.is_active = true AND (

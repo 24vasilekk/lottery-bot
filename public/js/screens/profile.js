@@ -9,7 +9,7 @@ export class ProfileScreen {
         window.profileScreen = this;
         
         // Отладочное сообщение для проверки загрузки новой версии
-        console.log('👤 ProfileScreen загружен! Версия с исправлением referrals API - v2.11');
+        console.log('👤 ProfileScreen загружен! Версия с исправлением created_at - v2.12');
     }
 
     // === ПОЛНЫЙ МЕТОД render() ДЛЯ profile.js ===

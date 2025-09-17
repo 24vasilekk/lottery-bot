@@ -1852,7 +1852,7 @@ class DatabasePostgres {
                 COALESCE(
                     (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id),
                     0
-                ) DESC
+                ) DESC, u.id ASC
             LIMIT $1
         `;
         const result = await this.pool.query(query, [limit]);
@@ -1877,7 +1877,7 @@ class DatabasePostgres {
                             COALESCE(
                                 (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id),
                                 0
-                            ) DESC
+                            ) DESC, u.id ASC
                     ) as rank
                 FROM users u
                 WHERE u.is_active = true AND (
