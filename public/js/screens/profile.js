@@ -202,6 +202,30 @@ export class ProfileScreen {
             
             document.body.appendChild(refreshButton);
             console.log('🔧 Кнопка отладки рефералов добавлена');
+            
+            // Добавляем кнопку отладки данных рефералов
+            const debugReferralsButton = document.createElement('button');
+            debugReferralsButton.textContent = '🔍 Debug рефералы';
+            debugReferralsButton.className = 'debug-referrals-btn';
+            debugReferralsButton.onclick = () => this.debugReferrals();
+            debugReferralsButton.style.cssText = `
+                position: fixed;
+                top: 60px;
+                right: 10px;
+                z-index: 1000;
+                padding: 8px 12px;
+                background: #ff9500;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 12px;
+                cursor: pointer;
+                box-shadow: 0 4px 12px rgba(255, 149, 0, 0.4);
+                transition: all 0.3s ease;
+            `;
+            
+            document.body.appendChild(debugReferralsButton);
+            console.log('🔧 Кнопка отладки данных рефералов добавлена');
         }
         
         // Включаем режим отладки если есть параметр в URL
@@ -230,8 +254,12 @@ export class ProfileScreen {
         window.DEBUG_MODE = false;
         localStorage.removeItem('debug_mode');
         const debugButton = document.querySelector('.debug-refresh-btn');
+        const debugReferralsButton = document.querySelector('.debug-referrals-btn');
         if (debugButton) {
             debugButton.remove();
+        }
+        if (debugReferralsButton) {
+            debugReferralsButton.remove();
         }
         console.log('🔧 Режим отладки отключен');
     }
@@ -1180,6 +1208,90 @@ export class ProfileScreen {
     isCurrentUser(player) {
         const currentUserId = this.getTelegramId();
         return currentUserId && currentUserId.toString() === player.telegram_id.toString();
+    }
+
+    // Метод отладки рефералов
+    async debugReferrals() {
+        try {
+            const userId = this.getTelegramId();
+            if (!userId || userId === 'Неизвестно') {
+                alert('❌ Не удалось получить ID пользователя');
+                return;
+            }
+            
+            console.log(`🔍 Отладка рефералов для пользователя ${userId}`);
+            
+            // Получаем данные отладки
+            const response = await fetch(`/api/debug-referrals/${userId}`);
+            const debugData = await response.json();
+            
+            console.log('🔍 Данные отладки рефералов:', debugData);
+            
+            // Показываем результат пользователю
+            const message = `
+🔍 ОТЛАДКА РЕФЕРАЛОВ
+
+👤 ID пользователя: ${debugData.userId}
+
+📊 Данные в профиле приложения:
+• Рефералы: ${this.app.gameData.referrals || 0}
+• Звезды: ${this.app.gameData.stars || 0}
+
+🗄️ Данные в базе (users):
+• Рефералы: ${debugData.userFromDB.referrals}
+• Звезды: ${debugData.userFromDB.stars}
+
+📋 Реальные рефералы (referrals table):
+• Количество: ${debugData.actualReferrals.count}
+• Список: ${debugData.referralsList.map(r => r.first_name || r.username || r.telegram_id).join(', ') || 'Нет'}
+
+⚠️ Нужна синхронизация: ${debugData.needsSync ? 'ДА' : 'НЕТ'}
+
+${debugData.needsSync ? '\n🔄 Запустить синхронизацию?' : ''}
+            `;
+            
+            if (confirm(message + (debugData.needsSync ? '\n\nНажмите OK для синхронизации' : ''))) {
+                if (debugData.needsSync) {
+                    await this.syncUserReferrals(userId);
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка отладки рефералов:', error);
+            alert('❌ Ошибка отладки рефералов');
+        }
+    }
+
+    // Метод синхронизации рефералов пользователя
+    async syncUserReferrals(userId) {
+        try {
+            console.log(`🔄 Синхронизация рефералов пользователя ${userId}`);
+            
+            const response = await fetch(`/api/sync-user-referrals/${userId}`, {
+                method: 'POST'
+            });
+            const result = await response.json();
+            
+            console.log('✅ Результат синхронизации:', result);
+            
+            if (result.success) {
+                alert(`✅ Синхронизация завершена!\n\nРефералы обновлены: ${result.data.newReferrals}\nЗвезды пересчитаны: ${result.data.updatedUser.stars}`);
+                
+                // Перезагружаем данные профиля
+                await this.loadProfileData();
+                
+                // Если в лидерборде, обновляем его тоже
+                if (this.currentTab === 'leaderboard') {
+                    await this.loadLeaderboard();
+                }
+            } else {
+                alert(`❌ Ошибка синхронизации: ${result.error}`);
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка синхронизации рефералов:', error);
+            alert('❌ Ошибка синхронизации рефералов');
+        }
     }
 
 }
