@@ -2954,6 +2954,79 @@ app.post('/api/sync-user-referrals/:userId', async (req, res) => {
     }
 });
 
+// API для быстрой проверки данных пользователя
+app.get('/api/quick-debug/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        console.log(`🔍 Быстрая проверка данных пользователя ${userId}`);
+        
+        // 1. Данные пользователя из таблицы users
+        const userQuery = `SELECT id, telegram_id, first_name, username, referrals, stars FROM users WHERE telegram_id = $1`;
+        const userResult = await db.pool.query(userQuery, [parseInt(userId)]);
+        const user = userResult.rows[0];
+        
+        if (!user) {
+            return res.json({ error: 'Пользователь не найден' });
+        }
+        
+        // 2. Реальные рефералы из таблицы referrals
+        const referralsQuery = `
+            SELECT r.*, u.first_name, u.username 
+            FROM referrals r 
+            JOIN users u ON u.id = r.referred_id 
+            WHERE r.referrer_id = $1 AND r.is_active = true
+        `;
+        const referralsResult = await db.pool.query(referralsQuery, [user.id]);
+        
+        // 3. Позиция в лидерборде
+        const positionQuery = `
+            WITH ranked_users AS (
+                SELECT 
+                    u.telegram_id,
+                    u.first_name,
+                    COALESCE((SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id AND r.is_active = true), 0) as referrals_count,
+                    ROW_NUMBER() OVER (ORDER BY COALESCE((SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id AND r.is_active = true), 0) DESC, u.id ASC) as position
+                FROM users u
+                WHERE u.is_active = true
+            )
+            SELECT position, referrals_count FROM ranked_users WHERE telegram_id = $1
+        `;
+        const positionResult = await db.pool.query(positionQuery, [parseInt(userId)]);
+        
+        const debugData = {
+            user_id: userId,
+            user_internal_id: user.id,
+            users_table: {
+                referrals: user.referrals,
+                stars: user.stars,
+                first_name: user.first_name
+            },
+            referrals_table: {
+                count: referralsResult.rows.length,
+                list: referralsResult.rows.map(r => ({
+                    referred_user: r.first_name || r.username,
+                    date: r.referral_date,
+                    active: r.is_active
+                }))
+            },
+            leaderboard_position: positionResult.rows[0] || { position: null, referrals_count: 0 },
+            discrepancy: {
+                users_vs_referrals: user.referrals !== referralsResult.rows.length,
+                expected_position: referralsResult.rows.length > 0 ? 'Должен быть в топе' : 'Не в рейтинге'
+            }
+        };
+        
+        console.log('🔍 Debug данные:', JSON.stringify(debugData, null, 2));
+        
+        res.json(debugData);
+        
+    } catch (error) {
+        console.error('❌ Ошибка быстрой проверки:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // API для отладки - получение всех данных пользователя
 app.get('/api/debug-user/:userId', async (req, res) => {
     try {
