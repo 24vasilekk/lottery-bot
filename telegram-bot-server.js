@@ -2825,32 +2825,20 @@ app.get('/api/user/:userId', async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
         
-        // Получаем количество рефералов
+        // Получаем количество рефералов ПРАВИЛЬНО через user.id
         let referralsCount = 0;
         try {
-            referralsCount = await new Promise((resolve, reject) => {
-                const query = `
-                    SELECT COUNT(*) as count 
-                    FROM referrals 
-                    WHERE referrer_id = ?
-                `;
-                
-                if (db.pool) {
-                    db.pool.query(query, [parseInt(userId)], (error, results) => {
-                        if (error) reject(error);
-                        else resolve(results[0]?.count || 0);
-                    });
-                } else if (db.db) {
-                    db.db.get(query, [parseInt(userId)], (error, result) => {
-                        if (error) reject(error);
-                        else resolve(result?.count || 0);
-                    });
-                } else {
-                    resolve(0);
-                }
-            });
+            const referralsQuery = `
+                SELECT COUNT(*) as count 
+                FROM referrals 
+                WHERE referrer_id = $1 AND is_active = true
+            `;
+            const referralsResult = await db.pool.query(referralsQuery, [user.id]);
+            referralsCount = parseInt(referralsResult.rows[0].count) || 0;
+            
+            console.log(`📊 Получено рефералов для пользователя ${userId} (user.id=${user.id}): ${referralsCount}`);
         } catch (error) {
-            console.warn('⚠️ Ошибка получения количества рефералов:', error);
+            console.error('❌ Ошибка получения количества рефералов:', error);
             referralsCount = 0;
         }
         
