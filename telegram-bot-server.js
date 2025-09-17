@@ -2954,8 +2954,8 @@ app.post('/api/sync-user-referrals/:userId', async (req, res) => {
     }
 });
 
-// API для активации пользователя
-app.post('/api/activate-user/:userId', async (req, res) => {
+// API для активации пользователя (GET для простоты)
+app.get('/api/activate-user/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
         
