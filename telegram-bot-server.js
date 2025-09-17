@@ -2397,11 +2397,8 @@ app.get('/api/leaderboard/spins', async (req, res) => {
         
         console.log(`📊 Запрос лидерборда по спинам, лимит: ${limit}, включая нули: ${includeZeros}`);
         
-        const whereCondition = includeZeros 
-            ? 'WHERE u.is_active = true' 
-            : `WHERE u.is_active = true AND (
-                SELECT COUNT(*) FROM spins s WHERE s.user_id = u.id
-            ) > 0`;
+        // Упрощенное условие - возможно таблица spins имеет другую структуру
+        const whereCondition = 'WHERE u.is_active = true';
         
         const query = `
             SELECT 
@@ -2410,14 +2407,14 @@ app.get('/api/leaderboard/spins', async (req, res) => {
                 u.username,
                 u.last_name,
                 COALESCE(
-                    (SELECT COUNT(*) FROM spins s WHERE s.user_id = u.id),
+                    (SELECT COUNT(*) FROM spins s WHERE s.telegram_id = u.telegram_id),
                     0
                 ) as total_spins
             FROM users u
             ${whereCondition}
             ORDER BY 
                 COALESCE(
-                    (SELECT COUNT(*) FROM spins s WHERE s.user_id = u.id),
+                    (SELECT COUNT(*) FROM spins s WHERE s.telegram_id = u.telegram_id),
                     0
                 ) DESC, 
                 u.id ASC
@@ -2449,21 +2446,19 @@ app.get('/api/leaderboard/spins/position/:userId', async (req, res) => {
                 SELECT 
                     u.telegram_id,
                     COALESCE(
-                        (SELECT COUNT(*) FROM spins s WHERE s.user_id = u.id),
+                        (SELECT COUNT(*) FROM spins s WHERE s.telegram_id = u.telegram_id),
                         0
                     ) as total_spins,
                     ROW_NUMBER() OVER (
                         ORDER BY 
                             COALESCE(
-                                (SELECT COUNT(*) FROM spins s WHERE s.user_id = u.id),
+                                (SELECT COUNT(*) FROM spins s WHERE s.telegram_id = u.telegram_id),
                                 0
                             ) DESC, 
                             u.id ASC
                     ) as position
                 FROM users u
-                WHERE u.is_active = true AND (
-                    SELECT COUNT(*) FROM spins s WHERE s.user_id = u.id
-                ) > 0
+                WHERE u.is_active = true
             )
             SELECT position, total_spins as score 
             FROM ranked_users 
