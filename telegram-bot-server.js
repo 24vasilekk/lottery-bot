@@ -870,60 +870,6 @@ app.post('/api/sync-referrals', async (req, res) => {
     }
 });
 
-// Дублируем для совместимости - endpoint с дефисом
-app.get('/api/leaderboard-referrals', async (req, res) => {
-    try {
-        const limit = parseInt(req.query.limit) || 20;
-        const includeZeros = req.query.includeZeros === 'true';
-        
-        console.log(`📊 Запрос лидерборда по рефералам (дефис), лимит: ${limit}, включая нули: ${includeZeros}`);
-        
-        if (includeZeros) {
-            // Загружаем всех пользователей включая с 0 рефералов
-            const query = `
-                SELECT 
-                    u.telegram_id,
-                    u.first_name,
-                    u.username,
-                    u.last_name,
-                    COALESCE(
-                        (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id),
-                        0
-                    ) as referrals_count
-                FROM users u
-                WHERE u.is_active = true
-                ORDER BY 
-                    COALESCE(
-                        (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id),
-                        0
-                    ) DESC, 
-                    u.id ASC
-                LIMIT $1
-            `;
-            
-            const result = await db.pool.query(query, [limit]);
-            
-            res.json({ 
-                leaderboard: result.rows,
-                total: result.rows.length
-            });
-        } else {
-            // Используем стандартный метод из database.js (только с рефералами > 0)
-            const leaderboard = await db.getGlobalReferralsLeaderboard(limit);
-            
-            console.log(`✅ Лидерборд по рефералам загружен: ${leaderboard.length} записей`);
-            
-            res.json({ 
-                leaderboard: leaderboard,
-                total: leaderboard.length
-            });
-        }
-        
-    } catch (error) {
-        console.error('❌ Ошибка получения лидерборда рефералов:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
 
 // Дублируем для совместимости - endpoint для ранга
 app.get('/api/user-referral-rank/:userId', async (req, res) => {
