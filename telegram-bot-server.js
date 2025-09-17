@@ -2895,6 +2895,112 @@ app.get('/api/user/:userId', async (req, res) => {
     }
 });
 
+// API для отладки рефералов пользователя
+app.get('/api/debug-referrals/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        console.log(`🔍 Отладка рефералов пользователя ${userId}`);
+        
+        const user = await db.getUser(parseInt(userId));
+        
+        // Получаем количество рефералов из таблицы referrals
+        const referralsQuery = `
+            SELECT COUNT(*) as count, 
+                   array_agg(referred_id) as referred_ids
+            FROM referrals 
+            WHERE referrer_id = (SELECT id FROM users WHERE telegram_id = $1)
+        `;
+        const referralsResult = await db.pool.query(referralsQuery, [parseInt(userId)]);
+        const actualReferrals = referralsResult.rows[0];
+        
+        // Получаем список рефералов с именами
+        const referralsList = `
+            SELECT u.telegram_id, u.first_name, u.username, r.created_at
+            FROM referrals r
+            JOIN users u ON u.id = r.referred_id  
+            WHERE r.referrer_id = (SELECT id FROM users WHERE telegram_id = $1)
+            ORDER BY r.created_at DESC
+        `;
+        const referralsListResult = await db.pool.query(referralsList, [parseInt(userId)]);
+        
+        const debugData = {
+            userId: userId,
+            userFromDB: {
+                referrals: user?.referrals || 0,
+                stars: user?.stars || 0,
+                total_stars_earned: user?.total_stars_earned || 0
+            },
+            actualReferrals: {
+                count: parseInt(actualReferrals.count) || 0,
+                referred_ids: actualReferrals.referred_ids || []
+            },
+            referralsList: referralsListResult.rows,
+            needsSync: (user?.referrals || 0) !== (parseInt(actualReferrals.count) || 0),
+            timestamp: new Date().toISOString()
+        };
+        
+        console.log('🔍 Отладка рефералов:', JSON.stringify(debugData, null, 2));
+        
+        res.json(debugData);
+    } catch (error) {
+        console.error('❌ Ошибка отладки рефералов:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для принудительной синхронизации рефералов конкретного пользователя
+app.post('/api/sync-user-referrals/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        console.log(`🔄 Синхронизация рефералов пользователя ${userId}`);
+        
+        // Получаем актуальное количество рефералов
+        const referralsQuery = `
+            SELECT COUNT(*) as count
+            FROM referrals 
+            WHERE referrer_id = (SELECT id FROM users WHERE telegram_id = $1) AND is_active = true
+        `;
+        const referralsResult = await db.pool.query(referralsQuery, [parseInt(userId)]);
+        const actualCount = parseInt(referralsResult.rows[0].count) || 0;
+        
+        // Обновляем запись пользователя
+        const updateQuery = `
+            UPDATE users 
+            SET referrals = $1, 
+                total_stars_earned = total_stars_earned + ($1 * 10 - COALESCE(referrals, 0) * 10),
+                stars = stars + ($1 * 10 - COALESCE(referrals, 0) * 10)
+            WHERE telegram_id = $2
+            RETURNING referrals, stars, total_stars_earned
+        `;
+        const updateResult = await db.pool.query(updateQuery, [actualCount, parseInt(userId)]);
+        
+        const syncData = {
+            userId: userId,
+            oldReferrals: updateResult.rows[0]?.referrals - actualCount || 0,
+            newReferrals: actualCount,
+            updatedUser: updateResult.rows[0],
+            timestamp: new Date().toISOString()
+        };
+        
+        console.log('✅ Синхронизация завершена:', syncData);
+        
+        res.json({
+            success: true,
+            message: `Рефералы пользователя ${userId} синхронизированы`,
+            data: syncData
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка синхронизации рефералов пользователя:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error' 
+        });
+    }
+});
+
 // API для отладки - получение всех данных пользователя
 app.get('/api/debug-user/:userId', async (req, res) => {
     try {
