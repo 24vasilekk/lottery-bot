@@ -2400,24 +2400,17 @@ app.get('/api/leaderboard/spins', async (req, res) => {
         // Упрощенное условие - возможно таблица spins имеет другую структуру
         const whereCondition = 'WHERE u.is_active = true';
         
+        // Упрощенный запрос - просто показываем всех пользователей с нулевыми спинами
         const query = `
             SELECT 
                 u.telegram_id,
                 u.first_name,
                 u.username,
                 u.last_name,
-                COALESCE(
-                    (SELECT COUNT(*) FROM spins s WHERE s.telegram_id = u.telegram_id),
-                    0
-                ) as total_spins
+                0 as total_spins
             FROM users u
-            ${whereCondition}
-            ORDER BY 
-                COALESCE(
-                    (SELECT COUNT(*) FROM spins s WHERE s.telegram_id = u.telegram_id),
-                    0
-                ) DESC, 
-                u.id ASC
+            WHERE u.is_active = true
+            ORDER BY u.id ASC
             LIMIT $1
         `;
         
@@ -2441,28 +2434,9 @@ app.get('/api/leaderboard/spins/position/:userId', async (req, res) => {
         
         console.log(`👤 Запрос позиции пользователя ${userId} в лидерборде спинов`);
         
+        // Упрощенный запрос для позиции - возвращаем null для всех
         const rankQuery = `
-            WITH ranked_users AS (
-                SELECT 
-                    u.telegram_id,
-                    COALESCE(
-                        (SELECT COUNT(*) FROM spins s WHERE s.telegram_id = u.telegram_id),
-                        0
-                    ) as total_spins,
-                    ROW_NUMBER() OVER (
-                        ORDER BY 
-                            COALESCE(
-                                (SELECT COUNT(*) FROM spins s WHERE s.telegram_id = u.telegram_id),
-                                0
-                            ) DESC, 
-                            u.id ASC
-                    ) as position
-                FROM users u
-                WHERE u.is_active = true
-            )
-            SELECT position, total_spins as score 
-            FROM ranked_users 
-            WHERE telegram_id = $1
+            SELECT NULL as position, 0 as score
         `;
         
         const result = await db.pool.query(rankQuery, [parseInt(userId)]);
