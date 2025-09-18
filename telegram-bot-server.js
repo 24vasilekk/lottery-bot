@@ -215,6 +215,11 @@ app.use((req, res, next) => {
     next();
 });
 
+// УЛЬТРА-ПРОСТОЙ DEBUG ENDPOINT (без middleware)
+app.get('/debug', (req, res) => {
+    res.json({ status: 'ok', time: new Date().toISOString() });
+});
+
 // Применяем общие ограничения для всех API эндпоинтов
 app.use('/api', generalApiLimiter);
 
