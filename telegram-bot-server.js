@@ -3599,7 +3599,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
         }
 
         try {
-            const result = await db.query("SELECT COUNT(*) as count FROM user_channel_subscriptions WHERE subscribed_at > CURRENT_DATE");
+            const result = await db.query("SELECT COUNT(*) as count FROM user_channel_subscriptions WHERE subscribed_date > CURRENT_DATE");
             stats.todaySubscriptions = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета подписок за сегодня:', err);
@@ -3608,7 +3608,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Статистика прокруток
         try {
-            const result = await db.query('SELECT COUNT(*) as count FROM spins');
+            const result = await db.query('SELECT COUNT(*) as count FROM prizes');
             stats.totalSpins = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета прокруток:', err);
@@ -3616,7 +3616,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
         }
 
         try {
-            const result = await db.query("SELECT COUNT(*) as count FROM spins WHERE created_at > CURRENT_DATE");
+            const result = await db.query("SELECT COUNT(*) as count FROM prizes WHERE created_at > CURRENT_DATE");
             stats.todaySpins = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета прокруток за сегодня:', err);
@@ -3656,7 +3656,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
                        COUNT(ucs.user_id) as conversions,
                        CASE 
                            WHEN pc.current_subscribers > 0 THEN 
-                               ROUND((COUNT(ucs.user_id)::float / pc.current_subscribers * 100), 2)
+                               ROUND((COUNT(ucs.user_id)::float / pc.current_subscribers * 100)::numeric, 2)
                            ELSE 0 
                        END as conversion_rate
                 FROM partner_channels pc
@@ -3991,6 +3991,125 @@ app.get('/api/admin/prizes', requireAuth, async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Ошибка получения списка призов'
+        });
+    }
+});
+
+// API для получения событий дашборда
+app.get('/api/admin/events', requireAuth, async (req, res) => {
+    try {
+        console.log('📋 Admin API: Запрос событий дашборда');
+        
+        const { limit = 10 } = req.query;
+        const events = [];
+        
+        try {
+            // Последние регистрации пользователей
+            const newUsers = await db.query(`
+                SELECT telegram_id, first_name, username, created_at
+                FROM users 
+                ORDER BY created_at DESC 
+                LIMIT $1
+            `, [Math.min(parseInt(limit), 20)]);
+            
+            newUsers.rows.forEach(user => {
+                events.push({
+                    id: `user_${user.telegram_id}`,
+                    type: 'user',
+                    title: 'Новый пользователь',
+                    description: `Пользователь ${user.first_name}${user.username ? ` (@${user.username})` : ''} присоединился к боту`,
+                    created_at: user.created_at,
+                    user: { 
+                        name: user.first_name,
+                        username: user.username 
+                    }
+                });
+            });
+            
+        } catch (err) {
+            console.error('Ошибка получения пользователей:', err);
+        }
+
+        try {
+            // Последние выданные призы
+            const recentPrizes = await db.query(`
+                SELECT p.id, p.type, p.description, p.created_at,
+                       u.first_name, u.username
+                FROM prizes p
+                LEFT JOIN users u ON p.user_id = u.telegram_id
+                WHERE p.is_given = true
+                ORDER BY p.given_at DESC 
+                LIMIT 3
+            `);
+            
+            recentPrizes.rows.forEach(prize => {
+                events.push({
+                    id: `prize_${prize.id}`,
+                    type: 'prize',
+                    title: 'Выдан приз',
+                    description: `Выдан приз: ${prize.description || prize.type}`,
+                    created_at: prize.created_at,
+                    user: {
+                        name: prize.first_name,
+                        username: prize.username
+                    }
+                });
+            });
+            
+        } catch (err) {
+            console.error('Ошибка получения призов:', err);
+        }
+
+        // Сортируем события по дате
+        events.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        
+        console.log(`✅ Возвращаем ${events.length} событий`);
+        
+        res.json({
+            success: true,
+            events: events.slice(0, parseInt(limit))
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения событий дашборда:', error);
+        res.json({ 
+            success: false,
+            events: [] 
+        });
+    }
+});
+
+// API для статистики активности
+app.get('/api/admin/activity-stats', requireAuth, async (req, res) => {
+    try {
+        console.log('📈 Admin API: Запрос статистики активности');
+        
+        // Статистика по дням за последнюю неделю
+        const activity = await db.query(`
+            SELECT 
+                DATE(created_at) as date,
+                COUNT(*) as users
+            FROM users 
+            WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'
+            GROUP BY DATE(created_at)
+            ORDER BY date
+        `);
+        
+        // Общее количество активных пользователей
+        const totalActive = await db.query('SELECT COUNT(*) as count FROM users WHERE is_active = true');
+        
+        res.json({
+            success: true,
+            daily_users: activity.rows,
+            total_active: parseInt(totalActive.rows[0]?.count) || 0
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка статистики активности:', error);
+        res.json({ 
+            success: false,
+            daily_users: [], 
+            total_active: 0 
         });
     }
 });
@@ -8804,7 +8923,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
         }
 
         try {
-            const result = await db.query("SELECT COUNT(*) as count FROM user_channel_subscriptions WHERE subscribed_at > CURRENT_DATE");
+            const result = await db.query("SELECT COUNT(*) as count FROM user_channel_subscriptions WHERE subscribed_date > CURRENT_DATE");
             stats.todaySubscriptions = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета подписок за сегодня:', err);
@@ -8813,7 +8932,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Статистика прокруток
         try {
-            const result = await db.query('SELECT COUNT(*) as count FROM spins');
+            const result = await db.query('SELECT COUNT(*) as count FROM prizes');
             stats.totalSpins = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета прокруток:', err);
@@ -8821,7 +8940,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
         }
 
         try {
-            const result = await db.query("SELECT COUNT(*) as count FROM spins WHERE created_at > CURRENT_DATE");
+            const result = await db.query("SELECT COUNT(*) as count FROM prizes WHERE created_at > CURRENT_DATE");
             stats.todaySpins = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета прокруток за сегодня:', err);
@@ -8870,7 +8989,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
                        COUNT(ucs.user_id) as conversions,
                        CASE 
                            WHEN pc.current_subscribers > 0 THEN 
-                               ROUND((COUNT(ucs.user_id)::float / pc.current_subscribers * 100), 2)
+                               ROUND((COUNT(ucs.user_id)::float / pc.current_subscribers * 100)::numeric, 2)
                            ELSE 0 
                        END as conversion_rate
                 FROM partner_channels pc
@@ -9009,13 +9128,13 @@ app.get('/api/admin/events', requireAuth, async (req, res) => {
         try {
             // Последние подписки на каналы
             const recentSubscriptions = await db.query(`
-                SELECT ucs.user_id, ucs.subscribed_at, 
+                SELECT ucs.user_id, ucs.subscribed_date, 
                        pc.channel_name, pc.channel_username,
                        u.first_name, u.username
                 FROM user_channel_subscriptions ucs
                 LEFT JOIN partner_channels pc ON ucs.channel_id = pc.id
                 LEFT JOIN users u ON ucs.user_id = u.telegram_id
-                ORDER BY ucs.subscribed_at DESC
+                ORDER BY ucs.subscribed_date DESC
                 LIMIT 3
             `);
             
@@ -9025,7 +9144,7 @@ app.get('/api/admin/events', requireAuth, async (req, res) => {
                     type: 'channel',
                     title: 'Новая подписка',
                     description: `Подписка на канал ${sub.channel_name || sub.channel_username}`,
-                    created_at: sub.subscribed_at,
+                    created_at: sub.subscribed_date,
                     user: {
                         name: sub.first_name,
                         username: sub.username
@@ -9211,11 +9330,11 @@ app.get('/api/admin/users/:userId', requireAuth, async (req, res) => {
         
         // Получаем подписки на каналы
         const subscriptionsQuery = `
-            SELECT pc.channel_name, pc.channel_username, ucs.subscribed_at
+            SELECT pc.channel_name, pc.channel_username, ucs.subscribed_date
             FROM user_channel_subscriptions ucs
             LEFT JOIN partner_channels pc ON ucs.channel_id = pc.id
             WHERE ucs.user_id = $1
-            ORDER BY ucs.subscribed_at DESC
+            ORDER BY ucs.subscribed_date DESC
             LIMIT 10
         `;
         const subscriptionsResult = await db.query(subscriptionsQuery, [telegramId]);
