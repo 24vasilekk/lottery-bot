@@ -5167,7 +5167,7 @@ app.post('/api/admin/users/stars', requireAuth, async (req, res) => {
 
         // Добавляем запись в историю транзакций
         await db.addStarsTransaction({
-            user_id: validatedData.telegramId,
+            user_id: user.id,
             amount: starsChange,
             transaction_type: 'admin_adjustment',
             description: `Администратор: ${validatedData.reason}`
@@ -5254,47 +5254,40 @@ app.post('/api/admin/users/:userId/win-chance', requireAuth, async (req, res) =>
 // Endpoint для получения истории изменения баланса пользователя
 app.get('/api/admin/users/:userId/balance-history', requireAuth, async (req, res) => {
     const { userId } = req.params;
-    const { limit = 50, offset = 0 } = req.query;
+    const { limit = 10, offset = 0 } = req.query;
     
-    if (!userId || isNaN(parseInt(userId))) {
-        return res.status(400).json({ 
-            success: false, 
-            error: 'Неверный ID пользователя' 
-        });
-    }
-
     try {
         const telegramId = parseInt(userId);
         
-        // Получаем пользователя
-        const user = await db.getUser(telegramId);
-        if (!user) {
+        // Сначала получаем внутренний user_id по telegram_id
+        const userResult = await db.query('SELECT id, stars FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) {
             return res.status(404).json({ 
                 success: false, 
                 error: 'Пользователь не найден' 
             });
         }
+        
+        const user = userResult.rows[0];
+        const internalUserId = user.id;
 
-        // Получаем историю транзакций
+        // Получаем общее количество транзакций
+        const totalResult = await db.query('SELECT COUNT(*) as total FROM stars_transactions WHERE user_id = $1', [internalUserId]);
+        
+        // Получаем историю транзакций по внутреннему user_id
         const history = await db.query(`
             SELECT 
                 id,
                 amount,
                 transaction_type,
                 description,
-                created_date
+                transaction_date,
+                balance_after
             FROM stars_transactions 
-            WHERE user_id = ?
-            ORDER BY created_date DESC
-            LIMIT ? OFFSET ?
-        `, [telegramId, parseInt(limit), parseInt(offset)]);
-
-        // Получаем общее количество записей для пагинации
-        const totalResult = await db.query(`
-            SELECT COUNT(*) as total 
-            FROM stars_transactions 
-            WHERE user_id = ?
-        `, [telegramId]);
+            WHERE user_id = $1
+            ORDER BY transaction_date DESC
+            LIMIT $2 OFFSET $3
+        `, [internalUserId, parseInt(limit), parseInt(offset)]);
 
         res.json({ 
             success: true,
@@ -5302,7 +5295,7 @@ app.get('/api/admin/users/:userId/balance-history', requireAuth, async (req, res
             currentBalance: user.stars || 0,
             history: history.rows || [],
             pagination: {
-                total: totalResult.rows?.[0]?.total || 0,
+                total: parseInt(totalResult.rows?.[0]?.total || 0),
                 limit: parseInt(limit),
                 offset: parseInt(offset)
             }
@@ -7281,7 +7274,8 @@ app.get('/api/admin/users', requireAuth, async (req, res) => {
     }
 });
 
-// Управление звездами пользователей
+// Управление звездами пользователей - ДУБЛИРУЮЩАЯ ФУНКЦИЯ (используется основная выше)
+/*
 app.post('/api/admin/users/stars', requireAuth, async (req, res) => {
     const { telegramId, operation, amount, reason } = req.body;
     
@@ -7340,8 +7334,10 @@ app.post('/api/admin/users/stars', requireAuth, async (req, res) => {
         });
     }
 });
+*/
 
-// История баланса пользователя
+// История баланса пользователя - ДУБЛИРУЮЩАЯ ФУНКЦИЯ (используется основная выше)
+/*
 app.get('/api/admin/users/:userId/balance-history', requireAuth, async (req, res) => {
     const { userId } = req.params;
     const { limit = 50, offset = 0 } = req.query;
@@ -7403,6 +7399,7 @@ app.get('/api/admin/users/:userId/balance-history', requireAuth, async (req, res
         });
     }
 });
+*/
 
 
 // Endpoint для управления шансами победы пользователя  
@@ -9385,7 +9382,8 @@ app.get('/api/admin/users/:userId', requireAuth, async (req, res) => {
     }
 });
 
-// API для управления балансом пользователя
+// API для управления балансом пользователя - ТРЕТЬЯ ДУБЛИРУЮЩАЯ ФУНКЦИЯ (используется основная выше)
+/*
 app.post('/api/admin/users/stars', requireAuth, async (req, res) => {
     try {
         const { telegramId, operation, amount, reason } = req.body;
@@ -9461,6 +9459,7 @@ app.post('/api/admin/users/stars', requireAuth, async (req, res) => {
         });
     }
 });
+*/
 
 // API для изменения шанса победы
 app.post('/api/admin/users/:telegramId/win-chance', requireAuth, async (req, res) => {
@@ -9779,7 +9778,6 @@ app.get('/api/admin/prizes', requireAuth, async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
-*/
 
 console.log('🚀 Kosmetichka Lottery Bot инициализация завершена!');
 
