@@ -3565,7 +3565,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Новые пользователи за сегодня
         try {
-            const result = await db.query("SELECT COUNT(*) as count FROM users WHERE created_at > CURRENT_DATE");
+            const result = await db.query("SELECT COUNT(*) as count FROM users WHERE join_date > CURRENT_DATE");
             stats.todayUsers = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета новых пользователей:', err);
@@ -4006,9 +4006,9 @@ app.get('/api/admin/events', requireAuth, async (req, res) => {
         try {
             // Последние регистрации пользователей
             const newUsers = await db.query(`
-                SELECT telegram_id, first_name, username, created_at
+                SELECT telegram_id, first_name, username, join_date as created_at
                 FROM users 
-                ORDER BY created_at DESC 
+                ORDER BY join_date DESC 
                 LIMIT $1
             `, [Math.min(parseInt(limit), 20)]);
             
@@ -4087,11 +4087,11 @@ app.get('/api/admin/activity-stats', requireAuth, async (req, res) => {
         // Статистика по дням за последнюю неделю
         const activity = await db.query(`
             SELECT 
-                DATE(created_at) as date,
+                DATE(join_date) as date,
                 COUNT(*) as users
             FROM users 
-            WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'
-            GROUP BY DATE(created_at)
+            WHERE join_date >= CURRENT_DATE - INTERVAL '7 days'
+            GROUP BY DATE(join_date)
             ORDER BY date
         `);
         
@@ -8889,7 +8889,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Новые пользователи за сегодня
         try {
-            const result = await db.query("SELECT COUNT(*) as count FROM users WHERE created_at > CURRENT_DATE");
+            const result = await db.query("SELECT COUNT(*) as count FROM users WHERE join_date > CURRENT_DATE");
             stats.todayUsers = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета новых пользователей:', err);
