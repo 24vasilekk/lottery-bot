@@ -9464,6 +9464,100 @@ app.get('/api/admin/db-test', requireAuth, async (req, res) => {
     }
 });
 
+// ===================== API ДЛЯ УПРАВЛЕНИЯ ПРИЗАМИ =====================
+
+// API для получения списка призов
+app.get('/api/admin/prizes', requireAuth, async (req, res) => {
+    try {
+        const { 
+            status = 'all', 
+            page = 1, 
+            limit = 20, 
+            search = '', 
+            type = 'all',
+            sortBy = 'created_at',
+            sortOrder = 'desc'
+        } = req.query;
+        
+        console.log(`🎁 Админ: запрос призов (статус: ${status}, страница: ${page})`);
+        
+        const offset = (page - 1) * limit;
+        let whereClause = 'WHERE 1=1';
+        const params = [];
+        let paramIndex = 1;
+        
+        // Фильтр по статусу
+        if (status !== 'all') {
+            if (status === 'pending') {
+                whereClause += ` AND p.is_given = false`;
+            } else if (status === 'given') {
+                whereClause += ` AND p.is_given = true`;
+            }
+        }
+        
+        // Фильтр по типу
+        if (type !== 'all') {
+            whereClause += ` AND p.type = $${paramIndex}`;
+            params.push(type);
+            paramIndex++;
+        }
+        
+        // Поиск
+        if (search) {
+            whereClause += ` AND (u.first_name ILIKE $${paramIndex} OR u.username ILIKE $${paramIndex} OR u.telegram_id::text ILIKE $${paramIndex})`;
+            params.push(`%${search}%`);
+            paramIndex++;
+        }
+        
+        const query = `
+            SELECT 
+                p.id,
+                p.type,
+                p.description,
+                p.is_given,
+                p.created_at,
+                p.given_at,
+                u.telegram_id,
+                u.first_name,
+                u.username
+            FROM prizes p
+            LEFT JOIN users u ON u.id = p.user_id
+            ${whereClause}
+            ORDER BY p.${sortBy} ${sortOrder.toUpperCase()}
+            LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+        `;
+        
+        params.push(parseInt(limit), offset);
+        
+        const result = await db.pool.query(query, params);
+        
+        // Получаем общее количество для пагинации
+        const countQuery = `
+            SELECT COUNT(*) as total
+            FROM prizes p
+            LEFT JOIN users u ON u.id = p.user_id
+            ${whereClause}
+        `;
+        
+        const countParams = params.slice(0, -2); // Убираем limit и offset
+        const countResult = await db.pool.query(countQuery, countParams);
+        
+        res.json({
+            prizes: result.rows,
+            pagination: {
+                total: parseInt(countResult.rows[0].total),
+                page: parseInt(page),
+                limit: parseInt(limit),
+                pages: Math.ceil(countResult.rows[0].total / limit)
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения призов:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 console.log('🚀 Kosmetichka Lottery Bot инициализация завершена!');
 
 // Запускаем polling после инициализации сервера
