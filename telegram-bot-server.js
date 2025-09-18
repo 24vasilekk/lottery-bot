@@ -7554,14 +7554,30 @@ app.get('/api/admin/db-test', requireAuth, async (req, res) => {
         const usersResult = await db.query('SELECT telegram_id, first_name, username, stars FROM users LIMIT 3');
         const users = usersResult.rows || [];
         
-        console.log(`📊 В БД найдено ${userCount} пользователей`);
+        // Тест 3: Проверка схемы таблицы users
+        const schemaResult = await db.query(`
+            SELECT column_name, data_type, is_nullable 
+            FROM information_schema.columns 
+            WHERE table_name = 'users' 
+            ORDER BY ordinal_position
+        `);
+        const userSchema = schemaResult.rows || [];
+        
+        // Тест 4: Проверка количества призов
+        const prizesCountResult = await db.query('SELECT COUNT(*) as total FROM prizes');
+        const prizesCount = parseInt(prizesCountResult.rows?.[0]?.total) || 0;
+        
+        console.log(`📊 В БД найдено ${userCount} пользователей и ${prizesCount} призов`);
         console.log('👥 Первые пользователи:', users);
+        console.log('🏗️ Схема таблицы users:', userSchema);
         
         res.json({
             success: true,
             database: 'connected',
             userCount: userCount,
+            prizesCount: prizesCount,
             sampleUsers: users,
+            userTableSchema: userSchema,
             timestamp: new Date().toISOString()
         });
     } catch (error) {
