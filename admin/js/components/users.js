@@ -479,12 +479,12 @@ class UsersPage {
                             <i data-lucide="percent"></i>
                             <span class="btn-text">Шанс</span>
                         </button>
-                        <button class="btn btn-sm btn-secondary" onclick="window.usersPage.viewUser(${user.id})" 
+                        <button class="btn btn-sm btn-secondary" onclick="window.usersPage.viewUser(${user.telegram_id})" 
                                 title="Просмотр профиля">
                             <i data-lucide="eye"></i>
                             <span class="btn-text">Профиль</span>
                         </button>
-                        <button class="btn btn-sm btn-ghost" onclick="window.usersPage.messageUser(${user.id})" 
+                        <button class="btn btn-sm btn-ghost" onclick="window.usersPage.messageUser(${user.telegram_id})" 
                                 title="Отправить сообщение">
                             <i data-lucide="message-circle"></i>
                             <span class="btn-text">Сообщение</span>
