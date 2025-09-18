@@ -9347,6 +9347,123 @@ app.post('/api/admin/users/status', requireAuth, async (req, res) => {
     }
 });
 
+// ===================== НЕДОСТАЮЩИЕ API ДЛЯ АДМИНКИ =====================
+
+// API для общей статистики админки
+app.get('/api/admin/stats', requireAuth, async (req, res) => {
+    try {
+        console.log('📊 Админ: запрос общей статистики');
+        
+        const stats = await Promise.all([
+            db.pool.query('SELECT COUNT(*) as count FROM users WHERE is_active = true'),
+            db.pool.query('SELECT COUNT(*) as count FROM referrals WHERE is_active = true'),
+            db.pool.query('SELECT COUNT(*) as count FROM user_prizes'),
+            db.pool.query('SELECT SUM(stars) as total FROM users'),
+            db.pool.query('SELECT COUNT(*) as count FROM users WHERE DATE(join_date) = CURRENT_DATE')
+        ]);
+        
+        res.json({
+            totalUsers: parseInt(stats[0].rows[0].count) || 0,
+            totalReferrals: parseInt(stats[1].rows[0].count) || 0,
+            totalPrizes: parseInt(stats[2].rows[0].count) || 0,
+            totalStars: parseInt(stats[3].rows[0].total) || 0,
+            newUsersToday: parseInt(stats[4].rows[0].count) || 0
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка статистики:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API для событий админки
+app.get('/api/admin/events', requireAuth, async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 10;
+        console.log(`📋 Админ: запрос событий, лимит: ${limit}`);
+        
+        // Простые события из истории транзакций
+        const events = await db.pool.query(`
+            SELECT 
+                st.id,
+                st.transaction_type as type,
+                st.description,
+                st.transaction_date as created_at,
+                u.first_name || ' (' || u.telegram_id || ')' as user_name
+            FROM stars_transactions st
+            JOIN users u ON u.id = st.user_id
+            ORDER BY st.transaction_date DESC
+            LIMIT $1
+        `, [limit]);
+        
+        res.json({
+            events: events.rows.map(event => ({
+                id: event.id,
+                type: event.type || 'transaction',
+                description: event.description || 'Транзакция',
+                user: event.user_name,
+                timestamp: event.created_at
+            }))
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка событий:', error);
+        res.json({ events: [] }); // Возвращаем пустой массив вместо ошибки
+    }
+});
+
+// API для статистики активности
+app.get('/api/admin/activity-stats', requireAuth, async (req, res) => {
+    try {
+        console.log('📈 Админ: запрос статистики активности');
+        
+        // Статистика по дням за последнюю неделю
+        const activity = await db.pool.query(`
+            SELECT 
+                DATE(join_date) as date,
+                COUNT(*) as users
+            FROM users 
+            WHERE join_date >= CURRENT_DATE - INTERVAL '7 days'
+            GROUP BY DATE(join_date)
+            ORDER BY date
+        `);
+        
+        res.json({
+            daily_users: activity.rows,
+            total_active: await db.pool.query('SELECT COUNT(*) as count FROM users WHERE is_active = true').then(r => r.rows[0].count)
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка статистики активности:', error);
+        res.json({ daily_users: [], total_active: 0 });
+    }
+});
+
+// API для тестирования
+app.get('/api/admin/test', requireAuth, async (req, res) => {
+    try {
+        res.json({ status: 'OK', message: 'API работает', timestamp: new Date().toISOString() });
+    } catch (error) {
+        res.status(500).json({ error: 'API test failed' });
+    }
+});
+
+// API для тестирования БД
+app.get('/api/admin/db-test', requireAuth, async (req, res) => {
+    try {
+        const result = await db.pool.query('SELECT COUNT(*) as count FROM users');
+        res.json({ 
+            status: 'OK', 
+            message: 'БД работает', 
+            users_count: result.rows[0].count,
+            timestamp: new Date().toISOString() 
+        });
+    } catch (error) {
+        console.error('❌ Ошибка тестирования БД:', error);
+        res.status(500).json({ error: 'Database test failed' });
+    }
+});
+
 console.log('🚀 Kosmetichka Lottery Bot инициализация завершена!');
 
 // Запускаем polling после инициализации сервера
