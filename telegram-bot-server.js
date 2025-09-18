@@ -3929,7 +3929,7 @@ app.get('/api/admin/prizes', requireAuth, async (req, res) => {
         }
         
         // Валидация сортировки
-        const validSortColumns = ['created_at', 'type', 'stars_amount', 'given_at'];
+        const validSortColumns = ['created_at', 'type', 'given_at'];
         const sortColumn = validSortColumns.includes(sortBy) ? `p.${sortBy}` : 'p.created_at';
         const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
         
@@ -3937,14 +3937,10 @@ app.get('/api/admin/prizes', requireAuth, async (req, res) => {
             SELECT 
                 p.id,
                 p.type,
-                p.stars_amount,
-                p.telegram_premium_duration,
                 p.description,
                 p.created_at,
                 p.is_given,
                 p.given_at,
-                p.given_by_admin,
-                p.source,
                 u.telegram_id as user_telegram_id,
                 u.first_name as user_first_name,
                 u.last_name as user_last_name,
@@ -5112,7 +5108,7 @@ app.post('/api/admin/users/stars', requireAuth, async (req, res) => {
     const validation = validateRequest(req.body, {
         telegramId: { type: 'telegram_id', required: true },
         operation: { type: 'stars_operation', required: true },
-        amount: { type: 'stars_amount', required: true },
+        amount: { type: 'integer', required: true },
         reason: { type: 'string', required: true, minLength: 1, maxLength: 500 }
     });
     
@@ -7604,7 +7600,7 @@ app.get('/api/admin/prizes/stats', requireAuth, async (req, res) => {
                 COUNT(CASE WHEN is_given = false THEN 1 END) as pending_prizes,
                 COUNT(CASE WHEN is_given = true THEN 1 END) as given_prizes,
                 COUNT(CASE WHEN is_given = true AND DATE(given_at) = CURRENT_DATE THEN 1 END) as given_today,
-                COALESCE(SUM(CASE WHEN type = 'stars' THEN stars_amount ELSE 0 END), 0) as total_stars_value
+                COUNT(CASE WHEN type = 'stars' THEN 1 END) as total_stars_prizes
             FROM prizes
         `;
         
@@ -7677,7 +7673,7 @@ app.get('/api/admin/prizes', requireAuth, async (req, res) => {
         }
         
         // Валидация сортировки
-        const validSortColumns = ['created_at', 'type', 'stars_amount', 'given_at'];
+        const validSortColumns = ['created_at', 'type', 'given_at'];
         const sortColumn = validSortColumns.includes(sortBy) ? `p.${sortBy}` : 'p.created_at';
         const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
         
@@ -7685,14 +7681,10 @@ app.get('/api/admin/prizes', requireAuth, async (req, res) => {
             SELECT 
                 p.id,
                 p.type,
-                p.stars_amount,
-                p.telegram_premium_duration,
                 p.description,
                 p.created_at,
                 p.is_given,
                 p.given_at,
-                p.given_by_admin,
-                p.source,
                 u.telegram_id as user_telegram_id,
                 u.first_name as user_first_name,
                 u.last_name as user_last_name,
@@ -7897,18 +7889,14 @@ app.post('/api/admin/prizes/give-custom', requireAuth, async (req, res) => {
         // Создаем приз
         const prizeResult = await db.query(`
             INSERT INTO prizes (
-                user_id, type, stars_amount, telegram_premium_duration, 
-                description, source, is_given, given_at, given_by_admin, admin_notes
+                user_id, type, description, is_given, given_at, given_by
             )
-            VALUES ($1, $2, $3, $4, $5, 'admin', true, NOW(), 'admin', $6)
+            VALUES ($1, $2, $3, true, NOW(), 1)
             RETURNING id
         `, [
             telegramId, 
             type, 
-            starsAmount || null, 
-            premiumDuration || null, 
-            description || null, 
-            notes
+            description || null
         ]);
         
         const prizeId = prizeResult.rows[0].id;
