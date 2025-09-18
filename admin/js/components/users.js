@@ -404,7 +404,7 @@ class UsersPage {
         const statusIcon = !user.is_active ? 'user-x' : 'user-check';
 
         return `
-            <tr class="table-row ${isSelected ? 'selected' : ''}" data-user-id="${user.id}">
+            <tr class="table-row ${isSelected ? 'selected' : ''}" data-user-id="${user.telegram_id}">
                 <td class="checkbox-column">
                     <input type="checkbox" class="table-checkbox user-checkbox" 
                            value="${user.id}" ${isSelected ? 'checked' : ''}>
@@ -489,7 +489,7 @@ class UsersPage {
                             <i data-lucide="message-circle"></i>
                             <span class="btn-text">Сообщение</span>
                         </button>
-                        <button class="btn btn-sm btn-danger" onclick="window.usersPage.toggleUserStatus(${user.id})" 
+                        <button class="btn btn-sm btn-danger" onclick="window.usersPage.toggleUserStatus(${user.telegram_id})" 
                                 title="${user.is_active ? 'Заблокировать' : 'Разблокировать'}">
                             <i data-lucide="${user.is_active ? 'user-x' : 'user-check'}"></i>
                             <span class="btn-text">${user.is_active ? 'Блок' : 'Актив'}</span>
@@ -976,10 +976,10 @@ class UsersPage {
         }
     }
 
-    async toggleUserStatus(userId) {
+    async toggleUserStatus(telegramId) {
         try {
             // Ищем пользователя в текущих данных
-            const row = document.querySelector(`[data-user-id="${userId}"]`);
+            const row = document.querySelector(`[data-user-id="${telegramId}"]`);
             if (!row) {
                 this.showNotification('Error', 'Ошибка', 'Пользователь не найден');
                 return;
@@ -991,15 +991,6 @@ class UsersPage {
             const actionText = isActive ? 'заблокировать' : 'разблокировать';
             
             if (!confirm(`Вы уверены, что хотите ${actionText} этого пользователя?`)) {
-                return;
-            }
-
-            // Извлекаем telegram_id из DOM
-            const userMeta = row.querySelector('.user-meta').textContent;
-            const telegramId = userMeta.match(/ID: (\d+)/)?.[1];
-            
-            if (!telegramId) {
-                this.showNotification('Error', 'Ошибка', 'Не удалось определить ID пользователя');
                 return;
             }
 
