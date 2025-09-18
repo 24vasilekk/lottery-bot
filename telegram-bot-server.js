@@ -8878,6 +8878,8 @@ process.on('uncaughtException', (error) => {
 
 // === ADMIN API ENDPOINTS (АКТИВНЫЕ) ===
 
+/*
+// ДУБЛИРУЮЩИЙ БЛОК ЗАКОММЕНТИРОВАН - Express использует первое определение роута
 // Полная статистика для дашборда админки
 app.get('/api/admin/stats', requireAuth, async (req, res) => {
     try {
@@ -9784,6 +9786,7 @@ app.get('/api/admin/prizes', requireAuth, async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+*/
 
 console.log('🚀 Kosmetichka Lottery Bot инициализация завершена!');
 
