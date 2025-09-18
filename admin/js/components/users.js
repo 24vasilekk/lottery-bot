@@ -324,18 +324,18 @@ class UsersPage {
             if (data.success) {
                 // Преобразуем формат API в ожидаемый формат компонента
                 const mappedUsers = data.users.map(user => ({
-                    id: user.id || user.telegramId,
-                    telegram_id: user.telegramId || user.id,
+                    id: user.id,
+                    telegram_id: user.telegram_id,
                     username: user.username,
-                    first_name: user.firstName || user.first_name,
-                    last_name: user.lastName || user.last_name,
+                    first_name: user.first_name,
+                    last_name: user.last_name,
                     stars: user.stars || 0,
-                    total_spins: user.stats?.totalSpins || 0,
-                    referrals: user.stats?.subscriptions || 0,
+                    total_spins: user.total_spins || 0,
+                    referrals: user.referrals || 0,
                     win_chance: user.win_chance || 0,
-                    created_at: user.createdAt || user.created_at,
-                    last_activity: user.lastActivity || user.last_activity,
-                    is_active: user.isBanned !== undefined ? !user.isBanned : true,
+                    created_at: user.created_at,
+                    last_activity: user.last_activity,
+                    is_active: user.is_active,
                     avatar_url: user.avatar_url || null
                 }));
                 
