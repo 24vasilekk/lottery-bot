@@ -3796,6 +3796,205 @@ app.get('/api/admin/bot/test', requireAuth, async (req, res) => {
         });
     }
 });
+
+// Простой тест API
+app.get('/api/admin/test', requireAuth, (req, res) => {
+    res.json({ 
+        success: true, 
+        message: 'API работает!', 
+        timestamp: new Date().toISOString(),
+        user: req.user || null
+    });
+});
+
+// Тест подключения к базе данных
+app.get('/api/admin/db-test', requireAuth, async (req, res) => {
+    try {
+        console.log('🔍 Тестируем подключение к БД...');
+        
+        // Тест 1: Подсчет пользователей
+        const countResult = await db.query('SELECT COUNT(*) as total FROM users');
+        const userCount = parseInt(countResult.rows[0]?.total) || 0;
+        
+        res.json({ 
+            success: true,
+            message: 'БД работает!', 
+            database: 'connected',
+            users_count: userCount,
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка тестирования БД:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Ошибка подключения к БД',
+            details: error.message,
+            timestamp: new Date().toISOString() 
+        });
+    }
+});
+
+// Статистика призов
+app.get('/api/admin/prizes/stats', requireAuth, async (req, res) => {
+    try {
+        console.log('🎁 Admin API: Запрос статистики призов');
+        
+        const stats = {};
+        
+        // Общее количество призов
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM prizes');
+            stats.totalPrizes = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета призов:', err);
+            stats.totalPrizes = 0;
+        }
+        
+        // Призы ожидающие выдачи
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM prizes WHERE is_given = false');
+            stats.pendingPrizes = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета ожидающих призов:', err);
+            stats.pendingPrizes = 0;
+        }
+        
+        // Выданные призы
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM prizes WHERE is_given = true');
+            stats.givenPrizes = parseInt(result.rows[0]?.count) || 0;
+        } catch (err) {
+            console.error('Ошибка подсчета выданных призов:', err);
+            stats.givenPrizes = 0;
+        }
+        
+        res.json({
+            success: true,
+            stats
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения статистики призов:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка получения статистики призов'
+        });
+    }
+});
+
+// API для получения списка призов с поддержкой фильтрации и пагинации
+app.get('/api/admin/prizes', requireAuth, async (req, res) => {
+    try {
+        const { 
+            status = 'pending', 
+            page = 1, 
+            limit = 20, 
+            search = '',
+            type = 'all',
+            sortBy = 'created_at',
+            sortOrder = 'DESC'
+        } = req.query;
+        
+        const offset = (page - 1) * limit;
+        
+        console.log(`🎁 Admin API: Запрос призов (${status}), страница ${page}`);
+        
+        // Строим условие статуса
+        const statusCondition = status === 'pending' ? 'p.is_given = false' : 'p.is_given = true';
+        
+        // Строим условие поиска
+        let searchCondition = '';
+        let searchParams = [];
+        let paramIndex = 1;
+        
+        if (search) {
+            searchCondition = `
+                AND (u.first_name ILIKE $${paramIndex} 
+                    OR u.last_name ILIKE $${paramIndex} 
+                    OR u.username ILIKE $${paramIndex}
+                    OR p.type ILIKE $${paramIndex}
+                    OR p.description ILIKE $${paramIndex})
+            `;
+            searchParams.push(`%${search}%`);
+            paramIndex++;
+        }
+        
+        // Строим условие типа
+        let typeCondition = '';
+        if (type !== 'all') {
+            typeCondition = `AND p.type = $${paramIndex}`;
+            searchParams.push(type);
+            paramIndex++;
+        }
+        
+        // Валидация сортировки
+        const validSortColumns = ['created_at', 'type', 'stars_amount', 'given_at'];
+        const sortColumn = validSortColumns.includes(sortBy) ? `p.${sortBy}` : 'p.created_at';
+        const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+        
+        const prizesQuery = `
+            SELECT 
+                p.id,
+                p.type,
+                p.stars_amount,
+                p.telegram_premium_duration,
+                p.description,
+                p.created_at,
+                p.is_given,
+                p.given_at,
+                p.given_by_admin,
+                p.source,
+                u.telegram_id as user_telegram_id,
+                u.first_name as user_first_name,
+                u.last_name as user_last_name,
+                u.username as user_username
+            FROM prizes p
+            LEFT JOIN users u ON p.user_id = u.telegram_id
+            WHERE ${statusCondition}
+            ${searchCondition}
+            ${typeCondition}
+            ORDER BY ${sortColumn} ${order}
+            LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+        `;
+        
+        const countQuery = `
+            SELECT COUNT(*) as total
+            FROM prizes p
+            LEFT JOIN users u ON p.user_id = u.telegram_id
+            WHERE ${statusCondition}
+            ${searchCondition}
+            ${typeCondition}
+        `;
+        
+        // Выполняем запросы
+        const prizesResult = await db.query(prizesQuery, [...searchParams, parseInt(limit), parseInt(offset)]);
+        const countResult = await db.query(countQuery, searchParams);
+        
+        const total = parseInt(countResult.rows[0]?.total) || 0;
+        
+        console.log(`✅ Найдено призов: ${prizesResult.rows.length} из ${total}`);
+        
+        res.json({
+            success: true,
+            prizes: prizesResult.rows,
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total: total,
+                totalPages: Math.ceil(total / parseInt(limit))
+            }
+        });
+        
+    } catch (error) {
+        console.error('Ошибка получения призов:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка получения списка призов'
+        });
+    }
+});
+
 //
 
 // ДУБЛИКАТ - Закомментировано, так как перенесено в начало файла
