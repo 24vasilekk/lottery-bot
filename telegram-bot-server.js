@@ -7085,63 +7085,6 @@ app.get('/api/admin/users/:userId/balance-history', requireAuth, async (req, res
     }
 });
 
-// Получить статистику для дашборда
-app.get('/api/admin/stats', requireAuth, async (req, res) => {
-    try {
-        console.log('📊 Admin API: Запрос статистики');
-        
-        // Получаем статистику через правильные методы PostgreSQL
-        let totalUsers = 0;
-        let activeUsers = 0;
-        
-        try {
-            const result = await db.query('SELECT COUNT(*) as count FROM users');
-            totalUsers = parseInt(result.rows[0]?.count) || 0;
-        } catch (err) {
-            console.error('Ошибка подсчета пользователей:', err);
-        }
-
-        try {
-            const result = await db.query("SELECT COUNT(*) as count FROM users WHERE last_activity > NOW() - INTERVAL '1 day'");
-            activeUsers = parseInt(result.rows[0]?.count) || 0;
-        } catch (err) {
-            console.error('Ошибка подсчета активных пользователей:', err);
-        }
-
-        const stats = {
-            total_users: totalUsers,
-            active_users: activeUsers,
-            total_stars: 0,
-            total_spins: 0,
-            today_users: 0,
-            today_spins: 0
-        };
-        
-        res.json({
-            success: true,
-            stats: {
-                totalUsers: stats.total_users || 0,
-                activeUsers: stats.active_users || 0,
-                totalStars: stats.total_stars || 0,
-                totalSpins: stats.total_spins || 0,
-                todayUsers: stats.today_users || 0,
-                todaySpins: stats.today_spins || 0,
-                topChannels: [],
-                system: {
-                    uptime: Math.floor(process.uptime()),
-                    memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-                    version: '1.0.0'
-                }
-            }
-        });
-    } catch (error) {
-        console.error('❌ Ошибка получения статистики:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Ошибка при получении статистики' 
-        });
-    }
-});
 
 // Endpoint для управления шансами победы пользователя  
 app.post('/api/admin/users/:userId/win-chance', requireAuth, async (req, res) => {
@@ -9349,32 +9292,6 @@ app.post('/api/admin/users/status', requireAuth, async (req, res) => {
 
 // ===================== НЕДОСТАЮЩИЕ API ДЛЯ АДМИНКИ =====================
 
-// API для общей статистики админки
-app.get('/api/admin/stats', requireAuth, async (req, res) => {
-    try {
-        console.log('📊 Админ: запрос общей статистики');
-        
-        const stats = await Promise.all([
-            db.pool.query('SELECT COUNT(*) as count FROM users WHERE is_active = true'),
-            db.pool.query('SELECT COUNT(*) as count FROM referrals WHERE is_active = true'),
-            db.pool.query('SELECT COUNT(*) as count FROM user_prizes'),
-            db.pool.query('SELECT SUM(stars) as total FROM users'),
-            db.pool.query('SELECT COUNT(*) as count FROM users WHERE DATE(join_date) = CURRENT_DATE')
-        ]);
-        
-        res.json({
-            totalUsers: parseInt(stats[0].rows[0].count) || 0,
-            totalReferrals: parseInt(stats[1].rows[0].count) || 0,
-            totalPrizes: parseInt(stats[2].rows[0].count) || 0,
-            totalStars: parseInt(stats[3].rows[0].total) || 0,
-            newUsersToday: parseInt(stats[4].rows[0].count) || 0
-        });
-        
-    } catch (error) {
-        console.error('❌ Ошибка статистики:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
 
 // API для событий админки
 app.get('/api/admin/events', requireAuth, async (req, res) => {
@@ -9439,30 +9356,6 @@ app.get('/api/admin/activity-stats', requireAuth, async (req, res) => {
     }
 });
 
-// API для тестирования
-app.get('/api/admin/test', requireAuth, async (req, res) => {
-    try {
-        res.json({ status: 'OK', message: 'API работает', timestamp: new Date().toISOString() });
-    } catch (error) {
-        res.status(500).json({ error: 'API test failed' });
-    }
-});
-
-// API для тестирования БД
-app.get('/api/admin/db-test', requireAuth, async (req, res) => {
-    try {
-        const result = await db.pool.query('SELECT COUNT(*) as count FROM users');
-        res.json({ 
-            status: 'OK', 
-            message: 'БД работает', 
-            users_count: result.rows[0].count,
-            timestamp: new Date().toISOString() 
-        });
-    } catch (error) {
-        console.error('❌ Ошибка тестирования БД:', error);
-        res.status(500).json({ error: 'Database test failed' });
-    }
-});
 
 // ===================== API ДЛЯ УПРАВЛЕНИЯ ПРИЗАМИ =====================
 
