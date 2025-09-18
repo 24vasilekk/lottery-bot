@@ -3950,7 +3950,7 @@ app.get('/api/admin/prizes', requireAuth, async (req, res) => {
                 u.last_name as user_last_name,
                 u.username as user_username
             FROM prizes p
-            LEFT JOIN users u ON p.user_id = u.telegram_id
+            LEFT JOIN users u ON p.user_id = u.id
             WHERE ${statusCondition}
             ${searchCondition}
             ${typeCondition}
@@ -3961,7 +3961,7 @@ app.get('/api/admin/prizes', requireAuth, async (req, res) => {
         const countQuery = `
             SELECT COUNT(*) as total
             FROM prizes p
-            LEFT JOIN users u ON p.user_id = u.telegram_id
+            LEFT JOIN users u ON p.user_id = u.id
             WHERE ${statusCondition}
             ${searchCondition}
             ${typeCondition}
@@ -4036,7 +4036,7 @@ app.get('/api/admin/events', requireAuth, async (req, res) => {
                 SELECT p.id, p.type, p.description, p.created_at,
                        u.first_name, u.username
                 FROM prizes p
-                LEFT JOIN users u ON p.user_id = u.telegram_id
+                LEFT JOIN users u ON p.user_id = u.id
                 WHERE p.is_given = true
                 ORDER BY p.given_at DESC 
                 LIMIT 3
@@ -5434,7 +5434,7 @@ app.get('/api/admin/manual-spins/recent', requireAuth, async (req, res) => {
             db.db.all(`
                 SELECT aa.*, u.first_name, u.username
                 FROM admin_actions aa
-                LEFT JOIN users u ON aa.target_user_id = u.telegram_id
+                LEFT JOIN users u ON aa.target_user_id = u.id
                 WHERE aa.action_type = 'manual_spin'
                 ORDER BY aa.created_at DESC
                 LIMIT 20
@@ -7682,7 +7682,7 @@ app.get('/api/admin/prizes', requireAuth, async (req, res) => {
                 u.last_name as user_last_name,
                 u.username as user_username
             FROM prizes p
-            LEFT JOIN users u ON p.user_id = u.telegram_id
+            LEFT JOIN users u ON p.user_id = u.id
             WHERE ${statusCondition}
             ${searchCondition}
             ${typeCondition}
@@ -7693,7 +7693,7 @@ app.get('/api/admin/prizes', requireAuth, async (req, res) => {
         const countQuery = `
             SELECT COUNT(*) as total
             FROM prizes p
-            LEFT JOIN users u ON p.user_id = u.telegram_id
+            LEFT JOIN users u ON p.user_id = u.id
             WHERE ${statusCondition}
             ${searchCondition}
             ${typeCondition}
@@ -9098,12 +9098,12 @@ app.get('/api/admin/events', requireAuth, async (req, res) => {
         try {
             // Последние прокрутки с призами
             const recentSpins = await db.query(`
-                SELECT s.id, s.user_id, s.prize_type, s.prize_name, s.created_at,
+                SELECT p.id, p.user_id, p.type as prize_type, p.description as prize_name, p.created_at,
                        u.first_name, u.username
-                FROM spins s
-                LEFT JOIN users u ON s.user_id = u.telegram_id
-                WHERE s.prize_type != 'empty'
-                ORDER BY s.created_at DESC 
+                FROM prizes p
+                LEFT JOIN users u ON p.user_id = u.id
+                WHERE p.type != 'empty'
+                ORDER BY p.created_at DESC 
                 LIMIT 3
             `);
             
@@ -9133,7 +9133,7 @@ app.get('/api/admin/events', requireAuth, async (req, res) => {
                        u.first_name, u.username
                 FROM user_channel_subscriptions ucs
                 LEFT JOIN partner_channels pc ON ucs.channel_id = pc.id
-                LEFT JOIN users u ON ucs.user_id = u.telegram_id
+                LEFT JOIN users u ON ucs.user_id = u.id
                 ORDER BY ucs.subscribed_date DESC
                 LIMIT 3
             `);
@@ -9197,9 +9197,9 @@ app.get('/api/admin/users', requireAuth, async (req, res) => {
                    COUNT(DISTINCT ucs.channel_id) as subscriptions_count,
                    COUNT(DISTINCT p.id) as prizes_won
             FROM users u
-            LEFT JOIN spins s ON u.telegram_id = s.user_id
-            LEFT JOIN user_channel_subscriptions ucs ON u.telegram_id = ucs.user_id
-            LEFT JOIN prizes p ON u.telegram_id = p.user_id AND p.is_given = true
+            LEFT JOIN prizes s ON u.id = s.user_id
+            LEFT JOIN user_channel_subscriptions ucs ON u.id = ucs.user_id
+            LEFT JOIN prizes p ON u.id = p.user_id AND p.is_given = true
         `;
         
         const params = [];
@@ -9295,16 +9295,16 @@ app.get('/api/admin/users/:userId', requireAuth, async (req, res) => {
         // Получаем основную информацию о пользователе
         const userQuery = `
             SELECT u.*, 
-                   COUNT(DISTINCT s.id) as total_spins,
+                   COUNT(DISTINCT p2.id) as total_spins,
                    COUNT(DISTINCT ucs.channel_id) as subscriptions_count,
                    COUNT(DISTINCT p.id) as prizes_won,
-                   COALESCE(SUM(CASE WHEN s.created_at > CURRENT_DATE THEN 1 ELSE 0 END), 0) as spins_today
+                   COALESCE(SUM(CASE WHEN p2.created_at > CURRENT_DATE THEN 1 ELSE 0 END), 0) as spins_today
             FROM users u
-            LEFT JOIN spins s ON u.telegram_id = s.user_id
-            LEFT JOIN user_channel_subscriptions ucs ON u.telegram_id = ucs.user_id
-            LEFT JOIN prizes p ON u.telegram_id = p.user_id AND p.is_given = true
+            LEFT JOIN prizes p2 ON u.id = p2.user_id
+            LEFT JOIN user_channel_subscriptions ucs ON u.id = ucs.user_id
+            LEFT JOIN prizes p ON u.id = p.user_id AND p.is_given = true
             WHERE u.telegram_id = $1
-            GROUP BY u.telegram_id
+            GROUP BY u.id, u.telegram_id
         `;
         
         const result = await db.query(userQuery, [telegramId]);
@@ -9320,13 +9320,13 @@ app.get('/api/admin/users/:userId', requireAuth, async (req, res) => {
         
         // Получаем последние прокрутки
         const spinsQuery = `
-            SELECT id, prize_type, prize_name, created_at
-            FROM spins 
+            SELECT id, type as prize_type, description as prize_name, created_at
+            FROM prizes 
             WHERE user_id = $1 
             ORDER BY created_at DESC 
             LIMIT 10
         `;
-        const spinsResult = await db.query(spinsQuery, [telegramId]);
+        const spinsResult = await db.query(spinsQuery, [user.id]);
         
         // Получаем подписки на каналы
         const subscriptionsQuery = `
@@ -9337,7 +9337,7 @@ app.get('/api/admin/users/:userId', requireAuth, async (req, res) => {
             ORDER BY ucs.subscribed_date DESC
             LIMIT 10
         `;
-        const subscriptionsResult = await db.query(subscriptionsQuery, [telegramId]);
+        const subscriptionsResult = await db.query(subscriptionsQuery, [user.id]);
         
         console.log(`✅ Информация о пользователе ${userId} получена`);
         
