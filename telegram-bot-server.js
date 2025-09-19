@@ -5109,28 +5109,35 @@ app.get('/api/admin/analytics', requireAuth, async (req, res) => {
 app.post('/api/admin/users/stars', requireAuth, async (req, res) => {
     const { telegramId, operation, amount, reason } = req.body;
     
-    // Валидация входных данных
-    const validation = validateRequest(req.body, {
-        telegramId: { type: 'telegram_id', required: true },
-        operation: { type: 'stars_operation', required: true },
-        amount: { type: 'integer', required: true },
-        reason: { type: 'string', required: true, minLength: 1, maxLength: 500 }
-    });
-    
-    if (!validation.isValid) {
+    // Базовая валидация входных данных
+    if (!telegramId || !operation || !amount || !reason) {
         return res.status(400).json({ 
             success: false, 
-            error: 'Неверные данные запроса',
-            details: validation.errors
+            error: 'Отсутствуют обязательные поля: telegramId, operation, amount, reason'
+        });
+    }
+    
+    // Конвертируем telegramId в строку для совместимости с БД
+    const telegramIdStr = String(telegramId);
+    
+    if (!['add', 'subtract', 'set'].includes(operation)) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Неверная операция. Допустимые: add, subtract, set'
+        });
+    }
+    
+    if (typeof amount !== 'number' || amount < 0) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Количество должно быть положительным числом'
         });
     }
 
     try {
-        // Используем валидированные данные
-        const validatedData = validation.data;
         
         // Получаем текущего пользователя
-        const user = await db.getUser(validatedData.telegramId);
+        const user = await db.getUser(telegramIdStr);
         if (!user) {
             return res.status(404).json({ 
                 success: false, 
@@ -5142,18 +5149,18 @@ app.post('/api/admin/users/stars', requireAuth, async (req, res) => {
         let newStars = 0;
         let starsChange = 0;
 
-        switch (validatedData.operation) {
+        switch (operation) {
             case 'add':
-                starsChange = validatedData.amount;
-                newStars = currentStars + validatedData.amount;
+                starsChange = amount;
+                newStars = currentStars + amount;
                 break;
             case 'subtract':
-                starsChange = -validatedData.amount;
-                newStars = Math.max(0, currentStars - validatedData.amount);
+                starsChange = -amount;
+                newStars = Math.max(0, currentStars - amount);
                 break;
             case 'set':
-                starsChange = validatedData.amount - currentStars;
-                newStars = validatedData.amount;
+                starsChange = amount - currentStars;
+                newStars = amount;
                 break;
             default:
                 return res.status(400).json({ 
@@ -5163,17 +5170,17 @@ app.post('/api/admin/users/stars', requireAuth, async (req, res) => {
         }
 
         // Обновляем баланс звезд
-        await db.addUserStars(validatedData.telegramId, starsChange, 'admin_adjustment', {reason: validatedData.reason, admin: 'system'});
+        await db.addUserStars(telegramIdStr, starsChange, 'admin_adjustment', {reason: reason, admin: 'system'});
 
         // Добавляем запись в историю транзакций
-        await db.addStarsTransaction({
-            user_id: user.id,
-            amount: starsChange,
-            transaction_type: 'admin_adjustment',
-            description: `Администратор: ${validatedData.reason}`
-        });
+        await db.addTransaction(
+            telegramIdStr,
+            starsChange,
+            'admin_adjustment',
+            `Администратор: ${reason}`
+        );
 
-        console.log(`✅ Админ обновил звезды пользователя ${validatedData.telegramId}: ${currentStars} -> ${newStars} (${validatedData.operation} ${validatedData.amount})`);
+        console.log(`✅ Админ обновил звезды пользователя ${telegramIdStr}: ${currentStars} -> ${newStars} (${operation} ${amount})`);
 
         res.json({ 
             success: true, 
@@ -5257,10 +5264,10 @@ app.get('/api/admin/users/:userId/balance-history', requireAuth, async (req, res
     const { limit = 10, offset = 0 } = req.query;
     
     try {
-        const telegramId = parseInt(userId);
+        const telegramId = String(userId);
         
         // Сначала получаем внутренний user_id по telegram_id
-        const userResult = await db.query('SELECT id, stars FROM users WHERE telegram_id = $1', [telegramId]);
+        const userResult = await db.pool.query('SELECT id, stars FROM users WHERE telegram_id = $1', [telegramId]);
         if (userResult.rows.length === 0) {
             return res.status(404).json({ 
                 success: false, 
@@ -5272,10 +5279,10 @@ app.get('/api/admin/users/:userId/balance-history', requireAuth, async (req, res
         const internalUserId = user.id;
 
         // Получаем общее количество транзакций
-        const totalResult = await db.query('SELECT COUNT(*) as total FROM stars_transactions WHERE user_id = $1', [internalUserId]);
+        const totalResult = await db.pool.query('SELECT COUNT(*) as total FROM stars_transactions WHERE user_id = $1', [internalUserId]);
         
         // Получаем историю транзакций по внутреннему user_id
-        const history = await db.query(`
+        const history = await db.pool.query(`
             SELECT 
                 id,
                 amount,
