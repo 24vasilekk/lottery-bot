@@ -249,10 +249,10 @@ app.get('/api/admin/referrals/stats', requireAuth, async (req, res) => {
         console.log('📊 Админ: запрос статистики рефералов');
         
         // Общая статистика рефералов
-        const totalReferrersQuery = await db.query('SELECT COUNT(DISTINCT referrer_id) as count FROM referrals WHERE is_active = true');
-        const totalReferredQuery = await db.query('SELECT COUNT(*) as count FROM referrals WHERE is_active = true');
-        const totalStarsQuery = await db.query('SELECT COUNT(*) * 10 as total FROM referrals WHERE is_active = true');
-        const todayReferralsQuery = await db.query(`
+        const totalReferrersQuery = await db.pool.query('SELECT COUNT(DISTINCT referrer_id) as count FROM referrals WHERE is_active = true');
+        const totalReferredQuery = await db.pool.query('SELECT COUNT(*) as count FROM referrals WHERE is_active = true');
+        const totalStarsQuery = await db.pool.query('SELECT COUNT(*) * 10 as total FROM referrals WHERE is_active = true');
+        const todayReferralsQuery = await db.pool.query(`
             SELECT COUNT(*) as count FROM referrals 
             WHERE is_active = true AND DATE(referral_date) = CURRENT_DATE
         `);
@@ -321,7 +321,7 @@ app.get('/api/admin/referrals', requireAuth, async (req, res) => {
         `;
 
         queryParams.push(limit, offset);
-        const referralsResult = await db.query(referralsQuery, queryParams);
+        const referralsResult = await db.pool.query(referralsQuery, queryParams);
 
         // Подсчет общего количества
         const countQuery = `
@@ -333,7 +333,7 @@ app.get('/api/admin/referrals', requireAuth, async (req, res) => {
         `;
         
         const countParams = search ? [`%${search}%`] : [];
-        const countResult = await db.query(countQuery, countParams);
+        const countResult = await db.pool.query(countQuery, countParams);
         const total = parseInt(countResult.rows[0]?.total) || 0;
 
         res.json({
@@ -3378,7 +3378,7 @@ app.post('/api/tasks/complete', async (req, res) => {
             taskStatuses[taskId] = 'completed';
             
             // Сохраняем в БД
-            await db.query(`
+            await db.pool.query(`
                 UPDATE users 
                 SET completed_tasks = $1, task_statuses = $2 
                 WHERE telegram_id = $3
@@ -3552,7 +3552,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
         
         // Общая статистика пользователей
         try {
-            const result = await db.query('SELECT COUNT(*) as count FROM users');
+            const result = await db.pool.query('SELECT COUNT(*) as count FROM users');
             stats.totalUsers = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета пользователей:', err);
@@ -3561,7 +3561,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Активные пользователи за 24 часа  
         try {
-            const result = await db.query("SELECT COUNT(*) as count FROM users WHERE last_activity > NOW() - INTERVAL '1 day'");
+            const result = await db.pool.query("SELECT COUNT(*) as count FROM users WHERE last_activity > NOW() - INTERVAL '1 day'");
             stats.activeUsers = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета активных пользователей:', err);
@@ -3570,7 +3570,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Новые пользователи за сегодня
         try {
-            const result = await db.query("SELECT COUNT(*) as count FROM users WHERE join_date > CURRENT_DATE");
+            const result = await db.pool.query("SELECT COUNT(*) as count FROM users WHERE join_date > CURRENT_DATE");
             stats.todayUsers = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета новых пользователей:', err);
@@ -3579,7 +3579,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Статистика каналов
         try {
-            const result = await db.query('SELECT COUNT(*) as count FROM partner_channels WHERE is_active = true');
+            const result = await db.pool.query('SELECT COUNT(*) as count FROM partner_channels WHERE is_active = true');
             stats.totalChannels = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета каналов:', err);
@@ -3587,7 +3587,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
         }
 
         try {
-            const result = await db.query('SELECT COUNT(*) as count FROM partner_channels WHERE is_active = true AND is_hot_offer = true');
+            const result = await db.pool.query('SELECT COUNT(*) as count FROM partner_channels WHERE is_active = true AND is_hot_offer = true');
             stats.hotChannels = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета горячих каналов:', err);
@@ -3596,7 +3596,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Статистика подписок
         try {
-            const result = await db.query('SELECT COUNT(*) as count FROM user_channel_subscriptions');
+            const result = await db.pool.query('SELECT COUNT(*) as count FROM user_channel_subscriptions');
             stats.totalSubscriptions = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета подписок:', err);
@@ -3604,7 +3604,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
         }
 
         try {
-            const result = await db.query("SELECT COUNT(*) as count FROM user_channel_subscriptions WHERE subscribed_date > CURRENT_DATE");
+            const result = await db.pool.query("SELECT COUNT(*) as count FROM user_channel_subscriptions WHERE subscribed_date > CURRENT_DATE");
             stats.todaySubscriptions = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета подписок за сегодня:', err);
@@ -3613,7 +3613,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Статистика прокруток
         try {
-            const result = await db.query('SELECT COUNT(*) as count FROM prizes');
+            const result = await db.pool.query('SELECT COUNT(*) as count FROM prizes');
             stats.totalSpins = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета прокруток:', err);
@@ -3621,7 +3621,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
         }
 
         try {
-            const result = await db.query("SELECT COUNT(*) as count FROM prizes WHERE created_at > CURRENT_DATE");
+            const result = await db.pool.query("SELECT COUNT(*) as count FROM prizes WHERE created_at > CURRENT_DATE");
             stats.todaySpins = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета прокруток за сегодня:', err);
@@ -3630,7 +3630,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Призы ожидающие выдачи
         try {
-            const result = await db.query('SELECT COUNT(*) as count FROM prizes WHERE is_given = false');
+            const result = await db.pool.query('SELECT COUNT(*) as count FROM prizes WHERE is_given = false');
             stats.pendingPrizes = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета призов:', err);
@@ -3638,7 +3638,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
         }
 
         try {
-            const result = await db.query("SELECT COUNT(*) as count FROM prizes WHERE is_given = false AND (type ILIKE '%certificate%' OR type ILIKE '%сертификат%')");
+            const result = await db.pool.query("SELECT COUNT(*) as count FROM prizes WHERE is_given = false AND (type ILIKE '%certificate%' OR type ILIKE '%сертификат%')");
             stats.pendingCertificates = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета сертификатов:', err);
@@ -3647,7 +3647,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Общая сумма звезд у всех пользователей
         try {
-            const result = await db.query('SELECT SUM(stars) as total FROM users');
+            const result = await db.pool.query('SELECT SUM(stars) as total FROM users');
             stats.totalStars = parseInt(result.rows[0]?.total) || 0;
         } catch (err) {
             console.error('Ошибка подсчета звезд:', err);
@@ -3656,7 +3656,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Топ каналы по подпискам
         try {
-            const result = await db.query(`
+            const result = await db.pool.query(`
                 SELECT pc.channel_name, pc.channel_username, pc.current_subscribers, 
                        COUNT(ucs.user_id) as conversions,
                        CASE 
@@ -3818,7 +3818,7 @@ app.get('/api/admin/db-test', requireAuth, async (req, res) => {
         console.log('🔍 Тестируем подключение к БД...');
         
         // Тест 1: Подсчет пользователей
-        const countResult = await db.query('SELECT COUNT(*) as total FROM users');
+        const countResult = await db.pool.query('SELECT COUNT(*) as total FROM users');
         const userCount = parseInt(countResult.rows[0]?.total) || 0;
         
         res.json({ 
@@ -3849,7 +3849,7 @@ app.get('/api/admin/prizes/stats', requireAuth, async (req, res) => {
         
         // Общее количество призов
         try {
-            const result = await db.query('SELECT COUNT(*) as count FROM prizes');
+            const result = await db.pool.query('SELECT COUNT(*) as count FROM prizes');
             stats.totalPrizes = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета призов:', err);
@@ -3858,7 +3858,7 @@ app.get('/api/admin/prizes/stats', requireAuth, async (req, res) => {
         
         // Призы ожидающие выдачи
         try {
-            const result = await db.query('SELECT COUNT(*) as count FROM prizes WHERE is_given = false');
+            const result = await db.pool.query('SELECT COUNT(*) as count FROM prizes WHERE is_given = false');
             stats.pendingPrizes = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета ожидающих призов:', err);
@@ -3867,7 +3867,7 @@ app.get('/api/admin/prizes/stats', requireAuth, async (req, res) => {
         
         // Выданные призы
         try {
-            const result = await db.query('SELECT COUNT(*) as count FROM prizes WHERE is_given = true');
+            const result = await db.pool.query('SELECT COUNT(*) as count FROM prizes WHERE is_given = true');
             stats.givenPrizes = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета выданных призов:', err);
@@ -3969,8 +3969,8 @@ app.get('/api/admin/prizes', requireAuth, async (req, res) => {
         `;
         
         // Выполняем запросы
-        const prizesResult = await db.query(prizesQuery, [...searchParams, parseInt(limit), parseInt(offset)]);
-        const countResult = await db.query(countQuery, searchParams);
+        const prizesResult = await db.pool.query(prizesQuery, [...searchParams, parseInt(limit), parseInt(offset)]);
+        const countResult = await db.pool.query(countQuery, searchParams);
         
         const total = parseInt(countResult.rows[0]?.total) || 0;
         
@@ -4006,7 +4006,7 @@ app.get('/api/admin/events', requireAuth, async (req, res) => {
         
         try {
             // Последние регистрации пользователей
-            const newUsers = await db.query(`
+            const newUsers = await db.pool.query(`
                 SELECT telegram_id, first_name, username, join_date as created_at
                 FROM users 
                 ORDER BY join_date DESC 
@@ -4033,7 +4033,7 @@ app.get('/api/admin/events', requireAuth, async (req, res) => {
 
         try {
             // Последние выданные призы
-            const recentPrizes = await db.query(`
+            const recentPrizes = await db.pool.query(`
                 SELECT p.id, p.type, p.description, p.created_at,
                        u.first_name, u.username
                 FROM prizes p
@@ -4086,7 +4086,7 @@ app.get('/api/admin/activity-stats', requireAuth, async (req, res) => {
         console.log('📈 Admin API: Запрос статистики активности');
         
         // Статистика по дням за последнюю неделю
-        const activity = await db.query(`
+        const activity = await db.pool.query(`
             SELECT 
                 DATE(join_date) as date,
                 COUNT(*) as users
@@ -4097,7 +4097,7 @@ app.get('/api/admin/activity-stats', requireAuth, async (req, res) => {
         `);
         
         // Общее количество активных пользователей
-        const totalActive = await db.query('SELECT COUNT(*) as count FROM users WHERE is_active = true');
+        const totalActive = await db.pool.query('SELECT COUNT(*) as count FROM users WHERE is_active = true');
         
         res.json({
             success: true,
@@ -4429,7 +4429,7 @@ app.get('/api/admin/channels/:id', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
         
-        const result = await db.query(
+        const result = await db.pool.query(
             'SELECT * FROM partner_channels WHERE id = $1',
             [id]
         );
@@ -4454,7 +4454,7 @@ app.patch('/api/admin/channels/:id/status', requireAuth, async (req, res) => {
 
         console.log(`🔄 Админ: изменение статуса канала ${id} на ${activeStatus ? 'активен' : 'неактивен'}`);
 
-        await db.query(
+        await db.pool.query(
             'UPDATE partner_channels SET is_active = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
             [activeStatus, id]
         );
@@ -4533,7 +4533,7 @@ app.post('/api/admin/channels/:id/create-invite', requireAuth, async (req, res) 
         console.log(`🔗 Админ: создание пригласительной ссылки для канала ${id}`);
 
         // Получаем информацию о канале
-        const channelResult = await db.query(
+        const channelResult = await db.pool.query(
             'SELECT * FROM partner_channels WHERE id = $1',
             [id]
         );
@@ -4634,7 +4634,7 @@ app.delete('/api/admin/channels/:id/revoke-invite', requireAuth, async (req, res
         console.log(`🚫 Админ: отзыв пригласительной ссылки для канала ${id}`);
 
         // Получаем информацию о канале
-        const channelResult = await db.query(
+        const channelResult = await db.pool.query(
             'SELECT * FROM partner_channels WHERE id = $1',
             [id]
         );
@@ -4684,7 +4684,7 @@ app.get('/api/admin/channels/:id/invite-stats', requireAuth, async (req, res) =>
 
         console.log(`📊 Админ: запрос статистики пригласительной ссылки для канала ${id}`);
 
-        const channelResult = await db.query(
+        const channelResult = await db.pool.query(
             'SELECT * FROM partner_channels WHERE id = $1',
             [id]
         );
@@ -5017,7 +5017,7 @@ app.get('/api/admin/users', requireAuth, async (req, res) => {
         query += ` ORDER BY u.join_date DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
         params.push(parseInt(limit), parseInt(offset));
         
-        const users = await db.query(query, params);
+        const users = await db.pool.query(query, params);
         
         // Получаем общее количество для пагинации
         let countQuery = `SELECT COUNT(*) as total FROM users u WHERE 1=1`;
@@ -5033,7 +5033,7 @@ app.get('/api/admin/users', requireAuth, async (req, res) => {
             countParams.push(`%${search}%`);
         }
         
-        const totalResult = await db.query(countQuery, countParams);
+        const totalResult = await db.pool.query(countQuery, countParams);
         const total = parseInt(totalResult.rows?.[0]?.total) || 0;
         
         console.log(`👥 Найдено пользователей: ${users.rows?.length || 0} из ${total}`);
@@ -7216,7 +7216,7 @@ app.get('/api/admin/users', requireAuth, async (req, res) => {
         query += ` ORDER BY u.join_date DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
         params.push(parseInt(limit), parseInt(offset));
         
-        const users = await db.query(query, params);
+        const users = await db.pool.query(query, params);
         
         // Получаем общее количество для пагинации
         let countQuery = `SELECT COUNT(*) as total FROM users u WHERE 1=1`;
@@ -7232,7 +7232,7 @@ app.get('/api/admin/users', requireAuth, async (req, res) => {
             countParams.push(`%${search}%`);
         }
         
-        const totalResult = await db.query(countQuery, countParams);
+        const totalResult = await db.pool.query(countQuery, countParams);
         const total = parseInt(totalResult.rows?.[0]?.total) || 0;
         
         console.log(`👥 Найдено пользователей: ${users.rows?.length || 0} из ${total}`);
@@ -7344,7 +7344,7 @@ app.get('/api/admin/users/:userId/balance-history', requireAuth, async (req, res
         }
 
         // Получаем историю транзакций
-        const history = await db.query(`
+        const history = await db.pool.query(`
             SELECT 
                 id,
                 amount,
@@ -7357,7 +7357,7 @@ app.get('/api/admin/users/:userId/balance-history', requireAuth, async (req, res
             LIMIT $2 OFFSET $3
         `, [telegramId, parseInt(limit), parseInt(offset)]);
 
-        const totalResult = await db.query(`
+        const totalResult = await db.pool.query(`
             SELECT COUNT(*) as total 
             FROM stars_transactions 
             WHERE user_id = $1
@@ -7480,11 +7480,11 @@ app.post('/api/admin/users/status', requireAuth, async (req, res) => {
         switch (action) {
             case 'ban':
                 newStatus = false;
-                await db.query('UPDATE users SET is_active = $1 WHERE telegram_id = $2', [false, telegramId]);
+                await db.pool.query('UPDATE users SET is_active = $1 WHERE telegram_id = $2', [false, telegramId]);
                 break;
             case 'unban':
                 newStatus = true;
-                await db.query('UPDATE users SET is_active = $1 WHERE telegram_id = $2', [true, telegramId]);
+                await db.pool.query('UPDATE users SET is_active = $1 WHERE telegram_id = $2', [true, telegramId]);
                 break;
             default:
                 return res.status(400).json({ 
@@ -7528,15 +7528,15 @@ app.get('/api/admin/db-test', requireAuth, async (req, res) => {
         console.log('🔍 Тестируем подключение к БД...');
         
         // Тест 1: Подсчет пользователей
-        const countResult = await db.query('SELECT COUNT(*) as total FROM users');
+        const countResult = await db.pool.query('SELECT COUNT(*) as total FROM users');
         const userCount = parseInt(countResult.rows?.[0]?.total) || 0;
         
         // Тест 2: Получение первых 3 пользователей
-        const usersResult = await db.query('SELECT telegram_id, first_name, username, stars FROM users LIMIT 3');
+        const usersResult = await db.pool.query('SELECT telegram_id, first_name, username, stars FROM users LIMIT 3');
         const users = usersResult.rows || [];
         
         // Тест 3: Проверка схемы таблицы users
-        const schemaResult = await db.query(`
+        const schemaResult = await db.pool.query(`
             SELECT column_name, data_type, is_nullable 
             FROM information_schema.columns 
             WHERE table_name = 'users' 
@@ -7545,7 +7545,7 @@ app.get('/api/admin/db-test', requireAuth, async (req, res) => {
         const userSchema = schemaResult.rows || [];
         
         // Тест 4: Проверка количества призов
-        const prizesCountResult = await db.query('SELECT COUNT(*) as total FROM prizes');
+        const prizesCountResult = await db.pool.query('SELECT COUNT(*) as total FROM prizes');
         const prizesCount = parseInt(prizesCountResult.rows?.[0]?.total) || 0;
         
         console.log(`📊 В БД найдено ${userCount} пользователей и ${prizesCount} призов`);
@@ -7589,7 +7589,7 @@ app.get('/api/admin/prizes/stats', requireAuth, async (req, res) => {
             FROM prizes
         `;
         
-        const result = await db.query(statsQuery);
+        const result = await db.pool.query(statsQuery);
         const stats = result.rows[0] || {};
         
         res.json({
@@ -7693,8 +7693,8 @@ app.get('/api/admin/prizes', requireAuth, async (req, res) => {
         `;
         
         // Выполняем запросы
-        const prizesResult = await db.query(prizesQuery, [...searchParams, parseInt(limit), parseInt(offset)]);
-        const countResult = await db.query(countQuery, searchParams);
+        const prizesResult = await db.pool.query(prizesQuery, [...searchParams, parseInt(limit), parseInt(offset)]);
+        const countResult = await db.pool.query(countQuery, searchParams);
         
         const total = parseInt(countResult.rows[0]?.total) || 0;
         
@@ -7729,7 +7729,7 @@ app.post('/api/admin/prizes/:prizeId/mark-given', requireAuth, async (req, res) 
         console.log(`🎁 Admin API: Отметка приза ${prizeId} как выданного`);
         
         // Проверяем существование приза
-        const prizeResult = await db.query(
+        const prizeResult = await db.pool.query(
             'SELECT id, is_given, user_id FROM prizes WHERE id = $1',
             [prizeId]
         );
@@ -7751,7 +7751,7 @@ app.post('/api/admin/prizes/:prizeId/mark-given', requireAuth, async (req, res) 
         }
         
         // Отмечаем приз как выданный
-        await db.query(`
+        await db.pool.query(`
             UPDATE prizes 
             SET is_given = true, 
                 given_at = NOW(), 
@@ -7761,7 +7761,7 @@ app.post('/api/admin/prizes/:prizeId/mark-given', requireAuth, async (req, res) 
         `, ['admin', notes, prizeId]);
         
         // Записываем в лог
-        await db.query(`
+        await db.pool.query(`
             INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
             VALUES ($1, 'admin_prize_given', $2, $3, NOW())
         `, [prize.user_id, prizeId, `Приз #${prizeId} отмечен как выданный. ${notes}`]);
@@ -7795,7 +7795,7 @@ app.post('/api/admin/prizes/bulk-mark-given', requireAuth, async (req, res) => {
         console.log(`🎁 Admin API: Массовая отметка призов как выданных: ${prizeIds.join(', ')}`);
         
         // Получаем информацию о призах
-        const prizesResult = await db.query(
+        const prizesResult = await db.pool.query(
             `SELECT id, is_given, user_id FROM prizes WHERE id = ANY($1)`,
             [prizeIds]
         );
@@ -7812,7 +7812,7 @@ app.post('/api/admin/prizes/bulk-mark-given', requireAuth, async (req, res) => {
         const validPrizeIds = validPrizes.map(p => p.id);
         
         // Отмечаем призы как выданные
-        await db.query(`
+        await db.pool.query(`
             UPDATE prizes 
             SET is_given = true, 
                 given_at = NOW(), 
@@ -7823,7 +7823,7 @@ app.post('/api/admin/prizes/bulk-mark-given', requireAuth, async (req, res) => {
         
         // Записываем в лог для каждого пользователя
         for (const prize of validPrizes) {
-            await db.query(`
+            await db.pool.query(`
                 INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
                 VALUES ($1, 'admin_prize_given', $2, $3, NOW())
             `, [prize.user_id, prize.id, `Приз #${prize.id} отмечен как выданный (массово). ${notes}`]);
@@ -7859,7 +7859,7 @@ app.post('/api/admin/prizes/give-custom', requireAuth, async (req, res) => {
         console.log(`🎁 Admin API: Выдача пользовательского приза пользователю ${telegramId}`);
         
         // Проверяем существование пользователя
-        const userResult = await db.query(
+        const userResult = await db.pool.query(
             'SELECT telegram_id FROM users WHERE telegram_id = $1',
             [telegramId]
         );
@@ -7872,7 +7872,7 @@ app.post('/api/admin/prizes/give-custom', requireAuth, async (req, res) => {
         }
         
         // Создаем приз
-        const prizeResult = await db.query(`
+        const prizeResult = await db.pool.query(`
             INSERT INTO prizes (
                 user_id, type, description, is_given, given_at, given_by
             )
@@ -7888,20 +7888,20 @@ app.post('/api/admin/prizes/give-custom', requireAuth, async (req, res) => {
         
         // Если это звезды, добавляем их пользователю
         if (type === 'stars' && starsAmount > 0) {
-            await db.query(
+            await db.pool.query(
                 'UPDATE users SET stars = stars + $1 WHERE telegram_id = $2',
                 [starsAmount, telegramId]
             );
             
             // Записываем транзакцию
-            await db.query(`
+            await db.pool.query(`
                 INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
                 VALUES ($1, 'admin_prize_stars', $2, $3, NOW())
             `, [telegramId, starsAmount, `Призовые звезды от админа: ${description || 'Пользовательский приз'}`]);
         }
         
         // Записываем в лог
-        await db.query(`
+        await db.pool.query(`
             INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
             VALUES ($1, 'admin_custom_prize', $2, $3, NOW())
         `, [telegramId, prizeId, `Выдан пользовательский приз #${prizeId}: ${description || type}. ${notes}`]);
@@ -8501,14 +8501,14 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
         let activeUsers = 0;
         
         try {
-            const result = await db.query('SELECT COUNT(*) as count FROM users');
+            const result = await db.pool.query('SELECT COUNT(*) as count FROM users');
             totalUsers = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета пользователей:', err);
         }
 
         try {
-            const result = await db.query("SELECT COUNT(*) as count FROM users WHERE last_activity > NOW() - INTERVAL '1 day'");
+            const result = await db.pool.query("SELECT COUNT(*) as count FROM users WHERE last_activity > NOW() - INTERVAL '1 day'");
             activeUsers = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета активных пользователей:', err);
@@ -8862,7 +8862,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
         
         // Общая статистика пользователей
         try {
-            const result = await db.query('SELECT COUNT(*) as count FROM users');
+            const result = await db.pool.query('SELECT COUNT(*) as count FROM users');
             stats.totalUsers = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета пользователей:', err);
@@ -8871,7 +8871,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Активные пользователи за 24 часа  
         try {
-            const result = await db.query("SELECT COUNT(*) as count FROM users WHERE last_activity > NOW() - INTERVAL '1 day'");
+            const result = await db.pool.query("SELECT COUNT(*) as count FROM users WHERE last_activity > NOW() - INTERVAL '1 day'");
             stats.activeUsers = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета активных пользователей:', err);
@@ -8880,7 +8880,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Новые пользователи за сегодня
         try {
-            const result = await db.query("SELECT COUNT(*) as count FROM users WHERE join_date > CURRENT_DATE");
+            const result = await db.pool.query("SELECT COUNT(*) as count FROM users WHERE join_date > CURRENT_DATE");
             stats.todayUsers = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета новых пользователей:', err);
@@ -8889,7 +8889,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Статистика каналов
         try {
-            const result = await db.query('SELECT COUNT(*) as count FROM partner_channels WHERE is_active = true');
+            const result = await db.pool.query('SELECT COUNT(*) as count FROM partner_channels WHERE is_active = true');
             stats.totalChannels = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета каналов:', err);
@@ -8897,7 +8897,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
         }
 
         try {
-            const result = await db.query('SELECT COUNT(*) as count FROM partner_channels WHERE is_active = true AND is_hot_offer = true');
+            const result = await db.pool.query('SELECT COUNT(*) as count FROM partner_channels WHERE is_active = true AND is_hot_offer = true');
             stats.hotChannels = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета горячих каналов:', err);
@@ -8906,7 +8906,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Статистика подписок
         try {
-            const result = await db.query('SELECT COUNT(*) as count FROM user_channel_subscriptions');
+            const result = await db.pool.query('SELECT COUNT(*) as count FROM user_channel_subscriptions');
             stats.totalSubscriptions = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета подписок:', err);
@@ -8914,7 +8914,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
         }
 
         try {
-            const result = await db.query("SELECT COUNT(*) as count FROM user_channel_subscriptions WHERE subscribed_date > CURRENT_DATE");
+            const result = await db.pool.query("SELECT COUNT(*) as count FROM user_channel_subscriptions WHERE subscribed_date > CURRENT_DATE");
             stats.todaySubscriptions = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета подписок за сегодня:', err);
@@ -8923,7 +8923,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Статистика прокруток
         try {
-            const result = await db.query('SELECT COUNT(*) as count FROM prizes');
+            const result = await db.pool.query('SELECT COUNT(*) as count FROM prizes');
             stats.totalSpins = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета прокруток:', err);
@@ -8931,7 +8931,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
         }
 
         try {
-            const result = await db.query("SELECT COUNT(*) as count FROM prizes WHERE created_at > CURRENT_DATE");
+            const result = await db.pool.query("SELECT COUNT(*) as count FROM prizes WHERE created_at > CURRENT_DATE");
             stats.todaySpins = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета прокруток за сегодня:', err);
@@ -8940,7 +8940,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Призы ожидающие выдачи
         try {
-            const result = await db.query('SELECT COUNT(*) as count FROM prizes WHERE is_given = false');
+            const result = await db.pool.query('SELECT COUNT(*) as count FROM prizes WHERE is_given = false');
             stats.pendingPrizes = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета призов:', err);
@@ -8948,7 +8948,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
         }
 
         try {
-            const result = await db.query("SELECT COUNT(*) as count FROM prizes WHERE is_given = false AND (type ILIKE '%certificate%' OR type ILIKE '%сертификат%')");
+            const result = await db.pool.query("SELECT COUNT(*) as count FROM prizes WHERE is_given = false AND (type ILIKE '%certificate%' OR type ILIKE '%сертификат%')");
             stats.pendingCertificates = parseInt(result.rows[0]?.count) || 0;
         } catch (err) {
             console.error('Ошибка подсчета сертификатов:', err);
@@ -8957,7 +8957,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Общая сумма звезд у всех пользователей
         try {
-            const result = await db.query('SELECT SUM(stars) as total FROM users');
+            const result = await db.pool.query('SELECT SUM(stars) as total FROM users');
             stats.totalStars = parseInt(result.rows[0]?.total) || 0;
         } catch (err) {
             console.error('Ошибка подсчета звезд:', err);
@@ -8966,7 +8966,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Статистика пригласительных ссылок
         try {
-            const result = await db.query('SELECT SUM(joined_via_invite) as total FROM partner_channels WHERE joined_via_invite > 0');
+            const result = await db.pool.query('SELECT SUM(joined_via_invite) as total FROM partner_channels WHERE joined_via_invite > 0');
             stats.inviteLinkJoins = parseInt(result.rows[0]?.total) || 0;
         } catch (err) {
             console.error('Ошибка подсчета присоединений через invite link:', err);
@@ -8975,7 +8975,7 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
 
         // Топ каналы по подпискам
         try {
-            const result = await db.query(`
+            const result = await db.pool.query(`
                 SELECT pc.channel_name, pc.channel_username, pc.current_subscribers, 
                        COUNT(ucs.user_id) as conversions,
                        CASE 
@@ -9061,7 +9061,7 @@ app.get('/api/admin/events', requireAuth, async (req, res) => {
         
         try {
             // Последние регистрации пользователей
-            const newUsers = await db.query(`
+            const newUsers = await db.pool.query(`
                 SELECT telegram_id, first_name, username, created_at
                 FROM users 
                 ORDER BY created_at DESC 
@@ -9088,7 +9088,7 @@ app.get('/api/admin/events', requireAuth, async (req, res) => {
 
         try {
             // Последние прокрутки с призами
-            const recentSpins = await db.query(`
+            const recentSpins = await db.pool.query(`
                 SELECT p.id, p.user_id, p.type as prize_type, p.description as prize_name, p.created_at,
                        u.first_name, u.username
                 FROM prizes p
@@ -9118,7 +9118,7 @@ app.get('/api/admin/events', requireAuth, async (req, res) => {
 
         try {
             // Последние подписки на каналы
-            const recentSubscriptions = await db.query(`
+            const recentSubscriptions = await db.pool.query(`
                 SELECT ucs.user_id, ucs.subscribed_date, 
                        pc.channel_name, pc.channel_username,
                        u.first_name, u.username
@@ -9216,7 +9216,7 @@ app.get('/api/admin/users', requireAuth, async (req, res) => {
         query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
         params.push(parseInt(limit), parseInt(offset));
         
-        const result = await db.query(query, params);
+        const result = await db.pool.query(query, params);
         
         // Получаем общее количество пользователей для пагинации
         let countQuery = 'SELECT COUNT(*) as total FROM users';
@@ -9227,7 +9227,7 @@ app.get('/api/admin/users', requireAuth, async (req, res) => {
             countParams.push(`%${search}%`);
         }
         
-        const countResult = await db.query(countQuery, countParams);
+        const countResult = await db.pool.query(countQuery, countParams);
         const totalUsers = parseInt(countResult.rows[0]?.total) || 0;
         
         console.log(`✅ Найдено пользователей: ${result.rows.length} из ${totalUsers}`);
@@ -9298,7 +9298,7 @@ app.get('/api/admin/users/:userId', requireAuth, async (req, res) => {
             GROUP BY u.id, u.telegram_id
         `;
         
-        const result = await db.query(userQuery, [telegramId]);
+        const result = await db.pool.query(userQuery, [telegramId]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({
@@ -9317,7 +9317,7 @@ app.get('/api/admin/users/:userId', requireAuth, async (req, res) => {
             ORDER BY created_at DESC 
             LIMIT 10
         `;
-        const spinsResult = await db.query(spinsQuery, [user.id]);
+        const spinsResult = await db.pool.query(spinsQuery, [user.id]);
         
         // Получаем подписки на каналы
         const subscriptionsQuery = `
@@ -9328,7 +9328,7 @@ app.get('/api/admin/users/:userId', requireAuth, async (req, res) => {
             ORDER BY ucs.subscribed_date DESC
             LIMIT 10
         `;
-        const subscriptionsResult = await db.query(subscriptionsQuery, [user.id]);
+        const subscriptionsResult = await db.pool.query(subscriptionsQuery, [user.id]);
         
         console.log(`✅ Информация о пользователе ${userId} получена`);
         
@@ -9379,7 +9379,7 @@ app.post('/api/admin/users/stars', requireAuth, async (req, res) => {
         }
         
         // Получаем текущий баланс пользователя
-        const userResult = await db.query(
+        const userResult = await db.pool.query(
             'SELECT stars FROM users WHERE telegram_id = $1',
             [telegramId]
         );
@@ -9412,13 +9412,13 @@ app.post('/api/admin/users/stars', requireAuth, async (req, res) => {
         }
         
         // Обновляем баланс
-        await db.query(
+        await db.pool.query(
             'UPDATE users SET stars = $1 WHERE telegram_id = $2',
             [newBalance, telegramId]
         );
         
         // Записываем в историю
-        await db.query(`
+        await db.pool.query(`
             INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
             VALUES ($1, 'admin_balance', $2, $3, NOW())
         `, [telegramId, newBalance - oldBalance, reason]);
@@ -9458,7 +9458,7 @@ app.post('/api/admin/users/:telegramId/win-chance', requireAuth, async (req, res
         }
         
         // Получаем текущий шанс
-        const userResult = await db.query(
+        const userResult = await db.pool.query(
             'SELECT win_chance FROM users WHERE telegram_id = $1',
             [telegramId]
         );
@@ -9473,13 +9473,13 @@ app.post('/api/admin/users/:telegramId/win-chance', requireAuth, async (req, res
         const oldWinChance = userResult.rows[0].win_chance || 0;
         
         // Обновляем шанс
-        await db.query(
+        await db.pool.query(
             'UPDATE users SET win_chance = $1 WHERE telegram_id = $2',
             [winChance, telegramId]
         );
         
         // Записываем в историю
-        await db.query(`
+        await db.pool.query(`
             INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
             VALUES ($1, 'admin_win_chance', $2, $3, NOW())
         `, [telegramId, winChance, `Шанс изменен: ${oldWinChance}% → ${winChance}%. ${reason}`]);
@@ -9511,7 +9511,7 @@ app.get('/api/admin/users/:telegramId/balance-history', requireAuth, async (req,
         const limit = parseInt(req.query.limit) || 50;
         
         // Получаем историю транзакций
-        const historyResult = await db.query(`
+        const historyResult = await db.pool.query(`
             SELECT 
                 type as transaction_type,
                 amount,
@@ -9557,7 +9557,7 @@ app.post('/api/admin/users/status', requireAuth, async (req, res) => {
         }
         
         // Получаем пользователя
-        const userResult = await db.query(
+        const userResult = await db.pool.query(
             'SELECT is_active FROM users WHERE telegram_id = $1',
             [telegramId]
         );
@@ -9572,13 +9572,13 @@ app.post('/api/admin/users/status', requireAuth, async (req, res) => {
         const newStatus = action === 'ban' ? false : true;
         
         // Обновляем статус
-        await db.query(
+        await db.pool.query(
             'UPDATE users SET is_active = $1 WHERE telegram_id = $2',
             [newStatus, telegramId]
         );
         
         // Записываем в историю
-        await db.query(`
+        await db.pool.query(`
             INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
             VALUES ($1, 'admin_status', $2, $3, NOW())
         `, [telegramId, newStatus ? 1 : 0, reason]);

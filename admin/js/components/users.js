@@ -964,7 +964,7 @@ class UsersPage {
             
             if (data.success) {
                 this.showNotification('Success', 'Успешно', 
-                    `Шанс победы установлен: ${data.data.newWinChance}%`);
+                    `Шанс победы установлен: ${data.newWinChance}%`);
                 window.app.closeModal();
                 this.loadUsers(); // Обновляем таблицу пользователей
             } else {
