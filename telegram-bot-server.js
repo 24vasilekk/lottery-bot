@@ -5200,7 +5200,7 @@ app.post('/api/admin/users/stars', requireAuth, async (req, res) => {
 // Endpoint для управления шансами победы пользователя
 app.post('/api/admin/users/:userId/win-chance', requireAuth, async (req, res) => {
     const { userId } = req.params;
-    const { percentage, reason } = req.body;
+    const { winChance, reason } = req.body;
     
     // Валидация входных данных
     if (!userId || isNaN(parseInt(userId))) {
@@ -5210,7 +5210,7 @@ app.post('/api/admin/users/:userId/win-chance', requireAuth, async (req, res) =>
         });
     }
     
-    if (!percentage || isNaN(parseFloat(percentage)) || percentage < 0 || percentage > 100) {
+    if (winChance === undefined || isNaN(parseFloat(winChance)) || winChance < 0 || winChance > 100) {
         return res.status(400).json({ 
             success: false, 
             error: 'Шанс победы должен быть числом от 0 до 100' 
@@ -5225,7 +5225,7 @@ app.post('/api/admin/users/:userId/win-chance', requireAuth, async (req, res) =>
     }
 
     try {
-        const telegramId = parseInt(userId);
+        const telegramId = String(userId);
         
         // Получаем пользователя
         const user = await db.getUser(telegramId);
@@ -5237,16 +5237,16 @@ app.post('/api/admin/users/:userId/win-chance', requireAuth, async (req, res) =>
         }
 
         // Устанавливаем новый шанс победы
-        const winChance = parseFloat(percentage);
-        await db.setUserWinChance(telegramId, winChance, reason.trim());
+        const winChanceValue = parseFloat(winChance);
+        await db.setUserWinChance(telegramId, winChanceValue, reason.trim());
         
         // Логируем изменение
-        console.log(`✅ Админ установил шанс победы для пользователя ${telegramId}: ${winChance}% (причина: ${reason})`);
+        console.log(`✅ Админ установил шанс победы для пользователя ${telegramId}: ${winChanceValue}% (причина: ${reason})`);
         
         res.json({ 
             success: true, 
             userId: telegramId,
-            newWinChance: winChance,
+            newWinChance: winChanceValue,
             reason: reason.trim()
         });
     } catch (error) {
