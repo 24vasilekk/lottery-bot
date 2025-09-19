@@ -1142,6 +1142,37 @@ app.post('/api/spin/determine-result', async (req, res) => {
             ];
         }
         
+        // Специальная обработка для случая 100% шанса
+        if (userWinChance >= 100) {
+            console.log('🎯 Пользователь имеет 100% шанс выигрыша - выбираем лучший приз');
+            
+            // При 100% шансе выбираем лучший доступный приз (исключая пустоту)
+            const winPrizes = basePrizes.filter(p => p.type !== 'empty');
+            const bestPrize = winPrizes.reduce((best, current) => {
+                if (!best) return current;
+                
+                // Приоритет: сертификаты с большей стоимостью, затем звезды
+                if (current.type === 'certificate' && best.type === 'stars') return current;
+                if (current.type === best.type && current.value > best.value) return current;
+                
+                return best;
+            }, null);
+            
+            const guaranteedPrize = bestPrize || winPrizes[0];
+            console.log(`🎁 Гарантированный приз: ${guaranteedPrize.name}`);
+            
+            return res.json({
+                success: true,
+                prize: guaranteedPrize,
+                reason: 'guaranteed_win',
+                userChances: {
+                    general: userWinChance,
+                    stars: userStarsChance,
+                    certificates: userCertificateChance
+                }
+            });
+        }
+
         // Модифицируем вероятности на основе раздельных шансов пользователя
         const modifiedPrizes = basePrizes.map(prize => {
             if (prize.type === 'empty') {
@@ -9473,6 +9504,11 @@ app.get('/api/admin/users/:userId', requireAuth, async (req, res) => {
                 lastActivity: user.last_activity,
                 isBanned: user.tasks_ban_until && new Date(user.tasks_ban_until) > new Date(),
                 banUntil: user.tasks_ban_until,
+                win_chance: parseFloat(user.win_chance) || 0,
+                stars_chance: parseFloat(user.stars_chance) || 0,
+                certificate_chance: parseFloat(user.certificate_chance) || 0,
+                first_name: user.first_name, // Для совместимости с админкой
+                last_name: user.last_name,
                 stats: {
                     totalSpins: parseInt(user.total_spins) || 0,
                     subscriptions: parseInt(user.subscriptions_count) || 0,
