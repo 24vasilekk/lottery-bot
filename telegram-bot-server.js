@@ -5261,50 +5261,26 @@ app.post('/api/admin/users/:userId/win-chance', requireAuth, async (req, res) =>
 // Endpoint для получения истории изменения баланса пользователя
 app.get('/api/admin/users/:userId/balance-history', requireAuth, async (req, res) => {
     const { userId } = req.params;
-    const { limit = 10, offset = 0 } = req.query;
+    const { limit = 10 } = req.query;
     
     try {
         const telegramId = String(userId);
         
-        // Сначала получаем внутренний user_id по telegram_id
-        const userResult = await db.pool.query('SELECT id, stars FROM users WHERE telegram_id = $1', [telegramId]);
-        if (userResult.rows.length === 0) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'Пользователь не найден' 
-            });
-        }
+        // Используем готовую функцию из database-postgres.js
+        const transactions = await db.getUserTransactions(telegramId, parseInt(limit));
         
-        const user = userResult.rows[0];
-        const internalUserId = user.id;
-
-        // Получаем общее количество транзакций
-        const totalResult = await db.pool.query('SELECT COUNT(*) as total FROM stars_transactions WHERE user_id = $1', [internalUserId]);
+        // Получаем пользователя для текущего баланса
+        const user = await db.getUser(telegramId);
         
-        // Получаем историю транзакций по внутреннему user_id
-        const history = await db.pool.query(`
-            SELECT 
-                id,
-                amount,
-                transaction_type,
-                description,
-                transaction_date,
-                balance_after
-            FROM stars_transactions 
-            WHERE user_id = $1
-            ORDER BY transaction_date DESC
-            LIMIT $2 OFFSET $3
-        `, [internalUserId, parseInt(limit), parseInt(offset)]);
-
         res.json({ 
             success: true,
             userId: telegramId,
-            currentBalance: user.stars || 0,
-            history: history.rows || [],
+            currentBalance: user ? user.stars || 0 : 0,
+            history: transactions || [],
             pagination: {
-                total: parseInt(totalResult.rows?.[0]?.total || 0),
+                total: transactions ? transactions.length : 0,
                 limit: parseInt(limit),
-                offset: parseInt(offset)
+                offset: 0
             }
         });
     } catch (error) {
