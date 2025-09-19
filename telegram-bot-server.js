@@ -450,33 +450,33 @@ app.post('/api/admin/broadcasts/send', requireAuth, async (req, res) => {
         switch (recipientType) {
             case 'all':
                 // Получить всех пользователей
-                const allUsersResult = await db.query('SELECT telegram_id FROM users WHERE telegram_id IS NOT NULL');
+                const allUsersResult = await db.pool.query('SELECT telegram_id FROM users WHERE telegram_id IS NOT NULL');
                 recipients = allUsersResult.rows.map(row => row.telegram_id);
                 break;
                 
             case 'active':
-                // Активные пользователи за последние 7 дней
-                const activeUsersResult = await db.query(`
+                // Активные пользователи за последние 7 дней  
+                const activeUsersResult = await db.pool.query(`
                     SELECT telegram_id FROM users 
                     WHERE telegram_id IS NOT NULL 
-                    AND last_activity_date >= NOW() - INTERVAL '7 days'
+                    AND last_activity >= NOW() - INTERVAL '7 days'
                 `);
                 recipients = activeUsersResult.rows.map(row => row.telegram_id);
                 break;
                 
             case 'inactive':
                 // Неактивные пользователи
-                const inactiveUsersResult = await db.query(`
+                const inactiveUsersResult = await db.pool.query(`
                     SELECT telegram_id FROM users 
                     WHERE telegram_id IS NOT NULL 
-                    AND (last_activity_date IS NULL OR last_activity_date < NOW() - INTERVAL '7 days')
+                    AND (last_activity IS NULL OR last_activity < NOW() - INTERVAL '7 days')
                 `);
                 recipients = inactiveUsersResult.rows.map(row => row.telegram_id);
                 break;
                 
             case 'high_balance':
                 // Пользователи с высоким балансом
-                const highBalanceResult = await db.query(`
+                const highBalanceResult = await db.pool.query(`
                     SELECT telegram_id FROM users 
                     WHERE telegram_id IS NOT NULL 
                     AND stars > 100

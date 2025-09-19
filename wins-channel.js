@@ -70,23 +70,18 @@ class WinsChannelManager {
     async getUnpostedWins() {
         try {
             // Получаем значительные выигрыши за последние 24 часа
-            const wins = await new Promise((resolve, reject) => {
-                this.db.db.all(`
-                    SELECT p.*, u.first_name, u.username, u.telegram_id
-                    FROM user_prizes p
-                    JOIN users u ON p.user_id = u.id
-                    WHERE p.won_date >= datetime('now', '-24 hours')
-                        AND p.is_posted_to_channel = 0
-                        AND p.prize_type IN ('airpods4', 'cert5000', 'cert3000', 'cert2000', 'cert1000', 'powerbank', 'charger', 'golden-apple', 'dolce')
-                    ORDER BY p.won_date DESC
-                    LIMIT 10
-                `, (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows || []);
-                });
-            });
+            const wins = await this.db.pool.query(`
+                SELECT p.*, u.first_name, u.username, u.telegram_id
+                FROM prizes p
+                JOIN users u ON p.user_id = u.id
+                WHERE p.created_at >= NOW() - INTERVAL '24 hours'
+                    AND (p.is_posted_to_channel IS NULL OR p.is_posted_to_channel = false)
+                    AND p.type IN ('airpods4', 'cert5000', 'cert3000', 'cert2000', 'cert1000', 'powerbank', 'charger', 'golden-apple', 'dolce')
+                ORDER BY p.created_at DESC
+                LIMIT 10
+            `);
 
-            return wins || [];
+            return wins.rows || [];
         } catch (error) {
             console.error('❌ Ошибка получения неопубликованных выигрышей:', error);
             return [];
@@ -124,12 +119,12 @@ class WinsChannelManager {
             'dolce': '💄'
         };
 
-        const emoji = prizeEmojis[win.prize_type] || '🎁';
+        const emoji = prizeEmojis[win.type] || '🎁';
         const userName = win.first_name || 'Пользователь';
         const userHandle = win.username ? `@${win.username}` : `ID: ${win.telegram_id}`;
-        const prizeValue = this.getPrizeValue(win.prize_type);
+        const prizeValue = this.getPrizeValue(win.type);
         
-        const winTime = new Date(win.won_date).toLocaleString('ru-RU', {
+        const winTime = new Date(win.created_at).toLocaleString('ru-RU', {
             timeZone: 'Europe/Moscow',
             day: '2-digit',
             month: '2-digit', 
@@ -139,7 +134,7 @@ class WinsChannelManager {
 
         return `🎉 <b>НОВЫЙ ВЫИГРЫШ!</b> 🎉
 
-${emoji} <b>${win.prize_name}</b>
+${emoji} <b>${win.description || this.getPrizeName(win.type)}</b>
 💸 Стоимость: <b>${prizeValue}</b>
 
 👤 Победитель: <b>${userName}</b> (${userHandle})
@@ -167,19 +162,30 @@ ${emoji} <b>${win.prize_name}</b>
         return values[prizeType] || 'Бесценно';
     }
 
+    getPrizeName(prizeType) {
+        const names = {
+            'airpods4': 'AirPods 4',
+            'cert5000': 'Сертификат 5000₽',
+            'cert3000': 'Сертификат 3000₽',
+            'cert2000': 'Сертификат 2000₽', 
+            'cert1000': 'Сертификат 1000₽',
+            'powerbank': 'PowerBank',
+            'charger': 'Зарядное устройство',
+            'golden-apple': 'Золотое яблоко',
+            'dolce': 'Dolce косметика'
+        };
+        
+        return names[prizeType] || 'Приз';
+    }
+
     async markAsPosted(prizeId) {
         try {
-            await new Promise((resolve, reject) => {
-                this.db.db.run(`
-                    UPDATE user_prizes 
-                    SET is_posted_to_channel = 1, 
-                        posted_to_channel_date = datetime('now')
-                    WHERE id = ?
-                `, [prizeId], (err) => {
-                    if (err) reject(err);
-                    else resolve();
-                });
-            });
+            await this.db.pool.query(`
+                UPDATE prizes 
+                SET is_posted_to_channel = true, 
+                    posted_to_channel_date = NOW()
+                WHERE id = $1
+            `, [prizeId]);
         } catch (error) {
             console.error('❌ Ошибка отметки приза как опубликованного:', error);
         }
@@ -188,13 +194,13 @@ ${emoji} <b>${win.prize_name}</b>
     async addPostedColumn() {
         try {
             // Добавляем колонки для отслеживания постинга в канал (PostgreSQL синтаксис)
-            await this.db.query(`
-                ALTER TABLE user_prizes 
+            await this.db.pool.query(`
+                ALTER TABLE prizes 
                 ADD COLUMN IF NOT EXISTS is_posted_to_channel BOOLEAN DEFAULT FALSE
             `);
             
-            await this.db.query(`
-                ALTER TABLE user_prizes 
+            await this.db.pool.query(`
+                ALTER TABLE prizes 
                 ADD COLUMN IF NOT EXISTS posted_to_channel_date TIMESTAMP
             `);
             
@@ -215,21 +221,21 @@ ${emoji} <b>${win.prize_name}</b>
 
     async getChannelStats() {
         try {
-            const stats = await new Promise((resolve, reject) => {
-                this.db.db.get(`
-                    SELECT 
-                        COUNT(*) as totalWinsPosted,
-                        COUNT(CASE WHEN posted_to_channel_date >= datetime('now', '-24 hours') THEN 1 END) as todayWinsPosted,
-                        COUNT(CASE WHEN posted_to_channel_date >= datetime('now', '-7 days') THEN 1 END) as weekWinsPosted
-                    FROM user_prizes 
-                    WHERE is_posted_to_channel = 1
-                `, (err, row) => {
-                    if (err) reject(err);
-                    else resolve(row || { totalWinsPosted: 0, todayWinsPosted: 0, weekWinsPosted: 0 });
-                });
-            });
+            const stats = await this.db.pool.query(`
+                SELECT 
+                    COUNT(*) as total_wins_posted,
+                    COUNT(CASE WHEN posted_to_channel_date >= NOW() - INTERVAL '24 hours' THEN 1 END) as today_wins_posted,
+                    COUNT(CASE WHEN posted_to_channel_date >= NOW() - INTERVAL '7 days' THEN 1 END) as week_wins_posted
+                FROM prizes 
+                WHERE is_posted_to_channel = true
+            `);
 
-            return stats || { totalWinsPosted: 0, todayWinsPosted: 0, weekWinsPosted: 0 };
+            const row = stats.rows[0] || {};
+            return {
+                totalWinsPosted: parseInt(row.total_wins_posted) || 0,
+                todayWinsPosted: parseInt(row.today_wins_posted) || 0,
+                weekWinsPosted: parseInt(row.week_wins_posted) || 0
+            };
         } catch (error) {
             console.error('❌ Ошибка получения статистики канала:', error);
             return { totalWinsPosted: 0, todayWinsPosted: 0, weekWinsPosted: 0 };
@@ -238,21 +244,16 @@ ${emoji} <b>${win.prize_name}</b>
 
     async getRecentPostedWins() {
         try {
-            const wins = await new Promise((resolve, reject) => {
-                this.db.db.all(`
-                    SELECT p.*, u.first_name, u.username
-                    FROM user_prizes p
-                    JOIN users u ON p.user_id = u.id
-                    WHERE p.is_posted_to_channel = 1
-                    ORDER BY p.posted_to_channel_date DESC
-                    LIMIT 20
-                `, (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows || []);
-                });
-            });
+            const wins = await this.db.pool.query(`
+                SELECT p.*, u.first_name, u.username
+                FROM prizes p
+                JOIN users u ON p.user_id = u.id
+                WHERE p.is_posted_to_channel = true
+                ORDER BY p.posted_to_channel_date DESC
+                LIMIT 20
+            `);
 
-            return wins || [];
+            return wins.rows || [];
         } catch (error) {
             console.error('❌ Ошибка получения недавних постов:', error);
             return [];
@@ -261,18 +262,14 @@ ${emoji} <b>${win.prize_name}</b>
 
     async manualPostWin(prizeId) {
         try {
-            const win = await new Promise((resolve, reject) => {
-                this.db.db.get(`
-                    SELECT p.*, u.first_name, u.username, u.telegram_id
-                    FROM user_prizes p
-                    JOIN users u ON p.user_id = u.id
-                    WHERE p.id = ?
-                `, [prizeId], (err, row) => {
-                    if (err) reject(err);
-                    else resolve(row);
-                });
-            });
+            const winResult = await this.db.pool.query(`
+                SELECT p.*, u.first_name, u.username, u.telegram_id
+                FROM prizes p
+                JOIN users u ON p.user_id = u.id
+                WHERE p.id = $1
+            `, [prizeId]);
 
+            const win = winResult.rows[0];
             if (!win) {
                 throw new Error('Приз не найден');
             }
