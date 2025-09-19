@@ -440,9 +440,13 @@ class UsersPage {
                         <i data-lucide="users" class="stat-icon"></i>
                         <span>${Formatters.formatNumber(user.referrals || 0)}</span>
                     </div>
-                    <div class="stat-item">
+                    <div class="stat-item" title="Общий шанс / Звезды / Сертификаты">
                         <i data-lucide="percent" class="stat-icon"></i>
                         <span>${user.win_chance || 0}%</span>
+                        ${(user.stars_chance || user.certificate_chance) ? 
+                            `<small style="display: block; font-size: 0.8em; color: #888;">⭐${user.stars_chance || 0}% 🎫${user.certificate_chance || 0}%</small>` : 
+                            ''
+                        }
                     </div>
                 </td>
                 
@@ -687,7 +691,11 @@ class UsersPage {
                             </button>
                             <button class="btn btn-warning" onclick="window.usersPage.showWinChanceModal(${user.telegram_id})">
                                 <i data-lucide="percent"></i>
-                                Изменить шанс
+                                Общий шанс
+                            </button>
+                            <button class="btn btn-info" onclick="window.usersPage.showSeparateChancesModal(${user.telegram_id})">
+                                <i data-lucide="settings"></i>
+                                Раздельные шансы
                             </button>
                         </div>
                     </div>
@@ -973,6 +981,139 @@ class UsersPage {
         } catch (error) {
             console.error('Ошибка установки шанса победы:', error);
             this.showNotification('Error', 'Ошибка', 'Не удалось установить шанс победы');
+        }
+    }
+
+    async showSeparateChancesModal(telegramId) {
+        try {
+            // Получаем информацию о пользователе, включая раздельные шансы
+            const response = await fetch(`/api/admin/users/${telegramId}`);
+            const data = await response.json();
+            
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Не удалось получить данные пользователя');
+            }
+            
+            const user = data.user;
+            const starsChance = user.stars_chance || 0;
+            const certificateChance = user.certificate_chance || 0;
+            
+            const modalContent = `
+                <div class="modal-header">
+                    <h3 class="modal-title">Раздельные шансы - ${user.first_name}</h3>
+                    <button class="modal-close" onclick="window.app.closeModal()">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="separate-chances-info">
+                        <div class="info-box">
+                            <i data-lucide="info" class="info-icon"></i>
+                            <p>Установите дополнительные шансы для звезд и сертификатов. 
+                            Эти шансы суммируются с общим шансом пользователя.</p>
+                        </div>
+                        
+                        <div class="current-chances">
+                            <div class="chance-item">
+                                <i data-lucide="percent" class="chance-icon"></i>
+                                <span>Общий шанс: <strong>${user.win_chance || 0}%</strong></span>
+                            </div>
+                            <div class="chance-item">
+                                <i data-lucide="star" class="chance-icon"></i>
+                                <span>Доп. шанс звезд: <strong>+${starsChance}%</strong></span>
+                            </div>
+                            <div class="chance-item">
+                                <i data-lucide="award" class="chance-icon"></i>
+                                <span>Доп. шанс сертификатов: <strong>+${certificateChance}%</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form id="separate-chances-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <i data-lucide="star"></i>
+                                    Дополнительный шанс звезд (%)
+                                </label>
+                                <input type="number" class="form-input" id="stars-chance" 
+                                       min="0" max="100" step="0.1" value="${starsChance}" required>
+                                <small class="form-help">Дополнительная вероятность получения звезд</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <i data-lucide="award"></i>
+                                    Дополнительный шанс сертификатов (%)
+                                </label>
+                                <input type="number" class="form-input" id="certificate-chance" 
+                                       min="0" max="100" step="0.1" value="${certificateChance}" required>
+                                <small class="form-help">Дополнительная вероятность получения сертификатов</small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Причина изменения</label>
+                            <input type="text" class="form-input" id="separate-chances-reason" 
+                                   placeholder="Например: Premium статус" required>
+                            <small class="form-help">Укажите причину изменения раздельных шансов</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="window.app.closeModal()">Отмена</button>
+                    <button class="btn btn-primary" onclick="window.usersPage.executeSeparateChancesChange(${telegramId})">
+                        Установить шансы
+                    </button>
+                </div>
+            `;
+            
+            window.app.showModal(modalContent);
+            
+        } catch (error) {
+            console.error('Ошибка загрузки данных пользователя:', error);
+            this.showNotification('Error', 'Ошибка', 'Не удалось загрузить данные пользователя');
+        }
+    }
+
+    async executeSeparateChancesChange(telegramId) {
+        const starsChance = parseFloat(document.getElementById('stars-chance').value);
+        const certificateChance = parseFloat(document.getElementById('certificate-chance').value);
+        const reason = document.getElementById('separate-chances-reason').value;
+        
+        if (isNaN(starsChance) || starsChance < 0 || starsChance > 100 ||
+            isNaN(certificateChance) || certificateChance < 0 || certificateChance > 100 ||
+            !reason || reason.trim().length < 3) {
+            this.showNotification('Error', 'Ошибка', 'Заполните все поля корректно (шансы: 0-100%, причина: мин. 3 символа)');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/admin/users/${telegramId}/separate-chances`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    starsChance: starsChance,
+                    certificateChance: certificateChance,
+                    reason: reason.trim()
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showNotification('Success', 'Успешно', 
+                    `Раздельные шансы установлены: Звезды +${data.data.newStarsChance}%, Сертификаты +${data.data.newCertificateChance}%`);
+                window.app.closeModal();
+                this.loadUsers(); // Обновляем таблицу пользователей
+            } else {
+                this.showNotification('Error', 'Ошибка', data.error || 'Не удалось установить раздельные шансы');
+            }
+        } catch (error) {
+            console.error('Ошибка установки раздельных шансов:', error);
+            this.showNotification('Error', 'Ошибка', 'Не удалось установить раздельные шансы');
         }
     }
 

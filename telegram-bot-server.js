@@ -1111,7 +1111,14 @@ app.post('/api/spin/determine-result', async (req, res) => {
         }
         
         const userWinChance = user.win_chance || 6.0; // Дефолтный шанс победы 6%
-        console.log(`📊 Win chance пользователя: ${userWinChance}%`);
+        const userStarsChance = user.stars_chance || 0; // Дополнительный шанс звезд
+        const userCertificateChance = user.certificate_chance || 0; // Дополнительный шанс сертификатов
+        
+        console.log(`📊 Шансы пользователя:`, {
+            general: `${userWinChance}%`,
+            stars: `+${userStarsChance}%`,
+            certificates: `+${userCertificateChance}%`
+        });
         
         // Загружаем базовые настройки призов
         let basePrizes;
@@ -1121,20 +1128,41 @@ app.post('/api/spin/determine-result', async (req, res) => {
         } catch (error) {
             console.warn('⚠️ Не удалось получить настройки призов, используем дефолтные');
             basePrizes = [
-                { id: 'empty', type: 'empty', probability: 94, name: 'Пусто', value: 0 },
+                { id: 'empty', type: 'empty', probability: 93, name: 'Пусто', value: 0 },
                 { id: 'stars20', type: 'stars', probability: 5, name: '20 звезд', value: 20 },
-                { id: 'cert300', type: 'certificate', probability: 1, name: 'Сертификат 300₽', value: 300 }
+                { id: 'зя300', type: 'certificate', probability: 0.3, name: 'Сертификат 300₽ ЗЯ', value: 300 },
+                { id: 'вб500', type: 'certificate', probability: 0.2, name: 'Сертификат 500₽ WB', value: 500 },
+                { id: 'зя500', type: 'certificate', probability: 0.2, name: 'Сертификат 500₽ ЗЯ', value: 500 },
+                { id: 'вб1000', type: 'certificate', probability: 0.1, name: 'Сертификат 1000₽ WB', value: 1000 },
+                { id: 'зя1000', type: 'certificate', probability: 0.1, name: 'Сертификат 1000₽ ЗЯ', value: 1000 },
+                { id: 'вб2000', type: 'certificate', probability: 0.05, name: 'Сертификат 2000₽ WB', value: 2000 },
+                { id: 'зя2000', type: 'certificate', probability: 0.05, name: 'Сертификат 2000₽ ЗЯ', value: 2000 },
+                { id: 'вб3000', type: 'certificate', probability: 0.02, name: 'Сертификат 3000₽ WB', value: 3000 },
+                { id: 'зя 5000', type: 'certificate', probability: 0.01, name: 'Сертификат 5000₽ ЗЯ', value: 5000 }
             ];
         }
         
-        // Модифицируем вероятности на основе win_chance пользователя
+        // Модифицируем вероятности на основе раздельных шансов пользователя
         const modifiedPrizes = basePrizes.map(prize => {
             if (prize.type === 'empty') {
-                // Для пустых призов уменьшаем вероятность
-                const newProbability = Math.max(0, prize.probability - (userWinChance - 6.0));
+                // Для пустых призов уменьшаем вероятность на общий + специфичный шанс
+                const totalBonus = (userWinChance - 6.0) + userStarsChance + userCertificateChance;
+                const newProbability = Math.max(0, prize.probability - totalBonus);
+                return { ...prize, probability: newProbability };
+            } else if (prize.type === 'stars') {
+                // Для звезд: общий шанс + бонус за звезды
+                const generalMultiplier = userWinChance / 6.0;
+                const specificBonus = userStarsChance / 6.0; // Конвертируем в мультипликатор
+                const newProbability = prize.probability * (generalMultiplier + specificBonus);
+                return { ...prize, probability: newProbability };
+            } else if (prize.type === 'certificate') {
+                // Для сертификатов: общий шанс + бонус за сертификаты
+                const generalMultiplier = userWinChance / 6.0;
+                const specificBonus = userCertificateChance / 6.0; // Конвертируем в мультипликатор
+                const newProbability = prize.probability * (generalMultiplier + specificBonus);
                 return { ...prize, probability: newProbability };
             } else {
-                // Для призов увеличиваем вероятность пропорционально
+                // Остальные призы - только общий шанс
                 const multiplier = userWinChance / 6.0;
                 const newProbability = prize.probability * multiplier;
                 return { ...prize, probability: newProbability };
@@ -5258,6 +5286,105 @@ app.post('/api/admin/users/:userId/win-chance', requireAuth, async (req, res) =>
     }
 });
 
+// API для раздельного управления шансами звезд и сертификатов
+app.post('/api/admin/users/:telegramId/separate-chances', requireAuth, async (req, res) => {
+    try {
+        const telegramId = req.params.telegramId;
+        const { starsChance, certificateChance, reason } = req.body;
+        
+        // Валидация
+        if ((starsChance !== undefined && (typeof starsChance !== 'number' || starsChance < 0 || starsChance > 100)) ||
+            (certificateChance !== undefined && (typeof certificateChance !== 'number' || certificateChance < 0 || certificateChance > 100)) ||
+            !reason || reason.trim().length < 3) {
+            return res.status(400).json({
+                success: false,
+                error: 'Некорректные параметры. Шансы должны быть числами от 0 до 100, причина обязательна.'
+            });
+        }
+
+        // Получаем текущие шансы
+        const userResult = await db.pool.query(
+            'SELECT stars_chance, certificate_chance FROM users WHERE telegram_id = $1',
+            [telegramId]
+        );
+        
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Пользователь не найден'
+            });
+        }
+        
+        const currentData = userResult.rows[0];
+        const oldStarsChance = currentData.stars_chance || 0;
+        const oldCertificateChance = currentData.certificate_chance || 0;
+        
+        // Обновляем только те поля, которые переданы
+        const updates = [];
+        const values = [];
+        let valueIndex = 1;
+        
+        if (starsChance !== undefined) {
+            updates.push(`stars_chance = $${valueIndex++}`);
+            values.push(starsChance);
+        }
+        
+        if (certificateChance !== undefined) {
+            updates.push(`certificate_chance = $${valueIndex++}`);
+            values.push(certificateChance);
+        }
+        
+        if (updates.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Не указаны параметры для обновления'
+            });
+        }
+        
+        values.push(telegramId); // telegram_id в WHERE
+        
+        // Обновляем шансы
+        await db.pool.query(
+            `UPDATE users SET ${updates.join(', ')} WHERE telegram_id = $${valueIndex}`,
+            values
+        );
+        
+        // Записываем в историю
+        const changesLog = [];
+        if (starsChance !== undefined) {
+            changesLog.push(`Шанс звезд: ${oldStarsChance}% → ${starsChance}%`);
+        }
+        if (certificateChance !== undefined) {
+            changesLog.push(`Шанс сертификатов: ${oldCertificateChance}% → ${certificateChance}%`);
+        }
+        
+        await db.pool.query(`
+            INSERT INTO user_transactions (user_id, type, amount, description, transaction_date)
+            VALUES ($1, 'admin_separate_chances', $2, $3, NOW())
+        `, [telegramId, 0, `${changesLog.join(', ')}. ${reason.trim()}`]);
+        
+        console.log(`🎯 Раздельные шансы пользователя ${telegramId}: ${changesLog.join(', ')}`);
+        
+        res.json({
+            success: true,
+            data: {
+                oldStarsChance,
+                oldCertificateChance,
+                newStarsChance: starsChance !== undefined ? starsChance : oldStarsChance,
+                newCertificateChance: certificateChance !== undefined ? certificateChance : oldCertificateChance,
+                reason: reason.trim()
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка установки раздельных шансов:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Ошибка при установке раздельных шансов' 
+        });
+    }
+});
+
 // Endpoint для получения истории изменения баланса пользователя
 app.get('/api/admin/users/:userId/balance-history', requireAuth, async (req, res) => {
     const { userId } = req.params;
@@ -9184,6 +9311,7 @@ app.get('/api/admin/users', requireAuth, async (req, res) => {
         let query = `
             SELECT u.telegram_id, u.first_name, u.last_name, u.username, 
                    u.stars, u.created_at, u.last_activity, u.tasks_ban_until,
+                   u.win_chance, u.stars_chance, u.certificate_chance,
                    COUNT(DISTINCT s.id) as total_spins,
                    COUNT(DISTINCT ucs.channel_id) as subscriptions_count,
                    COUNT(DISTINCT p.id) as prizes_won

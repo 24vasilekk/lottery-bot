@@ -771,6 +771,7 @@ class PrizesPage {
 
     getPrizeInfo(prize) {
         const types = {
+            // Базовые типы
             stars: { 
                 name: 'Звезды', 
                 icon: 'star', 
@@ -785,9 +786,172 @@ class PrizesPage {
                 name: 'Пользовательский', 
                 icon: 'gift', 
                 value: prize.description || 'Подарок'
+            },
+            
+            // Сертификаты
+            certificate: {
+                name: 'Сертификат',
+                icon: 'award',
+                value: prize.description || `${prize.value || 0}₽`
+            },
+            зя300: {
+                name: 'Сертификат 300₽ ЗЯ',
+                icon: 'award',
+                value: '300₽'
+            },
+            вб500: {
+                name: 'Сертификат 500₽ WB',
+                icon: 'award',
+                value: '500₽'
+            },
+            зя500: {
+                name: 'Сертификат 500₽ ЗЯ',
+                icon: 'award',
+                value: '500₽'
+            },
+            вб1000: {
+                name: 'Сертификат 1000₽ WB',
+                icon: 'award',
+                value: '1000₽'
+            },
+            зя1000: {
+                name: 'Сертификат 1000₽ ЗЯ',
+                icon: 'award',
+                value: '1000₽'
+            },
+            вб2000: {
+                name: 'Сертификат 2000₽ WB',
+                icon: 'award',
+                value: '2000₽'
+            },
+            зя2000: {
+                name: 'Сертификат 2000₽ ЗЯ',
+                icon: 'award',
+                value: '2000₽'
+            },
+            вб3000: {
+                name: 'Сертификат 3000₽ WB',
+                icon: 'gem',
+                value: '3000₽'
+            },
+            'зя 5000': {
+                name: 'Сертификат 5000₽ ЗЯ',
+                icon: 'diamond',
+                value: '5000₽'
+            },
+            
+            // Мега сертификаты
+            mega_certificate: {
+                name: 'Мега сертификат',
+                icon: 'crown',
+                value: prize.description || `${prize.value || 0}₽`
+            },
+            
+            // Премиальные призы
+            'golden-apple': {
+                name: 'Золотое яблоко',
+                icon: 'apple',
+                value: '15000₽'
+            },
+            'golden-apple-3000': {
+                name: 'Золотое яблоко 3000₽',
+                icon: 'apple',
+                value: '3000₽'
+            },
+            'golden-apple-2000': {
+                name: 'Золотое яблоко 2000₽',
+                icon: 'apple',
+                value: '2000₽'
+            },
+            'golden-apple-1500': {
+                name: 'Золотое яблоко 1500₽',
+                icon: 'apple',
+                value: '1500₽'
+            },
+            'golden-apple-1000': {
+                name: 'Золотое яблоко 1000₽',
+                icon: 'apple',
+                value: '1000₽'
+            },
+            'golden-apple-500': {
+                name: 'Золотое яблоко 500₽',
+                icon: 'apple',
+                value: '500₽'
+            },
+            dolce: {
+                name: 'Dolce косметика',
+                icon: 'heart',
+                value: '8000₽'
+            },
+            'dolce-deals': {
+                name: 'Dolce Deals',
+                icon: 'heart',
+                value: prize.description || `${prize.value || 0}₽`
+            },
+            
+            // Технические призы
+            airpods4: {
+                name: 'AirPods 4',
+                icon: 'headphones',
+                value: '12000₽'
+            },
+            powerbank: {
+                name: 'PowerBank',
+                icon: 'battery',
+                value: '2500₽'
+            },
+            charger: {
+                name: 'Зарядное устройство',
+                icon: 'zap',
+                value: '3500₽'
+            },
+            
+            // Пустой приз
+            empty: {
+                name: 'Ничего',
+                icon: 'circle',
+                value: ''
             }
         };
-        return types[prize.type] || { name: 'Неизвестный', icon: 'help-circle', value: '' };
+        
+        // Если тип найден, возвращаем его
+        if (types[prize.type]) {
+            return types[prize.type];
+        }
+        
+        // Проверяем частичные совпадения для сертификатов
+        if (prize.type && (prize.type.includes('cert') || prize.type.includes('сертификат'))) {
+            return {
+                name: 'Сертификат',
+                icon: 'award',
+                value: prize.description || `${prize.value || 0}₽`
+            };
+        }
+        
+        // Проверяем golden-apple вариации
+        if (prize.type && prize.type.includes('golden-apple')) {
+            return {
+                name: 'Золотое яблоко',
+                icon: 'apple',
+                value: prize.description || `${prize.value || 0}₽`
+            };
+        }
+        
+        // Проверяем dolce вариации
+        if (prize.type && prize.type.includes('dolce')) {
+            return {
+                name: 'Dolce косметика',
+                icon: 'heart',
+                value: prize.description || `${prize.value || 0}₽`
+            };
+        }
+        
+        // Fallback для неизвестных типов
+        return { 
+            name: prize.description || prize.type || 'Неизвестный приз', 
+            icon: 'help-circle', 
+            value: prize.value ? `${prize.value}₽` : ''
+        };
     }
 
     bindTableEvents(tableType) {

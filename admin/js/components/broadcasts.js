@@ -14,7 +14,7 @@ class BroadcastsComponent {
 
     // Рендер главной страницы рассылок
     async render() {
-        const container = document.getElementById('broadcasts-content');
+        const container = document.getElementById('page-content');
         
         container.innerHTML = `
             <div class="broadcasts-page">

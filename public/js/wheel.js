@@ -189,17 +189,24 @@ class WheelManager {
                 return prize.type === 'stars' && prize.value === serverPrize.value;
             }
             if (serverPrize.type === 'certificate') {
-                return prize.type === 'certificate' && prize.value === serverPrize.value;
+                // Для сертификатов ищем по значению среди всех типов сертификатов
+                return (prize.type === 'certificate' || 
+                        prize.type === 'golden-apple' || 
+                        prize.type === 'dolce' ||
+                        prize.type.includes('cert')) && 
+                       prize.value === serverPrize.value;
             }
             return false;
         });
         
         if (foundPrize) {
-            console.log(`✅ Найден соответствующий приз: ${foundPrize.name}`);
+            console.log(`✅ Найден соответствующий приз: ${foundPrize.name} (тип: ${foundPrize.type}, значение: ${foundPrize.value})`);
             return foundPrize;
         }
         
         // Если не нашли точное соответствие, создаем новый приз на основе серверного
+        console.warn('⚠️ Не найден локальный приз для серверного результата:', serverPrize);
+        console.warn('⚠️ Доступные локальные призы:', this.prizes.map(p => `${p.name} (тип: ${p.type}, значение: ${p.value})`));
         console.warn('⚠️ Создаем приз на основе серверного результата');
         return {
             id: `server_${serverPrize.type}_${serverPrize.value || 'empty'}`,
@@ -257,7 +264,50 @@ class WheelManager {
     }
 
     calculateTargetAngle(winningPrize) {
-        const prizeIndex = this.prizes.findIndex(prize => prize.id === winningPrize.id);
+        let prizeIndex = this.prizes.findIndex(prize => prize.id === winningPrize.id);
+        
+        // Если не найден точный ID, пытаемся найти по типу и значению
+        if (prizeIndex === -1) {
+            console.warn(`⚠️ Приз с ID ${winningPrize.id} не найден в колесе, ищем по типу и значению...`);
+            prizeIndex = this.prizes.findIndex(prize => {
+                if (winningPrize.type === 'empty') {
+                    return prize.type === 'empty';
+                }
+                if (winningPrize.type === 'stars') {
+                    return prize.type === 'stars' && prize.value === winningPrize.value;
+                }
+                if (winningPrize.type === 'certificate') {
+                    return (prize.type === 'certificate' || 
+                            prize.type === 'golden-apple' || 
+                            prize.type === 'dolce' ||
+                            prize.type.includes('cert')) && 
+                           prize.value === winningPrize.value;
+                }
+                return false;
+            });
+        }
+        
+        // Fallback: если все еще не найден, используем первый приз того же типа
+        if (prizeIndex === -1) {
+            console.warn(`⚠️ Приз не найден в колесе, используем fallback для типа ${winningPrize.type}`);
+            if (winningPrize.type === 'certificate') {
+                prizeIndex = this.prizes.findIndex(prize => 
+                    prize.type === 'golden-apple' || 
+                    prize.type === 'dolce' || 
+                    prize.type.includes('cert')
+                );
+            } else {
+                prizeIndex = this.prizes.findIndex(prize => prize.type === winningPrize.type);
+            }
+        }
+        
+        // Последний fallback: первый приз
+        if (prizeIndex === -1) {
+            console.error(`❌ Не удалось найти приз в колесе, используем первый приз`);
+            prizeIndex = 0;
+        }
+        
+        console.log(`🎯 Используется позиция ${prizeIndex} для приза ${winningPrize.name}`);
         const prizeAngle = this.segmentAngle * prizeIndex + this.segmentAngle / 2;
         
         // Добавляем несколько полных оборотов + случайность

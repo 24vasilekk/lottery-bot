@@ -645,9 +645,17 @@ export class MainScreen {
             if (Math.abs(totalProbability - 100) > 0.1) {
                 console.error('❌ Некорректная сумма вероятностей!', totalProbability);
                 realChances = [
-                    { id: 'empty', type: 'empty', probability: 94, name: 'Пусто', value: 0 },
+                    { id: 'empty', type: 'empty', probability: 93, name: 'Пусто', value: 0 },
                     { id: 'stars20', type: 'stars', probability: 5, name: '20 звезд', value: 20 },
-                    { id: 'cert300', type: 'certificate', probability: 1, name: 'Сертификат 300₽', value: 300 }
+                    { id: 'зя300', type: 'certificate', probability: 0.3, name: 'Сертификат 300₽ ЗЯ', value: 300 },
+                    { id: 'вб500', type: 'certificate', probability: 0.2, name: 'Сертификат 500₽ WB', value: 500 },
+                    { id: 'зя500', type: 'certificate', probability: 0.2, name: 'Сертификат 500₽ ЗЯ', value: 500 },
+                    { id: 'вб1000', type: 'certificate', probability: 0.1, name: 'Сертификат 1000₽ WB', value: 1000 },
+                    { id: 'зя1000', type: 'certificate', probability: 0.1, name: 'Сертификат 1000₽ ЗЯ', value: 1000 },
+                    { id: 'вб2000', type: 'certificate', probability: 0.05, name: 'Сертификат 2000₽ WB', value: 2000 },
+                    { id: 'зя2000', type: 'certificate', probability: 0.05, name: 'Сертификат 2000₽ ЗЯ', value: 2000 },
+                    { id: 'вб3000', type: 'certificate', probability: 0.02, name: 'Сертификат 3000₽ WB', value: 3000 },
+                    { id: 'зя 5000', type: 'certificate', probability: 0.01, name: 'Сертификат 5000₽ ЗЯ', value: 5000 }
                 ];
                 console.log('🔧 Используем аварийные безопасные шансы:', realChances);
             }
@@ -1088,7 +1096,7 @@ export class MainScreen {
             { 
                 id: 'empty', 
                 type: 'empty', 
-                probability: 94.0, 
+                probability: 93.0, 
                 name: 'Пусто', 
                 value: 0 
             },
@@ -1100,11 +1108,67 @@ export class MainScreen {
                 value: 20 
             },
             { 
-                id: 'cert300', 
+                id: 'зя300', 
                 type: 'certificate', 
-                probability: 1.0, 
-                name: 'Сертификат 300₽', 
+                probability: 0.3, 
+                name: 'Сертификат 300₽ ЗЯ', 
                 value: 300 
+            },
+            { 
+                id: 'вб500', 
+                type: 'certificate', 
+                probability: 0.2, 
+                name: 'Сертификат 500₽ WB', 
+                value: 500 
+            },
+            { 
+                id: 'зя500', 
+                type: 'certificate', 
+                probability: 0.2, 
+                name: 'Сертификат 500₽ ЗЯ', 
+                value: 500 
+            },
+            { 
+                id: 'вб1000', 
+                type: 'certificate', 
+                probability: 0.1, 
+                name: 'Сертификат 1000₽ WB', 
+                value: 1000 
+            },
+            { 
+                id: 'зя1000', 
+                type: 'certificate', 
+                probability: 0.1, 
+                name: 'Сертификат 1000₽ ЗЯ', 
+                value: 1000 
+            },
+            { 
+                id: 'вб2000', 
+                type: 'certificate', 
+                probability: 0.05, 
+                name: 'Сертификат 2000₽ WB', 
+                value: 2000 
+            },
+            { 
+                id: 'зя2000', 
+                type: 'certificate', 
+                probability: 0.05, 
+                name: 'Сертификат 2000₽ ЗЯ', 
+                value: 2000 
+            },
+            { 
+                id: 'вб3000', 
+                type: 'certificate', 
+                probability: 0.02, 
+                name: 'Сертификат 3000₽ WB', 
+                value: 3000 
+            },
+            { 
+                id: 'зя 5000', 
+                type: 'certificate', 
+                probability: 0.01, 
+                name: 'Сертификат 5000₽ ЗЯ', 
+                value: 5000 
             }
         ];
         

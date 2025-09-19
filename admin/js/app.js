@@ -415,9 +415,12 @@ class AdminApp {
                     // Для рефералов используем специальную логику
                     await this.loadReferralsPage();
                     return;
+                case 'broadcasts':
+                    // Загружаем страницу рассылок
+                    await this.loadBroadcastsPage();
+                    return;
                 case 'wheel':
                 case 'analytics':
-                case 'broadcasts':
                 case 'settings':
                     // Заглушки для страниц в разработке
                     const placeholderContent = this.renderPlaceholderPage(page);
@@ -571,6 +574,44 @@ class AdminApp {
                     <i data-lucide="alert-circle" class="empty-state-icon"></i>
                     <h3 class="empty-state-title">Ошибка загрузки</h3>
                     <p class="empty-state-message">Не удалось загрузить страницу рефералов: ${error.message}</p>
+                    <button class="btn btn-primary" onclick="app.loadPage('dashboard')">На главную</button>
+                </div>
+            `;
+            throw error;
+        }
+    }
+
+    async loadBroadcastsPage() {
+        console.log('📬 Загружаем страницу рассылок...');
+        const pageContent = document.getElementById('page-content');
+        
+        try {
+            // Инициализируем компонент рассылок если еще не создан
+            if (!window.broadcastsComponent) {
+                // Создаем API объект для компонента
+                const api = {
+                    get: (url) => this.apiCall(url),
+                    post: (url, data) => this.apiCall(url, 'POST', data)
+                };
+                
+                window.broadcastsComponent = new window.SimpleBroadcastsComponent(api);
+            }
+            
+            // Рендерим компонент в pageContent
+            await window.broadcastsComponent.render();
+            
+            // Обновить иконки после рендеринга
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки рассылок:', error);
+            pageContent.innerHTML = `
+                <div class="empty-state">
+                    <i data-lucide="alert-circle" class="empty-state-icon"></i>
+                    <h3 class="empty-state-title">Ошибка загрузки</h3>
+                    <p class="empty-state-message">Не удалось загрузить страницу рассылок: ${error.message}</p>
                     <button class="btn btn-primary" onclick="app.loadPage('dashboard')">На главную</button>
                 </div>
             `;

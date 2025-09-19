@@ -385,6 +385,43 @@ class DatabasePostgres {
                     console.log('✅ Колонка win_chance уже существует');
                 }
 
+                // Добавляем раздельные шансы для звезд и сертификатов
+                const checkStarsChance = await client.query(`
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'users' 
+                    AND column_name = 'stars_chance'
+                `);
+                
+                if (checkStarsChance.rows.length === 0) {
+                    console.log('📝 Добавляем колонку stars_chance в users...');
+                    await client.query(`
+                        ALTER TABLE users 
+                        ADD COLUMN stars_chance DECIMAL(5,2) DEFAULT 0.0
+                    `);
+                    console.log('✅ Колонка stars_chance добавлена');
+                } else {
+                    console.log('✅ Колонка stars_chance уже существует');
+                }
+
+                const checkCertificateChance = await client.query(`
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'users' 
+                    AND column_name = 'certificate_chance'
+                `);
+                
+                if (checkCertificateChance.rows.length === 0) {
+                    console.log('📝 Добавляем колонку certificate_chance в users...');
+                    await client.query(`
+                        ALTER TABLE users 
+                        ADD COLUMN certificate_chance DECIMAL(5,2) DEFAULT 0.0
+                    `);
+                    console.log('✅ Колонка certificate_chance добавлена');
+                } else {
+                    console.log('✅ Колонка certificate_chance уже существует');
+                }
+
                 // Исправляем тип данных channel_id в user_channel_subscriptions если нужно
                 const checkChannelIdType = await client.query(`
                     SELECT data_type 
@@ -1235,7 +1272,7 @@ class DatabasePostgres {
                             id: 'empty',
                             name: 'Пусто (черный раздел)',
                             type: 'empty',
-                            probability: 94, // РЕАЛЬНО 940 из 1000 прокруток
+                            probability: 93, // РЕАЛЬНО 930 из 1000 прокруток (уменьшено из-за новых сертификатов)
                             description: 'Попробуйте еще раз!'
                         },
                         {
@@ -1250,9 +1287,57 @@ class DatabasePostgres {
                             id: 'cert300',
                             name: 'Сертификат 300₽ ЗЯ',
                             type: 'certificate',
-                            probability: 1, // РЕАЛЬНО 10 из 1000 прокруток
+                            probability: 0.3, // РЕАЛЬНО 3 из 1000 прокруток
                             description: 'Сертификат на 300 рублей в Золотое Яблоко',
                             value: 300
+                        },
+                        {
+                            id: 'cert500_za',
+                            name: 'Сертификат 500₽ ЗЯ',
+                            type: 'certificate',
+                            probability: 0.2, // РЕАЛЬНО 2 из 1000 прокруток
+                            description: 'Сертификат на 500 рублей в Золотое Яблоко',
+                            value: 500
+                        },
+                        {
+                            id: 'cert500_wb',
+                            name: 'Сертификат 500₽ WB',
+                            type: 'certificate',
+                            probability: 0.2, // РЕАЛЬНО 2 из 1000 прокруток
+                            description: 'Сертификат на 500 рублей в Wildberries',
+                            value: 500
+                        },
+                        {
+                            id: 'cert1000_za',
+                            name: 'Сертификат 1000₽ ЗЯ',
+                            type: 'certificate',
+                            probability: 0.1, // РЕАЛЬНО 1 из 1000 прокруток
+                            description: 'Сертификат на 1000 рублей в Золотое Яблоко',
+                            value: 1000
+                        },
+                        {
+                            id: 'cert1000_wb',
+                            name: 'Сертификат 1000₽ WB',
+                            type: 'certificate',
+                            probability: 0.1, // РЕАЛЬНО 1 из 1000 прокруток
+                            description: 'Сертификат на 1000 рублей в Wildberries',
+                            value: 1000
+                        },
+                        {
+                            id: 'cert2000_za',
+                            name: 'Сертификат 2000₽ ЗЯ',
+                            type: 'certificate',
+                            probability: 0.05, // РЕАЛЬНО 0.5 из 1000 прокруток
+                            description: 'Сертификат на 2000 рублей в Золотое Яблоко',
+                            value: 2000
+                        },
+                        {
+                            id: 'cert2000_wb',
+                            name: 'Сертификат 2000₽ WB',
+                            type: 'certificate',
+                            probability: 0.05, // РЕАЛЬНО 0.5 из 1000 прокруток
+                            description: 'Сертификат на 2000 рублей в Wildberries',
+                            value: 2000
                         }
                     ]
                 };
