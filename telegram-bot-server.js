@@ -664,6 +664,12 @@ async function handleWheelSpin(userId, data) {
         
         console.log(`🎰 Пользователь ${userId} крутит рулетку`);
         console.log('🎁 Данные приза:', JSON.stringify(data.prize, null, 2));
+        console.log('🔍 ДЕТАЛЬНАЯ ОТЛАДКА ПРИЗА:');
+        console.log('  - data.prize.id:', data.prize?.id);
+        console.log('  - data.prize.name:', data.prize?.name);
+        console.log('  - data.prize.description:', data.prize?.description);
+        console.log('  - data.prize.type:', data.prize?.type);
+        console.log('  - data.prize.value:', data.prize?.value);
         console.log('💰 Полученные данные спина:', {
             spinType: data.spinType, 
             spinCost: data.spinCost,
@@ -724,6 +730,13 @@ async function handleWheelSpin(userId, data) {
             }
         }
         
+        console.log('🎯 ФИНАЛЬНЫЙ ПРИЗ ДЛЯ СОХРАНЕНИЯ:');
+        console.log('  - finalPrize.id:', finalPrize?.id);
+        console.log('  - finalPrize.name:', finalPrize?.name);
+        console.log('  - finalPrize.description:', finalPrize?.description);
+        console.log('  - finalPrize.type:', finalPrize?.type);
+        console.log('  - finalPrize.value:', finalPrize?.value);
+
         try {
             // Используем новый транзакционный метод с финальным призом
             const result = await db.processSpinWithTransaction(userId, spinCost, finalPrize, spinType);
@@ -755,7 +768,13 @@ async function handleWheelSpin(userId, data) {
                 // Отправляем уведомление в телеграм
                 if (bot) {
                     try {
-                        await bot.sendMessage(userId, `🎉 Поздравляем!\n🎁 Вы выиграли: ${finalPrize.description || finalPrize.name}!`);
+                        const messageText = finalPrize.description || finalPrize.name;
+                        console.log('📱 ОТПРАВЛЯЕМ СООБЩЕНИЕ В TELEGRAM:');
+                        console.log('  - Текст сообщения:', messageText);
+                        console.log('  - finalPrize.description:', finalPrize.description);
+                        console.log('  - finalPrize.name:', finalPrize.name);
+                        
+                        await bot.sendMessage(userId, `🎉 Поздравляем!\n🎁 Вы выиграли: ${messageText}!`);
                         
                         // Уведомляем админов о крупных призах (сертификаты)
                         if (finalPrize.type.includes('golden-apple') || finalPrize.type.includes('dolce')) {
