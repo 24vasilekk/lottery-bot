@@ -107,42 +107,142 @@ class WheelManager {
         this.spinButton.disabled = true;
         this.spinButton.innerHTML = '<span>Крутится...</span>';
         
-        // Безопасно списываем звезды через App
-        if (window.app && window.app.spendStars) {
-            const success = await window.app.spendStars(spinCost);
-            if (!success) {
-                this.isSpinning = false;
-                this.spinButton.disabled = false;
-                this.spinButton.innerHTML = '<span>Крутить</span>';
-                console.error('❌ Не удалось списать звезды для прокрутки');
-                return;
-            }
-        } else {
-            // Fallback для совместимости
-            userData.stats.stars -= spinCost;
-            updateUserData(userData);
-            updateStarDisplay();
-        }
+        // ВАЖНО: НЕ списываем звезды здесь, так как сервер делает это в /api/spin/determine-result
+        console.log('🎰 Запуск рулетки, звезды будут списаны сервером');
 
         // Добавляем эффекты
         this.addSpinEffects();
 
-        // Определяем выигрышный сегмент
-        const winningSegment = this.selectWinningSegment();
+        // Получаем результат с сервера
+        const serverResponse = await this.getServerResponse();
+        if (!serverResponse) {
+            this.resetSpin();
+            return;
+        }
+        
+        const serverResult = serverResponse.result;
+        
+        // Обновляем баланс пользователя на основе серверного ответа
+        if (serverResponse.newBalance !== undefined) {
+            const userData = getUserData();
+            userData.stats.stars = serverResponse.newBalance;
+            updateUserData(userData);
+            updateStarDisplay();
+            console.log(`💰 Баланс обновлен с сервера: ${serverResponse.newBalance} звезд`);
+        }
+        
+        // Определяем выигрышный сегмент на основе серверного результата
+        const winningSegment = this.findPrizeByServerResult(serverResult);
         const targetAngle = this.calculateTargetAngle(winningSegment);
         
         // Запускаем анимацию вращения
         await this.animateWheel(targetAngle);
         
-        // Показываем результат
-        await this.showResult(winningSegment);
+        // Показываем результат (используем серверный результат)
+        await this.showResult(winningSegment, serverResult);
         
         // Сбрасываем состояние
         this.resetSpin();
     }
 
+    async getServerResponse() {
+        try {
+            const userData = getUserData();
+            const response = await fetch('/api/spin/determine-result', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    userId: userData.telegramId,
+                    spinType: 'normal',
+                    spinCost: APP_CONFIG.wheel.starCost
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('🎯 Результат с сервера:', data);
+            
+            if (!data.success) {
+                throw new Error(data.error || 'Ошибка сервера');
+            }
+            
+            return data; // Возвращаем весь ответ от сервера
+        } catch (error) {
+            console.error('❌ Ошибка получения результата с сервера:', error);
+            this.showNotification('Ошибка подключения к серверу', 'error');
+            return null;
+        }
+    }
+
+    findPrizeByServerResult(serverPrize) {
+        // Ищем приз в локальном массиве по типу и значению
+        const foundPrize = this.prizes.find(prize => {
+            if (serverPrize.type === 'empty') {
+                return prize.type === 'empty';
+            }
+            if (serverPrize.type === 'stars') {
+                return prize.type === 'stars' && prize.value === serverPrize.value;
+            }
+            if (serverPrize.type === 'certificate') {
+                return prize.type === 'certificate' && prize.value === serverPrize.value;
+            }
+            return false;
+        });
+        
+        if (foundPrize) {
+            console.log(`✅ Найден соответствующий приз: ${foundPrize.name}`);
+            return foundPrize;
+        }
+        
+        // Если не нашли точное соответствие, создаем новый приз на основе серверного
+        console.warn('⚠️ Создаем приз на основе серверного результата');
+        return {
+            id: `server_${serverPrize.type}_${serverPrize.value || 'empty'}`,
+            type: serverPrize.type,
+            name: serverPrize.name || this.getDefaultPrizeName(serverPrize),
+            value: serverPrize.value || 0,
+            icon: this.getDefaultPrizeIcon(serverPrize.type),
+            color: this.getDefaultPrizeColor(serverPrize.type)
+        };
+    }
+
+    getDefaultPrizeName(serverPrize) {
+        switch (serverPrize.type) {
+            case 'empty': return 'Пусто';
+            case 'stars': return `${serverPrize.value} звезд`;
+            case 'certificate': return `Сертификат ${serverPrize.value}₽`;
+            default: return serverPrize.name || 'Приз';
+        }
+    }
+
+    getDefaultPrizeIcon(type) {
+        switch (type) {
+            case 'empty': return '💔';
+            case 'stars': return '⭐';
+            case 'certificate': return '🎫';
+            default: return '🎁';
+        }
+    }
+
+    getDefaultPrizeColor(type) {
+        switch (type) {
+            case 'empty': return '#6c757d';
+            case 'stars': return '#ffc107';
+            case 'certificate': return '#28a745';
+            default: return '#007bff';
+        }
+    }
+
     selectWinningSegment() {
-        // Генерируем случайное число для определения приза
+        // УСТАРЕВШИЙ МЕТОД - теперь используется getServerResult()
+        // Оставлен для обратной совместимости
+        console.warn('⚠️ Используется устаревший метод selectWinningSegment()');
+        
         const random = Math.random() * 100;
         let cumulativeProbability = 0;
         
@@ -153,7 +253,6 @@ class WheelManager {
             }
         }
         
-        // Fallback - возвращаем первый приз
         return this.prizes[0];
     }
 
@@ -200,22 +299,25 @@ class WheelManager {
         }, 300);
     }
 
-    async showResult(prize) {
+    async showResult(prize, serverResult = null) {
         // Обновляем статистику пользователя
         const userData = getUserData();
         userData.stats.totalSpins++;
         
-        if (prize.type !== 'empty') {
+        // Используем серверный результат для обновления данных, если он есть
+        const resultToUse = serverResult || prize;
+        
+        if (resultToUse.type !== 'empty') {
             userData.stats.prizesWon++;
             userData.prizes.unshift({
-                ...prize,
+                ...resultToUse,
                 timestamp: new Date().toISOString(),
                 id: Date.now()
             });
             
             // Добавляем звезды если это приз со звездами
-            if (prize.type.includes('stars')) {
-                const starReward = prize.value || 0;
+            if (resultToUse.type === 'stars') {
+                const starReward = resultToUse.value || 0;
                 userData.stats.stars += starReward;
                 userData.stats.totalStarsEarned += starReward;
                 this.showStarGainEffect(starReward);
@@ -226,11 +328,11 @@ class WheelManager {
         this.updatePrizeHistory();
         updateStarDisplay();
         
-        // Показываем модальное окно с результатом
-        this.showPrizeModal(prize);
+        // Показываем модальное окно с результатом (используем серверный результат)
+        this.showPrizeModal(resultToUse);
         
         // Добавляем конфетти для хороших призов
-        if (prize.type !== 'empty') {
+        if (resultToUse.type !== 'empty') {
             this.createConfetti();
         }
         
