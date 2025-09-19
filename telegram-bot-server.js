@@ -676,16 +676,64 @@ async function handleWheelSpin(userId, data) {
         
         console.log(`🎰 Обрабатываем спин: тип=${spinType}, стоимость=${spinCost}, приз=${data.prize?.name || 'empty'}`);
         
+        // ПРОВЕРЯЕМ ИНДИВИДУАЛЬНЫЕ ШАНСЫ ПОЛЬЗОВАТЕЛЯ
+        let finalPrize = data.prize;
+        const userWinChance = user.win_chance || 6.0;
+        
+        console.log(`🎯 Шанс пользователя: ${userWinChance}%`);
+        
+        // Если у пользователя 100% шанс и он получил пустоту, заменяем на гарантированный приз
+        if (userWinChance >= 100 && data.prize?.type === 'empty') {
+            console.log('🎯 Пользователь с 100% шансом получил пустоту - заменяем на гарантированный приз');
+            
+            // Загружаем настройки призов для определения лучшего приза
+            let basePrizes;
+            try {
+                const settings = await db.getWheelSettings('normal');
+                basePrizes = settings?.prizes || [];
+            } catch (error) {
+                console.warn('⚠️ Не удалось получить настройки призов, используем дефолтные');
+                basePrizes = [
+                    { id: 'зя300', type: 'certificate', name: 'Сертификат 300₽ ЗЯ', value: 300 },
+                    { id: 'вб500', type: 'certificate', name: 'Сертификат 500₽ WB', value: 500 },
+                    { id: 'зя500', type: 'certificate', name: 'Сертификат 500₽ ЗЯ', value: 500 },
+                    { id: 'вб1000', type: 'certificate', name: 'Сертификат 1000₽ WB', value: 1000 },
+                    { id: 'зя1000', type: 'certificate', name: 'Сертификат 1000₽ ЗЯ', value: 1000 },
+                    { id: 'вб2000', type: 'certificate', name: 'Сертификат 2000₽ WB', value: 2000 },
+                    { id: 'зя2000', type: 'certificate', name: 'Сертификат 2000₽ ЗЯ', value: 2000 },
+                    { id: 'вб3000', type: 'certificate', name: 'Сертификат 3000₽ WB', value: 3000 },
+                    { id: 'зя 5000', type: 'certificate', name: 'Сертификат 5000₽ ЗЯ', value: 5000 }
+                ];
+            }
+            
+            // Находим лучший приз (исключая пустоту)
+            const winPrizes = basePrizes.filter(p => p.type !== 'empty');
+            const bestPrize = winPrizes.reduce((best, current) => {
+                if (!best) return current;
+                
+                // Приоритет: сертификаты с большей стоимостью, затем звезды
+                if (current.type === 'certificate' && best.type === 'stars') return current;
+                if (current.type === best.type && (current.value || 0) > (best.value || 0)) return current;
+                
+                return best;
+            }, null);
+            
+            if (bestPrize) {
+                finalPrize = bestPrize;
+                console.log(`🎁 Заменили пустоту на гарантированный приз: ${bestPrize.name} (${bestPrize.value}₽)`);
+            }
+        }
+        
         try {
-            // Используем новый транзакционный метод
-            const result = await db.processSpinWithTransaction(userId, spinCost, data.prize, spinType);
+            // Используем новый транзакционный метод с финальным призом
+            const result = await db.processSpinWithTransaction(userId, spinCost, finalPrize, spinType);
             
             console.log(`✅ Спин обработан успешно. Новый баланс: ${result.newBalance}`);
             
             // Валидация и дополнительная обработка призов
-            if (data.prize && data.prize.type !== 'empty') {
-                const prizeType = data.prize.type;
-                const prizeValue = data.prize.value || 0;
+            if (finalPrize && finalPrize.type !== 'empty') {
+                const prizeType = finalPrize.type;
+                const prizeValue = finalPrize.value || 0;
                 
                 console.log(`🔍 Приз обработан: тип="${prizeType}", значение=${prizeValue}`);
                 
@@ -693,7 +741,7 @@ async function handleWheelSpin(userId, data) {
                 const validPrizeTypes = ['empty', 'stars', 'certificate'];
                 if (!validPrizeTypes.includes(prizeType)) {
                     console.warn(`⚠️ Неизвестный тип приза: ${prizeType}, принимаем как certificate`);
-                    data.prize.type = 'certificate';
+                    finalPrize.type = 'certificate';
                 }
                 
                 // Дополнительная валидация для сертификатов
@@ -707,12 +755,12 @@ async function handleWheelSpin(userId, data) {
                 // Отправляем уведомление в телеграм
                 if (bot) {
                     try {
-                        await bot.sendMessage(userId, `🎉 Поздравляем!\n🎁 Вы выиграли: ${data.prize.description || data.prize.name}!`);
+                        await bot.sendMessage(userId, `🎉 Поздравляем!\n🎁 Вы выиграли: ${finalPrize.description || finalPrize.name}!`);
                         
                         // Уведомляем админов о крупных призах (сертификаты)
-                        if (data.prize.type.includes('golden-apple') || data.prize.type.includes('dolce')) {
+                        if (finalPrize.type.includes('golden-apple') || finalPrize.type.includes('dolce')) {
                             // Используем красиво оформленное уведомление
-                            notifyAdmins(`Пользователь ${user.first_name} (${userId}) выиграл: ${data.prize.name}`);
+                            notifyAdmins(`Пользователь ${user.first_name} (${userId}) выиграл: ${finalPrize.name}`);
                             
                             // Или простое уведомление (если хотите оставить старый формат):
                             // notifyAdmins(`Пользователь ${user.first_name} (${userId}) выиграл: ${data.prize.name}`);
@@ -2057,18 +2105,62 @@ app.post('/api/debug/wheel-spin', strictApiLimiter, async (req, res) => {
 
 app.get('/api/wheel-settings/normal', async (req, res) => {
     try {
+        const { userId } = req.query; // Получаем userId из query параметров
+        
         const settings = await db.getWheelSettings('normal');
         
         if (settings && settings.prizes) {
-            // Возвращаем только шансы призов для фронтенда
+            let adjustedPrizes = settings.prizes.map(prize => ({
+                id: prize.id,
+                type: prize.type,
+                probability: prize.probability,
+                name: prize.name,
+                value: prize.value
+            }));
+
+            // Если передан userId, проверяем его шансы
+            if (userId) {
+                try {
+                    const user = await db.getUser(parseInt(userId));
+                    if (user) {
+                        const userWinChance = user.win_chance || 6.0;
+                        
+                        console.log(`🎯 Настройка шансов рулетки для пользователя ${userId} (шанс: ${userWinChance}%)`);
+                        
+                        // Если у пользователя 100% шанс, устанавливаем гарантированную победу
+                        if (userWinChance >= 100) {
+                            console.log('🎯 100% шанс - настраиваем рулетку на гарантированную победу');
+                            
+                            // Находим лучший приз (исключая пустоту)
+                            const winPrizes = adjustedPrizes.filter(p => p.type !== 'empty');
+                            const bestPrize = winPrizes.reduce((best, current) => {
+                                if (!best) return current;
+                                
+                                // Приоритет: сертификаты с большей стоимостью, затем звезды
+                                if (current.type === 'certificate' && best.type === 'stars') return current;
+                                if (current.type === best.type && (current.value || 0) > (best.value || 0)) return current;
+                                
+                                return best;
+                            }, null);
+                            
+                            if (bestPrize) {
+                                // Устанавливаем 100% шанс для лучшего приза, 0% для всех остальных
+                                adjustedPrizes = adjustedPrizes.map(prize => ({
+                                    ...prize,
+                                    probability: prize.id === bestPrize.id ? 100 : 0
+                                }));
+                                
+                                console.log(`🎁 Установлен 100% шанс для приза: ${bestPrize.name}`);
+                            }
+                        }
+                    }
+                } catch (userError) {
+                    console.warn(`⚠️ Не удалось получить данные пользователя ${userId}:`, userError);
+                }
+            }
+            
             const publicSettings = {
-                prizes: settings.prizes.map(prize => ({
-                    id: prize.id,
-                    type: prize.type,
-                    probability: prize.probability,
-                    name: prize.name,
-                    value: prize.value
-                }))
+                prizes: adjustedPrizes
             };
             res.json(publicSettings);
         } else {
@@ -5416,6 +5508,8 @@ app.post('/api/admin/users/:telegramId/separate-chances', requireAuth, async (re
     }
 });
 
+// ENDPOINT MOVED TO BEFORE 404 HANDLER (line 8183)
+
 // Endpoint для получения истории изменения баланса пользователя
 app.get('/api/admin/users/:userId/balance-history', requireAuth, async (req, res) => {
     const { userId } = req.params;
@@ -8079,6 +8173,107 @@ app.post('/api/admin/prizes/give-custom', requireAuth, async (req, res) => {
     }
 });
 
+// API для получения информации о конкретном пользователе
+app.get('/api/admin/users/:userId', requireAuth, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        console.log(`👤 Admin API: Запрос пользователя ${userId}`);
+        
+        const telegramId = parseInt(userId);
+        if (isNaN(telegramId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Неверный ID пользователя'
+            });
+        }
+        
+        // Получаем основную информацию о пользователе
+        const userQuery = `
+            SELECT u.*, 
+                   COUNT(DISTINCT p2.id) as total_spins,
+                   COUNT(DISTINCT ucs.channel_id) as subscriptions_count,
+                   COUNT(DISTINCT p.id) as prizes_won,
+                   COALESCE(SUM(CASE WHEN p2.created_at > CURRENT_DATE THEN 1 ELSE 0 END), 0) as spins_today
+            FROM users u
+            LEFT JOIN prizes p2 ON u.id = p2.user_id
+            LEFT JOIN user_channel_subscriptions ucs ON u.id = ucs.user_id
+            LEFT JOIN prizes p ON u.id = p.user_id AND p.is_given = true
+            WHERE u.telegram_id = $1
+            GROUP BY u.id, u.telegram_id
+        `;
+        
+        const result = await db.pool.query(userQuery, [telegramId]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Пользователь не найден'
+            });
+        }
+        
+        const user = result.rows[0];
+        
+        // Получаем последние прокрутки
+        const spinsQuery = `
+            SELECT id, type as prize_type, description as prize_name, created_at
+            FROM prizes 
+            WHERE user_id = $1 
+            ORDER BY created_at DESC 
+            LIMIT 10
+        `;
+        const spinsResult = await db.pool.query(spinsQuery, [user.id]);
+        
+        // Получаем подписки на каналы
+        const subscriptionsQuery = `
+            SELECT pc.channel_name, pc.channel_username, ucs.subscribed_date
+            FROM user_channel_subscriptions ucs
+            LEFT JOIN partner_channels pc ON ucs.channel_id = pc.id
+            WHERE ucs.user_id = $1
+            ORDER BY ucs.subscribed_date DESC
+            LIMIT 10
+        `;
+        const subscriptionsResult = await db.pool.query(subscriptionsQuery, [user.id]);
+        
+        console.log(`✅ Информация о пользователе ${userId} получена`);
+        
+        res.json({
+            success: true,
+            user: {
+                id: user.telegram_id,
+                telegramId: user.telegram_id,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                username: user.username,
+                stars: parseInt(user.stars) || 0,
+                createdAt: user.created_at,
+                lastActivity: user.last_activity,
+                isBanned: user.tasks_ban_until && new Date(user.tasks_ban_until) > new Date(),
+                banUntil: user.tasks_ban_until,
+                win_chance: parseFloat(user.win_chance) || 0,
+                stars_chance: parseFloat(user.stars_chance) || 0,
+                certificate_chance: parseFloat(user.certificate_chance) || 0,
+                first_name: user.first_name, // Для совместимости с админкой
+                last_name: user.last_name,
+                stats: {
+                    totalSpins: parseInt(user.total_spins) || 0,
+                    subscriptions: parseInt(user.subscriptions_count) || 0,
+                    prizesWon: parseInt(user.prizes_won) || 0,
+                    spinsToday: parseInt(user.spins_today) || 0
+                },
+                recentSpins: spinsResult.rows,
+                subscriptions: subscriptionsResult.rows
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения пользователя:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка получения информации о пользователе'
+        });
+    }
+});
+
 // 404 обработчик для админ API
 app.use('/api/admin/*', (req, res) => {
     console.log(`❌ 404 для админ API: ${req.method} ${req.originalUrl}`);
@@ -9428,106 +9623,7 @@ app.get('/api/admin/users', requireAuth, async (req, res) => {
     }
 });
 
-// API для получения информации о конкретном пользователе
-app.get('/api/admin/users/:userId', requireAuth, async (req, res) => {
-    try {
-        const { userId } = req.params;
-        console.log(`👤 Admin API: Запрос пользователя ${userId}`);
-        
-        const telegramId = parseInt(userId);
-        if (isNaN(telegramId)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Неверный ID пользователя'
-            });
-        }
-        
-        // Получаем основную информацию о пользователе
-        const userQuery = `
-            SELECT u.*, 
-                   COUNT(DISTINCT p2.id) as total_spins,
-                   COUNT(DISTINCT ucs.channel_id) as subscriptions_count,
-                   COUNT(DISTINCT p.id) as prizes_won,
-                   COALESCE(SUM(CASE WHEN p2.created_at > CURRENT_DATE THEN 1 ELSE 0 END), 0) as spins_today
-            FROM users u
-            LEFT JOIN prizes p2 ON u.id = p2.user_id
-            LEFT JOIN user_channel_subscriptions ucs ON u.id = ucs.user_id
-            LEFT JOIN prizes p ON u.id = p.user_id AND p.is_given = true
-            WHERE u.telegram_id = $1
-            GROUP BY u.id, u.telegram_id
-        `;
-        
-        const result = await db.pool.query(userQuery, [telegramId]);
-        
-        if (result.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                error: 'Пользователь не найден'
-            });
-        }
-        
-        const user = result.rows[0];
-        
-        // Получаем последние прокрутки
-        const spinsQuery = `
-            SELECT id, type as prize_type, description as prize_name, created_at
-            FROM prizes 
-            WHERE user_id = $1 
-            ORDER BY created_at DESC 
-            LIMIT 10
-        `;
-        const spinsResult = await db.pool.query(spinsQuery, [user.id]);
-        
-        // Получаем подписки на каналы
-        const subscriptionsQuery = `
-            SELECT pc.channel_name, pc.channel_username, ucs.subscribed_date
-            FROM user_channel_subscriptions ucs
-            LEFT JOIN partner_channels pc ON ucs.channel_id = pc.id
-            WHERE ucs.user_id = $1
-            ORDER BY ucs.subscribed_date DESC
-            LIMIT 10
-        `;
-        const subscriptionsResult = await db.pool.query(subscriptionsQuery, [user.id]);
-        
-        console.log(`✅ Информация о пользователе ${userId} получена`);
-        
-        res.json({
-            success: true,
-            user: {
-                id: user.telegram_id,
-                telegramId: user.telegram_id,
-                firstName: user.first_name,
-                lastName: user.last_name,
-                username: user.username,
-                stars: parseInt(user.stars) || 0,
-                createdAt: user.created_at,
-                lastActivity: user.last_activity,
-                isBanned: user.tasks_ban_until && new Date(user.tasks_ban_until) > new Date(),
-                banUntil: user.tasks_ban_until,
-                win_chance: parseFloat(user.win_chance) || 0,
-                stars_chance: parseFloat(user.stars_chance) || 0,
-                certificate_chance: parseFloat(user.certificate_chance) || 0,
-                first_name: user.first_name, // Для совместимости с админкой
-                last_name: user.last_name,
-                stats: {
-                    totalSpins: parseInt(user.total_spins) || 0,
-                    subscriptions: parseInt(user.subscriptions_count) || 0,
-                    prizesWon: parseInt(user.prizes_won) || 0,
-                    spinsToday: parseInt(user.spins_today) || 0
-                },
-                recentSpins: spinsResult.rows,
-                subscriptions: subscriptionsResult.rows
-            }
-        });
-        
-    } catch (error) {
-        console.error('❌ Ошибка получения пользователя:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Ошибка получения информации о пользователе'
-        });
-    }
-});
+// ENDPOINT MOVED TO LINE 5418 TO FIX ROUTE ORDERING
 
 // API для управления балансом пользователя - ТРЕТЬЯ ДУБЛИРУЮЩАЯ ФУНКЦИЯ (используется основная выше)
 /*

@@ -603,7 +603,11 @@ export class MainScreen {
             let apiWorking = false;
             
             try {
-                const response = await fetch('/api/wheel-settings/normal');
+                // Получаем userId для персонализированных настроек рулетки
+                const userId = this.app.gameData.userId || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+                const url = userId ? `/api/wheel-settings/normal?userId=${userId}` : '/api/wheel-settings/normal';
+                
+                const response = await fetch(url);
                 console.log('📡 Статус API response:', response.status, response.ok);
                 
                 if (response.ok) {
@@ -1776,7 +1780,9 @@ export class MainScreen {
     async testAPIConnection() {
         try {
             console.log('🔌 Тестирование API...');
-            const response = await fetch('/api/wheel-settings/normal');
+            const userId = this.app.gameData.userId || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+            const url = userId ? `/api/wheel-settings/normal?userId=${userId}` : '/api/wheel-settings/normal';
+            const response = await fetch(url);
             console.log(`📡 API статус: ${response.status}`);
             
             if (response.ok) {
@@ -1857,7 +1863,9 @@ export class MainScreen {
 
     async testAPI() {
         try {
-            const response = await fetch('/api/wheel-settings/normal');
+            const userId = this.app.gameData.userId || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+            const url = userId ? `/api/wheel-settings/normal?userId=${userId}` : '/api/wheel-settings/normal';
+            const response = await fetch(url);
             console.log(`📡 API статус: ${response.status} ${response.ok ? '✅' : '❌'}`);
             
             if (response.ok) {
