@@ -241,6 +241,255 @@ app.get('/api/admin/test-auth', requireAuth, (req, res) => {
     res.json({ success: true, message: 'Admin API with auth is working!', user: req.user, timestamp: new Date() });
 });
 
+// === ПРИЗЫ ДЛЯ АДМИНКИ ===
+
+// Получение списка призов для админки
+app.get('/api/admin/prizes', requireAuth, async (req, res) => {
+    try {
+        console.log('🎁 Админ: запрос списка призов');
+        
+        const { 
+            status = 'all', 
+            page = 1, 
+            limit = 20, 
+            search = '', 
+            type = 'all',
+            sortBy = 'created_at',
+            sortOrder = 'desc'
+        } = req.query;
+        
+        const offset = (parseInt(page) - 1) * parseInt(limit);
+        
+        // Базовый запрос для получения призов с информацией о пользователях
+        let query = `
+            SELECT p.id, p.type, p.description, p.created_at, p.is_given, p.given_at,
+                   u.telegram_id as user_telegram_id, u.first_name as user_first_name, 
+                   u.last_name as user_last_name, u.username as user_username,
+                   'spin' as source
+            FROM prizes p
+            LEFT JOIN users u ON p.user_id = u.id
+            WHERE 1=1
+        `;
+        
+        const params = [];
+        let paramIndex = 1;
+        
+        // Фильтр по статусу
+        if (status === 'pending') {
+            query += ` AND (p.is_given = false OR p.is_given IS NULL)`;
+        } else if (status === 'given') {
+            query += ` AND p.is_given = true`;
+        }
+        
+        // Фильтр по типу
+        if (type !== 'all') {
+            if (type === 'certificate') {
+                // Для сертификатов ищем по типу certificate или по конкретным ID сертификатов
+                query += ` AND (p.type = $${paramIndex} OR p.type IN ('зя300', 'вб500', 'зя500', 'вб1000', 'зя1000', 'вб2000', 'зя2000', 'вб3000', 'зя 5000'))`;
+                params.push('certificate');
+                paramIndex++;
+            } else {
+                query += ` AND p.type = $${paramIndex}`;
+                params.push(type);
+                paramIndex++;
+            }
+        }
+        
+        // Поиск по пользователю или описанию приза
+        if (search) {
+            query += ` AND (
+                LOWER(u.first_name) LIKE LOWER($${paramIndex}) OR 
+                LOWER(u.last_name) LIKE LOWER($${paramIndex}) OR 
+                LOWER(u.username) LIKE LOWER($${paramIndex}) OR
+                LOWER(p.description) LIKE LOWER($${paramIndex}) OR
+                CAST(u.telegram_id AS TEXT) LIKE $${paramIndex}
+            )`;
+            params.push(`%${search}%`);
+            paramIndex++;
+        }
+        
+        // Сортировка
+        const validSortColumns = ['created_at', 'user_id', 'type', 'value'];
+        const validSortOrders = ['asc', 'desc'];
+        
+        if (validSortColumns.includes(sortBy) && validSortOrders.includes(sortOrder)) {
+            if (sortBy === 'user_id') {
+                query += ` ORDER BY u.first_name ${sortOrder}`;
+            } else if (sortBy === 'value') {
+                query += ` ORDER BY p.description ${sortOrder}`;
+            } else {
+                query += ` ORDER BY p.${sortBy} ${sortOrder}`;
+            }
+        } else {
+            query += ` ORDER BY p.created_at DESC`;
+        }
+        
+        // Пагинация
+        query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+        params.push(parseInt(limit), offset);
+        
+        const result = await db.pool.query(query, params);
+        
+        // Получаем общий счетчик
+        let countQuery = `
+            SELECT COUNT(*) as total
+            FROM prizes p
+            LEFT JOIN users u ON p.user_id = u.id
+            WHERE 1=1
+        `;
+        
+        const countParams = [];
+        let countParamIndex = 1;
+        
+        // Применяем те же фильтры для подсчета
+        if (status === 'pending') {
+            countQuery += ` AND (p.is_given = false OR p.is_given IS NULL)`;
+        } else if (status === 'given') {
+            countQuery += ` AND p.is_given = true`;
+        }
+        
+        if (type !== 'all') {
+            if (type === 'certificate') {
+                countQuery += ` AND (p.type = $${countParamIndex} OR p.type IN ('зя300', 'вб500', 'зя500', 'вб1000', 'зя1000', 'вб2000', 'зя2000', 'вб3000', 'зя 5000'))`;
+                countParams.push('certificate');
+                countParamIndex++;
+            } else {
+                countQuery += ` AND p.type = $${countParamIndex}`;
+                countParams.push(type);
+                countParamIndex++;
+            }
+        }
+        
+        if (search) {
+            countQuery += ` AND (
+                LOWER(u.first_name) LIKE LOWER($${countParamIndex}) OR 
+                LOWER(u.last_name) LIKE LOWER($${countParamIndex}) OR 
+                LOWER(u.username) LIKE LOWER($${countParamIndex}) OR
+                LOWER(p.description) LIKE LOWER($${countParamIndex}) OR
+                CAST(u.telegram_id AS TEXT) LIKE $${countParamIndex}
+            )`;
+            countParams.push(`%${search}%`);
+        }
+        
+        const countResult = await db.pool.query(countQuery, countParams);
+        const total = parseInt(countResult.rows[0].total);
+        
+        console.log(`✅ Найдено ${result.rows.length} призов из ${total}`);
+        
+        res.json({
+            success: true,
+            prizes: result.rows,
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total: total,
+                totalPages: Math.ceil(total / parseInt(limit))
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения списка призов:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка получения списка призов'
+        });
+    }
+});
+
+// Изменение статуса приза (выдать/отменить)
+app.patch('/api/admin/prizes/:prizeId/status', requireAuth, async (req, res) => {
+    try {
+        const { prizeId } = req.params;
+        const { action } = req.body; // 'give' или 'cancel'
+        
+        console.log(`🎁 Админ: изменение статуса приза ${prizeId} - ${action}`);
+        
+        if (!['give', 'cancel'].includes(action)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Недопустимое действие. Используйте "give" или "cancel"'
+            });
+        }
+        
+        if (action === 'give') {
+            await db.pool.query(
+                'UPDATE prizes SET is_given = true, given_at = NOW() WHERE id = $1',
+                [prizeId]
+            );
+            console.log(`✅ Приз ${prizeId} отмечен как выданный`);
+        } else {
+            await db.pool.query(
+                'UPDATE prizes SET is_given = false, given_at = NULL WHERE id = $1',
+                [prizeId]
+            );
+            console.log(`✅ Приз ${prizeId} отмечен как не выданный`);
+        }
+        
+        res.json({
+            success: true,
+            message: `Приз ${action === 'give' ? 'выдан' : 'возвращен в ожидание'}`
+        });
+        
+    } catch (error) {
+        console.error(`❌ Ошибка изменения статуса приза:`, error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка изменения статуса приза'
+        });
+    }
+});
+
+// Массовое изменение статуса призов
+app.patch('/api/admin/prizes/bulk-status', requireAuth, async (req, res) => {
+    try {
+        const { prizeIds, action } = req.body; // action: 'give' или 'cancel'
+        
+        console.log(`🎁 Админ: массовое изменение статуса ${prizeIds.length} призов - ${action}`);
+        
+        if (!['give', 'cancel'].includes(action)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Недопустимое действие. Используйте "give" или "cancel"'
+            });
+        }
+        
+        if (!Array.isArray(prizeIds) || prizeIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Необходимо указать список ID призов'
+            });
+        }
+        
+        const placeholders = prizeIds.map((_, index) => `$${index + 1}`).join(',');
+        
+        if (action === 'give') {
+            await db.pool.query(
+                `UPDATE prizes SET is_given = true, given_at = NOW() WHERE id IN (${placeholders})`,
+                prizeIds
+            );
+            console.log(`✅ ${prizeIds.length} призов отмечены как выданные`);
+        } else {
+            await db.pool.query(
+                `UPDATE prizes SET is_given = false, given_at = NULL WHERE id IN (${placeholders})`,
+                prizeIds
+            );
+            console.log(`✅ ${prizeIds.length} призов отмечены как не выданные`);
+        }
+        
+        res.json({
+            success: true,
+            message: `${prizeIds.length} призов ${action === 'give' ? 'выданы' : 'возвращены в ожидание'}`
+        });
+        
+    } catch (error) {
+        console.error(`❌ Ошибка массового изменения статуса призов:`, error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка массового изменения статуса призов'
+        });
+    }
+});
+
 // === РЕФЕРАЛЬНАЯ СИСТЕМА ДЛЯ АДМИНКИ ===
 
 // Статистика рефералов для админки

@@ -83,6 +83,7 @@ class PrizesPage {
                             <select id="type-filter" class="form-select">
                                 <option value="all">Все типы</option>
                                 <option value="stars">Звезды</option>
+                                <option value="certificate">Сертификаты</option>
                                 <option value="telegram_premium">Telegram Premium</option>
                                 <option value="custom">Пользовательский</option>
                             </select>
@@ -478,12 +479,32 @@ class PrizesPage {
                     },
                     {
                         id: 2,
-                        type: 'custom',
-                        description: 'Премиум набор косметики',
+                        type: 'вб3000',
+                        description: 'Сертификат Wildberries на 3000₽',
                         user_first_name: 'Мария',
                         user_telegram_id: 987654321,
                         user_username: 'maria456',
                         created_at: new Date(Date.now() - 600000).toISOString(),
+                        source: 'spin'
+                    },
+                    {
+                        id: 3,
+                        type: 'зя1000',
+                        description: 'Сертификат Золотое яблоко на 1000₽',
+                        user_first_name: 'Дмитрий',
+                        user_telegram_id: 555444333,
+                        user_username: 'dmitry789',
+                        created_at: new Date(Date.now() - 900000).toISOString(),
+                        source: 'spin'
+                    },
+                    {
+                        id: 4,
+                        type: 'certificate',
+                        description: 'Сертификат Wildberries на 3000₽',
+                        user_first_name: 'Елена',
+                        user_telegram_id: 111222333,
+                        user_username: 'elena_win',
+                        created_at: new Date(Date.now() - 1200000).toISOString(),
                         source: 'spin'
                     }
                 ];
@@ -655,13 +676,37 @@ class PrizesPage {
                         given_at: new Date(Date.now() - 3600000).toISOString(),
                         given_by_admin: 'admin',
                         source: 'spin'
+                    },
+                    {
+                        id: 5,
+                        type: 'зя 5000',
+                        description: 'Сертификат Золотое яблоко на 5000₽',
+                        user_first_name: 'Иван',
+                        user_telegram_id: 444555666,
+                        user_username: 'ivan_winner',
+                        created_at: new Date(Date.now() - 172800000).toISOString(),
+                        given_at: new Date(Date.now() - 7200000).toISOString(),
+                        given_by_admin: 'admin',
+                        source: 'spin'
+                    },
+                    {
+                        id: 6,
+                        type: 'certificate',
+                        description: 'Сертификат Wildberries на 2000₽',
+                        user_first_name: 'Ольга',
+                        user_telegram_id: 777888999,
+                        user_username: 'olga_lucky',
+                        created_at: new Date(Date.now() - 259200000).toISOString(),
+                        given_at: new Date(Date.now() - 10800000).toISOString(),
+                        given_by_admin: 'admin',
+                        source: 'spin'
                     }
                 ];
                 
                 this.renderGivenPrizesTable(mockPrizes);
                 this.renderPagination(1, 'given');
                 document.getElementById('table-info-given').textContent = 
-                    `Показано 1 из 1 выданных призов (тестовые данные)`;
+                    `Показано 3 из 3 выданных призов (тестовые данные)`;
                 return;
             }
             
@@ -1055,13 +1100,13 @@ class PrizesPage {
             
             const notes = prompt('Введите комментарий (необязательно):') || '';
             
-            const response = await fetch(`/api/admin/prizes/${prizeId}/mark-given`, {
-                method: 'POST',
+            const response = await fetch(`/api/admin/prizes/${prizeId}/status`, {
+                method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                     'x-auth-token': localStorage.getItem('adminAuthToken') || ''
                 },
-                body: JSON.stringify({ notes })
+                body: JSON.stringify({ action: 'give' })
             });
             
             const data = await response.json();
@@ -1092,13 +1137,13 @@ class PrizesPage {
             
             this.showNotification('Info', 'Обновление', `Отмечаем ${prizeIds.length} призов как выданные...`);
             
-            const response = await fetch('/api/admin/prizes/bulk-mark-given', {
-                method: 'POST',
+            const response = await fetch('/api/admin/prizes/bulk-status', {
+                method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                     'x-auth-token': localStorage.getItem('adminAuthToken') || ''
                 },
-                body: JSON.stringify({ prizeIds, notes })
+                body: JSON.stringify({ prizeIds, action: 'give' })
             });
             
             const data = await response.json();
