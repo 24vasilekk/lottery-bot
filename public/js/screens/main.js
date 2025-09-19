@@ -954,59 +954,33 @@ export class MainScreen {
             console.log(`⭐ Новый баланс: ${this.app.gameData.stars} звезд`);
         } 
         else if (realType === 'certificate' || isVisualCertificate) {
-            const certificateValue = prize.realValue || prize.value || 300;
-            let certificateName = '';
+            // ИСПРАВЛЕНО: Используем данные приза напрямую без пересоздания
+            const prizeDisplayName = prize.description || prize.name || `Сертификат ${prize.value}₽`;
             
-            // Используем реальное имя приза от сервера вместо визуального
-            const nameToCheck = prize.realName || prize.name;
-            
-            console.log(`🎫 Анализируем сертификат:`, {
-                realType: realType,
-                visualType: prize.type,
-                realName: prize.realName,
-                visualName: prize.name,
-                nameToCheck: nameToCheck,
-                certificateValue: certificateValue
+            console.log(`🎫 ИСПРАВЛЕНО - используем прямые данные приза:`, {
+                originalPrize: prize,
+                displayName: prizeDisplayName,
+                value: prize.value,
+                name: prize.name,
+                description: prize.description
             });
             
-            if (prize.type && prize.type.startsWith('wildberries')) {
-                certificateName = `WB ${certificateValue}₽`;
-                console.log(`🔍 Используем visual type для WB: ${certificateName}`);
-            } else if (prize.type && prize.type.startsWith('golden-apple')) {
-                certificateName = `ЗЯ ${certificateValue}₽`;
-                console.log(`🔍 Используем visual type для ЗЯ: ${certificateName}`);
-            } else {
-                if (nameToCheck.includes('WB')) {
-                    certificateName = `WB ${certificateValue}₽`;
-                    console.log(`🔍 Определили WB по имени "${nameToCheck}": ${certificateName}`);
-                } else if (nameToCheck.includes('ЗЯ')) {
-                    certificateName = `ЗЯ ${certificateValue}₽`;
-                    console.log(`🔍 Определили ЗЯ по имени "${nameToCheck}": ${certificateName}`);
-                } else {
-                    certificateName = `Сертификат ${certificateValue}₽`;
-                    console.log(`🔍 Fallback сертификат по имени "${nameToCheck}": ${certificateName}`);
-                }
-            }
-            
-            console.log(`✅ ИТОГОВОЕ ИМЯ СЕРТИФИКАТА: "${certificateName}"`);
-            console.log(`🎫 Данные приза перед отправкой в модальное окно:`, prize);
-            
-            console.log(`🎫 Показываем результат: ${certificateName}`);
+            console.log(`🎫 Показываем результат: ${prizeDisplayName}`);
             
             // Создаем правильный объект приза для модального окна и менеджера
             const correctPrizeData = {
                 ...prize,
-                displayName: certificateName, // Правильное отображаемое имя
-                realName: certificateName,    // Обновляем realName правильным именем
-                realValue: certificateValue,  // Обновляем realValue правильным значением
-                correctName: certificateName, // Дополнительно для ясности
-                correctValue: certificateValue
+                displayName: prizeDisplayName, // Используем исходное имя приза
+                realName: prizeDisplayName,    // Используем исходное имя приза
+                realValue: prize.value,        // Используем исходное значение
+                correctName: prizeDisplayName, // Дополнительно для ясности
+                correctValue: prize.value
             };
             
             const modalData = {
                 icon: '🎫',
                 title: 'Поздравляем!',
-                description: `Вы выиграли ${certificateName}!`,
+                description: `Вы выиграли ${prizeDisplayName}!`,
                 isWin: true,
                 prize: correctPrizeData
             };
@@ -1017,12 +991,12 @@ export class MainScreen {
             
             this.saveWinToHistory({
                 type: 'certificate',
-                name: certificateName,
-                value: certificateValue,
+                name: prizeDisplayName,  // Используем то же имя что в модальном окне
+                value: prize.value,      // Используем исходное значение
                 timestamp: Date.now()
             });
             
-            console.log(`🏆 Выигран сертификат: ${certificateName}`);
+            console.log(`🏆 Выигран сертификат: ${prizeDisplayName}`);
         }
         else {
             console.warn(`⚠️ Неизвестный тип приза: "${realType}", показываем универсальное сообщение`);
@@ -1433,17 +1407,17 @@ export class MainScreen {
             // ИСПРАВЛЕНО: Правильно определяем название приза для уведомлений
             let displayName = prize.name;
             
-            // Если это сертификат, формируем правильное название
+            // ИСПРАВЛЕНО: Используем исходные данные приза вместо пересоздания
             if (prize.type === 'certificate' || prize.realType === 'certificate') {
-                const value = Number(prize.value) || 300;
-                
-                if (prize.name?.includes('WB') || prize.visualName?.includes('WB')) {
-                    displayName = `WB ${value}₽`;
-                } else if (prize.name?.includes('ЗЯ') || prize.visualName?.includes('ЗЯ')) {
-                    displayName = `ЗЯ ${value}₽`;
-                } else {
-                    displayName = `Сертификат ${value}₽`;
-                }
+                // Используем исходное имя/описание приза без пересоздания
+                displayName = prize.description || prize.name || `Сертификат ${prize.value}₽`;
+                console.log(`🔧 ИСПРАВЛЕНО - используем исходные данные для сервера:`, {
+                    originalPrize: prize,
+                    displayName: displayName,
+                    description: prize.description,
+                    name: prize.name,
+                    value: prize.value
+                });
             }
             
             // Получаем правильное имя пользователя
